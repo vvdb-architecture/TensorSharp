@@ -42,6 +42,8 @@ namespace TensorAgent.Core.JavaScript;
 /// </summary>
 internal sealed class JsEventLoop
 {
+    private readonly record struct Microtask(IntPtr Callback, IntPtr[] Arguments);
+
     private sealed class TimerEntry
     {
         public long Id;
@@ -56,7 +58,7 @@ internal sealed class JsEventLoop
     private readonly JsContext _context;
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly List<TimerEntry> _timers = new();
-    private readonly Queue<IntPtr> _microtasks = new();
+    private readonly Queue<Microtask> _microtasks = new();
     private readonly ConcurrentQueue<Action> _posted = new();
     private readonly ManualResetEventSlim _wake = new(false);
     private long _nextTimerId = 1;
@@ -131,10 +133,12 @@ internal sealed class JsEventLoop
         }
     }
 
-    internal void QueueMicrotask(IntPtr callback)
+    internal void QueueMicrotask(IntPtr callback, IntPtr[] arguments)
     {
         _context.Protect(callback);
-        _microtasks.Enqueue(callback);
+        foreach (IntPtr argument in arguments)
+            _context.Protect(argument);
+        _microtasks.Enqueue(new Microtask(callback, arguments));
         _wake.Set();
     }
 
@@ -241,10 +245,12 @@ internal sealed class JsEventLoop
                 TimedOut = true;
                 return false;
             }
-            IntPtr callback = _microtasks.Dequeue();
+            Microtask task = _microtasks.Dequeue();
             _context.ArmWatchdog(RemainingMs / 1000.0);
-            _context.TryCall(callback, _context.Global, Array.Empty<IntPtr>(), out JsErrorInfo? error);
-            _context.Unprotect(callback);
+            _context.TryCall(task.Callback, _context.Global, task.Arguments, out JsErrorInfo? error);
+            _context.Unprotect(task.Callback);
+            foreach (IntPtr argument in task.Arguments)
+                _context.Unprotect(argument);
             Observe(error);
             if (ExitRequested || Failure is not null)
                 return false;
@@ -309,7 +315,12 @@ internal sealed class JsEventLoop
             Release(timer);
         _timers.Clear();
         while (_microtasks.Count > 0)
-            _context.Unprotect(_microtasks.Dequeue());
+        {
+            Microtask task = _microtasks.Dequeue();
+            _context.Unprotect(task.Callback);
+            foreach (IntPtr argument in task.Arguments)
+                _context.Unprotect(argument);
+        }
         _wake.Dispose();
     }
 }

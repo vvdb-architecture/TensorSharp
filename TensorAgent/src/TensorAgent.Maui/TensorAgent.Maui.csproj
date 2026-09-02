@@ -107,6 +107,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The skills that were verified to work inside this app, under
+         <bundle>/skills/, which is one of the two roots the registry scans (the
+         other is the writable directory the user installs into). The selection is
+         not a judgement call in this file: scripts/verify-skills.py checks every
+         script's imports against the staged interpreter and refuses anything that
+         reaches for a process, a browser or a package that is not there, and
+         skills/verdicts.json records what it decided and why. -->
+    <BundleResource Include="../../skills/**/*"
+                    Exclude="../../skills/verdicts.json"
+                    Link="skills/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The standard library and the pure-Python packages, verbatim, under
          <bundle>/python/. EmbeddedPython points PyConfig.module_search_paths here. -->
     <BundleResource Condition="'$(RuntimeIdentifier)' == 'ios-arm64'"

@@ -165,7 +165,8 @@ public static class WebUiRoutes
         ModelStore models,
         ConversationStore conversations,
         SettingsStore settings,
-        Func<string>? describeEngine = null)
+        Func<string>? describeEngine = null,
+        Action<string, JsonElement>? onPageEvent = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -242,6 +243,19 @@ public static class WebUiRoutes
                 (await request.ReadJsonAsync(ct)).GetRawText(), SseFraming.JsonOptions) ?? new AppSettings();
             settings.Save(updated);
             return LoopbackResponse.Json(settings.Load());
+        });
+
+        // The page tells the app what it just did — which conversation it bound, when
+        // it finished loading, when a generation started or stopped — so the native
+        // chrome around the WebView can follow along. A WebView message handler would
+        // be the platform way; this is the same thing over the transport that already
+        // exists, which keeps the injected script free of any iOS-specific API.
+        server.MapPost("/api/agent/events", async (request, ct) =>
+        {
+            JsonElement message = await request.ReadJsonAsync(ct);
+            string kind = message.TryGetProperty("type", out JsonElement type) ? type.GetString() ?? string.Empty : string.Empty;
+            onPageEvent?.Invoke(kind, message);
+            return LoopbackResponse.Json(new { ok = true });
         });
 
         server.MapGet("/api/agent/engine", (_, _) => Ok(new

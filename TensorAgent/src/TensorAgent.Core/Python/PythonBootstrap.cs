@@ -318,8 +318,7 @@ internal static class PythonBootstrap
                         else:
                             sys.stderr.write(str(value) + '\n')
                             code = 1
-                    except BaseException:
-                        raised = sys.exception()
+                    except BaseException as raised:
                         trace = raised.__traceback__
                         if trace is not None:
                             # Drop this function's frame so the traceback starts
@@ -338,10 +337,19 @@ internal static class PythonBootstrap
                         sys.stderr.flush()
                     except Exception:
                         pass
+                    # Putting the process back where it was is the bootstrap's
+                    # own bookkeeping, not the script's, and the directory the
+                    # host started in is normally outside the policy -- so this
+                    # one chdir goes around the hook. Without that it fails, the
+                    # failure is swallowed, and every later run inherits a
+                    # working directory the caller never chose.
                     try:
+                        _guard.busy = True
                         os.chdir(previous_cwd)
                     except Exception:
                         pass
+                    finally:
+                        _guard.busy = False
                 return code
 
             module = types.ModuleType('{{ModuleName}}')

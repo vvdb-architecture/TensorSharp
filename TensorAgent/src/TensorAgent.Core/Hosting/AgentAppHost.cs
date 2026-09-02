@@ -125,7 +125,7 @@ public sealed class AgentAppHost : IDisposable
             StaticRoot = webRoot,
         };
         Server.MapWebUi(Chat, SkillsService, Recorder);
-        Server.MapAgent(Catalog, Models, Conversations, Settings, DescribeEngine);
+        Server.MapAgent(Catalog, Models, Conversations, Settings, DescribeEngine, RaisePageEvent);
 
         _owned.Add(Server);
         _owned.Add(ModelService);
@@ -150,6 +150,16 @@ public sealed class AgentAppHost : IDisposable
     public ConversationRecorder Recorder { get; }
     public SkillsService SkillsService { get; }
     public LoopbackServer Server { get; }
+
+    /// <summary>
+    /// Raised for each message the page posts about itself: <c>ready</c>,
+    /// <c>conversation</c>, and whatever the injected script adds later. The native
+    /// chrome subscribes so the title bar and the sessions list follow what the page
+    /// is actually showing rather than what the app last asked it to show.
+    /// </summary>
+    public event Action<string, System.Text.Json.JsonElement>? PageEvent;
+
+    private void RaisePageEvent(string kind, System.Text.Json.JsonElement message) => PageEvent?.Invoke(kind, message);
 
     /// <summary>The URL the WebView opens: the page plus the launch token that sets its cookie.</summary>
     public string EntryUrl => Server.EntryUrl;
