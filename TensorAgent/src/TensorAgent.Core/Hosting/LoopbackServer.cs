@@ -72,6 +72,9 @@ public abstract class LoopbackResponse
 
     public static LoopbackResponse Json(object payload, int status = 200) => new JsonResponse(payload, status);
     public static LoopbackResponse Text(string text, int status = 200, string contentType = "text/plain; charset=utf-8") => new TextResponse(text, status, contentType);
+
+    /// <summary>Exact bytes, for content that must not be re-encoded on the way out.</summary>
+    public static LoopbackResponse Bytes(byte[] body, string contentType, int status = 200) => new BytesResponse(body, contentType, status);
     public static LoopbackResponse File(string path, string contentType, bool attachment = false, string? downloadName = null) => new FileResponse(path, contentType, attachment, downloadName);
     public static LoopbackResponse Status(int status) => new TextResponse(string.Empty, status, "text/plain");
     public static LoopbackResponse NotFound(object? payload = null) => payload is null ? Status(404) : Json(payload, 404);
@@ -102,6 +105,17 @@ public abstract class LoopbackResponse
         public override async Task WriteAsync(HttpListenerResponse response, CancellationToken ct)
         {
             byte[] body = Encoding.UTF8.GetBytes(text);
+            response.StatusCode = status;
+            response.ContentType = contentType;
+            response.ContentLength64 = body.Length;
+            await response.OutputStream.WriteAsync(body, ct).ConfigureAwait(false);
+        }
+    }
+
+    private sealed class BytesResponse(byte[] body, string contentType, int status) : LoopbackResponse
+    {
+        public override async Task WriteAsync(HttpListenerResponse response, CancellationToken ct)
+        {
             response.StatusCode = status;
             response.ContentType = contentType;
             response.ContentLength64 = body.Length;
@@ -396,7 +410,7 @@ public sealed class LoopbackServer : IDisposable
         // conversation, native attachments, dictated text, the copy that only makes
         // sense on a server — is added by appending one script tag on the way out.
         if (relative.Equals("index.html", StringComparison.OrdinalIgnoreCase))
-            return LoopbackResponse.Text(WithCompanionScript(full), contentType: "text/html; charset=utf-8");
+            return LoopbackResponse.Bytes(WithCompanionScript(full), "text/html; charset=utf-8");
 
         return LoopbackResponse.File(full, ContentTypes.For(full));
     }
@@ -419,12 +433,32 @@ public sealed class LoopbackServer : IDisposable
         return reader.ReadToEnd();
     });
 
-    private static string WithCompanionScript(string indexPath)
+    /// <summary>
+    /// The page's own bytes with one script tag spliced in before <c>&lt;/body&gt;</c>.
+    ///
+    /// <para>
+    /// Bytes, not text. Reading the file into a string and writing it back re-encodes
+    /// it — a byte-order mark is dropped, and any encoding the file uses is
+    /// normalised — so the page the WebView receives would no longer be the Server's
+    /// file. It has to be, because that identity is the reason there is no second
+    /// copy of index.html to keep in step.
+    /// </para>
+    /// </summary>
+    private static byte[] WithCompanionScript(string indexPath)
     {
-        string html = File.ReadAllText(indexPath);
-        const string tag = "\n<script src=\"/" + CompanionScriptName + "\"></script>\n";
-        int close = html.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
-        return close < 0 ? html + tag : html.Insert(close, tag);
+        byte[] html = File.ReadAllBytes(indexPath);
+        byte[] tag = Encoding.UTF8.GetBytes("\n<script src=\"/" + CompanionScriptName + "\"></script>\n");
+        ReadOnlySpan<byte> close = "</body>"u8;
+
+        int at = html.AsSpan().LastIndexOf(close);
+        if (at < 0)
+            at = html.Length;
+
+        byte[] page = new byte[html.Length + tag.Length];
+        html.AsSpan(0, at).CopyTo(page);
+        tag.CopyTo(page, at);
+        html.AsSpan(at).CopyTo(page.AsSpan(at + tag.Length));
+        return page;
     }
 
     public static int FreePort()

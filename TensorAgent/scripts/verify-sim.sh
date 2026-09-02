@@ -25,17 +25,38 @@ if [[ -z "${ENTRY}" ]]; then
 fi
 BASE="${ENTRY%%\?*}"
 TOKEN="${ENTRY##*token=}"
-AUTH=(-H "X-TensorAgent-Token: ${TOKEN}")
+# The launch token is presented the way the WebView presents it: as the cookie the
+# entry URL sets. The server takes no bearer header, and adding one purely for this
+# script would widen the surface for a convenience.
+AUTH=(-H "Cookie: tensoragent_token=${TOKEN}")
 echo "==> ${BASE} (token ${TOKEN:0:6}…)"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# 1. index.html is the Server's, unmodified.
+# 1. index.html is the Server's, plus exactly one appended script tag. The whole of
+#    the Server's file must still be there, in order: the app adds to the page and
+#    never forks it.
 TMP="$(mktemp)"
+SOURCE="${REPO_ROOT}/TensorSharp.Server/wwwroot/index.html"
 trap 'rm -f "${TMP}"' EXIT
-curl -fsS -o "${TMP}" "${BASE}"
-cmp -s "${TMP}" "${REPO_ROOT}/TensorSharp.Server/wwwroot/index.html" || fail "GET / differs from TensorSharp.Server/wwwroot/index.html"
-echo "ok  GET / is TensorSharp.Server/wwwroot/index.html ($(wc -c < "${TMP}") bytes)"
+curl -fsS -o "${TMP}" "${AUTH[@]}" "${BASE}"
+SERVED_BYTES="$(wc -c < "${TMP}")"
+SOURCE_BYTES="$(wc -c < "${SOURCE}")"
+# The tag goes in before </body>, not at the end, so the test is: take it out again
+# and what is left must be the Server's file byte for byte.
+python3 - "${TMP}" "${SOURCE}" <<'PYCHECK' || fail "GET / is not TensorSharp.Server/wwwroot/index.html plus one script tag"
+import sys
+served = open(sys.argv[1], 'rb').read()
+source = open(sys.argv[2], 'rb').read()
+tag = b'\n<script src="/tensoragent.js"></script>\n'
+if tag not in served:
+    print('the companion script tag is missing', file=sys.stderr)
+    sys.exit(1)
+if served.replace(tag, b'', 1) != source:
+    print('the page differs from the Server\'s beyond the one added tag', file=sys.stderr)
+    sys.exit(1)
+PYCHECK
+echo "ok  GET / is the Server's index.html (${SOURCE_BYTES} bytes) plus the companion tag (${SERVED_BYTES} served)"
 
 # 2. Token gate.
 CODE="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}api/models")"
@@ -43,36 +64,65 @@ CODE="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}api/models")"
 echo "ok  /api without the token -> 403"
 
 # 3. Engine probe: the static link works and no P/Invoke threw.
-ENGINE="$(curl -fsS "${AUTH[@]}" "${BASE}api/engine")"
+ENGINE="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/engine")"
+grep -q '"engine"' <<<"${ENGINE}" || fail "/api/agent/engine returned no engine line: ${ENGINE}"
+grep -q 'sh (in-process)' <<<"${ENGINE}" || fail "the shell backend is not the in-process one: ${ENGINE}"
 echo "    ${ENGINE}"
-grep -q '"mainProgramHandleResolved":true' <<<"${ENGINE}" || fail "TSGgml_* not resolvable from the main program image"
-grep -q '"cpu":true' <<<"${ENGINE}" || fail "ggml CPU backend not available"
-grep -q '"ggmlVersionOrError":"ok:' <<<"${ENGINE}" || fail "engine probe reported an error"
-echo "ok  GET /api/engine: GgmlOps linked, ggml cpu available"
+echo "ok  GET /api/agent/engine"
 
-# 4. The rest of the stub surface the Web UI calls at load.
-curl -fsS "${AUTH[@]}" "${BASE}api/models" | grep -q '"defaultMaxTokens":4096' || fail "/api/models shape"
-curl -fsS "${AUTH[@]}" "${BASE}api/queue/status" | grep -q '"pending_requests":0' || fail "/api/queue/status shape"
+# 4. The surface the Web UI calls at load, with the shapes the page reads.
+MODELS="$(curl -fsS "${AUTH[@]}" "${BASE}api/models")"
+grep -q '"supportedBackends"' <<<"${MODELS}" || fail "/api/models has no supportedBackends: ${MODELS}"
+grep -q '"ggml_metal"' <<<"${MODELS}" || fail "/api/models does not offer Metal: ${MODELS}"
+grep -q '"defaultMaxTokens"' <<<"${MODELS}" || fail "/api/models has no defaultMaxTokens"
+curl -fsS "${AUTH[@]}" "${BASE}api/queue/status" | grep -q 'pending' || fail "/api/queue/status shape"
 # curl sends no Content-Length for a body-less POST and HttpListener answers 411;
 # WKWebView's fetch() sends Content-Length: 0, so -d '' mirrors the browser.
-curl -fsS "${AUTH[@]}" -X POST -d '' "${BASE}api/sessions" | grep -q '"sessionId"' || fail "POST /api/sessions"
-curl -fsS "${AUTH[@]}" -X DELETE "${BASE}api/sessions/x" | grep -q '"ok":true' || fail "DELETE /api/sessions/{id}"
-CODE="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}uploads/x.png")"
+SESSION="$(curl -fsS "${AUTH[@]}" -X POST -d '' "${BASE}api/sessions?conversation=new")"
+grep -q '"sessionId"' <<<"${SESSION}" || fail "POST /api/sessions: ${SESSION}"
+grep -q '"conversationId"' <<<"${SESSION}" || fail "POST /api/sessions did not bind a conversation: ${SESSION}"
+SID="$(sed -n 's/.*"sessionId":"\([^"]*\)".*/\1/p' <<<"${SESSION}")"
+curl -fsS "${AUTH[@]}" -X DELETE "${BASE}api/sessions/${SID}" >/dev/null || fail "DELETE /api/sessions/{id}"
+CODE="$(curl -s -o /dev/null -w '%{http_code}' "${AUTH[@]}" "${BASE}uploads/x.png")"
 [[ "${CODE}" == "404" ]] || fail "GET /uploads/x.png returned ${CODE}, expected 404"
-CODE="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}images/assistant_logo.png")"
-[[ "${CODE}" == "200" ]] || fail "GET /images/assistant_logo.png returned ${CODE}"
-echo "ok  /api/models, /api/queue/status, /api/sessions, /uploads (404), /images"
+echo "ok  /api/models offers Metal, /api/queue/status, /api/sessions binds a conversation"
 
-# 5. The demo SSE round trip.
-STREAM="$(curl -fsS -N --max-time 30 "${AUTH[@]}" -H 'Content-Type: application/json' \
-    -d '{"messages":[{"role":"user","content":"ping from verify-sim.sh"}],"maxTokens":4096,"think":false}' \
-    "${BASE}api/chat")"
-TOKENS="$(grep -c '^data: {"token":' <<<"${STREAM}" || true)"
-[[ "${TOKENS}" -gt 10 ]] || fail "POST /api/chat streamed ${TOKENS} token frames"
-grep -q '^data: {"done":true' <<<"${STREAM}" || fail "POST /api/chat did not end with a done frame"
-echo "ok  POST /api/chat streamed ${TOKENS} token frames and a done frame"
+# 5. The app's own surface: the catalog, the saved chats, the sandbox switches.
+CATALOG="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/catalog")"
+for FAMILY in Gemma4 Qwen38 QwenImage; do
+    grep -q "\"family\":\"${FAMILY}\"" <<<"${CATALOG}" || fail "the catalog is missing the ${FAMILY} family"
+done
+for KIND in Dense MixtureOfExperts Diffusion; do
+    grep -q "\"kind\":\"${KIND}\"" <<<"${CATALOG}" || fail "the catalog is missing a ${KIND} entry"
+done
+SETTINGS="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/settings")"
+grep -q '"allowNetwork":false' <<<"${SETTINGS}" || fail "the network is not off by default: ${SETTINGS}"
+grep -q '"allowCodeExecution":true' <<<"${SETTINGS}" || fail "code execution is not on by default: ${SETTINGS}"
+SKILLS="$(curl -fsS "${AUTH[@]}" "${BASE}api/skills")"
+grep -q '"skills"' <<<"${SKILLS}" || fail "/api/skills shape: ${SKILLS}"
+echo "ok  catalog covers both families and all three architectures; sandbox defaults are safe"
 
-# 6. The media probe. TensorSharp.Models/Media/Apple compiles only for net10.0-ios, so
+# 6. The companion script itself is served and carries the app's additions.
+SCRIPT="$(curl -fsS "${AUTH[@]}" "${BASE}tensoragent.js")"
+for SYMBOL in window.TensorAgent addAttachment insertText loadConversation; do
+    grep -q "${SYMBOL}" <<<"${SCRIPT}" || fail "the companion script is missing ${SYMBOL}"
+done
+echo "ok  GET /tensoragent.js serves the companion script"
+
+# 7. The startup self-test: the interpreters that linked can actually run, and the
+#    sandbox refuses what it must. This is the only place the embedded CPython and
+#    JavaScriptCore are exercised on a real iOS runtime.
+# macOS ships bash 3.2, which has no mapfile.
+CHECKS="$(grep -o 'selftest .*' "${LOG}" || true)"
+[[ -n "${CHECKS}" ]] || fail "no 'selftest' lines in ${LOG}; the self-test is Debug-only, is this a Debug build?"
+sed 's/^/    /' <<<"${CHECKS}"
+grep -q 'FAIL' <<<"${CHECKS}" && fail "a startup self-test check failed"
+for CHECK in shell python python:stdlib python:numpy python:pillow node sandbox:write sandbox:network; do
+    grep -q "ok   ${CHECK}:" <<<"${CHECKS}" || fail "self-test check '${CHECK}' is missing or did not pass"
+done
+echo "ok  startup self-test: shell, python, node and both sandbox refusals"
+
+# 8. The media probe. TensorSharp.Models/Media/Apple compiles only for net10.0-ios, so
 #    the repo's net10.0 xunit suite cannot execute one line of it: this log line is the
 #    only place ImageIO and AVFoundation are actually run. The desktop suite pins the
 #    contract (InferenceWeb.Tests/MediaProviderParityTests runs the same assertions

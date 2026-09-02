@@ -277,15 +277,21 @@ public sealed class WebUiRoutesTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(root, "index.html"), page);
         _server.StaticRoot = root;
 
-        string served = await _client!.GetStringAsync("/");
+        byte[] served = await _client!.GetByteArrayAsync("/");
+        byte[] source = await File.ReadAllBytesAsync(Path.Combine(root, "index.html"));
 
-        // Everything the desktop page contains is still there, in order.
-        Assert.Contains("<div id=\"chat\"></div>", served, StringComparison.Ordinal);
-        Assert.Contains("<title>TensorSharp</title>", served, StringComparison.Ordinal);
-        // And exactly one thing was added, before the closing tag so the page's own
-        // top-level bindings already exist when it runs.
-        Assert.Contains("<script src=\"/tensoragent.js\"></script>", served, StringComparison.Ordinal);
-        Assert.True(served.IndexOf("tensoragent.js", StringComparison.Ordinal) < served.IndexOf("</body>", StringComparison.Ordinal));
+        // The test is exact and byte-level on purpose. Reading the page into a string
+        // and writing it back would drop a byte-order mark and normalise the
+        // encoding, and the served file would no longer be the Server's — which is
+        // the identity that makes a second copy of index.html unnecessary.
+        const string tag = "\n<script src=\"/tensoragent.js\"></script>\n";
+        string text = Encoding.UTF8.GetString(served);
+        Assert.Contains(tag, text, StringComparison.Ordinal);
+        Assert.Equal(source, Encoding.UTF8.GetBytes(text.Replace(tag, string.Empty)));
+
+        // And it goes in before the closing tag, so the page's own top-level bindings
+        // already exist by the time it runs.
+        Assert.True(text.IndexOf("tensoragent.js", StringComparison.Ordinal) < text.IndexOf("</body>", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -303,6 +309,34 @@ public sealed class WebUiRoutesTests : IDisposable
         // The routes it calls must be the ones this server actually maps.
         Assert.Contains("/api/agent/conversations/", script, StringComparison.Ordinal);
         Assert.DoesNotContain("/api/tensoragent/", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TheCompanionScriptIsValidJavaScriptAndCallsOnlyRoutesThatExist()
+    {
+        // It is injected into a page in a WebView, where a syntax error is invisible:
+        // the page keeps working and session resume, native attachments and dictation
+        // all quietly do nothing. The engine that parses it here is the same family
+        // as the one that will run it.
+        _server.StaticRoot = Path.Combine(_root, "webui");
+        Directory.CreateDirectory(_server.StaticRoot);
+        string script = await _client!.GetStringAsync("/tensoragent.js");
+
+        // JavaScriptCore is a system framework on macOS and iOS alike, so this runs
+        // wherever the tests do; if it ever does not, say so rather than pass.
+        var engine = new TensorAgent.Core.JavaScript.JavaScriptCoreEngine();
+        Assert.True(engine.IsAvailable, engine.UnavailableReason ?? "no JavaScript engine");
+
+        string probe = Path.Combine(_root, "probe.js");
+        await File.WriteAllTextAsync(probe, script);
+        TensorAgent.Core.Sandbox.SyntaxCheckResult syntax = await engine.CheckSyntaxAsync(probe, CancellationToken.None);
+        Assert.True(syntax.Ok, syntax.Message);
+
+        // Every route it fetches must be one this server maps, or the feature it
+        // belongs to fails at run time with a 404 nobody sees.
+        foreach (string route in new[] { "/api/sessions", "/api/agent/conversations/", "/api/agent/events" })
+            Assert.Contains(route, script, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync("/api/agent/events", new { type = "ready" })).StatusCode);
     }
 
     [Fact]
