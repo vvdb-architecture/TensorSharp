@@ -484,13 +484,13 @@ public sealed class MediaScenarioTests : IDisposable
             think = false,
         });
 
-        string answer = TextOf(withPicture);
-        AssertMentionsOneOf(answer, "the colour", "red", "crimson", "scarlet");
-        AssertMentionsOneOf(answer, "the shape", "circle", "circular", "disc", "disk", "dot", "round", "sphere", "ball");
-
-        // And the picture was really encoded rather than dropped on the way in: the
-        // soft-token span an image expands to is hundreds of tokens, so a prompt that
-        // did not grow is a projector that did nothing.
+        // The MECHANICAL check goes first, deliberately. "The model did not say red"
+        // and "the image never reached the model" are different failures with different
+        // owners -- one is the model's, one is this app's -- and asserting the
+        // description first reports both as the same red line, which is exactly how an
+        // hour goes into blaming a pipeline that was working. The soft-token span an
+        // image expands to is hundreds of tokens, so a prompt that did not grow is a
+        // projector that did nothing, and that is knowable before any prose is judged.
         List<JsonElement> withoutPicture = await StreamAsync("/api/chat", new
         {
             sessionId,
@@ -498,9 +498,15 @@ public sealed class MediaScenarioTests : IDisposable
             maxTokens = 16,
             think = false,
         });
-        Assert.True(PromptTokensOf(withPicture) > PromptTokensOf(withoutPicture) + 32,
-            $"the prompt did not grow for the image: {PromptTokensOf(withPicture)} tokens with it, "
-            + $"{PromptTokensOf(withoutPicture)} without — the projector encoded nothing");
+        int with = PromptTokensOf(withPicture), without = PromptTokensOf(withoutPicture);
+        Console.WriteLine($"scenario picture: prompt {with} tokens with the image, {without} without");
+        Assert.True(with > without + 32,
+            $"the prompt did not grow for the image: {with} tokens with it, {without} without — "
+            + "the projector encoded nothing, so this is the app and not the model");
+
+        string answer = TextOf(withPicture);
+        AssertMentionsOneOf(answer, "the colour", "red", "crimson", "scarlet");
+        AssertMentionsOneOf(answer, "the shape", "circle", "circular", "disc", "disk", "dot", "round", "sphere", "ball");
     }
 
     [MultimodalModelFact]
