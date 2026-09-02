@@ -68,6 +68,24 @@ internal static class PythonBootstrap
         def {{InstallFunction}}(_native_write):
             import builtins, io, json, os, runpy, sys, threading, traceback, types
 
+            # mimetypes builds its table on first use by READING SYSTEM FILES --
+            # /etc/mime.types, /etc/apache2/mime.types and four more. Under the hook
+            # below those reads are denied, and the denial is a PermissionError raised
+            # from inside mimetypes.init(), which is not caught by anything: the import
+            # that triggered it fails outright. openpyxl imports mimetypes, so `import
+            # openpyxl` -- the first line of this app's spreadsheet script -- died with
+            # "Permission denied: /private/etc/apache2/mime.types" and the model was
+            # told the module was not installed.
+            #
+            # So it is initialized HERE, before the hook exists, from the built-in table
+            # and an explicitly empty file list. knownfiles is emptied too, so a later
+            # init() cannot go looking either. Nothing is lost: those files only ADD
+            # platform types, the built-in table is what the app's own uses need, and on
+            # iOS none of the six paths exists in the first place.
+            import mimetypes
+            mimetypes.knownfiles = []
+            mimetypes.init([])
+
             # The live policy. A dict rather than a closure constant because the
             # audit hook below can never be replaced, while the policy changes
             # with every run. It starts closed: until a run sets it, nothing is

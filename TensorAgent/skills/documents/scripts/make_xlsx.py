@@ -36,6 +36,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+import analyze_table
 import specs
 from sheetcalc import Evaluator, FormulaError, column_index, expand_range, parse_ref, ref_name
 
@@ -266,14 +267,80 @@ def build(spec: dict, out_path: str) -> dict:
     }
 
 
+def spec_from_csv(path: str, sheet_name: "str | None", total_columns: list) -> dict:
+    """A one-sheet spec holding the CSV as it stands.
+
+    The gap this closes: "turn this CSV into a spreadsheet" is the commonest
+    thing anyone asks a document tool, and until this existed the skill had no
+    answer to it. make_xlsx wanted a JSON spec the caller had to write by hand
+    from data it had not read, and analyze_table refuses --out on a workbook
+    without --group-by because a column profile is not a table. So a model
+    asking the obvious question was told no by both scripts and gave up. This
+    is the missing third answer: the file, as a workbook.
+
+    Cells that read as numbers are written as numbers rather than as text,
+    because a column of numerals stored as strings does not sum, and a
+    spreadsheet whose totals cannot be taken is not a spreadsheet.
+    """
+    header, rows = analyze_table.read_csv(path, None)
+    if not header:
+        raise SystemExit(f"make_xlsx: {path} has no header row, so there are no columns to write")
+
+    typed = []
+    for row in rows:
+        # A short row is padded rather than dropped: a trailing empty field is
+        # missing data, not a broken file, and losing the row loses the rest of it.
+        padded = list(row) + [None] * (len(header) - len(row))
+        number_of = analyze_table.as_number
+        typed.append([
+            cell if (value := number_of(cell)) is None
+            else (int(value) if float(value).is_integer() else value)
+            for cell in padded[:len(header)]
+        ])
+
+    sheet = {
+        "name": sheet_name or os.path.splitext(os.path.basename(path))[0][:31] or "Sheet1",
+        "columns": [str(name) for name in header],
+        "rows": typed,
+    }
+
+    # A totals row is a formula, not a number this script works out and writes
+    # down: the point of the whole file is that the reader can see where the
+    # figure came from, and the cached value is filled in by the evaluator that
+    # every other formula here goes through.
+    if total_columns:
+        total_row = len(typed) + 2
+        formulas = []
+        for name in total_columns:
+            index = analyze_table.resolve(header, name)
+            letter = get_column_letter(index + 1)
+            formulas.append({
+                "cell": f"{letter}{total_row}",
+                "formula": f"=SUM({letter}2:{letter}{total_row - 1})",
+            })
+        sheet["formulas"] = formulas
+
+    return {"sheets": [sheet]}
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Write an .xlsx from a JSON spec, with computed formula values.")
-    parser.add_argument("--spec", required=True, help="path to the JSON spec, or - for stdin")
+    parser = argparse.ArgumentParser(description="Write an .xlsx from a JSON spec, or straight from a CSV.")
+    parser.add_argument("--spec", help="path to the JSON spec, or - for stdin")
+    parser.add_argument("--csv", help="a .csv to write as a workbook as it stands, instead of --spec")
+    parser.add_argument("--sheet-name", help="the sheet name when using --csv (default: the file's name)")
+    parser.add_argument("--total", action="append", default=[],
+                        help="with --csv, add a SUM row for this column; repeatable")
     parser.add_argument("--out", required=True, help="path of the .xlsx to write")
     args = parser.parse_args()
 
-    spec = specs.load(args.spec, "make_xlsx")
-    specs.check_keys(spec, "make_xlsx", {"title", "author", "subject", "sheets"}, "sheets")
+    if bool(args.spec) == bool(args.csv):
+        raise SystemExit("make_xlsx: pass exactly one of --spec (a JSON spec) or --csv (a file to convert)")
+
+    if args.csv:
+        spec = spec_from_csv(args.csv, args.sheet_name, args.total)
+    else:
+        spec = specs.load(args.spec, "make_xlsx")
+        specs.check_keys(spec, "make_xlsx", {"title", "author", "subject", "sheets"}, "sheets")
     result = build(spec, args.out)
     print(json.dumps(result, indent=2, default=str))
     if result["uncomputable_formulas"]:

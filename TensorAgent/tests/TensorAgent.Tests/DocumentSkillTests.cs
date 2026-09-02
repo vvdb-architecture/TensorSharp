@@ -9,6 +9,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Text.Json;
+using TensorAgent.Core.Python;
+using TensorAgent.Core.Sandbox;
+using TensorSharp.AgentHost.CodeExec;
 using System.Text.RegularExpressions;
 
 namespace TensorAgent.Tests;
@@ -300,4 +303,64 @@ public sealed class DocumentSkillTests
         throw new DirectoryNotFoundException(
             $"no TensorAgent/skills above {AppContext.BaseDirectory}; run the tests from inside the repository");
     }
+    /// <summary>
+    /// The staged runtime can actually import what the scripts import.
+    ///
+    /// <para>
+    /// Everything else in this file reads the staging LIST and the scripts' import
+    /// statements and checks they agree. That is a check on two documents, and both
+    /// can agree perfectly while the interpreter the app really starts imports none
+    /// of it -- which is exactly what happened: every static check here passed while
+    /// a live model was told "The module 'reportlab' is not installed in this
+    /// session's environment" and gave up on the report it had been asked for. The
+    /// only thing that settles it is an import, through the app's own interpreter,
+    /// under the sandbox the app really applies. It reports sys.path when it fails,
+    /// because "not installed" and "installed where nothing looks" are different
+    /// problems with different fixes.
+    /// </para>
+    /// </summary>
+    [LivePythonFact]
+    public async Task TheStagedRuntimeCanImportEveryModuleTheScriptsNeed()
+    {
+        var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+        Assert.True(python.IsAvailable, python.UnavailableReason);
+
+        string work = Path.Combine(Path.GetTempPath(), "tensoragent-imports-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        try
+        {
+            var policy = new ExecutionPolicy(
+                AllowScripts: true,
+                AllowNetwork: false,
+                WorkRoot: work,
+                ReadableRoots: Array.Empty<string>(),
+                TempRoot: work);
+            var context = new InterpreterContext(work, new Dictionary<string, string> { ["HOME"] = work }, policy);
+
+            const string probe = """
+                import sys
+                missing = []
+                for name in ("reportlab", "pypdf", "openpyxl", "defusedxml", "PIL"):
+                    try:
+                        __import__(name)
+                    except Exception as exc:
+                        missing.append(f"{name}: {type(exc).__name__}: {exc}")
+                if missing:
+                    print("MISSING " + " | ".join(missing))
+                    print("sys.path = " + repr(sys.path))
+                    raise SystemExit(1)
+                print("all present")
+                """;
+
+            ExecutionResult result = await python.RunCodeAsync(probe, [], context, CancellationToken.None);
+            Assert.True(result.ExitCode == 0,
+                "the staged runtime cannot import what the documents skill's scripts import, so every script "
+                + $"that uses one fails at its first line.{Environment.NewLine}{result.Stdout}{result.Stderr}");
+        }
+        finally
+        {
+            try { Directory.Delete(work, true); } catch { }
+        }
+    }
+
 }

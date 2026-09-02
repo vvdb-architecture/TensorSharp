@@ -18,7 +18,8 @@ should say in your answer.
 | The user wants | Run |
 | --- | --- |
 | A report, a memo, anything to print or share as a PDF | `make_pdf.py` |
-| A spreadsheet, with formulas that show their numbers | `make_xlsx.py` |
+| A CSV turned into a spreadsheet, as it stands | `make_xlsx.py --csv` |
+| A spreadsheet built from figures you computed | `make_xlsx.py --spec` |
 | A slide deck | `make_pptx.py` |
 | A Word document | `make_docx.py` |
 | Numbers out of a CSV or spreadsheet | `analyze_table.py` |
@@ -28,6 +29,23 @@ should say in your answer.
 A typical request — "analyse this spreadsheet and make me a deck" — is
 `analyze_table.py` to get the numbers, then `make_pptx.py` with those numbers in
 the spec. Do not put a number in a document that you did not compute.
+
+**Starting from a CSV.** Three different requests, three different answers, and
+picking the wrong one wastes the turn:
+
+* *"Turn this CSV into a spreadsheet"* — one command:
+  `make_xlsx.py --csv sales.csv --out sales.xlsx`. Do not build a spec by hand
+  for this, and do not reach for `analyze_table.py`: it profiles columns and
+  refuses `--out` on a workbook without `--group-by`, because a profile is not
+  a table.
+* *"Total the revenue in this CSV"* — `analyze_table.py`, which computes it.
+  Add `--total revenue` to the command above if you want the workbook to carry
+  the sum as a live formula as well.
+* *"Make a PDF/deck/Word report of this CSV"* — there is no one-shot for this,
+  because a report is a document you design rather than a table you convert.
+  Read the file (`read_document.py`, or the shell), then write a spec whose
+  `table` block holds those rows, then run `make_pdf.py` / `make_pptx.py` /
+  `make_docx.py`. Put the real rows in the spec; do not summarise them away.
 
 ## make_pdf.py — a PDF report
 
@@ -75,8 +93,18 @@ There is no chart type. Draw one with Pillow into a `.png` and add it as an
 ## make_xlsx.py — a workbook whose formulas show their numbers
 
 ```
+python3 scripts/make_xlsx.py --csv sales.csv --out sales.xlsx
+python3 scripts/make_xlsx.py --csv sales.csv --out sales.xlsx --total revenue
 python3 scripts/make_xlsx.py --spec spec.json --out book.xlsx
 ```
+
+`--csv` writes the file as it stands: the header becomes the columns, and a
+cell that reads as a number is stored as one, so the column can be summed.
+`--sheet-name` names the sheet (default: the file's own name), and `--total COL`
+adds a SUM row for that column — a real formula with its value cached, like
+every other formula here. It is repeatable. Everything below is about `--spec`,
+which is what you use when the figures are ones you computed rather than ones
+already in a file.
 
 **Read this part.** A formula in an .xlsx is only text; the number a reader sees
 is the *cached* value left behind by the last application that saved the file.
