@@ -10,6 +10,7 @@
 
 using Foundation;
 using Microsoft.Extensions.Logging;
+using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.JavaScript;
 using TensorAgent.Core.Python;
@@ -136,6 +137,17 @@ public sealed class LoopbackWebHost : IDisposable
     private static int DeviceMemoryGigabytes()
     {
         ulong bytes = NSProcessInfo.ProcessInfo.PhysicalMemory;
-        return (int)Math.Round(bytes / (1024.0 * 1024.0 * 1024.0));
+
+        // ModelCatalog.DeviceMemoryTier is the rule, and this used to be a second,
+        // quieter copy of it that disagreed. iOS reports a little UNDER the marketing
+        // number and this divided by 1024^3 on top of that, so a 12 GB iPhone 17 Pro Max
+        // reporting ~11.6e9 bytes came out as 10.8 -> 11. Every catalog entry starts at
+        // 12, so ForDevice filtered out ALL OF THEM and the app offered no models at
+        // all -- on the exact device it is built for. Measured on hardware: the catalog
+        // came back empty. The helper does the same job in decimal with the tolerance
+        // that under-reporting needs, and is what the tests are written against.
+        int tier = ModelCatalog.DeviceMemoryTier((long)bytes);
+        Console.WriteLine($"TensorAgent: physical memory {bytes / 1_000_000_000.0:0.00} GB -> catalog tier {tier} GB");
+        return tier;
     }
 }
