@@ -54,13 +54,15 @@ public sealed class AgentAppHost : IDisposable
     /// <param name="python">An interpreter to use instead of the default; null discovers one.</param>
     /// <param name="javaScript">An engine to use instead of the default; null discovers one.</param>
     /// <param name="port">A fixed loopback port, or 0 to take a free one.</param>
+    /// <param name="backends">What this build can run, best first; null offers Metal then CPU.</param>
     public AgentAppHost(
         AgentPaths paths,
         string? webRoot = null,
         ILoggerFactory? loggerFactory = null,
         IPythonRuntime? python = null,
         IJavaScriptRuntime? javaScript = null,
-        int port = 0)
+        int port = 0,
+        IReadOnlyList<BackendOption>? backends = null)
     {
         Paths = paths ?? throw new ArgumentNullException(nameof(paths));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
@@ -123,7 +125,7 @@ public sealed class AgentAppHost : IDisposable
         Sessions = new SessionManager();
         Uploads = new UploadStoragePolicy(paths.UploadsDirectory);
 
-        Options = BuildOptions(paths, settings);
+        Options = BuildOptions(paths, settings, backends);
         Chat = new WebUiChatService(
             ModelService, Sessions, Options, Uploads, Skills,
             CodeRunner!, Workspaces, Artifacts, _loggerFactory);
@@ -299,17 +301,29 @@ public sealed class AgentAppHost : IDisposable
         }
     }
 
-    private static ServerHostingOptions BuildOptions(AgentPaths paths, AppSettings settings) => new(
+    /// <summary>
+    /// The backends this build can actually offer, best first.
+    ///
+    /// <para>
+    /// The default names Metal first because that is the point of running on a phone.
+    /// It is a parameter rather than a constant because it is not always true: the
+    /// simulator's slice of the engine has no Metal at all, and a page whose default
+    /// backend does not exist puts the user one tap from a load that fails. The iOS
+    /// head passes what its probe found.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<BackendOption> DefaultBackends { get; } = new[]
+    {
+        new BackendOption("ggml_metal", "GPU (Metal)"),
+        new BackendOption("ggml_cpu", "CPU"),
+    };
+
+    private static ServerHostingOptions BuildOptions(
+        AgentPaths paths, AppSettings settings, IReadOnlyList<BackendOption>? backends) => new(
         startupModelPath: paths.SelectedModelPath(settings),
         startupMmProjPath: paths.SelectedProjectorPath(settings),
-        defaultBackend: "ggml_metal",
-        supportedBackends: new[]
-        {
-            // Metal is the point of running on the phone at all; the CPU entry stays
-            // so the simulator, where there is no usable GPU, has something to pick.
-            new BackendOption("ggml_metal", "GPU (Metal)"),
-            new BackendOption("ggml_cpu", "CPU"),
-        },
+        defaultBackend: (backends ?? DefaultBackends)[0].Value,
+        supportedBackends: backends ?? DefaultBackends,
         defaultMaxTokens: settings.MaxTokens,
         maxTokensPinned: false,
         defaultVideoFrames: 0,

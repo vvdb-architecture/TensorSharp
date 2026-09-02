@@ -76,12 +76,6 @@ public sealed class SettingsPage : ContentPage
             settings.AllowNetwork,
             on => { AppSettings s = _app.Settings.Load(); s.AllowNetwork = on; _app.Settings.Save(s); }));
 
-        _body.Add(Switch(
-            "Ask before running",
-            "Show what the model wants to run and wait for you to approve it.",
-            settings.ConfirmBeforeRunning,
-            on => { AppSettings s = _app.Settings.Load(); s.ConfirmBeforeRunning = on; _app.Settings.Save(s); }));
-
         _body.Add(Note("Sandbox changes apply the next time TensorAgent starts."));
         _body.Add(Note("Now: " + _app.DescribeEngine()));
 
@@ -125,7 +119,9 @@ public sealed class SettingsPage : ContentPage
         {
             if (!await DisplayAlert("Delete all chats", "This cannot be undone.", "Delete", "Cancel"))
                 return;
-            foreach (var summary in _app.Conversations.List())
+            // includeEmpty: "delete all chats" has to mean all of them, including the
+            // untouched one the current session is sitting in.
+            foreach (var summary in _app.Conversations.List(includeEmpty: true))
                 _app.Conversations.Delete(summary.Id);
             Build();
         };

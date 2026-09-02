@@ -333,6 +333,15 @@ public sealed class MainPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() => _webView.Source = new UrlWebViewSource { Url = target });
     }
 
+    private void OnPageEvent(string kind, System.Text.Json.JsonElement message)
+    {
+        if (!string.Equals(kind, "generating", StringComparison.Ordinal))
+            return;
+        bool generating = message.TryGetProperty("value", out System.Text.Json.JsonElement value)
+            && value.ValueKind == System.Text.Json.JsonValueKind.True;
+        Platforms.iOS.DeviceState.KeepAwake(generating && _host.App.Settings.Load().KeepAwakeWhileGenerating);
+    }
+
     private void StartHost()
     {
         try
@@ -348,6 +357,10 @@ public sealed class MainPage : ContentPage
             _status.Text =
                 $"{probe.Backend} · GgmlOps {(probe.MainProgramHandleResolved ? "linked" : "NOT linked")}" +
                 $" · {probe.GpuName ?? "no Metal device"} · :{_host.Port}";
+            // The page says when the model starts and stops working; the display is
+            // held awake for exactly that stretch, because on iOS the screen sleeping
+            // suspends the app and stops the generation partway.
+            _host.App.PageEvent += OnPageEvent;
             _webView.Source = new UrlWebViewSource { Url = _host.EntryUrl };
 #if DEBUG
             // What the launch log cannot tell you otherwise: whether the interpreters

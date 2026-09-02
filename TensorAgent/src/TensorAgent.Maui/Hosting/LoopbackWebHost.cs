@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.JavaScript;
 using TensorAgent.Core.Python;
+using TensorSharp.Runtime;
+using TensorSharp.Server;
 
 namespace TensorAgent.Maui.Hosting;
 
@@ -54,8 +56,24 @@ public sealed class LoopbackWebHost : IDisposable
                 + "TensorSharp.Server/wwwroot/** into the bundle as webui/.", index);
         }
 
-        _host = new AgentAppHost(DevicePaths(), WebRoot, loggerFactory, python, javaScript);
+        // What the page offers is what this build can actually run. The simulator's
+        // slice of the engine has no Metal, and a page whose default backend does not
+        // exist puts the user one tap from a load that fails.
+        _host = new AgentAppHost(
+            DevicePaths(), WebRoot, loggerFactory, python, javaScript,
+            backends: BackendsFor(Compute.Selection));
     }
+
+    /// <summary>
+    /// The backend list the page shows, best first. Metal leads when the linked
+    /// engine has it and the GPU can run its kernels; otherwise CPU leads and Metal
+    /// is not offered at all, because offering a backend that cannot initialise is
+    /// worse than offering one fewer.
+    /// </summary>
+    private static IReadOnlyList<BackendOption> BackendsFor(ComputeSelection selection)
+        => selection.Backend == BackendType.GgmlMetal
+            ? new[] { new BackendOption("ggml_metal", "GPU (Metal)"), new BackendOption("ggml_cpu", "CPU") }
+            : new[] { new BackendOption("ggml_cpu", "CPU") };
 
     /// <summary>Where the Web UI is served from, for the startup log.</summary>
     public string WebRoot { get; }

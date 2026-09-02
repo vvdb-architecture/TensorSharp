@@ -51,6 +51,10 @@ public sealed class ConversationRecorder
         Conversation? conversation = requested is { Length: > 0 } id && !string.Equals(id, "new", StringComparison.Ordinal)
             ? _store.Load(id)
             : null;
+        // An empty conversation is one nobody has typed into yet, so a second session
+        // asking for a new chat gets that one rather than another beside it. Without
+        // this, every launch of the app leaves a row behind.
+        conversation ??= _store.MostRecentEmpty();
         conversation ??= _store.Create();
         _sessionToConversation[sessionId] = conversation.Id;
         return conversation;

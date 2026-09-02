@@ -505,11 +505,16 @@ public sealed class EndToEndChatTests : IDisposable
         JsonElement session = JsonSerializer.Deserialize<JsonElement>(
             await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
 
+        // 512 rather than the budget a person would set. What is being tested is that
+        // a long generation runs to completion rather than faulting partway, and 512
+        // tokens crosses the sliding-window boundary and several cache growths just
+        // as 2048 does — at a quarter of the wall-clock, on a CPU that is the only
+        // thing a test machine has.
         List<JsonElement> frames = await StreamAsync(new
         {
             sessionId = session.GetProperty("sessionId").GetString(),
             messages = new[] { new { role = "user", content = "Write a very long essay about the sea." } },
-            maxTokens = 2048,
+            maxTokens = 512,
             think = false,
         });
 

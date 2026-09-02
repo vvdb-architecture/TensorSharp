@@ -192,9 +192,11 @@
   // right now; wait for it, then hydrate.
   async function whenReady() {
     for (let i = 0; i < 200 && !currentSessionId; i++) await new Promise(r => setTimeout(r, 25));
+    await applyDefaults();
     await resume();
     state.ready = true;
     postNative({ type: 'ready', conversation: state.conversationId });
+    watchGeneration();
   }
 
   // ---- copy that only makes sense on a server --------------------------------------
@@ -217,6 +219,45 @@
   const observer = new MutationObserver(retitleEmptyState);
   observer.observe(document.body, { childList: true, subtree: true });
   retitleEmptyState();
+
+  // ---- the settings that are about the page ----------------------------------------
+  // Reasoning-on and the pre-selected skills live in the app's settings but are
+  // properties of this page's controls, so they are applied here rather than being
+  // pushed in from native code. A resumed conversation overrides them afterwards
+  // with whatever it was saved with, which is the right precedence: what the user
+  // last did in THIS chat beats what they chose as a default.
+  async function applyDefaults() {
+    try {
+      const res = await fetch('/api/agent/settings');
+      if (!res.ok) return;
+      const s = await res.json();
+      const toggle = document.getElementById('reasoning-toggle');
+      if (toggle && typeof s.thinkByDefault === 'boolean') toggle.checked = s.thinkByDefault;
+      if (Array.isArray(s.defaultSkills) && s.defaultSkills.length && typeof setSelectedSkills === 'function') {
+        setSelectedSkills(s.defaultSkills);
+      }
+    } catch (e) { /* the page works without them */ }
+  }
+
+  // ---- telling the app when the model is working -----------------------------------
+  // The app keeps the screen awake while a reply is being generated, which it can
+  // only do if it knows. There is no event for that in the page, so the composer's
+  // send is wrapped and the end is detected by polling the page's own flag, which is
+  // cheap and needs no change to index.html.
+  function watchGeneration() {
+    if (typeof sendMessage !== 'function') return;
+    const original = sendMessage;
+    sendMessage = function () {
+      const result = original.apply(this, arguments);
+      postNative({ type: 'generating', value: true });
+      const poll = setInterval(() => {
+        if (typeof isGenerating !== 'undefined' && isGenerating) return;
+        clearInterval(poll);
+        postNative({ type: 'generating', value: false });
+      }, 500);
+      return result;
+    };
+  }
 
   // ---- native bridge ---------------------------------------------------------------
   function postNative(message) {

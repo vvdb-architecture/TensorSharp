@@ -161,6 +161,17 @@ public sealed class ModelsPage : ContentPage
             return;
         }
 
+        AppSettings settings = _app.Settings.Load();
+        if (!settings.AllowCellularDownloads && Platforms.iOS.DeviceState.IsOnCellularOnly())
+        {
+            await DisplayAlert(
+                "Waiting for Wi-Fi",
+                $"{row.Model.DisplayName} is {row.Model.TotalBytes / 1e9:0.0} GB and this device is on cellular. "
+                + "Turn on \u201CDownload over cellular\u201D in Settings to download it anyway.",
+                "OK");
+            return;
+        }
+
         await DownloadAsync(row);
     }
 

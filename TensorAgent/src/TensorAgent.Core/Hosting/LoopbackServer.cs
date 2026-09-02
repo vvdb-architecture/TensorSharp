@@ -161,25 +161,53 @@ public abstract class LoopbackResponse
 
             SseFraming.ApplyHeaders(response);
             response.SendChunked = true;
-            do
+            while (true)
             {
-                try
+                if (!await WriteAsync(response, enumerator.Current, ct).ConfigureAwait(false))
+                    return;
+
+                // Waiting for the next frame is where a disconnect hides. A failed
+                // write is the only way HttpListener reveals one, and during a long
+                // prefill there is nothing to write for minutes — so a comment goes
+                // out every few seconds instead. The page's reader ignores any line
+                // that is not `data:`, and the alternative is a Stop button that
+                // appears to work while the model keeps going.
+                // AsTask may be called only once on a ValueTask, so it is converted
+                // here and waited on as a Task from then on.
+                Task<bool> next = enumerator.MoveNextAsync().AsTask();
+                while (await Task.WhenAny(next, Task.Delay(Heartbeat, ct)).ConfigureAwait(false) != next)
                 {
-                    await SseFraming.WriteFrameAsync(response.OutputStream, enumerator.Current, ct).ConfigureAwait(false);
+                    if (!await WriteAsync(response, null, ct).ConfigureAwait(false))
+                        return;
                 }
-                catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException)
-                {
-                    // The reader has gone: the page was closed, or the user pressed
-                    // stop, which aborts the fetch. There is no disconnect event on
-                    // HttpListener, so a failed write is how it is learned — and it
-                    // has to be learned, because otherwise the model keeps generating
-                    // into nothing, holding the session and draining the battery for
-                    // however many tokens were left in the budget.
-                    clientGone?.Cancel();
-                    throw;
-                }
+                if (!await next.ConfigureAwait(false))
+                    return;
             }
-            while (await enumerator.MoveNextAsync().ConfigureAwait(false));
+        }
+
+        /// <summary>How often a comment is sent while nothing else is, to notice a reader that has gone.</summary>
+        private static readonly TimeSpan Heartbeat = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Write one frame, or a keep-alive comment when <paramref name="frame"/> is
+        /// null. False means the reader has gone, which is a normal ending rather
+        /// than an error: the producer is cancelled and the rest is dropped.
+        /// </summary>
+        private async Task<bool> WriteAsync(HttpListenerResponse response, object? frame, CancellationToken ct)
+        {
+            try
+            {
+                if (frame is null)
+                    await SseFraming.WriteCommentAsync(response.OutputStream, ct).ConfigureAwait(false);
+                else
+                    await SseFraming.WriteFrameAsync(response.OutputStream, frame, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException)
+            {
+                clientGone?.Cancel();
+                return false;
+            }
         }
     }
 }
@@ -210,6 +238,19 @@ public static class SseFraming
         await output.WriteAsync(Suffix, ct).ConfigureAwait(false);
         await output.FlushAsync(ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// A comment line, which every server-sent-event reader ignores. It exists to
+    /// give a stream something to write while it has nothing to say, so that a reader
+    /// which has gone away is noticed instead of being generated for.
+    /// </summary>
+    public static async Task WriteCommentAsync(Stream output, CancellationToken ct)
+    {
+        await output.WriteAsync(Comment, ct).ConfigureAwait(false);
+        await output.FlushAsync(ct).ConfigureAwait(false);
+    }
+
+    private static readonly byte[] Comment = ": keep-alive\n\n"u8.ToArray();
 
     public static string Format(object payload) => "data: " + JsonSerializer.Serialize(payload, JsonOptions) + "\n\n";
 }

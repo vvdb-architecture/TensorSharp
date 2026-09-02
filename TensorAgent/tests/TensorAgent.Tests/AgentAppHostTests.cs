@@ -264,6 +264,48 @@ public sealed class AgentAppHostTests : IDisposable
     }
 
     [Fact]
+    public async Task OpeningTheAppRepeatedlyWithoutTypingLeavesOneEmptyChatRatherThanMany()
+    {
+        // The page creates a session on every load and a session binds a
+        // conversation, so twenty launches used to leave twenty "Chat Sep 2, 07:38"
+        // rows pushing the real conversations off the screen. An empty conversation
+        // is not a chat the user had; it is one they were about to have.
+        AgentAppHost host = Start();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i < 5; i++)
+        {
+            JsonElement created = JsonSerializer.Deserialize<JsonElement>(
+                await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+            ids.Add(created.GetProperty("conversationId").GetString()!);
+        }
+
+        Assert.Single(ids);
+        Assert.Single(host.Conversations.List(includeEmpty: true));
+        // And an untouched one is not offered as a saved chat at all.
+        Assert.Empty(host.Conversations.List());
+    }
+
+    [Fact]
+    public async Task OnceAChatHasAMessageTheNextLaunchStartsAFreshOne()
+    {
+        AgentAppHost host = Start();
+        JsonElement first = JsonSerializer.Deserialize<JsonElement>(
+            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        string used = first.GetProperty("conversationId").GetString()!;
+        host.Recorder.Record(first.GetProperty("sessionId").GetString()!, JsonSerializer.Deserialize<JsonElement>(
+            """{ "messages": [ { "role": "user", "content": "hello" } ] }"""));
+
+        JsonElement second = JsonSerializer.Deserialize<JsonElement>(
+            await (await _client.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        Assert.NotEqual(used, second.GetProperty("conversationId").GetString());
+
+        // The one with a message is listed; the fresh empty one is not.
+        IReadOnlyList<ConversationSummary> listed = host.Conversations.List();
+        Assert.Single(listed);
+        Assert.Equal(used, listed[0].Id);
+    }
+
+    [Fact]
     public async Task DisposingASessionUnbindsItWithoutDeletingTheConversation()
     {
         AgentAppHost host = Start();

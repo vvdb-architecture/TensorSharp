@@ -190,8 +190,11 @@ so rather than passing silently:
 | Media parity | the desktop provider's packages |
 
 The end-to-end set loads a real model and drives the real API: a question answered,
-a four-turn conversation, cache reuse and its invalidation, an aborted generation,
-and a throughput floor.
+a four-turn conversation, cache reuse and its invalidation, a conversation that
+survives a restart, an aborted generation, and a throughput floor. It runs on the
+CPU, so budget half an hour for it and do not rebuild the test project while it is
+running — that overwrites the assembly under the running host and the failure looks
+exactly like a native crash.
 
 ### Measured
 
@@ -208,6 +211,37 @@ the shape, not the absolute value — a phone with Metal is a different machine.
 Only the new message and the previous answer are processed on each turn. Starting
 a new chat drops reuse to zero; rewriting an earlier turn invalidates from the
 point the histories diverge, and the model then answers from the rewritten history.
+
+### In the simulator, with a real model
+
+The same Gemma 4 E4B Q8_0, linked into the simulator's model directory and loaded
+through the app's own routes, answering through the app's own chat stream:
+
+| | Prompt tokens | Reused |
+| --- | --- | --- |
+| Turn 1 | 5189 | 0 |
+| Turn 2 | 5238 | 5221 (99.7%) |
+
+The transcript was written to the app's container and listed by
+`/api/agent/conversations`. Throughput there is not worth quoting: the simulator
+has no Metal, and the prompt is large because all twelve skills declare themselves.
+
+## What has not been verified
+
+Stated plainly, because the rest of this file is written as though everything was
+checked and these were not:
+
+- **No physical device.** Everything here ran in the simulator, whose slice has no
+  Metal at all. The device slice carries ggml-metal with embedded shader source and
+  the engine selects it, but no generation has been timed on real hardware.
+- **Image editing.** Qwen-Image-Edit is in the catalog and `/api/image-edit` is
+  bound to the same service the desktop uses, but no image has been generated on
+  iOS. At 10.97 GB across four files it needs a 16 GB device and sequential
+  load/unload that has not been exercised.
+- **Video generation.** The routes exist because they are part of the shared
+  surface. No video model is small enough for the catalog, so nothing offers one.
+- **Package installation.** `WheelInstaller` refuses without the network switch and
+  accepts only pure-Python wheels; the accepting path has not run on iOS.
 
 ### On-device self-test
 

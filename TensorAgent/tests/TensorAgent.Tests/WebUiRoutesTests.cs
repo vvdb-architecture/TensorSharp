@@ -216,6 +216,12 @@ public sealed class WebUiRoutesTests : IDisposable
         JsonElement created = await BodyOf(await _client.PostAsync("/api/agent/conversations", null));
         string id = created.GetProperty("id").GetString()!;
 
+        // A conversation with nothing in it is deliberately not listed, so give it a
+        // message before asking for the list. See ConversationStore.List.
+        Conversation opened = _conversations.Load(id)!;
+        opened.Messages.Add(new StoredMessage { Role = "user", Content = "where should I go" });
+        _conversations.Save(opened);
+
         JsonElement listed = await BodyOf(await _client.GetAsync("/api/agent/conversations"));
         Assert.Contains(listed.GetProperty("conversations").EnumerateArray(),
             c => c.GetProperty("id").GetString() == id);
@@ -245,7 +251,6 @@ public sealed class WebUiRoutesTests : IDisposable
         {
             allowCodeExecution = false,
             allowNetwork = true,
-            confirmBeforeRunning = true,
             maxTokens = 4096,
         }));
         Assert.False(saved.GetProperty("allowCodeExecution").GetBoolean());

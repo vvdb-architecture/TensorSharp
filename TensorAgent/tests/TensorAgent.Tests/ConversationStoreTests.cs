@@ -83,7 +83,10 @@ public sealed class ConversationStoreTests : IDisposable
         Conversation a = store.Create();
         File.WriteAllText(Path.Combine(_dir, a.Id + ".json"), "{\"id\":\"" + a.Id + "\",\"messages\":[");
         var again = new ConversationStore(_dir);
-        Assert.Single(again.List());
+        // includeEmpty, because a file that will not parse contributes no messages and
+        // the ordinary listing hides those; what is being tested is that it does not
+        // throw or take the rest of the index with it.
+        Assert.Single(again.List(includeEmpty: true));
         Assert.Null(again.Load(a.Id));
     }
 

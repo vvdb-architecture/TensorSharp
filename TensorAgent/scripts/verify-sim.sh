@@ -73,8 +73,26 @@ echo "ok  GET /api/agent/engine"
 # 4. The surface the Web UI calls at load, with the shapes the page reads.
 MODELS="$(curl -fsS "${AUTH[@]}" "${BASE}api/models")"
 grep -q '"supportedBackends"' <<<"${MODELS}" || fail "/api/models has no supportedBackends: ${MODELS}"
-grep -q '"ggml_metal"' <<<"${MODELS}" || fail "/api/models does not offer Metal: ${MODELS}"
 grep -q '"defaultMaxTokens"' <<<"${MODELS}" || fail "/api/models has no defaultMaxTokens"
+# The page must never be shown a backend this build cannot initialise, and its
+# default must be one of the ones it was shown. On a device that means Metal leads;
+# in the simulator, whose slice of the engine has no Metal at all, it means CPU is
+# the only entry. The engine probe in the launch log is what decides which.
+python3 - "${MODELS}" "$(grep -o '"ggmlMetalAvailable":[a-z]*' "${LOG}" | tail -1)" <<'PYCHECK' || fail "/api/models offers a backend this build cannot run"
+import json, sys
+models = json.loads(sys.argv[1])
+metal = 'true' in sys.argv[2]
+offered = [b['Value'] for b in models['supportedBackends']]
+if not offered:
+    print('no backends offered at all', file=sys.stderr); sys.exit(1)
+if models['defaultBackend'] != offered[0]:
+    print(f"default {models['defaultBackend']} is not the first offered {offered}", file=sys.stderr); sys.exit(1)
+if metal and offered[0] != 'ggml_metal':
+    print(f"Metal is available but {offered[0]} leads", file=sys.stderr); sys.exit(1)
+if not metal and 'ggml_metal' in offered:
+    print(f"Metal is not available but is offered: {offered}", file=sys.stderr); sys.exit(1)
+print(f"    backends offered: {offered} (Metal available: {metal})")
+PYCHECK
 curl -fsS "${AUTH[@]}" "${BASE}api/queue/status" | grep -q 'pending' || fail "/api/queue/status shape"
 # curl sends no Content-Length for a body-less POST and HttpListener answers 411;
 # WKWebView's fetch() sends Content-Length: 0, so -d '' mirrors the browser.
@@ -85,7 +103,7 @@ SID="$(sed -n 's/.*"sessionId":"\([^"]*\)".*/\1/p' <<<"${SESSION}")"
 curl -fsS "${AUTH[@]}" -X DELETE "${BASE}api/sessions/${SID}" >/dev/null || fail "DELETE /api/sessions/{id}"
 CODE="$(curl -s -o /dev/null -w '%{http_code}' "${AUTH[@]}" "${BASE}uploads/x.png")"
 [[ "${CODE}" == "404" ]] || fail "GET /uploads/x.png returned ${CODE}, expected 404"
-echo "ok  /api/models offers Metal, /api/queue/status, /api/sessions binds a conversation"
+echo "ok  /api/models offers only runnable backends, /api/queue/status, /api/sessions binds a conversation"
 
 # 5. The app's own surface: the catalog, the saved chats, the sandbox switches.
 CATALOG="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/catalog")"

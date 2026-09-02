@@ -28,8 +28,6 @@ public sealed class AppSettings
     /// Enforced in-process by the shell's builtins and Python's audit hook.</summary>
     [JsonPropertyName("allowNetwork")] public bool AllowNetwork { get; set; } = false;
 
-    /// <summary>Ask before each run instead of applying the toggles silently.</summary>
-    [JsonPropertyName("confirmBeforeRunning")] public bool ConfirmBeforeRunning { get; set; } = false;
 
     /// <summary>Generation cap sent as maxTokens; the Web UI's server default is 20000,
     /// which is far past what a phone should decode in one turn.</summary>

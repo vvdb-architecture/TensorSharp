@@ -51,13 +51,49 @@ public sealed class ConversationStore
 
     private string PathFor(string id) => Path.Combine(Root, id + ".json");
 
-    /// <summary>Newest first.</summary>
-    public IReadOnlyList<ConversationSummary> List()
+    /// <summary>
+    /// The saved chats, newest first, omitting any that never got a message.
+    ///
+    /// <para>
+    /// The page creates a session on every load, and a session binds a conversation,
+    /// so an app that is opened and closed without anything being typed would leave a
+    /// row behind each time. Twenty launches, twenty "Chat Sep 2, 07:38" entries and
+    /// the real conversations pushed off the screen. An empty one is not a chat the
+    /// user had; it is a chat they were about to have.
+    /// </para>
+    /// </summary>
+    /// <param name="includeEmpty">Include conversations with no messages. For tests and diagnostics.</param>
+    public IReadOnlyList<ConversationSummary> List(bool includeEmpty = false)
     {
         lock (_lock)
         {
             EnsureIndex();
-            return _index.Values.OrderByDescending(s => s.UpdatedAt).ToList();
+            IEnumerable<ConversationSummary> rows = _index.Values;
+            if (!includeEmpty)
+                rows = rows.Where(s => s.MessageCount > 0);
+            return rows.OrderByDescending(s => s.UpdatedAt).ToList();
+        }
+    }
+
+    /// <summary>
+    /// The most recent conversation that has no messages, or null.
+    ///
+    /// <para>
+    /// Handing this back to the next session instead of minting another is what stops
+    /// the empty rows accumulating in the first place: there is at most one at a time,
+    /// and the moment it gets a message the next launch starts a new one.
+    /// </para>
+    /// </summary>
+    public Conversation? MostRecentEmpty()
+    {
+        lock (_lock)
+        {
+            EnsureIndex();
+            ConversationSummary? candidate = _index.Values
+                .Where(s => s.MessageCount == 0)
+                .OrderByDescending(s => s.UpdatedAt)
+                .FirstOrDefault();
+            return candidate is null ? null : Load(candidate.Id);
         }
     }
 
