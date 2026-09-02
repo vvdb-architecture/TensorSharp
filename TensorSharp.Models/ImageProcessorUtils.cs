@@ -1,4 +1,4 @@
-﻿// Copyright (c) Zhongkai Fu. All rights reserved.
+// Copyright (c) Zhongkai Fu. All rights reserved.
 // https://github.com/zhongkaifu/TensorSharp
 //
 // This file is part of TensorSharp.
@@ -10,33 +10,39 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using ImageMagick;
 using StbImageSharp;
+using TensorSharp.Models.Media;
 
 namespace TensorSharp.Models
 {
     internal static class ImageProcessorUtils
     {
+        /// <summary>
+        /// Decode an image file to RGBA8 for the chat vision processors.
+        ///
+        /// <para>PNG and JPEG are decoded here, in managed code, exactly as they always were —
+        /// in particular WITHOUT applying EXIF orientation, since every vision-model reference
+        /// (llama.cpp's stb_image path) ignores it too. Everything else (HEIC/HEIF from an
+        /// iPhone, GIF, WebP, BMP, ...) is the platform image provider's business:
+        /// Magick.NET on desktop, ImageIO on iOS, via <see cref="MediaCodecs.Image"/>.</para>
+        /// </summary>
         internal static byte[] DecodeImageToRGBA(byte[] fileBytes, out int width, out int height)
         {
-            if (IsPng(fileBytes))
-                return DecodePNG(fileBytes, out width, out height);
+            if (ImageFormatSniffer.IsPng(fileBytes))
+                return PngCodec.Decode(fileBytes, out width, out height);
 
             if (IsJpeg(fileBytes))
                 return DecodeJPEG(fileBytes, out width, out height);
 
-            if (IsHeic(fileBytes))
-                return DecodeHEIC(fileBytes, out width, out height);
-
-            throw new NotSupportedException("Only PNG, JPEG, and HEIC/HEIF image formats are supported");
+            return MediaCodecs.Image.DecodeRgba(fileBytes, out width, out height);
         }
 
         internal static (int width, int height) ReadImageDimensions(string imagePath)
         {
             byte[] fileBytes = File.ReadAllBytes(imagePath);
 
-            if (IsPng(fileBytes))
-                return ReadPngDimensions(fileBytes);
+            if (ImageFormatSniffer.IsPng(fileBytes))
+                return PngCodec.ReadDimensions(fileBytes);
 
             if (IsJpeg(fileBytes))
             {
@@ -44,214 +50,13 @@ namespace TensorSharp.Models
                 return (width, height);
             }
 
-            if (IsHeic(fileBytes))
-                return ReadHeicDimensions(fileBytes);
-
-            throw new NotSupportedException("Only PNG, JPEG, and HEIC/HEIF image formats are supported");
+            return MediaCodecs.Image.ReadDimensions(fileBytes);
         }
-
-        private static bool IsPng(byte[] fileBytes) =>
-            fileBytes.Length >= 8 &&
-            fileBytes[0] == 0x89 &&
-            fileBytes[1] == 0x50 &&
-            fileBytes[2] == 0x4E &&
-            fileBytes[3] == 0x47;
 
         private static bool IsJpeg(byte[] fileBytes) =>
             fileBytes.Length >= 2 &&
             fileBytes[0] == 0xFF &&
             fileBytes[1] == 0xD8;
-
-        // HEIC/HEIF files use the ISOBMFF container: a leading "ftyp" box whose
-        // major_brand (offset 8..11) or compatible_brands (offsets 16, 20, 24, ...
-        // up to the box size) carry the HEIF/HEIC marker. Detect the major brand
-        // first and then scan the compatible_brands list so files authored with a
-        // generic major_brand (e.g. "mif1") but a HEIC/HEIF compatible brand are
-        // still recognised.
-        private static bool IsHeic(byte[] fileBytes)
-        {
-            if (fileBytes.Length < 12)
-                return false;
-
-            if (fileBytes[4] != (byte)'f' || fileBytes[5] != (byte)'t' ||
-                fileBytes[6] != (byte)'y' || fileBytes[7] != (byte)'p')
-            {
-                return false;
-            }
-
-            int boxSize = (fileBytes[0] << 24) | (fileBytes[1] << 16) | (fileBytes[2] << 8) | fileBytes[3];
-            if (boxSize <= 0 || boxSize > fileBytes.Length)
-                boxSize = fileBytes.Length;
-
-            if (IsHeifBrand(fileBytes, 8))
-                return true;
-
-            for (int offset = 16; offset + 4 <= boxSize; offset += 4)
-            {
-                if (IsHeifBrand(fileBytes, offset))
-                    return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsHeifBrand(byte[] data, int offset)
-        {
-            if (offset < 0 || offset + 4 > data.Length)
-                return false;
-
-            string brand = System.Text.Encoding.ASCII.GetString(data, offset, 4);
-            return brand switch
-            {
-                "heic" or "heix" or "heim" or "heis" or
-                "hevc" or "hevx" or "hevm" or "hevs" or
-                "mif1" or "msf1" or "heif" => true,
-                _ => false,
-            };
-        }
-
-        private static byte[] DecodePNG(byte[] data, out int width, out int height)
-        {
-            using var ms = new MemoryStream(data);
-            using var reader = new BinaryReader(ms);
-
-            byte[] sig = reader.ReadBytes(8);
-            if (sig[0] != 0x89 || sig[1] != 0x50 || sig[2] != 0x4E || sig[3] != 0x47)
-                throw new InvalidDataException("Not a PNG file");
-
-            width = 0; height = 0;
-            int bitDepth = 0, colorType = 0;
-            using var idatStream = new MemoryStream();
-
-            while (ms.Position < ms.Length)
-            {
-                int length = ReadBigEndianInt32(reader);
-                byte[] chunkType = reader.ReadBytes(4);
-                string type = System.Text.Encoding.ASCII.GetString(chunkType);
-
-                if (type == "IHDR")
-                {
-                    width = ReadBigEndianInt32(reader);
-                    height = ReadBigEndianInt32(reader);
-                    bitDepth = reader.ReadByte();
-                    colorType = reader.ReadByte();
-                    reader.ReadBytes(3 + 4); // compression, filter, interlace + CRC
-                }
-                else if (type == "IDAT")
-                {
-                    byte[] idatData = reader.ReadBytes(length);
-                    idatStream.Write(idatData, 0, idatData.Length);
-                    reader.ReadBytes(4); // CRC
-                }
-                else if (type == "IEND")
-                {
-                    break;
-                }
-                else
-                {
-                    reader.ReadBytes(length + 4);
-                }
-            }
-
-            idatStream.Position = 0;
-            using var deflateStream = new System.IO.Compression.DeflateStream(
-                new MemoryStream(idatStream.ToArray(), 2, (int)idatStream.Length - 2),
-                System.IO.Compression.CompressionMode.Decompress);
-
-            int channels = colorType switch { 0 => 1, 2 => 3, 4 => 2, 6 => 4, _ => 3 };
-            int bytesPerPixel = channels * (bitDepth / 8);
-            int stride = width * bytesPerPixel;
-            byte[] rawPixels = new byte[height * stride];
-            byte[] prevRow = new byte[stride];
-
-            for (int y = 0; y < height; y++)
-            {
-                int filterByte = deflateStream.ReadByte();
-                byte[] row = new byte[stride];
-                int read = 0;
-                while (read < stride)
-                {
-                    int n = deflateStream.Read(row, read, stride - read);
-                    if (n <= 0) break;
-                    read += n;
-                }
-
-                for (int x = 0; x < stride; x++)
-                {
-                    byte a = x >= bytesPerPixel ? row[x - bytesPerPixel] : (byte)0;
-                    byte b = prevRow[x];
-                    byte c = x >= bytesPerPixel ? prevRow[x - bytesPerPixel] : (byte)0;
-
-                    row[x] = filterByte switch
-                    {
-                        0 => row[x],
-                        1 => (byte)(row[x] + a),
-                        2 => (byte)(row[x] + b),
-                        3 => (byte)(row[x] + (a + b) / 2),
-                        4 => (byte)(row[x] + PaethPredictor(a, b, c)),
-                        _ => row[x],
-                    };
-                }
-
-                Buffer.BlockCopy(row, 0, rawPixels, y * stride, stride);
-                Buffer.BlockCopy(row, 0, prevRow, 0, stride);
-            }
-
-            byte[] rgba = new byte[width * height * 4];
-            for (int i = 0; i < width * height; i++)
-            {
-                switch (colorType)
-                {
-                    case 2: // RGB
-                        rgba[i * 4] = rawPixels[i * 3];
-                        rgba[i * 4 + 1] = rawPixels[i * 3 + 1];
-                        rgba[i * 4 + 2] = rawPixels[i * 3 + 2];
-                        rgba[i * 4 + 3] = 255;
-                        break;
-                    case 6: // RGBA
-                        rgba[i * 4] = rawPixels[i * 4];
-                        rgba[i * 4 + 1] = rawPixels[i * 4 + 1];
-                        rgba[i * 4 + 2] = rawPixels[i * 4 + 2];
-                        rgba[i * 4 + 3] = rawPixels[i * 4 + 3];
-                        break;
-                    case 0: // Grayscale
-                        rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = rawPixels[i];
-                        rgba[i * 4 + 3] = 255;
-                        break;
-                    case 4: // Grayscale + Alpha
-                        rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = rawPixels[i * 2];
-                        rgba[i * 4 + 3] = rawPixels[i * 2 + 1];
-                        break;
-                }
-            }
-
-            return rgba;
-        }
-
-        private static (int width, int height) ReadPngDimensions(byte[] data)
-        {
-            if (data.Length < 24 || !IsPng(data))
-                throw new InvalidDataException("Not a PNG file");
-
-            int width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
-            int height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
-            return (width, height);
-        }
-
-        private static byte PaethPredictor(byte a, byte b, byte c)
-        {
-            int p = a + b - c;
-            int pa = Math.Abs(p - a);
-            int pb = Math.Abs(p - b);
-            int pc = Math.Abs(p - c);
-            return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
-        }
-
-        private static int ReadBigEndianInt32(BinaryReader reader)
-        {
-            byte[] bytes = reader.ReadBytes(4);
-            return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
-        }
 
         private static byte[] DecodeJPEG(byte[] data, out int width, out int height)
         {
@@ -265,50 +70,6 @@ namespace TensorSharp.Models
             catch (Exception ex)
             {
                 throw new InvalidDataException("Failed to decode JPEG image.", ex);
-            }
-        }
-
-        // HEIC/HEIF decoding is delegated to ImageMagick, which bundles libheif in the
-        // Magick.NET-Q8-AnyCPU package. The Q8 build uses byte-sized quanta which
-        // matches the rest of this pipeline (8-bit RGBA), so Magick.NET will tonemap
-        // 10/12-bit HEIC sources down to 8-bit automatically.
-        private static byte[] DecodeHEIC(byte[] data, out int width, out int height)
-        {
-            try
-            {
-                using var image = new MagickImage(data);
-                if (image.ColorSpace != ColorSpace.sRGB)
-                    image.ColorSpace = ColorSpace.sRGB;
-                if (!image.HasAlpha)
-                    image.Alpha(AlphaOption.Set);
-
-                width = (int)image.Width;
-                height = (int)image.Height;
-
-                using var pixels = image.GetPixels();
-                byte[] rgba = pixels.ToByteArray(0, 0, image.Width, image.Height, "RGBA");
-                if (rgba == null || rgba.Length != width * height * 4)
-                    throw new InvalidDataException("HEIC decoder returned an unexpected pixel buffer.");
-                return rgba;
-            }
-            catch (Exception ex) when (ex is not InvalidDataException)
-            {
-                throw new InvalidDataException(
-                    "Failed to decode HEIC/HEIF image. Ensure the Magick.NET native binaries with libheif support are available.",
-                    ex);
-            }
-        }
-
-        private static (int width, int height) ReadHeicDimensions(byte[] data)
-        {
-            try
-            {
-                var info = new MagickImageInfo(data);
-                return ((int)info.Width, (int)info.Height);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidDataException("Failed to read HEIC/HEIF image dimensions.", ex);
             }
         }
 

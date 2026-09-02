@@ -1,4 +1,4 @@
-﻿// Copyright (c) Zhongkai Fu. All rights reserved.
+// Copyright (c) Zhongkai Fu. All rights reserved.
 // https://github.com/zhongkaifu/TensorSharp
 //
 // This file is part of TensorSharp.
@@ -11,15 +11,21 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.ExceptionServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using OpenCvSharp;
+using TensorSharp.Models.Media;
 
 namespace TensorSharp.Models
 {
+    /// <summary>
+    /// Video frame sampling for the chat vision models and the video-generation pipelines.
+    ///
+    /// <para>Everything here is policy and pure computation: which source frames to take,
+    /// how many, and turning them into PNG files under a memory budget. The frames themselves
+    /// come from <see cref="MediaCodecs.Video"/> — OpenCV on desktop, whatever the host
+    /// registered elsewhere — so this file compiles for every target.</para>
+    /// </summary>
     public static class MediaHelper
     {
         /// <summary>
@@ -139,12 +145,10 @@ namespace TensorSharp.Models
             Directory.CreateDirectory(outputDirectory);
             string prefix = SanitizeName(namePrefix);
 
-            using var capture = new VideoCapture(videoPath);
-            if (!capture.IsOpened())
-                throw new Exception($"Failed to open video file: {videoPath}");
-
-            double videoFps = capture.Get(VideoCaptureProperties.Fps);
-            int totalFrames = (int)capture.Get(VideoCaptureProperties.FrameCount);
+            IVideoDecoder decoder = MediaCodecs.Video;
+            VideoInfo info = decoder.Probe(videoPath);
+            double videoFps = info.Fps;
+            int totalFrames = info.FrameCount;
             if (videoFps <= 0 || totalFrames <= 0)
                 throw new Exception($"Invalid video: fps={videoFps}, frames={totalFrames}");
 
@@ -174,19 +178,20 @@ namespace TensorSharp.Models
             foreach (int pos in selectedPositions)
                 wanted.Add(candidateFrames[pos]);
 
-            return DecodeAndEncodeFrames(capture, wanted, outputDirectory, prefix);
+            return DecodeAndEncodeFrames(decoder, videoPath, wanted, outputDirectory, prefix);
         }
 
         /// <summary>
-        /// Decoding is strictly sequential (one <see cref="VideoCapture"/>, one reused
-        /// <see cref="Mat"/>), but PNG encoding is not: deflate + Adler-32 + the write cost
-        /// about as much as the decode itself and depend on nothing but their own frame. Each
-        /// decoded frame is therefore copied out to a private scanline buffer on this thread
-        /// and encoded on the pool while the next frame decodes, with a semaphore bounding how
-        /// many raw frames are in flight so a long clip cannot balloon the heap.
+        /// Decoding is strictly sequential (the provider hands frames over one at a time on
+        /// this thread), but PNG encoding is not: deflate + Adler-32 + the write cost about as
+        /// much as the decode itself and depend on nothing but their own frame. Each decoded
+        /// frame is therefore copied out to a private scanline buffer inside the callback and
+        /// encoded on the pool while the next frame decodes, with a semaphore bounding how
+        /// many raw frames are in flight so a long clip cannot balloon the heap. Blocking in
+        /// the callback is the back-pressure: the decoder cannot run ahead of the encoders.
         /// </summary>
         private static List<string> DecodeAndEncodeFrames(
-            VideoCapture capture, List<int> wantedFrames, string outputDirectory, string prefix)
+            IVideoDecoder decoder, string videoPath, List<int> wantedFrames, string outputDirectory, string prefix)
         {
             var encodes = new List<Task>();
             var frames = new List<string>();
@@ -194,62 +199,27 @@ namespace TensorSharp.Models
 
             try
             {
-                using (var mat = new Mat())
+                decoder.ReadFrames(videoPath, wantedFrames, (index, pixels, width, height, stride, layout) =>
                 {
-                    // Walking forward with Grab() skips a frame for a fraction of the cost of a
-                    // decode, while Set(PosFrames) pays a keyframe seek plus decode-forward that
-                    // is roughly constant in distance. Below the crossover, stepping is both
-                    // cheaper and exact — it never depends on the container's index being
-                    // trustworthy. Above it, seeking wins and is the only sane option on a long
-                    // clip sampled sparsely. The two are never mixed within one extraction: a
-                    // seek that lands off-by-a-frame would then silently skew every subsequent
-                    // step.
-                    bool stepForward = MaxGap(wantedFrames) <= SequentialStepMaxGap;
-                    int cursor = 0;
-
-                    foreach (int frameIdx in wantedFrames)
+                    if (slots == null)
                     {
-                        if (stepForward)
-                        {
-                            bool exhausted = false;
-                            while (cursor < frameIdx)
-                            {
-                                if (!capture.Grab()) { exhausted = true; break; }
-                                cursor++;
-                            }
-                            if (exhausted)
-                                break;
-                        }
-                        else
-                        {
-                            capture.Set(VideoCaptureProperties.PosFrames, frameIdx);
-                        }
-
-                        if (!capture.Read(mat) || mat.Empty())
-                            break;
-                        cursor = frameIdx + 1;
-
-                        int width = mat.Cols, height = mat.Rows;
-                        if (slots == null)
-                        {
-                            // The frame size is only known once one has been decoded, and it
-                            // is what the in-flight bound is priced against.
-                            int limit = InFlightLimit(width, height);
-                            slots = new SemaphoreSlim(limit, limit);
-                        }
-
-                        string framePath = Path.Combine(outputDirectory, $"{prefix}_{frames.Count + 1:D4}.png");
-                        byte[] scanlines = BuildRgbaScanlines(mat);
-                        frames.Add(framePath);
-
-                        slots.Wait();
-                        encodes.Add(Task.Run(() =>
-                        {
-                            try { File.WriteAllBytes(framePath, EncodePng(scanlines, width, height)); }
-                            finally { slots.Release(); }
-                        }));
+                        // The frame size is only known once one has been decoded, and it
+                        // is what the in-flight bound is priced against.
+                        int limit = InFlightLimit(width, height);
+                        slots = new SemaphoreSlim(limit, limit);
                     }
-                }
+
+                    string framePath = Path.Combine(outputDirectory, $"{prefix}_{frames.Count + 1:D4}.png");
+                    byte[] scanlines = BuildRgbaScanlines(pixels, width, height, stride, layout);
+                    frames.Add(framePath);
+
+                    slots.Wait();
+                    encodes.Add(Task.Run(() =>
+                    {
+                        try { File.WriteAllBytes(framePath, PngCodec.EncodeScanlines(scanlines, width, height, 4)); }
+                        finally { slots.Release(); }
+                    }));
+                });
 
                 try
                 {
@@ -283,24 +253,59 @@ namespace TensorSharp.Models
         /// whose frames are 8x bigger than 1080p. Cap by a memory budget as well, so the
         /// footprint stays flat in resolution and only the parallelism gives way.
         /// </summary>
-        private static int InFlightLimit(int width, int height)
+        internal static int InFlightLimit(int width, int height)
         {
             long frameBytes = Math.Max(1L, (long)width * height * 4);
             long affordable = InFlightScanlineBudgetBytes / frameBytes;
             int byBudget = (int)Math.Min(int.MaxValue, Math.Max(1, affordable));
-            return Math.Max(1, Math.Min(Environment.ProcessorCount, byBudget));
+            return Math.Max(1, Math.Min(MaxParallelFrameEncodes, byBudget));
         }
 
-        /// <summary>Heap budget for scanline buffers awaiting PNG encoding. Sized so even a
-        /// 4K clip keeps several frames in flight while staying well inside a server's
-        /// working set.</summary>
-        private const long InFlightScanlineBudgetBytes = 256L * 1024 * 1024;
+        /// <summary>The budget a server gets: enough for a 4K clip to keep several frames in
+        /// flight while staying well inside its working set.</summary>
+        public const long DefaultInFlightScanlineBudgetBytes = 256L * 1024 * 1024;
+
+        private static long _inFlightScanlineBudgetBytes = DefaultInFlightScanlineBudgetBytes;
+        private static int _maxParallelFrameEncodes = Environment.ProcessorCount;
+
+        /// <summary>
+        /// Heap budget for scanline buffers awaiting PNG encoding. Defaults to
+        /// <see cref="DefaultInFlightScanlineBudgetBytes"/>; a phone sharing an ~8 GB jetsam
+        /// limit with a resident model should lower it (48-64 MB keeps a 1080p clip at two or
+        /// three frames in flight). Must be positive.
+        /// </summary>
+        public static long InFlightScanlineBudgetBytes
+        {
+            get => _inFlightScanlineBudgetBytes;
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(value), "the in-flight scanline budget must be positive");
+                _inFlightScanlineBudgetBytes = value;
+            }
+        }
+
+        /// <summary>
+        /// Upper bound on frames encoded to PNG concurrently. Defaults to
+        /// <see cref="Environment.ProcessorCount"/>; the memory budget above may lower the
+        /// effective number further for large frames. Must be at least 1.
+        /// </summary>
+        public static int MaxParallelFrameEncodes
+        {
+            get => _maxParallelFrameEncodes;
+            set
+            {
+                if (value < 1)
+                    throw new ArgumentOutOfRangeException(nameof(value), "at least one frame encode must be allowed");
+                _maxParallelFrameEncodes = value;
+            }
+        }
 
         /// <summary>
         /// Largest step between consecutive wanted frames (counting the first from frame 0).
         /// Governs whether stepping forward or seeking is the cheaper way to reach them.
         /// </summary>
-        private static int MaxGap(List<int> wantedFrames)
+        private static int MaxGap(IReadOnlyList<int> wantedFrames)
         {
             int max = 0, previous = 0;
             foreach (int frameIdx in wantedFrames)
@@ -326,7 +331,29 @@ namespace TensorSharp.Models
         /// past the threshold, onto the seek path — which the same measurements show is
         /// within a few percent of stepping either way.</para>
         /// </summary>
-        private const int SequentialStepMaxGap = 12;
+        public const int SequentialStepMaxGap = 12;
+
+        /// <summary>
+        /// The access policy an <see cref="IVideoDecoder"/> should follow for
+        /// <paramref name="frameIndices"/>: <c>true</c> when every frame is at most
+        /// <see cref="SequentialStepMaxGap"/> past the previous one (so stepping forward is
+        /// cheaper and exact), <c>false</c> when the list is sparse — or repeats an index, which
+        /// stepping cannot deliver twice — so each frame should be sought directly.
+        /// </summary>
+        public static bool PrefersSequentialStepping(IReadOnlyList<int> frameIndices)
+        {
+            if (frameIndices == null)
+                throw new ArgumentNullException(nameof(frameIndices));
+
+            int previous = -1;
+            foreach (int frameIdx in frameIndices)
+            {
+                if (frameIdx <= previous)
+                    return false;
+                previous = frameIdx;
+            }
+            return MaxGap(frameIndices) <= SequentialStepMaxGap;
+        }
 
         private static string SanitizeName(string name)
         {
@@ -379,13 +406,11 @@ namespace TensorSharp.Models
             if (!File.Exists(videoPath))
                 throw new FileNotFoundException($"video not found: {videoPath}", videoPath);
 
-            using var capture = new VideoCapture(videoPath);
-            if (!capture.IsOpened())
-                throw new InvalidOperationException($"failed to open video file: {videoPath}");
-
-            double sourceFps = capture.Get(VideoCaptureProperties.Fps);
+            IVideoDecoder decoder = MediaCodecs.Video;
+            VideoInfo info = decoder.Probe(videoPath);
+            double sourceFps = info.Fps;
             if (sourceFpsHint > 0) sourceFps = sourceFpsHint;
-            int totalFrames = (int)capture.Get(VideoCaptureProperties.FrameCount);
+            int totalFrames = info.FrameCount;
             if (sourceFps <= 0 || totalFrames <= 0)
                 throw new InvalidOperationException(
                     $"invalid video: fps={sourceFps}, frames={totalFrames}");
@@ -394,20 +419,21 @@ namespace TensorSharp.Models
             if (maxFrames > 0) wanted = Math.Min(wanted, maxFrames);
             wanted = Math.Max(1, wanted);
 
+            // Hold-and-drop onto the target timeline; a repeated index is a held frame.
+            var indices = new List<int>(wanted);
+            for (int i = 0; i < wanted; i++)
+                indices.Add(Math.Min(totalFrames - 1, (int)Math.Floor(i * sourceFps / targetFps)));
+
             string tempDir = Path.Combine(Path.GetTempPath(), $"refvid_{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
             var frames = new List<string>(wanted);
-            using var mat = new Mat();
-            for (int i = 0; i < wanted; i++)
+            decoder.ReadFrames(videoPath, indices, (index, pixels, width, height, stride, layout) =>
             {
-                int sourceIndex = Math.Min(totalFrames - 1,
-                    (int)Math.Floor(i * sourceFps / targetFps));
-                capture.Set(VideoCaptureProperties.PosFrames, sourceIndex);
-                if (!capture.Read(mat) || mat.Empty()) break;
                 string framePath = Path.Combine(tempDir, $"frame_{frames.Count + 1:D5}.png");
-                SaveMatAsPng(mat, framePath);
+                byte[] scanlines = BuildRgbaScanlines(pixels, width, height, stride, layout);
+                File.WriteAllBytes(framePath, PngCodec.EncodeScanlines(scanlines, width, height, 4));
                 frames.Add(framePath);
-            }
+            });
             if (frames.Count == 0)
                 throw new InvalidOperationException($"no frames could be read from {videoPath}");
             return (frames, sourceFps);
@@ -467,165 +493,42 @@ namespace TensorSharp.Models
             return indices;
         }
 
-        private static void SaveMatAsPng(Mat mat, string path)
-        {
-            File.WriteAllBytes(path, EncodePng(BuildRgbaScanlines(mat), mat.Cols, mat.Rows));
-        }
-
         /// <summary>
-        /// Copies a decoded BGR(A) frame out into PNG scanline form — RGBA rows each
-        /// prefixed with a filter-type byte — severing every tie to the
-        /// <see cref="Mat"/>, which the decode loop immediately reuses for the next
-        /// frame. Must run on the thread that owns the capture; everything downstream
-        /// of it is pure computation over this buffer.
+        /// Copies a decoded frame out into PNG scanline form — RGBA rows each prefixed with
+        /// a filter-type byte — severing every tie to the decoder's buffer, which it reuses
+        /// for the next frame. Must run inside the frame callback; everything downstream of
+        /// it is pure computation over this buffer.
         /// </summary>
-        private static byte[] BuildRgbaScanlines(Mat mat)
+        internal static byte[] BuildRgbaScanlines(byte[] src, int width, int height, int stride, PixelLayout layout)
         {
-            int width = mat.Cols;
-            int height = mat.Rows;
-            int channels = mat.Channels();
-            int step = (int)mat.Step();
+            int channels = layout is PixelLayout.Bgra or PixelLayout.Rgba ? 4 : 3;
+            bool bgr = layout is PixelLayout.Bgr or PixelLayout.Bgra;
+            if (stride < width * channels)
+                throw new ArgumentOutOfRangeException(nameof(stride), $"stride {stride} is shorter than a {width}-pixel {layout} row");
+            if ((long)stride * (height - 1) + (long)width * channels > src.Length)
+                throw new ArgumentException("frame buffer is smaller than its declared geometry", nameof(src));
 
             int rowStride = 1 + width * 4;
             byte[] rawRows = new byte[height * rowStride];
 
-            unsafe
+            int rOff = bgr ? 2 : 0, bOff = bgr ? 0 : 2;
+            for (int y = 0; y < height; y++)
             {
-                byte* src = (byte*)mat.Data;
-                for (int y = 0; y < height; y++)
+                int dstRowStart = y * rowStride;
+                rawRows[dstRowStart] = 0; // PNG filter: None
+                int rowStart = y * stride;
+                for (int x = 0; x < width; x++)
                 {
-                    int dstRowStart = y * rowStride;
-                    rawRows[dstRowStart] = 0; // PNG filter: None
-                    byte* row = src + y * step;
-                    for (int x = 0; x < width; x++)
-                    {
-                        int dstOff = dstRowStart + 1 + x * 4;
-                        int srcOff = x * channels;
-                        rawRows[dstOff]     = row[srcOff + 2]; // R (BGR→RGB)
-                        rawRows[dstOff + 1] = row[srcOff + 1]; // G
-                        rawRows[dstOff + 2] = row[srcOff];     // B
-                        rawRows[dstOff + 3] = channels >= 4 ? row[srcOff + 3] : (byte)255;
-                    }
+                    int dstOff = dstRowStart + 1 + x * 4;
+                    int srcOff = rowStart + x * channels;
+                    rawRows[dstOff]     = src[srcOff + rOff]; // R
+                    rawRows[dstOff + 1] = src[srcOff + 1];    // G
+                    rawRows[dstOff + 2] = src[srcOff + bOff]; // B
+                    rawRows[dstOff + 3] = channels == 4 ? src[srcOff + 3] : (byte)255;
                 }
             }
 
             return rawRows;
         }
-
-        /// <summary>Assembles a complete PNG file from RGBA scanlines. Thread-safe: it
-        /// touches nothing but its arguments.</summary>
-        private static byte[] EncodePng(byte[] rawRows, int width, int height)
-        {
-            byte[] compressed;
-            using (var ms = new MemoryStream())
-            {
-                ms.WriteByte(0x78); // zlib header
-                ms.WriteByte(0x01);
-                using (var deflate = new DeflateStream(ms, CompressionLevel.Fastest, true))
-                    deflate.Write(rawRows, 0, rawRows.Length);
-
-                uint adler = Adler32(rawRows);
-                ms.WriteByte((byte)(adler >> 24));
-                ms.WriteByte((byte)(adler >> 16));
-                ms.WriteByte((byte)(adler >> 8));
-                ms.WriteByte((byte)adler);
-                compressed = ms.ToArray();
-            }
-
-            using var png = new MemoryStream(compressed.Length + 128);
-            png.Write(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }, 0, 8);
-            WritePngChunk(png, "IHDR", BuildIHDR(width, height));
-            WritePngChunk(png, "IDAT", compressed);
-            WritePngChunk(png, "IEND", Array.Empty<byte>());
-            return png.ToArray();
-        }
-
-        /// <summary>
-        /// Adler-32 over the raw scanlines, for the zlib trailer.
-        ///
-        /// <para>Reducing modulo 65521 on every byte costs two divisions per byte, which on a
-        /// 1080p frame is more time than the deflate that follows it. The sums instead run
-        /// unreduced for <see cref="AdlerNmax"/> bytes — the largest block for which
-        /// <c>b</c> provably cannot overflow 32 bits — and are reduced once per block, the
-        /// standard zlib formulation. The result is bit-identical.</para>
-        /// </summary>
-        private static uint Adler32(byte[] data)
-        {
-            const uint Base = 65521;
-            uint a = 1, b = 0;
-            int offset = 0, remaining = data.Length;
-
-            while (remaining > 0)
-            {
-                int block = remaining < AdlerNmax ? remaining : AdlerNmax;
-                remaining -= block;
-                int end = offset + block;
-                for (; offset < end; offset++)
-                {
-                    a += data[offset];
-                    b += a;
-                }
-                a %= Base;
-                b %= Base;
-            }
-
-            return (b << 16) | a;
-        }
-
-        /// <summary>Largest byte count for which the unreduced Adler-32 <c>b</c> accumulator
-        /// stays inside 32 bits; the constant zlib uses.</summary>
-        private const int AdlerNmax = 5552;
-
-        private static byte[] BuildIHDR(int width, int height)
-        {
-            byte[] ihdr = new byte[13];
-            ihdr[0] = (byte)(width >> 24); ihdr[1] = (byte)(width >> 16);
-            ihdr[2] = (byte)(width >> 8);  ihdr[3] = (byte)width;
-            ihdr[4] = (byte)(height >> 24); ihdr[5] = (byte)(height >> 16);
-            ihdr[6] = (byte)(height >> 8);  ihdr[7] = (byte)height;
-            ihdr[8] = 8;  // bit depth
-            ihdr[9] = 6;  // color type RGBA
-            return ihdr;
-        }
-
-        private static void WritePngChunk(Stream s, string type, byte[] data)
-        {
-            byte[] lenBuf = { (byte)(data.Length >> 24), (byte)(data.Length >> 16),
-                              (byte)(data.Length >> 8),  (byte)data.Length };
-            byte[] typeBuf = System.Text.Encoding.ASCII.GetBytes(type);
-            s.Write(lenBuf, 0, 4);
-            s.Write(typeBuf, 0, 4);
-            if (data.Length > 0) s.Write(data, 0, data.Length);
-
-            uint crc = Crc32Png(typeBuf, data);
-            byte[] crcBuf = { (byte)(crc >> 24), (byte)(crc >> 16),
-                              (byte)(crc >> 8),  (byte)crc };
-            s.Write(crcBuf, 0, 4);
-        }
-
-        private static readonly uint[] Crc32Table = BuildCrc32Table();
-        private static uint[] BuildCrc32Table()
-        {
-            var t = new uint[256];
-            for (uint n = 0; n < 256; n++)
-            {
-                uint c = n;
-                for (int k = 0; k < 8; k++)
-                    c = (c & 1) != 0 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
-                t[n] = c;
-            }
-            return t;
-        }
-
-        private static uint Crc32Png(byte[] type, byte[] data)
-        {
-            uint crc = 0xFFFFFFFF;
-            foreach (byte b in type)
-                crc = Crc32Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
-            foreach (byte b in data)
-                crc = Crc32Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
-            return crc ^ 0xFFFFFFFF;
-        }
     }
 }
-
