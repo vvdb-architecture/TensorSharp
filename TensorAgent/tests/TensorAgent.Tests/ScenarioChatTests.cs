@@ -143,11 +143,15 @@ public sealed class ScenarioChatTests : LiveModelHarness
             },
             maxTokens = 512,
             think = false,
+            // Greedy, for the same reason the picture scenario is: an assertion about
+            // one exact string must not be a coin toss on top-p 0.95.
+            temperature = 0.0,
         });
 
         string answer = TextOf(frames);
         TurnStats stats = StatsOf(frames);
         Console.WriteLine($"scenario long prompt: {log.Length} characters pasted, {stats}");
+        Console.WriteLine($"scenario long prompt answer: {answer}");
 
         // Six characters per token is far below what English tokenizes at, so this
         // cannot fail on a tokenizer being efficient — only on text that never arrived.
