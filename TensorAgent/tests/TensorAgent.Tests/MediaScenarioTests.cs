@@ -482,6 +482,12 @@ public sealed class MediaScenarioTests : IDisposable
             },
             maxTokens = 64,
             think = false,
+            // Greedy. The catalog's sampling defaults for this family are temperature
+            // 1.0 / top-k 64 / top-p 0.95, which makes a test that asserts a specific
+            // WORD a coin toss -- and a flaky assertion is worse than no assertion,
+            // because it reads as evidence either way. Whether the model can see the
+            // picture is a property of the pipeline, not of the sampler.
+            temperature = 0.0,
         });
 
         // The MECHANICAL check goes first, deliberately. "The model did not say red"
