@@ -66,6 +66,11 @@ internal static partial class ShellBuiltins
         t["."] = Source;
         t["test"] = Test;
         t["["] = Test;
+
+        // --- version control ------------------------------------------------------
+        // Pure C# against the on-disk format; see ShellBuiltins.Git.cs for why, and for
+        // the list of subcommands that are refused rather than approximated.
+        t["git"] = GitCommand;
         t["type"] = Type;
         t["command"] = CommandBuiltin;
         t["which"] = Which;
