@@ -21,6 +21,7 @@ using TensorAgent.Core.Shell;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
 using TensorSharp.Chat;
+using TensorSharp.GGML;
 using TensorSharp.Server;
 using TensorSharp.Server.Hosting;
 
@@ -383,6 +384,60 @@ public sealed class AgentAppHost : IDisposable
 
     /// <summary>How long <see cref="Dispose"/> waits for the engine before releasing the model regardless.</summary>
     public static TimeSpan EngineDrainTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    private static int _exitHookInstalled;
+
+    /// <summary>
+    /// Hand the GPU back before the C runtime tears itself down, which is the one
+    /// piece of shutdown <see cref="Dispose"/> cannot do.
+    ///
+    /// <para>
+    /// ggml-metal's device is a C++ static whose destructor asserts that every
+    /// residency set has been given back, and that destructor runs from
+    /// <c>__cxa_finalize</c> — after the last managed code. A user who closes the app
+    /// without unloading first (which is every user) therefore leaves the loaded
+    /// model's buffers registered, and the process aborts on
+    /// <c>GGML_ASSERT([rsets-&gt;data count] == 0)</c> instead of exiting. Disposing
+    /// this host releases them, but nothing guarantees anyone disposes it.
+    /// </para>
+    /// <para>
+    /// So: the same wiring the desktop server and the CLI already have
+    /// (TensorSharp.Server/Program.cs registers both ApplicationStopped and
+    /// ProcessExit), for the same reason. The call is idempotent and does nothing
+    /// when no GGML backend was ever initialised.
+    /// </para>
+    /// <para>
+    /// The APP calls this, not the constructor. A net that catches an undisposed
+    /// engine also hides one, and a test process that acquired it merely by building
+    /// a host would stop aborting on exactly the leak this exists to survive — which
+    /// is how the leak went unnoticed in the first place. Tests build hosts and get
+    /// no net; the app installs it deliberately, once, at startup.
+    /// </para>
+    /// </summary>
+    public static void ReleaseTheEngineWhenTheProcessExits()
+    {
+        if (Interlocked.Exchange(ref _exitHookInstalled, 1) != 0)
+            return;
+
+        AppDomain.CurrentDomain.ProcessExit += static (_, _) =>
+        {
+            try
+            {
+                GgmlBasicOps.Shutdown();
+            }
+            catch (DllNotFoundException)
+            {
+                // No GgmlOps in this build, so there is no device holding anything
+                // and nothing to release. Not a fallback: the engine that would need
+                // shutting down was never there.
+            }
+            catch (EntryPointNotFoundException)
+            {
+                // An older GgmlOps without the entry point. Same conclusion, and the
+                // process is already on its way out; there is nowhere left to report.
+            }
+        };
+    }
 
     /// <summary>
     /// Shut down in the only order that is safe: the server first, then the engine.

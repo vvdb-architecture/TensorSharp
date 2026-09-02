@@ -38,6 +38,7 @@ public sealed class LiveModelFactAttribute : FactAttribute
 /// gigabytes and copying one per test class would be slower than the inference.
 /// </para>
 /// </summary>
+[Collection(LiveModelCollection.Name)]
 public sealed class EndToEndChatTests : IDisposable
 {
     /// <summary>Where the catalog's GGUF files can be found on this machine.</summary>
@@ -109,17 +110,39 @@ public sealed class EndToEndChatTests : IDisposable
         return _host;
     }
 
-    /// <summary>Load the selected model on the CPU backend, which is what a test machine has.</summary>
+    /// <summary>
+    /// Load the selected model on the best backend this machine offers.
+    ///
+    /// <para>
+    /// Metal where it exists, which on a development Mac it does — the same backend
+    /// the app uses on a phone, and an order of magnitude faster than the CPU path,
+    /// which is the difference between a suite that gets run and one that does not.
+    /// The backend is not the thing under test in any of these; falling back to CPU
+    /// keeps them running on a machine without a GPU.
+    /// </para>
+    /// </summary>
     private async Task LoadAsync(CatalogModel model)
     {
-        HttpResponseMessage response = await _client!.PostAsJsonAsync("/api/models/load", new
+        foreach (string backend in new[] { "ggml_metal", "ggml_cpu" })
         {
-            model = model.Weights.FileName,
-            backend = "ggml_cpu",
-        });
-        string payload = await response.Content.ReadAsStringAsync();
-        Assert.True(response.IsSuccessStatusCode, $"loading the model failed: {(int)response.StatusCode} {payload}");
+            HttpResponseMessage response = await _client!.PostAsJsonAsync("/api/models/load", new
+            {
+                model = model.Weights.FileName,
+                backend,
+            });
+            string payload = await response.Content.ReadAsStringAsync();
+            if (response.IsSuccessStatusCode && payload.Contains("\"ok\":true", StringComparison.Ordinal))
+            {
+                Loaded = backend;
+                return;
+            }
+            Console.WriteLine($"e2e: {backend} unavailable ({(int)response.StatusCode}), trying the next");
+        }
+        Assert.Fail("no backend could load the model");
     }
+
+    /// <summary>Which backend the model actually loaded on, for the numbers a test prints.</summary>
+    private string Loaded { get; set; } = "unknown";
 
     /// <summary>Read a server-sent-event stream into its frames, as the page does.</summary>
     private async Task<List<JsonElement>> StreamAsync(object body, CancellationToken ct = default)

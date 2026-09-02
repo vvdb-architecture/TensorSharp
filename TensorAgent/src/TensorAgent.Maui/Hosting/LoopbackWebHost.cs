@@ -56,6 +56,12 @@ public sealed class LoopbackWebHost : IDisposable
                 + "TensorSharp.Server/wwwroot/** into the bundle as webui/.", index);
         }
 
+        // The app, and only the app, installs the process-exit net: ggml-metal's
+        // device is a C++ static whose destructor asserts every residency set was
+        // handed back, and a user who closes the app without unloading first — which
+        // is every user — would otherwise abort instead of exiting.
+        AgentAppHost.ReleaseTheEngineWhenTheProcessExits();
+
         // What the page offers is what this build can actually run. The simulator's
         // slice of the engine has no Metal, and a page whose default backend does not
         // exist puts the user one tap from a load that fails.

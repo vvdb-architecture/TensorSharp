@@ -2343,6 +2343,22 @@ namespace TensorSharp.Models
                 // mmap below is disposed). ClearHostBufferCache then frees the
                 // MTLBuffer wrappers; the LRU state goes with it.
                 GgmlBasicOps.ClearOffloadableState();
+                // The persistent per-graph compute buffer and reuse gallocr are
+                // this model's graph scratch, sized to its widest prefill, and
+                // neither ClearOffloadableState nor ClearHostBufferCache touches
+                // them. The two diffusion pipelines release the scratch by hand
+                // between stages (QwenImagePipeline, WanVideoPipeline) precisely
+                // because nothing else does; a model that only ever loaded and
+                // unloaded had no such call anywhere, and left them allocated.
+                // On Metal each carries an
+                // MTLResidencySet registered with the device: the ggml-metal
+                // device singleton is a C++ static whose deleter asserts that
+                // collection is empty, so a process that had ever generated on
+                // Metal aborted at exit
+                // (GGML_ASSERT([rsets->data count] == 0)) after unloading
+                // perfectly cleanly. It is also close to a gigabyte a phone
+                // does not get back when the user switches models.
+                GgmlBasicOps.ReleaseReuseComputeBuffers();
                 GgmlBasicOps.ClearHostBufferCache();
             }
 

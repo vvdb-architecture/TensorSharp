@@ -184,14 +184,23 @@ still cannot work here, so the checker tests unavailability before availability.
 dotnet test TensorAgent/tests/TensorAgent.Tests/TensorAgent.Tests.csproj
 ```
 
-Hermetic by default. Three groups need something the machine may not have and say
+Hermetic by default. Four groups need something the machine may not have and say
 so rather than passing silently:
 
 | Set | Enable with |
 | --- | --- |
 | Live CPython | `TENSORAGENT_PYTHON_ROOT=<a staged slice or a CPython 3.13 prefix>` |
 | End-to-end chat | `TENSORAGENT_TEST_MODEL_DIR=<a directory of catalog GGUFs>` (and `TENSORAGENT_TEST_MODEL_FILE` for a differently named copy) |
+| Metal lifetime | the same weights, plus a Mac whose GgmlOps was built with ggml_metal |
 | Media parity | the desktop provider's packages |
+
+The Metal set is about teardown rather than answers. ggml-metal's device is a C++
+static whose destructor asserts that every residency set has been handed back, so a
+buffer our side forgets to release does not fail a test — it aborts the process at
+exit, after the run reported success. These load, generate, unload and switch on
+Metal and measure the device allocation directly, which is both the mechanism behind
+that assert and what a phone runs out of. They will not fall back to the CPU, where
+none of it exists; without Metal they skip and say so.
 
 The end-to-end set loads a real model and drives the real API: a question answered,
 a four-turn conversation, cache reuse and its invalidation, a conversation that

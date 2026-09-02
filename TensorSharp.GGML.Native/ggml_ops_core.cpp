@@ -3166,6 +3166,11 @@ TSG_EXPORT void TSGgml_Shutdown()
 // Vae.Decode, to hand that scratch back; the next graph re-creates the gallocr on demand.
 TSG_EXPORT void TSGgml_ReleaseReuseComputeBuffers()
 {
+    // Drain first. Under async compute the last graph's command buffer is still
+    // reading the very scratch this frees, and Metal commits that read whenever
+    // it gets round to it - long after the free returned. The barrier is a
+    // single atomic when nothing was deferred.
+    host_read_barrier();
     free_reuse_compute_buffer();
     free_reuse_gallocr();
 }
