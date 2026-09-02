@@ -10,6 +10,8 @@
 
 using System.Text.Json;
 using TensorAgent.Core.Python;
+using TensorAgent.Core.Shell;
+using TensorSharp.AgentHost.Skills;
 using TensorAgent.Core.Sandbox;
 using TensorSharp.AgentHost.CodeExec;
 using System.Text.RegularExpressions;
@@ -337,20 +339,34 @@ public sealed class DocumentSkillTests
                 TempRoot: work);
             var context = new InterpreterContext(work, new Dictionary<string, string> { ["HOME"] = work }, policy);
 
-            const string probe = """
-                import sys
-                missing = []
-                for name in ("reportlab", "pypdf", "openpyxl", "defusedxml", "PIL"):
-                    try:
-                        __import__(name)
-                    except Exception as exc:
-                        missing.append(f"{name}: {type(exc).__name__}: {exc}")
-                if missing:
-                    print("MISSING " + " | ".join(missing))
-                    print("sys.path = " + repr(sys.path))
-                    raise SystemExit(1)
-                print("all present")
-                """;
+            // Importing the TOP-LEVEL package proves almost nothing, and the first
+            // version of this test made exactly that mistake: `__import__("reportlab")`
+            // passed while `from reportlab.lib import colors` -- what make_pdf.py
+            // actually writes on its sixth line -- still failed, so the test went green
+            // and the live model was still told reportlab was not installed. What the
+            // scripts import is what has to be imported here, so the module list is
+            // read out of the scripts themselves and every one of them is tried.
+            string scripts = Path.Combine(Skill, "scripts");
+            string[] modules = Directory.EnumerateFiles(scripts, "*.py")
+                .SelectMany(file => Regex.Matches(
+                    File.ReadAllText(file),
+                    @"^\s*(?:from\s+(?<m>[A-Za-z_][\w.]*)\s+import|import\s+(?<m>[A-Za-z_][\w.]*))",
+                    RegexOptions.Multiline).Select(match => match.Groups["m"].Value))
+                .Where(name => ThirdParty.Contains(name.Split('.')[0]))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+
+            Assert.True(modules.Length >= 5,
+                $"only {modules.Length} third-party imports were found across {scripts}; the scan is broken");
+
+            string probe = "import sys\nmissing = []\n"
+                + string.Concat(modules.Select(name =>
+                    $"try:\n    __import__({Quote(name)})\nexcept Exception as exc:\n"
+                    + $"    missing.append({Quote(name)} + ': ' + type(exc).__name__ + ': ' + str(exc))\n"))
+                + "if missing:\n    print('MISSING ' + ' | '.join(missing))\n"
+                + "    print('sys.path = ' + repr(sys.path))\n    raise SystemExit(1)\n"
+                + $"print('all {modules.Length} present')\n";
 
             ExecutionResult result = await python.RunCodeAsync(probe, [], context, CancellationToken.None);
             Assert.True(result.ExitCode == 0,
@@ -360,6 +376,172 @@ public sealed class DocumentSkillTests
         finally
         {
             try { Directory.Delete(work, true); } catch { }
+        }
+    }
+
+    private static readonly byte[] PdfMagic = "%PDF-"u8.ToArray();
+    private static readonly byte[] ZipMagic = [0x50, 0x4B, 0x03, 0x04];
+
+    /// <summary>The packages that come from the staged runtime rather than the standard library.</summary>
+    private static readonly HashSet<string> ThirdParty =
+        new(StringComparer.Ordinal) { "reportlab", "pypdf", "openpyxl", "defusedxml", "PIL" };
+
+    private static string Quote(string value) => "'" + value.Replace("'", "\\'") + "'";
+
+    /// <summary>
+    /// The skill's own scripts, run the way the app runs them, actually produce
+    /// documents.
+    ///
+    /// <para>
+    /// The gap this fills is the one that cost the most time here. Whether these
+    /// scripts work end to end was checked only by a live-model scenario: a model had
+    /// to choose the right script, invent a spec and invoke it, and when the answer
+    /// was "no PDF" the cause could be the model, the prompt, the skill's wording, the
+    /// interpreter, the sandbox or the script -- two minutes per attempt to learn
+    /// almost nothing. This runs the same scripts through the same shell and the same
+    /// interpreter with a spec written HERE, so a failure is the machinery's and
+    /// nothing else's, and it takes a second.
+    /// </para>
+    /// </summary>
+    [LivePythonFact]
+    public void TheSkillsOwnScriptsProduceRealDocumentsThroughTheAppsShell()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-docs-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+            IShellBackend backend = new InProcessShellBackend(python);
+
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("docs");
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+            string work = workspace.WorkDirectory;
+
+            File.WriteAllText(Path.Combine(work, "sales.csv"),
+                "region,units,revenue\nNorthgate,12,4180\nRavensworth,7,2650\nBellhaven,19,7310\n");
+            File.WriteAllText(Path.Combine(work, "spec.json"), """
+                {"title":"Q3","blocks":[
+                  {"type":"heading","level":1,"text":"Summary"},
+                  {"type":"table","columns":["Region","Units","Revenue"],
+                   "rows":[["Northgate",12,4180],["Ravensworth",7,2650],["Bellhaven",19,7310]]}]}
+                """);
+
+            string scripts = Path.Combine(Skill, "scripts");
+            foreach ((string command, string output, byte[] magic) in new[]
+            {
+                ($"python3 '{scripts}/make_pdf.py' --spec spec.json --out report.pdf", "report.pdf", PdfMagic),
+                ($"python3 '{scripts}/make_xlsx.py' --csv sales.csv --out book.xlsx", "book.xlsx", ZipMagic),
+                ($"python3 '{scripts}/make_docx.py' --spec spec.json --out report.docx", "report.docx", ZipMagic),
+                ($"python3 '{scripts}/analyze_table.py' sales.csv", string.Empty, Array.Empty<byte>()),
+            })
+            {
+                ConfinedResult result = backend.Run(new ShellLaunch
+                {
+                    Command = command,
+                    Session = session,
+                    WorkingDirectory = work,
+                    WriteDirectory = work,
+                    ReadOnlyDirectory = scripts,
+                    Timeout = TimeSpan.FromSeconds(120),
+                });
+
+                Assert.True(result.Ok && result.ExitCode == 0,
+                    $"`{command}` failed with exit {result.ExitCode}.{Environment.NewLine}"
+                    + $"stdout: {result.Stdout}{Environment.NewLine}stderr: {result.Stderr}");
+
+                if (output.Length == 0)
+                    continue;
+
+                string produced = Path.Combine(work, output);
+                Assert.True(File.Exists(produced), $"`{command}` reported success and wrote no {output}");
+
+                byte[] head = new byte[magic.Length];
+                using (FileStream stream = File.OpenRead(produced))
+                    Assert.Equal(magic.Length, stream.Read(head, 0, magic.Length));
+                Assert.True(head.SequenceEqual(magic),
+                    $"{output} does not start with the bytes its format requires, so it is not one");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// The same scripts, run the way the MODEL runs them -- through skills_run.
+    ///
+    /// <para>
+    /// Not a duplicate of the shell test above. skills_run does not execute the script
+    /// where it lives: it copies it into the session workspace and runs it there, which
+    /// is a different working directory, a different sandbox and a different import
+    /// path. A live model reaches for skills_run first because that is the tool the
+    /// skill's own instructions describe, so this is the path that actually decides
+    /// whether the skill works for a user, and the one whose failure was being read as
+    /// "the model could not do it".
+    /// </para>
+    /// </summary>
+    [LivePythonFact]
+    public void TheSkillsOwnScriptsProduceRealDocumentsThroughSkillsRun()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-run-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+
+            var registry = new SkillRegistry(new SkillRegistryOptions
+            {
+                Roots = new[] { Path.GetDirectoryName(Skill)! },
+            });
+            Skill? skill = registry.Skills.FirstOrDefault(s => s.Id == "documents");
+            Assert.True(skill is not null, "the documents skill did not load out of the repository");
+
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("run");
+            string work = workspace.WorkDirectory;
+            File.WriteAllText(Path.Combine(work, "sales.csv"),
+                "region,units,revenue\nNorthgate,12,4180\nRavensworth,7,2650\nBellhaven,19,7310\n");
+            File.WriteAllText(Path.Combine(work, "spec.json"), """
+                {"title":"Q3","blocks":[{"type":"heading","level":1,"text":"Summary"},
+                  {"type":"table","columns":["Region","Units","Revenue"],
+                   "rows":[["Northgate",12,4180],["Ravensworth",7,2650],["Bellhaven",19,7310]]}]}
+                """);
+
+            var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+            {
+                Backend = new InProcessShellBackend(python),
+                Workspace = workspace,
+                Sandbox = SkillSandboxMode.Required,
+                Timeout = TimeSpan.FromSeconds(120),
+            });
+
+            foreach ((string script, string[] args, string output, byte[] magic) in new[]
+            {
+                ("scripts/make_pdf.py", new[] { "--spec", "spec.json", "--out", "report.pdf" }, "report.pdf", PdfMagic),
+                ("scripts/make_xlsx.py", new[] { "--csv", "sales.csv", "--out", "book.xlsx" }, "book.xlsx", ZipMagic),
+            })
+            {
+                SkillToolResult result = runner.Run(skill!, script, args);
+                Assert.True(result.Ok,
+                    $"skills_run {script} failed -- this is the path a model uses.{Environment.NewLine}{result.Content}");
+
+                string produced = Path.Combine(work, output);
+                Assert.True(File.Exists(produced),
+                    $"skills_run {script} reported success and wrote no {output}.{Environment.NewLine}{result.Content}");
+
+                byte[] head = new byte[magic.Length];
+                using (FileStream stream = File.OpenRead(produced))
+                    stream.ReadExactly(head);
+                Assert.True(head.SequenceEqual(magic), $"{output} does not begin with its format's bytes");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
         }
     }
 
