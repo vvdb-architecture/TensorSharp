@@ -25,7 +25,12 @@ namespace TensorAgent.Core.Sessions;
 /// </summary>
 public sealed class ConversationStore
 {
-    private static readonly JsonSerializerOptions Json = new()
+    /// <summary>
+    /// The serializer the saved transcript uses. Public because the recorder reads the
+    /// page's own message objects with it: the two must agree exactly, or a message
+    /// saved by one and read by the other loses its attachments.
+    /// </summary>
+    internal static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = false,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

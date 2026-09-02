@@ -42,7 +42,11 @@ public static class WebUiRoutes
     /// optional and their routes answer 503 with a reason when absent, which is what
     /// lets the app start before a model has been chosen.
     /// </summary>
-    public static void MapWebUi(this LoopbackServer server, WebUiChatService chat, SkillsService? skills = null)
+    public static void MapWebUi(
+        this LoopbackServer server,
+        WebUiChatService chat,
+        SkillsService? skills = null,
+        ConversationRecorder? recorder = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(chat);
@@ -59,9 +63,37 @@ public static class WebUiRoutes
             LoopbackResponse.Sse(Guarded(chat.ChatStreamAsync(await request.ReadJsonAsync(ct), ct))));
 
         // ---- sessions -----------------------------------------------------------
-        server.MapPost("/api/sessions", (_, _) => Ok(chat.CreateSession()));
+        //
+        // The desktop's route creates an engine session and says so. The app's page
+        // also asks, in the query string, which saved conversation that session is
+        // for, and needs the answer back so it can render the transcript it is
+        // resuming. The extra member is additive: the desktop page ignores it.
+        server.MapPost("/api/sessions", (request, _) =>
+        {
+            object created = chat.CreateSession();
+            if (recorder is null)
+                return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(created));
+
+            string sessionId = SessionIdOf(created);
+            Conversation conversation = recorder.Bind(sessionId, request.Query("conversation"));
+            return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new
+            {
+                sessionId,
+                conversationId = conversation.Id,
+                title = conversation.Title,
+                messages = conversation.Messages,
+                think = conversation.Think,
+                skills = conversation.Skills,
+                modelId = conversation.ModelId,
+            }));
+        });
         server.MapDelete("/api/sessions/{id}", async (request, ct) =>
-            Json(await Guarded(() => chat.DisposeSessionAsync(request.RouteValues["id"], ct))));
+        {
+            string id = request.RouteValues["id"];
+            object disposed = await Guarded(() => chat.DisposeSessionAsync(id, ct));
+            recorder?.Release(id);
+            return Json(disposed);
+        });
 
         // ---- uploads and generation --------------------------------------------
         server.MapPost("/api/upload", async (request, ct) =>
@@ -293,6 +325,18 @@ public static class WebUiRoutes
         remainingBytes = store.RemainingBytes(model),
         path = store.WeightsPath(model),
     };
+
+    /// <summary>
+    /// Read the session id out of whatever shape the chat service returned. It is an
+    /// anonymous type, so a round trip through JSON is the only way to it — cheap, and
+    /// it fails loudly if the service ever renames the member.
+    /// </summary>
+    private static string SessionIdOf(object created)
+    {
+        using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(created, SseFraming.JsonOptions));
+        return document.RootElement.GetProperty("sessionId").GetString()
+            ?? throw new InvalidOperationException("the chat service created a session with no id");
+    }
 
     /// <summary>
     /// The chat service refuses a request by throwing, carrying the status and the JSON

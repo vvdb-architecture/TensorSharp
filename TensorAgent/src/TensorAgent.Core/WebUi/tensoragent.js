@@ -180,7 +180,7 @@
   async function resume() {
     if (!state.conversationId) return;
     try {
-      const res = await fetch('/api/tensoragent/conversations/' + encodeURIComponent(state.conversationId));
+      const res = await fetch('/api/agent/conversations/' + encodeURIComponent(state.conversationId));
       if (!res.ok) return;
       loadConversation(await res.json());
     } catch (e) {
@@ -200,8 +200,8 @@
   // ---- native bridge ---------------------------------------------------------------
   function postNative(message) {
     try {
-      // The app polls /api/tensoragent/events; the WebView route below is the cheap path.
-      fetch('/api/tensoragent/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message) }).catch(() => {});
+      // The app polls /api/agent/events; the WebView route below is the cheap path.
+      fetch('/api/agent/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message) }).catch(() => {});
     } catch (e) { /* ignore */ }
   }
 
