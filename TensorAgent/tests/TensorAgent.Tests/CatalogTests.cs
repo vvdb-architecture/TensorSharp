@@ -40,24 +40,59 @@ public sealed class CatalogTests
         }
     }
 
+    /// <summary>
+    /// What a device of a given size actually grants the app. A 12 GB iPhone gives
+    /// about 8.5 GB with <c>com.apple.developer.kernel.increased-memory-limit</c>, and
+    /// the fraction holds well enough across the range to gate a catalog with.
+    /// </summary>
+    private static double JetsamBudget(int deviceGB) => deviceGB * 1e9 * (8.5 / 12.0);
+
+    /// <summary>
+    /// Metal wires the mmap'd weights, so resident memory is roughly the GGUF plus the
+    /// F32 projector (about twice its file), the KV cache and half a gigabyte of
+    /// compute buffers.
+    /// </summary>
+    private static double EstimatedResident(CatalogModel model) =>
+        model.Weights.Bytes + 0.5e9 + (model.Projector is { Optional: false } p ? 2.0 * p.Bytes : 0);
+
     [Fact]
-    public void TwelveGigabyteTierStaysUnderTheJetsamBudget()
+    public void EveryTierStaysUnderTheJetsamBudgetOfTheSmallestDeviceItIsOfferedOn()
     {
-        // Metal wires the mmap'd weights: resident ~ GGUF bytes + F32 projector (~2x its file)
-        // + KV + ~0.5 GB compute. 8.5 GB is what a 12 GB iPhone grants with the entitlement.
-        const double budget = 8.5e9;
-        foreach (CatalogModel m in ModelCatalog.ForDevice(12).Where(m => !m.IsImageGenerator))
+        // Checking only the 12 GB tier let two entries through that could never load
+        // on the tier they advertised: Gemma 4 E2B claimed 6 GB and needs 6.6, and
+        // E4B Q4_K_XL claimed 8 and needs 6.8. A phone would have offered a five
+        // gigabyte download and then been killed opening it — the worst outcome the
+        // catalog can produce, because the user pays for it twice.
+        foreach (CatalogModel m in ModelCatalog.BuiltIn.Where(m => !m.IsImageGenerator))
         {
-            double resident = m.Weights.Bytes + 0.5e9
-                + (m.Projector is { Optional: false } p ? 2.0 * p.Bytes : 0);
-            Assert.True(resident < budget, $"{m.Id}: estimated resident {resident / 1e9:F1} GB exceeds {budget / 1e9:F1} GB");
+            double resident = EstimatedResident(m);
+            double budget = JetsamBudget(m.MinDeviceMemoryGB);
+            Assert.True(resident < budget,
+                $"{m.Id} is offered at {m.MinDeviceMemoryGB} GB, which grants about "
+                + $"{budget / 1e9:F1} GB, but needs about {resident / 1e9:F1} GB resident");
+        }
+    }
+
+    [Fact]
+    public void EveryModelADeviceIsOfferedFitsThatDevice()
+    {
+        // The other direction: whatever ForDevice hands back must fit the device that
+        // asked, for every size a real iPhone comes in.
+        foreach (int deviceGB in new[] { 6, 8, 12, 16 })
+        {
+            foreach (CatalogModel m in ModelCatalog.ForDevice(deviceGB).Where(m => !m.IsImageGenerator))
+            {
+                Assert.True(EstimatedResident(m) < JetsamBudget(deviceGB),
+                    $"a {deviceGB} GB device is offered {m.Id}, which needs about "
+                    + $"{EstimatedResident(m) / 1e9:F1} GB against a {JetsamBudget(deviceGB) / 1e9:F1} GB budget");
+            }
         }
     }
 
     [Fact]
     public void DeviceTiersGateTheLargeEntries()
     {
-        Assert.DoesNotContain(ModelCatalog.ForDevice(8), m => m.Weights.Bytes > 6e9);
+        Assert.Empty(ModelCatalog.ForDevice(8));
         Assert.Contains(ModelCatalog.ForDevice(12), m => m.Id == "qwen3.8-27b-iq2xxs");
         Assert.DoesNotContain(ModelCatalog.ForDevice(12), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);
         Assert.Contains(ModelCatalog.ForDevice(16), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);

@@ -25,16 +25,16 @@ byte size and SHA-256 of each file. Downloads resume from a kept `.part` after a
 interruption and are verified before use. Both families and both architectures are
 covered:
 
-| Model | Architecture | Size | Needs |
-| --- | --- | --- | --- |
-| Gemma 4 E2B (Q8_0) | dense | 5.52 GB | 12 GB |
-| Gemma 4 E4B (UD-Q4_K_XL) | dense | 5.69 GB | 12 GB |
-| Gemma 4 E4B (Q8_0) | dense | 8.59 GB | 16 GB |
-| Qwen3.5 9B (UD-Q4_K_XL) | dense | 5.97 GB | 12 GB |
-| Qwen3.8 27B (UD-IQ2_XXS) | dense | 7.27 GB | 12 GB |
-| Gemma 4 26B-A4B (UD-IQ2_XXS) | mixture of experts | 9.92 GB | 16 GB |
-| Qwen3.6 35B-A3B (UD-IQ1_M) | mixture of experts | 10.05 GB | 16 GB |
-| Qwen-Image-Edit 2511 (Q2_K) | diffusion | 10.97 GB | 16 GB |
+| Model | Architecture | Download | Needs | Hugging Face repo |
+| --- | --- | --- | --- | --- |
+| Gemma 4 E2B (Q8_0) | dense | 5.52 GB | 12 GB | `ggml-org/gemma-4-E2B-it-GGUF` |
+| Gemma 4 E4B (UD-Q4_K_XL) | dense | 5.79 GB | 12 GB | `unsloth/gemma-4-E4B-it-GGUF` |
+| Gemma 4 E4B (Q8_0) | dense | 8.59 GB | 16 GB | `ggml-org/gemma-4-E4B-it-GGUF` |
+| Qwen3.5 9B (UD-Q4_K_XL) | dense | 6.89 GB | 12 GB | `unsloth/Qwen3.5-9B-GGUF` |
+| Qwen3.8 27B (UD-IQ2_XXS) | dense | 8.20 GB | 12 GB | `unsloth/Qwen3.8-27B-GGUF` |
+| Gemma 4 26B-A4B (UD-IQ2_XXS) | mixture of experts | 11.11 GB | 16 GB | `unsloth/gemma-4-26B-A4B-it-GGUF` |
+| Qwen3.6 35B-A3B (UD-IQ1_M) | mixture of experts | 10.95 GB | 16 GB | `unsloth/Qwen3.6-35B-A3B-GGUF` |
+| Qwen-Image-Edit 2511 (Q2_K) | diffusion | 12.32 GB | 12 GB | `unsloth/Qwen-Image-Edit-2511-GGUF` + 3 companions |
 
 The catalog is filtered by the device's own memory, so a phone is never offered a
 model it cannot load.

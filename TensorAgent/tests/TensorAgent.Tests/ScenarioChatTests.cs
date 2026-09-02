@@ -1,0 +1,731 @@
+// Copyright (c) Zhongkai Fu. All rights reserved.
+// https://github.com/zhongkaifu/TensorSharp
+//
+// This file is part of TensorSharp.
+//
+// TensorSharp is licensed under the BSD-3-Clause license found in the LICENSE file in the root directory of this source tree.
+//
+// TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
+
+using System.Diagnostics;
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using TensorAgent.Core.Catalog;
+using TensorSharp.AgentHost.Skills;
+
+namespace TensorAgent.Tests;
+
+/// <summary>
+/// The work a person actually does with this app, done end to end.
+///
+/// <para>
+/// <see cref="EndToEndChatTests"/> pins the CONTRACT — a turn streams, a session
+/// remembers, the cache is reused and invalidated, an abort is honoured. None of
+/// that says whether the app is any use: an app can answer every question, stream
+/// every frame and reuse every token while being unable to read a long document,
+/// run a program it just wrote, or produce a file. These are the scenarios that
+/// answer that, and each of them fails for a different reason.
+/// </para>
+/// <para>
+/// A four-bit model is not reliable, so nothing here asserts on prose where a fact
+/// will do. What is asserted is what is actually deterministic: a frame the page
+/// depends on appeared, a file exists where the shell would have put it, a number
+/// the model reported matches one computed here in C#, a file begins with the bytes
+/// its format requires. Where wording is unavoidable the model's own answer goes
+/// into the failure message, because a live-model failure that does not quote the
+/// model tells the reader nothing.
+/// </para>
+/// </summary>
+[Collection(LiveModelHarness.Collection)]
+public sealed class ScenarioChatTests : LiveModelHarness
+{
+    // =====================================================================================
+    // 1. a short question
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches the app answering the wrong question, and the app answering the right
+    /// one far too slowly to use.
+    ///
+    /// <para>
+    /// The floor on wall-clock is deliberately loose — three minutes for a one-word
+    /// answer — because it is not measuring the machine. It is there to catch the
+    /// failures that make a phone unusable without making anything fail outright: a
+    /// backend that quietly fell back to a scalar path, a prompt rebuilt from scratch
+    /// per token, a preamble that grew until every trivial turn re-prefills thousands
+    /// of tokens. It also pins <c>truncated</c>: half a kilotoken for one word and a
+    /// truncated answer means the budget is not reaching the engine.
+    /// </para>
+    /// </summary>
+    [LiveModelFact]
+    public async Task AShortFactualQuestionComesBackRightAndDoesNotTakeMinutes()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+
+        var clock = Stopwatch.StartNew();
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId = session.GetProperty("sessionId").GetString(),
+            messages = new[] { new { role = "user", content = "Which planet in our solar system is closest to the Sun? Answer with the planet's name." } },
+            maxTokens = 512,
+            think = false,
+        });
+        clock.Stop();
+
+        string answer = TextOf(frames);
+        TurnStats stats = StatsOf(frames);
+        Console.WriteLine($"scenario short: {stats} on {LoadedBackend}");
+
+        Assert.True(answer.Contains("Mercury", StringComparison.OrdinalIgnoreCase),
+            "the model did not name the planet; it answered: " + answer);
+
+        JsonElement done = frames.Last(f => f.TryGetProperty("done", out _));
+        Assert.False(done.GetProperty("truncated").GetBoolean(),
+            $"a one-word answer used the whole 512-token budget, so the budget is not reaching the engine; it answered: {answer}");
+
+        Assert.True(clock.Elapsed < TimeSpan.FromMinutes(3),
+            $"a one-line question took {clock.Elapsed.TotalSeconds:0.0}s on {LoadedBackend} "
+            + $"({stats}), which is past the point where anyone would wait for it");
+    }
+
+    // =====================================================================================
+    // 2. a long pasted document
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches a long paste being silently cut short.
+    ///
+    /// <para>
+    /// Three distinct ways that happens, and none of them fails loudly: the transport
+    /// truncates the request body, the prompt renderer drops the middle of an
+    /// over-long message, or the context window is smaller than the app admits and the
+    /// front of the conversation is evicted. All three leave a fluent answer behind.
+    /// So the question is planted ONCE, nine tenths of the way down, where only a
+    /// prompt that survived intact can answer it — and <c>promptTokens</c> is checked
+    /// against the size of the text that was actually sent, since a prompt reported as
+    /// a third of its real length is the same bug seen from the other end.
+    /// </para>
+    /// </summary>
+    [LiveModelFact]
+    public async Task ALongPastedDocumentIsReadToItsEndAndCountedHonestly()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights);
+        await LoadAsync(model);
+
+        const string partNumber = "QX-4417";
+        string log = ShiftLog(
+            lines: 140,
+            factLine: 128,
+            fact: $"Maintenance note: the replacement seal for the Ravensworth pump is part number {partNumber}, "
+                + "ordered from the Tyneside depot and fitted the same afternoon.");
+
+        JsonElement session = await OpenSessionAsync();
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId = session.GetProperty("sessionId").GetString(),
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = "Here is a shift log.\n\n" + log
+                        + "\n\nRead the whole log. What is the part number of the replacement seal for the "
+                        + "Ravensworth pump? Answer with just the part number.",
+                },
+            },
+            maxTokens = 512,
+            think = false,
+        });
+
+        string answer = TextOf(frames);
+        TurnStats stats = StatsOf(frames);
+        Console.WriteLine($"scenario long prompt: {log.Length} characters pasted, {stats}");
+
+        // Six characters per token is far below what English tokenizes at, so this
+        // cannot fail on a tokenizer being efficient — only on text that never arrived.
+        int floor = log.Length / 6;
+        Assert.True(stats.PromptTokens >= floor,
+            $"{log.Length} characters were pasted but the turn reports only {stats.PromptTokens} prompt tokens "
+            + $"(at least {floor} were expected), so most of the document never reached the model");
+
+        Assert.True(
+            answer.Contains(partNumber, StringComparison.OrdinalIgnoreCase)
+            || answer.Replace("-", string.Empty).Contains(partNumber.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase),
+            $"the part number appears once, on line 128 of 140, and the model did not find it; it answered: {answer}");
+    }
+
+    // =====================================================================================
+    // 3. code written, run, and then changed
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches the whole code path being broken in any of the places it can break,
+    /// and does it in one conversation rather than five.
+    ///
+    /// <para>
+    /// The frames are asserted as well as the answer because they are what the user
+    /// watches: without <c>writing</c> / <c>running</c> / <c>finished</c> the page is
+    /// frozen for the length of a program being written and run, and nothing else in
+    /// the suite would notice they had stopped arriving. The answer is asserted
+    /// against a product no model computes in its head, so an answer that is right is
+    /// evidence the program was executed rather than imagined. And the second turn
+    /// re-reads the file from the workspace, because "it changed the file" is the one
+    /// claim a model can make convincingly while having done nothing at all.
+    /// </para>
+    /// </summary>
+    [LiveCodeFact]
+    public async Task AProgramIsWrittenRunAndThenChangedInTheSameWorkspace()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, interpreter: true);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+        string workspace = WorkspaceOf(sessionId);
+
+        long expectedSum = Readings.Sum(value => (long)value);
+        long expectedProduct = Readings.Aggregate(1L, (running, value) => running * value);
+        string list = string.Join(", ", Readings);
+
+        var history = new List<object>
+        {
+            new
+            {
+                role = "user",
+                content = $"Save a Python program to a file called readings.py in your working directory that "
+                    + $"computes the SUM of these numbers: {list}. Do not use `python3 -c`; write the file, then "
+                    + "run that file, and tell me the number it printed.",
+            },
+        };
+        List<JsonElement> first = await StreamAsync(new { sessionId, messages = history, maxTokens = 900, think = false });
+        string wrote = TextOf(first);
+        List<Progress> progress = ProgressOf(first);
+        Console.WriteLine($"scenario code, turn 1: {Describe(progress)}");
+
+        Assert.True(progress.Any(p => p.Phase == "writing"),
+            $"no `writing` tool-progress frame arrived, so the page would have shown nothing while the "
+            + $"program was being typed. Frames: {Describe(progress)}; answer: {wrote}");
+        Assert.True(progress.Any(p => p.Phase == "running"),
+            $"no `running` tool-progress frame arrived, so the page would have shown nothing while the "
+            + $"program ran. Frames: {Describe(progress)}; answer: {wrote}");
+        Assert.True(progress.Any(p => p.Phase == "finished"),
+            $"the `running` line was never taken down. Frames: {Describe(progress)}");
+
+        Dictionary<string, string> written = PythonFilesIn(workspace);
+        Assert.True(written.Count > 0,
+            $"no Python file was written to the session workspace.\n  {Listing(workspace)}\n\nanswer: {wrote}");
+
+        string source = string.Join("\n", written.Values);
+        int quoted = Readings.Count(value => Mentions(source, value));
+        Assert.True(quoted >= Readings.Length - 1,
+            $"the program in the workspace names only {quoted} of the {Readings.Length} numbers it was given, "
+            + $"so it is not the program that was asked for:\n{source}");
+
+        Assert.True(States(wrote, expectedSum),
+            $"the run should have printed {expectedSum}; the model answered: {wrote}");
+
+        // The change. Same file, same session, so the workspace it edits is the one it
+        // just wrote into.
+        history.Add(new { role = "assistant", content = wrote });
+        history.Add(new
+        {
+            role = "user",
+            content = "Now change readings.py so that it computes the PRODUCT of the same numbers instead of the "
+                + "sum. Run it again and tell me the new number.",
+        });
+        List<JsonElement> second = await StreamAsync(new { sessionId, messages = history, maxTokens = 900, think = false });
+        string changed = TextOf(second);
+        Console.WriteLine($"scenario code, turn 2: {Describe(ProgressOf(second))}");
+
+        // THE file, not any file. "Some .py changed" passes when the model abandons
+        // readings.py and writes product.py beside it, which is not an edit and not
+        // what was asked; it also passes if a stray scratch file appears. The named
+        // file has to still be there and its contents have to have moved.
+        Dictionary<string, string> after = PythonFilesIn(workspace);
+        KeyValuePair<string, string> target = written.First(f =>
+            Path.GetFileName(f.Key).Equals("readings.py", StringComparison.OrdinalIgnoreCase));
+        Assert.True(after.TryGetValue(target.Key, out string? nowSource),
+            $"readings.py is gone from the workspace, so the second turn replaced it rather than editing it:\n  "
+            + $"{Listing(workspace)}\n\nanswer: {changed}");
+        Assert.True(nowSource != target.Value,
+            $"readings.py is byte-for-byte what the first turn wrote, so the second turn edited nothing:\n"
+            + $"{nowSource}\n\nanswer: {changed}");
+
+        Assert.True(States(changed, expectedProduct),
+            $"the edited program should have printed {expectedProduct}; the model answered: {changed}");
+    }
+
+    // =====================================================================================
+    // 4. agent work over data
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches an agent that talks about a file instead of reading it.
+    ///
+    /// <para>
+    /// Six revenue figures invented for this test, grouped by three region names
+    /// invented with them: an answer matching the arithmetic done here in C# could
+    /// only have come from the file. That is the assertion that matters. The frame
+    /// check beside it tells the two failures apart — a model that answered without
+    /// running anything, versus one that ran something which never found the CSV the
+    /// test planted in its workspace — because those are fixed in different places.
+    /// </para>
+    /// </summary>
+    [LiveCodeFact]
+    public async Task AnAnswerAboutACsvInTheWorkspaceMatchesArithmeticDoneInCSharp()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, interpreter: true);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+        string workspace = WorkspaceOf(sessionId);
+        File.WriteAllText(Path.Combine(workspace, SalesFileName), SalesCsv());
+
+        long expectedTotal = Sales.Sum(row => (long)row.Revenue);
+        IGrouping<string, (string Region, int Units, int Revenue)> best = Sales
+            .GroupBy(row => row.Region, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Sum(row => (long)row.Revenue))
+            .First();
+
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId,
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = $"The file {SalesFileName} in your working directory has the columns region, units "
+                        + "and revenue. Write and run a program that reads it and works out two things: the total "
+                        + "of the revenue column across every row, and which region has the highest total revenue. "
+                        + "Then tell me both answers.",
+                },
+            },
+            maxTokens = 900,
+            think = false,
+        });
+
+        string answer = TextOf(frames);
+        List<Progress> progress = ProgressOf(frames);
+        Console.WriteLine($"scenario csv: {Describe(progress)}");
+
+        Assert.True(
+            progress.Any(p => p.Phase == "finished" && SkillToolNames.CodeTools.Contains(p.Tool, StringComparer.Ordinal)),
+            $"no code tool finished, so nothing ever opened {SalesFileName}. Frames: {Describe(progress)}; "
+            + $"answer: {answer}");
+
+        Assert.True(States(answer, expectedTotal),
+            $"the revenue column totals {expectedTotal}; the model answered: {answer}");
+
+        Assert.True(answer.Contains(best.Key, StringComparison.OrdinalIgnoreCase),
+            $"'{best.Key}' has the highest total revenue ({best.Sum(row => (long)row.Revenue)}); "
+            + $"the model answered: {answer}");
+    }
+
+    // =====================================================================================
+    // 5. finding a skill nobody named
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches skill discovery being off in practice while being on in configuration.
+    ///
+    /// <para>
+    /// The request names no skill, so the only way <c>brand-guidelines</c> can be read
+    /// is if the catalog was advertised, the model called <c>skills_read</c>, and the
+    /// host answered it in process. Any break in that chain — a catalog that never
+    /// reaches the prompt, a family whose tool declarations are dropped, a registry
+    /// pointed at the wrong directory — leaves the model answering from memory, which
+    /// reads perfectly well and is exactly the failure this exists to see. The
+    /// <c>skill_step</c> frames are what the page draws its progress trace from, so
+    /// asserting on them checks the user-visible half at the same time.
+    /// </para>
+    /// </summary>
+    [LiveModelFact]
+    public async Task ABundledSkillIsFoundAndReadWithoutTheRequestNamingIt()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, skills: true);
+        await LoadAsync(model);
+
+        Assert.True(Host.Skills.Skills.Count > 0,
+            $"no skills were discovered under {RepoSkillsDirectory}, so this proves nothing");
+
+        JsonElement session = await OpenSessionAsync();
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId = session.GetProperty("sessionId").GetString(),
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = "I am designing a slide for an internal deck and it has to follow Anthropic's "
+                        + "official brand colors and typography. Check the guidance available to you, then tell me "
+                        + "which colors and fonts to use.",
+                },
+            },
+            maxTokens = 700,
+            think = false,
+        });
+
+        string answer = TextOf(frames);
+        List<SkillStep> steps = StepsOf(frames);
+        Console.WriteLine($"scenario skills: {Describe(steps)}");
+
+        Assert.True(steps.Count > 0,
+            $"no skill_step frame arrived, so no skill was consulted at all; the model answered: {answer}");
+
+        Assert.True(steps.Any(step => step.Skill == "brand-guidelines" && step.Ok),
+            "the request asked for Anthropic's own brand colors, which is what the bundled 'brand-guidelines' "
+            + $"skill describes, and it was never read successfully. Steps: {Describe(steps)}; "
+            + $"answer: {answer}");
+    }
+
+    // =====================================================================================
+    // 6. running a skill's own script
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches a skill that can be read but not run.
+    ///
+    /// <para>
+    /// Reading a skill is a file copy; running one crosses every boundary this app
+    /// has — the script runner resolves a path inside the skill, the interpreter
+    /// starts in process because iOS forbids a child, the sandbox lets it write to the
+    /// session workspace and nowhere else, and openpyxl has to be importable from the
+    /// staged runtime. A spreadsheet that is a real ZIP container is the shortest
+    /// proof that all of it worked, and asserting the zip header rather than the
+    /// extension is what makes it a proof: a traceback saved as <c>.xlsx</c> also has
+    /// the right name.
+    /// </para>
+    /// </summary>
+    [LiveDocumentsFact]
+    public async Task ASkillsOwnScriptRunsAndTheSpreadsheetItWritesIsARealWorkbook()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, skills: true, interpreter: true);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+        string workspace = WorkspaceOf(sessionId);
+        File.WriteAllText(Path.Combine(workspace, SalesFileName), SalesCsv());
+
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId,
+            skills = new[] { DocumentsSkillId },
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = $"The file {SalesFileName} in my working directory has the columns region, units and "
+                        + $"revenue. Use the {DocumentsSkillId} skill to turn it into an Excel workbook saved as "
+                        + "sales.xlsx in my working directory. Tell me when the file is there.",
+                },
+            },
+            maxTokens = 1024,
+            think = false,
+        });
+
+        string answer = TextOf(frames);
+        List<SkillStep> steps = StepsOf(frames);
+        List<Progress> progress = ProgressOf(frames);
+        Console.WriteLine($"scenario xlsx: {Describe(steps)} | {Describe(progress)}");
+
+        Assert.True(steps.Any(step => step.Skill == DocumentsSkillId),
+            $"the '{DocumentsSkillId}' skill was selected for this request and never touched. "
+            + $"Steps: {Describe(steps)}; answer: {answer}");
+
+        Assert.True(
+            progress.Any(p => p.Phase == "finished"
+                && (p.Tool == SkillTools.RunToolName || SkillToolNames.CodeTools.Contains(p.Tool, StringComparer.Ordinal))),
+            $"nothing was executed: no script run and no shell call finished. Frames: {Describe(progress)}; "
+            + $"answer: {answer}");
+
+        string[] workbooks = Directory.GetFiles(workspace, "*.xlsx", SearchOption.AllDirectories);
+        Assert.True(workbooks.Length > 0,
+            $"no .xlsx reached the session workspace.\n  {Listing(workspace)}\n\nanswer: {answer}");
+
+        string workbook = workbooks[0];
+        long size = new FileInfo(workbook).Length;
+        Assert.True(size > 1000, $"{workbook} is {size} bytes, which is too small to be a workbook of six rows");
+        Assert.True(StartsWith(workbook, ZipMagic),
+            $"{workbook} is named like a workbook but does not begin with a zip header, so it is not one. "
+            + $"It starts: {Preview(workbook)}");
+    }
+
+    // =====================================================================================
+    // 7. producing a document
+    // =====================================================================================
+
+    /// <summary>
+    /// Catches "here is your report" with no report behind it.
+    ///
+    /// <para>
+    /// The most convincing failure this app has: a model that describes a PDF it never
+    /// wrote, in a turn where every frame looks healthy. Only the bytes settle it, so
+    /// the assertion is on the five bytes a PDF has to begin with and on a size no
+    /// error message reaches. It is separate from the workbook scenario above because
+    /// the two fail for different reasons — that one for openpyxl and the script
+    /// runner, this one for reportlab and the page-drawing path — and a single test
+    /// covering both would report either failure as the same red line.
+    /// </para>
+    /// </summary>
+    [LiveDocumentsFact]
+    public async Task ARequestedPdfReportIsRealPdfBytesAndNotAPromiseOfOne()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, skills: true, interpreter: true);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+        string workspace = WorkspaceOf(sessionId);
+        File.WriteAllText(Path.Combine(workspace, SalesFileName), SalesCsv());
+
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId,
+            skills = new[] { DocumentsSkillId },
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = $"The file {SalesFileName} in my working directory has the columns region, units and "
+                        + $"revenue. Use the {DocumentsSkillId} skill to produce a one-page PDF report of that data, "
+                        + "saved as sales.pdf in my working directory. Tell me when the file is there.",
+                },
+            },
+            maxTokens = 1024,
+            think = false,
+        });
+
+        string answer = TextOf(frames);
+        Console.WriteLine($"scenario pdf: {Describe(StepsOf(frames))} | {Describe(ProgressOf(frames))}");
+
+        string[] reports = Directory.GetFiles(workspace, "*.pdf", SearchOption.AllDirectories);
+        Assert.True(reports.Length > 0,
+            $"the turn ended with no PDF in the session workspace.\n  {Listing(workspace)}\n\nanswer: {answer}");
+
+        string report = reports[0];
+        long size = new FileInfo(report).Length;
+        Assert.True(size > 500, $"{report} is {size} bytes, which is smaller than an empty PDF");
+        Assert.True(StartsWith(report, PdfMagic),
+            $"{report} does not begin with %PDF-, so whatever was written is not a PDF. "
+            + $"It starts: {Preview(report)}");
+    }
+
+    // =====================================================================================
+    // the data these scenarios are built on
+    // =====================================================================================
+
+    /// <summary>
+    /// The six numbers the model is asked to add and then multiply.
+    ///
+    /// <para>
+    /// Chosen so the product is 131,859,000 — a number no model produces from memory
+    /// and none reaches by guessing. An answer that matches it is evidence the program
+    /// ran, which is the only thing the code scenario is really asking.
+    /// </para>
+    /// </summary>
+    private static readonly int[] Readings = [3, 14, 15, 92, 65, 35];
+
+    private const string SalesFileName = "sales.csv";
+
+    /// <summary>
+    /// Six rows with invented region names, so an answer about them cannot come from
+    /// anywhere but the file.
+    /// </summary>
+    private static readonly (string Region, int Units, int Revenue)[] Sales =
+    [
+        ("Northgate", 12, 4180),
+        ("Ravensworth", 7, 2650),
+        ("Bellhaven", 19, 7310),
+        ("Northgate", 5, 1720),
+        ("Bellhaven", 3, 940),
+        ("Ravensworth", 11, 3980),
+    ];
+
+    private static string SalesCsv()
+    {
+        var csv = new StringBuilder("region,units,revenue\n");
+        foreach ((string region, int units, int revenue) in Sales)
+        {
+            csv.Append(region).Append(',')
+               .Append(units.ToString(CultureInfo.InvariantCulture)).Append(',')
+               .Append(revenue.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        }
+        return csv.ToString();
+    }
+
+    /// <summary>
+    /// Ordinary English of a known length, with one fact planted in it.
+    ///
+    /// <para>
+    /// Generated rather than pasted so the test can say exactly how long it is and
+    /// where the answer sits, and written as sentences rather than as filler because
+    /// the characters-per-token ratio the floor is derived from only holds for
+    /// prose — a page of hex or of one repeated word tokenizes at a rate that would
+    /// make the floor mean nothing.
+    /// </para>
+    /// </summary>
+    private static string ShiftLog(int lines, int factLine, string fact)
+    {
+        var text = new StringBuilder();
+        for (int line = 1; line <= lines; line++)
+        {
+            text.Append("Line ").Append(line.ToString("000", CultureInfo.InvariantCulture)).Append(". ");
+            text.AppendLine(line == factLine ? fact : Filler(line));
+        }
+        return text.ToString();
+    }
+
+    private static string Filler(int line) => (line % 4) switch
+    {
+        0 => $"Shift {line} at the Ravensworth pumping station ran without incident; flow held at {40 + line % 9} "
+            + "litres per second and the duty operator logged nothing unusual overnight.",
+        1 => $"The inlet screen was cleared twice, the second time at {line % 12 + 1} minutes past the hour, and "
+            + "the reservoir level recovered on its own before the morning handover.",
+        2 => "Routine inspection of the Ravensworth valve house found the gaskets dry, the housing clean and the "
+            + $"telemetry link steady for the whole of shift {line}.",
+        _ => $"The duty engineer walked the {line % 7 + 2} kilometre culvert, noted the usual silt at the third "
+            + "chamber, and reported no change from the previous week.",
+    };
+
+    // =====================================================================================
+    // reading the frames the page reads
+    // =====================================================================================
+
+    /// <summary>One <c>tool_progress</c> frame, as the page's activity line reads it.</summary>
+    private readonly record struct Progress(string Phase, string Tool, double Seconds, string Detail);
+
+    /// <summary>One <c>skill_step</c> frame, as the page's trace reads it.</summary>
+    private readonly record struct SkillStep(string Tool, string Skill, string Detail, bool Ok, int Round, int Files);
+
+    private static List<Progress> ProgressOf(IEnumerable<JsonElement> frames) => frames
+        .Where(frame => frame.TryGetProperty("tool_progress", out _))
+        .Select(frame => new Progress(
+            Text(frame, "tool_progress"),
+            Text(frame, "tool"),
+            frame.TryGetProperty("seconds", out JsonElement seconds) && seconds.ValueKind == JsonValueKind.Number
+                ? seconds.GetDouble()
+                : 0,
+            Text(frame, "detail")))
+        .ToList();
+
+    private static List<SkillStep> StepsOf(IEnumerable<JsonElement> frames) => frames
+        .Where(frame => frame.TryGetProperty("skill_step", out _))
+        .Select(frame => new SkillStep(
+            Text(frame, "skill_step"),
+            Text(frame, "skill"),
+            Text(frame, "detail"),
+            frame.TryGetProperty("ok", out JsonElement ok) && ok.ValueKind == JsonValueKind.True,
+            frame.TryGetProperty("round", out JsonElement round) && round.ValueKind == JsonValueKind.Number
+                ? round.GetInt32()
+                : 0,
+            frame.TryGetProperty("files", out JsonElement files) && files.ValueKind == JsonValueKind.Array
+                ? files.GetArrayLength()
+                : 0))
+        .ToList();
+
+    /// <summary>A frame member as a string; absent and JSON null both read as empty.</summary>
+    private static string Text(JsonElement frame, string name) =>
+        frame.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static string Describe(List<Progress> progress) => progress.Count == 0
+        ? "(no tool_progress frames)"
+        : string.Join(", ", progress
+            .Select(p => $"{p.Phase}:{(p.Tool.Length == 0 ? "?" : p.Tool)}")
+            .Distinct(StringComparer.Ordinal));
+
+    private static string Describe(List<SkillStep> steps) => steps.Count == 0
+        ? "(no skill_step frames)"
+        : string.Join(", ", steps.Select(s =>
+            $"round {s.Round} {s.Tool} skill={(s.Skill.Length == 0 ? "-" : s.Skill)} "
+            + $"path={(s.Detail.Length == 0 ? "-" : s.Detail)} ok={s.Ok} files={s.Files}"));
+
+    // =====================================================================================
+    // reading what the run left behind
+    // =====================================================================================
+
+    private static Dictionary<string, string> PythonFilesIn(string workspace) =>
+        Directory.EnumerateFiles(workspace, "*.py", SearchOption.AllDirectories)
+            .ToDictionary(path => path, File.ReadAllText, StringComparer.Ordinal);
+
+    /// <summary>Everything in the workspace, for a failure message that says what IS there.</summary>
+    private static string Listing(string workspace)
+    {
+        if (!Directory.Exists(workspace))
+            return $"({workspace} does not exist)";
+        string[] files = Directory.GetFiles(workspace, "*", SearchOption.AllDirectories);
+        return files.Length == 0
+            ? $"({workspace} is empty)"
+            : string.Join("\n  ", files.Select(file =>
+                $"{Path.GetRelativePath(workspace, file)} ({new FileInfo(file).Length} bytes)"));
+    }
+
+    private static readonly byte[] PdfMagic = "%PDF-"u8.ToArray();
+    private static readonly byte[] ZipMagic = [0x50, 0x4B, 0x03, 0x04];
+
+    /// <summary>
+    /// Whether a file really is what its name claims. Asserted on the bytes rather
+    /// than the extension because a traceback saved as <c>report.pdf</c> passes every
+    /// check that only looks at the name.
+    /// </summary>
+    private static bool StartsWith(string path, byte[] magic)
+    {
+        using FileStream stream = File.OpenRead(path);
+        byte[] head = new byte[magic.Length];
+        return stream.ReadAtLeast(head, magic.Length, throwOnEndOfStream: false) == magic.Length
+            && head.AsSpan().SequenceEqual(magic);
+    }
+
+    /// <summary>The first line of a file that failed its format check, so the failure says why.</summary>
+    private static string Preview(string path)
+    {
+        byte[] head = new byte[96];
+        using FileStream stream = File.OpenRead(path);
+        int read = stream.ReadAtLeast(head, head.Length, throwOnEndOfStream: false);
+        return string.Concat(Encoding.UTF8.GetString(head, 0, read)
+            .Select(c => char.IsControl(c) ? '.' : c));
+    }
+
+    /// <summary>
+    /// Whether <paramref name="text"/> names <paramref name="value"/> as a number in
+    /// its own right. The digit boundaries are the point: without them 15 matches
+    /// inside 3150 and every check here would be satisfied by any long enough number.
+    /// </summary>
+    private static bool Mentions(string text, long value) =>
+        Regex.IsMatch(text, $@"(?<![\d.]){Regex.Escape(value.ToString(CultureInfo.InvariantCulture))}(?!\d)");
+
+    /// <summary>
+    /// Whether an answer states <paramref name="value"/>, however the model chose to
+    /// punctuate it.
+    ///
+    /// <para>
+    /// Thousands separators are removed first — a model writes 131,859,000 as often as
+    /// 131859000 — and only the separators BETWEEN digit groups come out, so a list
+    /// like "3, 14, 15" is not silently welded into one number by the normalisation
+    /// that was meant to help.
+    /// </para>
+    /// </summary>
+    private static bool States(string answer, long value) =>
+        Mentions(answer, value)
+        || Mentions(Regex.Replace(answer, @"(?<=\d)[,_ ](?=\d{3}(?!\d))", string.Empty), value);
+}

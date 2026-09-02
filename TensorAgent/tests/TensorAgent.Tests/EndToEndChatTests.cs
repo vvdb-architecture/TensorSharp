@@ -1,26 +1,10 @@
 using System.Diagnostics;
-using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Sessions;
-using TensorAgent.Core.Settings;
 
 namespace TensorAgent.Tests;
-
-/// <summary>
-/// A fact that needs real weights on this machine, and says how to supply them
-/// rather than passing silently when they are absent.
-/// </summary>
-public sealed class LiveModelFactAttribute : FactAttribute
-{
-    public LiveModelFactAttribute()
-    {
-        if (EndToEndChatTests.Unavailable(out _, out _) is { } reason)
-            Skip = reason;
-    }
-}
 
 /// <summary>
 /// A real model, a real turn, over the real API.
@@ -37,149 +21,16 @@ public sealed class LiveModelFactAttribute : FactAttribute
 /// The model is linked into place rather than copied. A catalog entry is eight
 /// gigabytes and copying one per test class would be slower than the inference.
 /// </para>
+/// <para>
+/// This class owns the CONTRACT tests — a question answered, a conversation
+/// remembered, the KV cache reused and invalidated, an abort honoured.
+/// <see cref="ScenarioChatTests"/> owns the work a person actually does with it.
+/// Both drive the app through <see cref="LiveModelHarness"/>.
+/// </para>
 /// </summary>
 [Collection(LiveModelCollection.Name)]
-public sealed class EndToEndChatTests : IDisposable
+public sealed class EndToEndChatTests : LiveModelHarness
 {
-    /// <summary>Where the catalog's GGUF files can be found on this machine.</summary>
-    public const string ModelDirVariable = "TENSORAGENT_TEST_MODEL_DIR";
-
-    /// <summary>An alternative file name for the weights, when the local copy is named differently.</summary>
-    public const string ModelFileVariable = "TENSORAGENT_TEST_MODEL_FILE";
-
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "tensoragent-e2e-" + Guid.NewGuid().ToString("N"));
-    private AgentAppHost? _host;
-    private HttpClient? _client;
-
-    public void Dispose()
-    {
-        _client?.Dispose();
-        _host?.Dispose();
-        try { Directory.Delete(_root, true); } catch { }
-    }
-
-    /// <summary>Why these cannot run here, or null when they can.</summary>
-    internal static string? Unavailable(out CatalogModel model, out string weights)
-    {
-        model = null!;
-        weights = string.Empty;
-
-        string? directory = Environment.GetEnvironmentVariable(ModelDirVariable);
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
-            return $"set {ModelDirVariable} to a directory holding one of the catalog's GGUF files";
-
-        string? named = Environment.GetEnvironmentVariable(ModelFileVariable);
-        foreach (CatalogModel candidate in ModelCatalog.BuiltIn)
-        {
-            if (candidate.Kind == CatalogArchitectureKind.Diffusion)
-                continue;
-            string path = Path.Combine(directory, named ?? candidate.Weights.FileName);
-            if (!File.Exists(path))
-                continue;
-            // A truncated or unrelated file would fail deep inside the loader with a
-            // message about tensors; check the size the catalog expects instead.
-            if (named is null && new FileInfo(path).Length != candidate.Weights.Bytes)
-                continue;
-            model = candidate;
-            weights = path;
-            return null;
-        }
-        return $"no catalog GGUF found in {directory}; set {ModelFileVariable} to use a differently named file";
-    }
-
-    private AgentAppHost Start(CatalogModel model, string weights)
-    {
-        var paths = new AgentPaths(Path.Combine(_root, "data"), Path.Combine(_root, "cache")) { DeviceMemoryGB = 16 };
-        paths.EnsureCreated();
-
-        // Link, do not copy: these files are gigabytes.
-        string target = Path.Combine(paths.ModelsDirectory, model.Id);
-        Directory.CreateDirectory(target);
-        File.CreateSymbolicLink(Path.Combine(target, model.Weights.FileName), weights);
-
-        var settings = new SettingsStore(paths.SettingsFile);
-        AppSettings chosen = settings.Load();
-        chosen.SelectedModelId = model.Id;
-        chosen.MaxTokens = 64;
-        settings.Save(chosen);
-
-        _host = new AgentAppHost(paths);
-        _host.Start();
-        _client = new HttpClient { BaseAddress = new Uri(_host.Server.BaseUrl), Timeout = TimeSpan.FromMinutes(10) };
-        _client.DefaultRequestHeaders.Add("Cookie", $"{LoopbackServer.TokenCookie}={_host.Server.Token}");
-        return _host;
-    }
-
-    /// <summary>
-    /// Load the selected model on the best backend this machine offers.
-    ///
-    /// <para>
-    /// Metal where it exists, which on a development Mac it does — the same backend
-    /// the app uses on a phone, and an order of magnitude faster than the CPU path,
-    /// which is the difference between a suite that gets run and one that does not.
-    /// The backend is not the thing under test in any of these; falling back to CPU
-    /// keeps them running on a machine without a GPU.
-    /// </para>
-    /// </summary>
-    private async Task LoadAsync(CatalogModel model)
-    {
-        foreach (string backend in new[] { "ggml_metal", "ggml_cpu" })
-        {
-            HttpResponseMessage response = await _client!.PostAsJsonAsync("/api/models/load", new
-            {
-                model = model.Weights.FileName,
-                backend,
-            });
-            string payload = await response.Content.ReadAsStringAsync();
-            if (response.IsSuccessStatusCode && payload.Contains("\"ok\":true", StringComparison.Ordinal))
-            {
-                Loaded = backend;
-                return;
-            }
-            Console.WriteLine($"e2e: {backend} unavailable ({(int)response.StatusCode}), trying the next");
-        }
-        Assert.Fail("no backend could load the model");
-    }
-
-    /// <summary>Which backend the model actually loaded on, for the numbers a test prints.</summary>
-    private string Loaded { get; set; } = "unknown";
-
-    /// <summary>Read a server-sent-event stream into its frames, as the page does.</summary>
-    private async Task<List<JsonElement>> StreamAsync(object body, CancellationToken ct = default)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
-        {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
-        };
-        using HttpResponseMessage response = await _client!.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        Assert.True(response.IsSuccessStatusCode, $"chat failed: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(ct)}");
-        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
-
-        var frames = new List<JsonElement>();
-        await using Stream stream = await response.Content.ReadAsStreamAsync(ct);
-        using var reader = new StreamReader(stream);
-        while (await reader.ReadLineAsync(ct) is { } line)
-        {
-            if (!line.StartsWith("data: ", StringComparison.Ordinal))
-                continue;
-            frames.Add(JsonSerializer.Deserialize<JsonElement>(line[6..]));
-        }
-        return frames;
-    }
-
-    private static string TextOf(IEnumerable<JsonElement> frames)
-    {
-        var text = new StringBuilder();
-        foreach (JsonElement frame in frames)
-        {
-            if (frame.TryGetProperty("token", out JsonElement token) && token.GetString() is { } piece)
-                text.Append(piece);
-            else if (frame.TryGetProperty("replace", out JsonElement replace) && replace.GetString() is { } whole)
-                text.Clear().Append(whole);
-        }
-        return text.ToString();
-    }
-
     [LiveModelFact]
     public async Task AModelLoadsAndAnswersAQuestionThroughTheSameApiThePageCalls()
     {
@@ -189,11 +40,10 @@ public sealed class EndToEndChatTests : IDisposable
 
         // The models route must now report it, because that is what the page reads
         // before it will let anyone send anything.
-        JsonElement models = JsonSerializer.Deserialize<JsonElement>(await _client!.GetStringAsync("/api/models"));
+        JsonElement models = JsonSerializer.Deserialize<JsonElement>(await Client.GetStringAsync("/api/models"));
         Assert.False(string.IsNullOrEmpty(models.GetProperty("loaded").GetString()));
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
         string sessionId = session.GetProperty("sessionId").GetString()!;
         string conversationId = session.GetProperty("conversationId").GetString()!;
 
@@ -229,8 +79,7 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
         string sessionId = session.GetProperty("sessionId").GetString()!;
 
         var history = new List<object>
@@ -249,24 +98,6 @@ public sealed class EndToEndChatTests : IDisposable
             "the model did not recall the first turn; it answered: " + answer);
     }
 
-    /// <summary>The numbers the final frame reports about one turn.</summary>
-    private readonly record struct TurnStats(int PromptTokens, int ReusedTokens, double ReusePercent, double Seconds, int Tokens)
-    {
-        public override string ToString() =>
-            $"prompt {PromptTokens}, reused {ReusedTokens} ({ReusePercent:0.0}%), {Tokens} tokens in {Seconds:0.0}s";
-    }
-
-    private static TurnStats StatsOf(IEnumerable<JsonElement> frames)
-    {
-        JsonElement done = frames.Last(f => f.TryGetProperty("done", out _));
-        return new TurnStats(
-            done.GetProperty("promptTokens").GetInt32(),
-            done.GetProperty("kvReusedTokens").GetInt32(),
-            done.GetProperty("kvReusePercent").GetDouble(),
-            done.GetProperty("elapsed").GetDouble(),
-            done.GetProperty("tokenCount").GetInt32());
-    }
-
     [LiveModelFact]
     public async Task AMultiTurnConversationReusesTheKeyValueCacheInsteadOfReprocessingIt()
     {
@@ -279,8 +110,7 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
         string sessionId = session.GetProperty("sessionId").GetString()!;
 
         var history = new List<object>();
@@ -346,8 +176,7 @@ public sealed class EndToEndChatTests : IDisposable
         AgentAppHost first = Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement opened = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement opened = await OpenSessionAsync();
         string conversationId = opened.GetProperty("conversationId").GetString()!;
 
         var history = new List<object> { new { role = "user", content = "Remember the number 41. Reply with just: ok" } };
@@ -361,20 +190,12 @@ public sealed class EndToEndChatTests : IDisposable
         history.Add(new { role = "assistant", content = TextOf(frames) });
 
         // Kill it. A new host over the same directories is what a relaunch is.
-        AgentPaths paths = first.Paths;
-        _client!.Dispose();
-        first.Dispose();
-
-        _host = new AgentAppHost(paths);
-        _host.Start();
-        _client = new HttpClient { BaseAddress = new Uri(_host.Server.BaseUrl), Timeout = TimeSpan.FromMinutes(10) };
-        _client.DefaultRequestHeaders.Add("Cookie", $"{LoopbackServer.TokenCookie}={_host.Server.Token}");
+        Reopen(first.Paths);
         await LoadAsync(model);
 
         // Resuming must hand back the transcript, which is what the page replays into
         // the history it sends next.
-        JsonElement resumed = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client.PostAsync($"/api/sessions?conversation={conversationId}", null)).Content.ReadAsStringAsync());
+        JsonElement resumed = await OpenSessionAsync(conversationId);
         string sessionId = resumed.GetProperty("sessionId").GetString()!;
         Assert.Equal(conversationId, resumed.GetProperty("conversationId").GetString());
         Assert.True(resumed.GetProperty("messages").GetArrayLength() >= 2,
@@ -408,8 +229,7 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
         string sessionId = session.GetProperty("sessionId").GetString()!;
 
         var history = new List<object> { new { role = "user", content = "Remember the number 41. Reply with just: ok" } };
@@ -441,8 +261,7 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
         string sessionId = session.GetProperty("sessionId").GetString()!;
 
         var history = new List<object> { new { role = "user", content = "Remember the number 41. Reply with just: ok" } };
@@ -479,8 +298,7 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
 
         var clock = Stopwatch.StartNew();
         List<JsonElement> frames = await StreamAsync(new
@@ -495,14 +313,14 @@ public sealed class EndToEndChatTests : IDisposable
         int tokens = frames.Count(f => f.TryGetProperty("token", out _));
         double perSecond = tokens / clock.Elapsed.TotalSeconds;
 
-        // The floor is deliberately low. This runs on whatever CPU the test machine
-        // has, with no Metal, and the point is to catch a collapse — a backend that
-        // fell back to a scalar path, a cache that is being rebuilt every token —
-        // not to measure the device. The number is printed so a regression is visible
-        // even when the assertion passes.
-        Console.WriteLine($"e2e: {tokens} tokens in {clock.Elapsed.TotalSeconds:0.0}s = {perSecond:0.00} tok/s (CPU)");
+        // The floor is deliberately low. This runs on whatever the test machine has,
+        // and the point is to catch a collapse — a backend that fell back to a scalar
+        // path, a cache that is being rebuilt every token — not to measure the device.
+        // The number is printed alongside the backend that produced it so a regression
+        // is visible even when the assertion passes.
+        Console.WriteLine($"e2e: {tokens} tokens in {clock.Elapsed.TotalSeconds:0.0}s = {perSecond:0.00} tok/s ({LoadedBackend})");
         Assert.True(tokens > 0, "no tokens were produced");
-        Assert.True(perSecond > 0.5, $"generation collapsed to {perSecond:0.00} tokens per second");
+        Assert.True(perSecond > 0.5, $"generation collapsed to {perSecond:0.00} tokens per second on {LoadedBackend}");
 
         // The exact members the page reads off the final frame to render its stats
         // line. Asserting them by name is the point: a rename here empties the line
@@ -525,14 +343,12 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
 
         // 512 rather than the budget a person would set. What is being tested is that
         // a long generation runs to completion rather than faulting partway, and 512
         // tokens crosses the sliding-window boundary and several cache growths just
-        // as 2048 does — at a quarter of the wall-clock, on a CPU that is the only
-        // thing a test machine has.
+        // as 2048 does — at a quarter of the wall-clock.
         List<JsonElement> frames = await StreamAsync(new
         {
             sessionId = session.GetProperty("sessionId").GetString(),
@@ -554,8 +370,7 @@ public sealed class EndToEndChatTests : IDisposable
         Start(model, weights);
         await LoadAsync(model);
 
-        JsonElement session = JsonSerializer.Deserialize<JsonElement>(
-            await (await _client!.PostAsync("/api/sessions?conversation=new", null)).Content.ReadAsStringAsync());
+        JsonElement session = await OpenSessionAsync();
 
         using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(6));
         var clock = Stopwatch.StartNew();
