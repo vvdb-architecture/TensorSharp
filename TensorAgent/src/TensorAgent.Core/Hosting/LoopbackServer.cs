@@ -175,8 +175,17 @@ public abstract class LoopbackResponse
                 // AsTask may be called only once on a ValueTask, so it is converted
                 // here and waited on as a Task from then on.
                 Task<bool> next = enumerator.MoveNextAsync().AsTask();
-                while (await Task.WhenAny(next, Task.Delay(Heartbeat, ct)).ConfigureAwait(false) != next)
+                while (!next.IsCompleted && !ct.IsCancellationRequested)
                 {
+                    // Waited on with its own token rather than the request's: a
+                    // cancelled Task.Delay completes immediately, and looping on that
+                    // would spin writing keep-alives as fast as the socket allows.
+                    using var tick = new CancellationTokenSource(Heartbeat);
+                    try { await next.WaitAsync(tick.Token).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { }
+
+                    if (next.IsCompleted)
+                        break;
                     if (!await WriteAsync(response, null, ct).ConfigureAwait(false))
                         return;
                 }

@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorAgent.Core.Catalog;
@@ -345,6 +346,45 @@ public sealed class AgentAppHost : IDisposable
         skillsAllowNetwork: settings.AllowNetwork);
 
     /// <summary>
+    /// Wait until the engine has nothing in flight.
+    ///
+    /// <para>
+    /// Stopping the server ends the HTTP requests, but a generation those requests
+    /// started can still be inside a graph compute on the engine's own threads —
+    /// cancellation is delivered between tokens, and a token can take a while.
+    /// Releasing the model at that moment unmaps weights those threads are reading,
+    /// and the process dies with a segmentation fault in whichever kernel happened to
+    /// be running. The engine reports what it is processing; this waits for that to
+    /// reach zero, with a cap so a wedged request cannot stop the app from closing.
+    /// </para>
+    /// </summary>
+    private void WaitForTheEngineToStop()
+    {
+        var deadline = Stopwatch.StartNew();
+        while (deadline.Elapsed < EngineDrainTimeout)
+        {
+            try
+            {
+                if (!ModelService.EngineHost.TryGetLiveStats(out int processing, out int waiting, out _))
+                    return;
+                if (processing == 0 && waiting == 0)
+                    return;
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            Thread.Sleep(25);
+        }
+        _loggerFactory.CreateLogger("TensorAgent.Host")
+            .LogWarning("the engine was still working after {Seconds}s; releasing the model anyway",
+                EngineDrainTimeout.TotalSeconds);
+    }
+
+    /// <summary>How long <see cref="Dispose"/> waits for the engine before releasing the model regardless.</summary>
+    public static TimeSpan EngineDrainTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// Shut down in the only order that is safe: the server first, then the engine.
     ///
     /// <para>
@@ -358,6 +398,7 @@ public sealed class AgentAppHost : IDisposable
     public void Dispose()
     {
         Close(Server);
+        WaitForTheEngineToStop();
         Close(ModelService);
         foreach (IDisposable owned in _owned)
             Close(owned);
