@@ -54,11 +54,38 @@ public static class DiffusionCompanions
     /// </summary>
     /// <param name="model">The selected entry, or null when nothing is selected.</param>
     /// <param name="store">Where this installation keeps its models.</param>
-    public static IReadOnlyDictionary<string, string> Publish(CatalogModel? model, ModelStore store)
+    /// <summary>
+    /// The largest output the denoise loop may be asked for, in pixels, on a device of
+    /// this size.
+    ///
+    /// <para>
+    /// Activations dominate an edit. A measured run at 944x944 peaked at 23.2 GB, of
+    /// which roughly eight were activations — they scale with the output area, so the
+    /// area is the only knob that brings an edit inside a phone's budget at all. The
+    /// pipeline's own default targets a megapixel, which is a desktop number; left
+    /// alone it asks a phone for memory no phone has and the app is killed mid-edit.
+    /// </para>
+    /// </summary>
+    /// <summary>What QwenImagePipeline reads to bound the output it denoises.</summary>
+    internal const string MaxAreaVariable = "TS_QWEN_IMAGE_MAX_AREA";
+
+    internal static long MaxOutputArea(int deviceMemoryGB) => deviceMemoryGB >= 16 ? 512L * 512L : 384L * 384L;
+
+    /// <param name="deviceMemoryGB">This device's memory, which decides the output cap.</param>
+    public static IReadOnlyDictionary<string, string> Publish(CatalogModel? model, ModelStore store, int deviceMemoryGB = 12)
     {
         ArgumentNullException.ThrowIfNull(store);
 
         var published = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // Set alongside the file paths, and cleared with them: a cap left behind after
+        // the user switches to a text model would silently shrink the next edit.
+        string? area = model?.Kind == CatalogArchitectureKind.Diffusion
+            ? MaxOutputArea(deviceMemoryGB).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+        Environment.SetEnvironmentVariable(MaxAreaVariable, area);
+        if (area is not null)
+            published[MaxAreaVariable] = area;
         foreach ((CatalogFileRole role, string variable) in Published)
         {
             string? path = model is null ? null : PathOf(model, role, store);

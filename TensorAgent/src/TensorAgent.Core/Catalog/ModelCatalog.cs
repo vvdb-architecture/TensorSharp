@@ -260,7 +260,7 @@ public static class ModelCatalog
                     1_354_163_040, "f0edf43c09b69d6e5dd24262f33b356a1e9dd978e7c3299b3e69141fcbb87553", Optional: true),
             },
             Modalities = CatalogModalities.Image | CatalogModalities.ImageOutput,
-            MinDeviceMemoryGB = 12,
+            MinDeviceMemoryGB = 16,
             ContextLength = 0,
             KvCacheDtype = "f16",
             Sampling = new CatalogSampling(1.0f, 0, 1.0f, 0.0f),

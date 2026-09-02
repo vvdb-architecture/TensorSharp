@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorAgent.Core.Catalog;
+using TensorSharp.GGML;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Settings;
 using TensorSharp.AgentHost.Skills;
@@ -765,5 +766,85 @@ public sealed class MediaScenarioTests : IDisposable
             Environment.SetEnvironmentVariable("TS_WAN_VAE", null);
             Environment.SetEnvironmentVariable("TS_WAN_TE", null);
         }
+    }
+
+    /// <summary>
+    /// What one edit actually costs the GPU, against the budget of the smallest phone
+    /// the catalog offers it to.
+    ///
+    /// <para>
+    /// CatalogTests checks that rule for every text model but excludes image
+    /// generators, because their files load in stages and the sum of the download is
+    /// not what is resident. That exclusion left this tier resting on an estimate
+    /// nobody had measured. This measures it: peak device allocation across a real
+    /// edit, against what the declared tier grants. A model offered to a phone that
+    /// cannot hold it is a download the user pays for and then cannot use.
+    /// </para>
+    /// </summary>
+    [SkippableFact]
+    public async Task AnEditFitsTheMemoryBudgetOfTheSmallestPhoneItIsOfferedTo()
+    {
+        string? unavailable = LiveMedia.UnavailableImageEdit(out LiveMedia.ImageEditFiles files);
+        Skip.If(unavailable is not null, unavailable ?? string.Empty);
+        CatalogModel model = ModelCatalog.BuiltIn.Single(m => m.Kind == CatalogArchitectureKind.Diffusion);
+
+        StartApp(model, LinksFor(model, files));
+        await LoadAsync(model.Weights.FileName, LiveMedia.Backend("ggml_metal"));
+
+        long peak = 0;
+        using var watching = new CancellationTokenSource();
+        Task sampler = Task.Run(async () =>
+        {
+            while (!watching.IsCancellationRequested)
+            {
+                if (GgmlBasicOps.TryGetBackendMemory(out long free, out long total))
+                {
+                    long now = total - free;
+                    peak = Math.Max(peak, now);
+                    if (Environment.GetEnvironmentVariable("TENSORAGENT_TRACE_VRAM") is { Length: > 0 })
+                        Console.WriteLine($"vram-trace {DateTime.UtcNow:HH:mm:ss.fff} {now / 1e9:F2}");
+                }
+                try { await Task.Delay(150, watching.Token); }
+                catch (OperationCanceledException) { return; }
+            }
+        });
+
+        JsonElement upload = await UploadAsync(MediaFixtures.RedCircleOnWhitePng(512), "circle.png");
+        using HttpResponseMessage response = await _client!.PostAsJsonAsync("/api/image-edit", new
+        {
+            prompt = "Change the red circle to a blue square.",
+            imagePaths = new[] { upload.GetProperty("file").GetString()! },
+            seed = 42,
+        });
+        string payload = await response.Content.ReadAsStringAsync();
+        watching.Cancel();
+        await sampler;
+        Assert.True(response.IsSuccessStatusCode, $"the edit failed: {(int)response.StatusCode} {payload}");
+
+        // What this number is, precisely: ggml-metal reports free as
+        // recommendedMaxWorkingSetSize minus currentAllocatedSize, so total-free is this
+        // process's Metal allocation. It is an UPPER BOUND on what iOS counts against
+        // the jetsam limit — an allocated MTLBuffer that is not resident still counts
+        // here — so a number over budget is a warning, not a proof of death, and a
+        // number under it IS a proof of life.
+        double budget = model.MinDeviceMemoryGB * 1e9 * (8.5 / 12.0);
+        bool catalogQuants = Path.GetFileName(files.Dit).Equals(model.Weights.FileName, StringComparison.OrdinalIgnoreCase);
+        Console.WriteLine(
+            $"media edit: peak {peak / 1e9:F2} GB Metal-allocated against a {budget / 1e9:F2} GB budget for the "
+            + $"{model.MinDeviceMemoryGB} GB tier, using {Path.GetFileName(files.Dit)}"
+            + (catalogQuants ? string.Empty : " (NOT the catalog's quant — the budget check is skipped)"));
+
+        Assert.True(peak > 0, "nothing was allocated on the device, so this did not run on Metal");
+
+        // Only the catalog's own file can answer the catalog's own question. A locally
+        // available DiT of a different quantisation measures a different model, and
+        // failing the tier on its number would be measuring the wrong thing.
+        Skip.IfNot(catalogQuants,
+            $"this measured {Path.GetFileName(files.Dit)}, not the catalog's {model.Weights.FileName}; "
+            + $"peak was {peak / 1e9:F2} GB. Point {LiveMedia.ImageModelDirVariable} at the catalog's own "
+            + "files to check the tier.");
+        Assert.True(peak < budget,
+            $"{model.Id} is offered at {model.MinDeviceMemoryGB} GB, which grants about {budget / 1e9:F2} GB, "
+            + $"but one edit allocated {peak / 1e9:F2} GB on the device");
     }
 }

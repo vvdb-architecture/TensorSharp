@@ -137,7 +137,7 @@ public sealed class AgentAppHost : IDisposable
             ? ModelCatalog.Find(selectedId)
             : null;
         IReadOnlyDictionary<string, string> companions = DiffusionCompanions.Publish(
-            selected?.Kind == CatalogArchitectureKind.Diffusion ? selected : null, Models);
+            selected?.Kind == CatalogArchitectureKind.Diffusion ? selected : null, Models, paths.DeviceMemoryGB);
         if (companions.Count > 0)
         {
             _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
