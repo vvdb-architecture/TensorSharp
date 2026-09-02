@@ -59,7 +59,10 @@ in-process POSIX shell, an embedded CPython 3.13 and JavaScriptCore, because iOS
 allows no child processes at all.
 
 **A sandbox the user controls.** Two switches, both in Settings, both defaulting to
-the safe answer: code execution on, network off.
+the safe answer: code execution on, because an agent that cannot act is not an
+agent, and network off, because a model that can reach the internet from inside a
+sandbox is a different risk entirely. Every setting on that page does something;
+one that could not be enforced was removed rather than left there implying it was.
 
 ## Build and run
 
@@ -149,10 +152,11 @@ iCloud; conversations, settings and installed skills go under
 `Library/Application Support`, which is backed up. A five-gigabyte byte-identical
 copy of a public file has no business in a user's iCloud quota.
 
-**Metal.** `ggml_metal` is the default and first-offered backend. The simulator
-slice has no Metal — the simulator GPU is Apple1/Apple2 and has no
-`simdgroup_matrix` — so it runs on `ggml_cpu` and the engine probe says so rather
-than pretending.
+**Metal.** On a device `ggml_metal` is the default and the first backend offered.
+The simulator slice has no Metal at all — the simulator GPU is Apple1/Apple2 and
+has no `simdgroup_matrix` — so there it is not offered, and CPU is the default.
+The page is never shown a backend the build cannot initialise: a default that does
+not exist puts the user one tap from a load that fails.
 
 ## Skills
 

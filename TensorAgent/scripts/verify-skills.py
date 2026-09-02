@@ -18,7 +18,7 @@ optimism:
 Run it against the staged runtime:
 
     python3 TensorAgent/scripts/verify-skills.py \\
-        --skills /Users/zhongkaifu/work/skills/skills \\
+        --skills <a checkout of github.com/anthropics/skills>/skills \\
         --runtime TensorAgent/python-runtime/simulator
 
 It prints a verdict per skill and exits non-zero if a skill named with --require
