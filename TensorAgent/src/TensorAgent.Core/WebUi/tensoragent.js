@@ -294,5 +294,109 @@
     history() { return chatHistory; },
   };
 
+  // ================================================================================
+  // the phone layout
+  // ================================================================================
+  //
+  // index.html is TensorSharp.Server's desktop page and is served byte-for-byte, so
+  // everything that makes it a phone app is done from here. Three things were wrong on
+  // a real iPhone:
+  //
+  //   1. the header spent a whole row on a "TensorSharp.ai" link, which is worth one
+  //      read and then never again; it now lives on the About page;
+  //   2. focusing the composer made the transcript disappear. The page is laid out
+  //      against `height: 100vh`, and 100vh on iOS is the height WITHOUT the keyboard.
+  //      When the keyboard opens the visual viewport shrinks but the layout does not,
+  //      so the composer sits below the fold and WebKit scrolls the whole document to
+  //      reveal it -- taking the messages off the top of the screen. Nothing was
+  //      deleted; it was pushed out of view, which is worse, because it looks like data
+  //      loss. The fix is to lay out against visualViewport.height instead;
+  //   3. the desktop paddings and font sizes waste a narrow screen.
+  //
+  // All of it is scoped to narrow/touch viewports so the same file still renders the
+  // desktop page correctly in a browser.
+  function installPhoneLayout() {
+    if (document.getElementById('tensoragent-phone-css')) return;
+
+    const css = document.createElement('style');
+    css.id = 'tensoragent-phone-css';
+    css.textContent = [
+      // The brand banner is gone on every size: the app has an About page for it.
+      '.brand-site-link { display: none !important; }',
+      'header h1 { margin: 0; }',
+
+      '@media (max-width: 820px) {',
+      // Lay out against the VISIBLE viewport. --tt-vh is kept up to date below; the
+      // dvh fallback covers the first paint before any resize has fired.
+      '  html, body { height: 100dvh; height: var(--tt-vh, 100dvh); overflow: hidden; }',
+      '  body { -webkit-text-size-adjust: 100%; }',
+      // A compact header: status and New Chat, one row, no wrap.
+      '  header { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }',
+      '  header h1 { font-size: 0; flex: 0 0 auto; }',
+      '  .header-controls { gap: 6px; margin-left: auto; align-items: center; }',
+      '  .status-badge { font-size: 11px; padding: 3px 8px; max-width: 46vw;',
+      '                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+      '  #btn-clear { font-size: 12px; padding: 6px 10px; white-space: nowrap; }',
+      // The transcript is the part that must keep its height when the keyboard opens.
+      '  .main-area { min-height: 0; }',
+      '  #chat-container { padding: 10px 10px 4px; min-height: 0; }',
+      '  .message { max-width: 94%; }',
+      '  .bubble-text { font-size: 15px; line-height: 1.45; }',
+      // The composer sits above the home indicator and never grows past a third of
+      // the screen, so there is always transcript behind it.
+      '  #input-area { padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); flex-shrink: 0; }',
+      '  #message-input { font-size: 16px; max-height: 28dvh; }',  // 16px: iOS zooms below it
+      '  .model-switcher { gap: 6px; flex-wrap: wrap; }',
+      '  .empty-state { padding: 24px 16px; }',
+      '  .big-wordmark { font-size: 34px; }',
+      '  .modal, .modal-content { max-width: 96vw; }',
+      '}',
+    ].join('\n');
+    document.head.appendChild(css);
+
+    // ---- keep the layout inside the visible viewport --------------------------------
+    const vv = window.visualViewport;
+    let pending = 0;
+    function applyViewport() {
+      const h = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty('--tt-vh', h + 'px');
+      // WebKit sometimes leaves the document scrolled after the keyboard animates; the
+      // layout is the full visible height, so any document scroll is wrong by definition.
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+    }
+    function schedule() {
+      if (pending) return;
+      pending = requestAnimationFrame(() => { pending = 0; applyViewport(); });
+    }
+    if (vv) {
+      vv.addEventListener('resize', schedule);
+      vv.addEventListener('scroll', schedule);
+    }
+    window.addEventListener('orientationchange', () => setTimeout(applyViewport, 200));
+    applyViewport();
+
+    // ---- keep the newest messages visible across a keyboard open --------------------
+    // Shrinking the transcript keeps its scrollTop, which after the keyboard opens is
+    // no longer the bottom -- so the last thing said scrolls out of sight exactly when
+    // the user starts replying to it. Re-pin only when we were already at the bottom,
+    // so someone reading back through history is not yanked forward.
+    const chat = document.getElementById('chat-container');
+    const input = document.getElementById('message-input');
+    if (chat && input) {
+      let wasAtBottom = true;
+      const NEAR = 80;
+      chat.addEventListener('scroll', () => {
+        wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < NEAR;
+      });
+      const pin = () => {
+        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+      };
+      input.addEventListener('focus', () => { setTimeout(pin, 60); setTimeout(pin, 350); });
+      if (vv) vv.addEventListener('resize', () => setTimeout(pin, 60));
+    }
+  }
+
+  installPhoneLayout();
+
   whenReady();
 })();

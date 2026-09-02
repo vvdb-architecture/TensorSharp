@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Collections.ObjectModel;
+using System.Linq;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Settings;
@@ -66,7 +67,8 @@ public sealed class ModelsPage : ContentPage
     {
         var label = new Label
         {
-            Text = $"Models that fit this device ({_app.Paths.DeviceMemoryGB} GB). "
+            Text = $"Every built-in model, and what each one needs. This device has "
+                 + $"{_app.Paths.DeviceMemoryGB} GB, so the ones below the line cannot run here. "
                  + "Downloads resume if interrupted and are kept for next time.",
             TextColor = Theme.Muted,
             FontSize = 13,
@@ -81,12 +83,30 @@ public sealed class ModelsPage : ContentPage
         Refresh();
     }
 
+    /// <summary>
+    /// Every built-in entry, runnable ones first.
+    ///
+    /// <para>
+    /// This used to list <c>_app.Catalog</c>, which is <c>ForDevice</c> -- only what
+    /// fits. That is the right list for LOADING a model and the wrong one for a page
+    /// whose job is to tell the user what exists: on a 12 GB iPhone it silently hid
+    /// half the catalog, and when a memory-tier bug made ForDevice return nothing the
+    /// page went completely blank with no way to tell "none fit" from "something is
+    /// broken". A model that needs a bigger device is shown, greyed, saying so.
+    /// </para>
+    /// </summary>
     private void Refresh()
     {
         string? selected = _app.Settings.Load().SelectedModelId;
+        int deviceGB = _app.Paths.DeviceMemoryGB;
         _rows.Clear();
-        foreach (CatalogModel model in _app.Catalog)
-            _rows.Add(new ModelRow(model, _app.Models, selected));
+        foreach (CatalogModel model in ModelCatalog.BuiltIn
+                     .OrderByDescending(m => m.MinDeviceMemoryGB <= deviceGB)
+                     .ThenBy(m => m.MinDeviceMemoryGB)
+                     .ThenBy(m => m.TotalBytes))
+        {
+            _rows.Add(new ModelRow(model, _app.Models, selected, deviceGB));
+        }
     }
 
     private View BuildCell()
@@ -113,6 +133,8 @@ public sealed class ModelsPage : ContentPage
             CornerRadius = 8,
         };
         action.SetBinding(Button.TextProperty, nameof(ModelRow.ActionLabel));
+        action.SetBinding(IsEnabledProperty, nameof(ModelRow.Runnable));
+        action.SetBinding(Button.BackgroundColorProperty, nameof(ModelRow.ActionColor));
         action.Clicked += (s, _) => OnAction(((Button)s!).BindingContext as ModelRow);
 
         var remove = new Button
@@ -240,26 +262,57 @@ public sealed class ModelRow : BindableObject
     private bool _busy;
     private string _actionLabel;
 
-    public ModelRow(CatalogModel model, ModelStore store, string? selectedId)
+    public ModelRow(CatalogModel model, ModelStore store, string? selectedId, int deviceMemoryGB)
     {
         Model = model;
+        Runnable = model.MinDeviceMemoryGB <= deviceMemoryGB;
+        DeviceMemoryGB = deviceMemoryGB;
         IsInstalled = store.StateOf(model) == InstallState.Installed;
         IsSelected = string.Equals(model.Id, selectedId, StringComparison.Ordinal);
         _status = DescribeState(store);
-        _actionLabel = IsInstalled ? (IsSelected ? "Selected" : "Use") : "Download";
+        _actionLabel = !Runnable ? "Too big" : IsInstalled ? (IsSelected ? "Selected" : "Use") : "Download";
     }
 
     public CatalogModel Model { get; }
+
+    /// <summary>Whether this device has the memory the entry asks for.</summary>
+    public bool Runnable { get; }
+
+    public int DeviceMemoryGB { get; }
     public bool IsInstalled { get; private set; }
     public bool IsSelected { get; }
 
     public string Title => Model.DisplayName + (IsSelected ? "  ·  in use" : string.Empty);
 
+    /// <summary>
+    /// What the model IS, in the order someone deciding actually asks: how big is it,
+    /// what can it take in, and what is it for. The description used to appear only on
+    /// experimental entries, so most of the list was a size and nothing else.
+    /// </summary>
     public string Subtitle =>
-        $"{Model.Parameters} · {Model.Quantization} · {Gb(Model.TotalBytes)} GB"
+        $"{Model.Parameters} · {Model.Quantization} · {Gb(Model.TotalBytes)} GB download"
         + (Model.Kind == CatalogArchitectureKind.MixtureOfExperts ? " · mixture of experts" : string.Empty)
-        + (Model.Modalities.HasFlag(CatalogModalities.Image) ? " · images" : string.Empty)
-        + (Model.Experimental ? "\nExperimental: " + Model.Notes : string.Empty);
+        + $"\nReads: {Reads}"
+        + (Model.SupportsThinking ? " · thinks when asked" : string.Empty)
+        + (string.IsNullOrWhiteSpace(Model.Notes) ? string.Empty
+            : "\n" + (Model.Experimental ? "Experimental: " : string.Empty) + Model.Notes);
+
+    /// <summary>Every input this entry accepts, not just images.</summary>
+    private string Reads
+    {
+        get
+        {
+            var parts = new List<string> { "text" };
+            if (Model.Modalities.HasFlag(CatalogModalities.Image)) parts.Add("images");
+            if (Model.Modalities.HasFlag(CatalogModalities.Audio)) parts.Add("audio");
+            if (Model.Modalities.HasFlag(CatalogModalities.Video)) parts.Add("video");
+            if (Model.Kind == CatalogArchitectureKind.Diffusion) return "a prompt, and makes pictures";
+            return string.Join(", ", parts);
+        }
+    }
+
+    /// <summary>Greyed out when the device cannot run it, so the button reads as inert.</summary>
+    public Color ActionColor => Runnable ? Theme.Accent : Theme.Surface;
 
     public string Status { get => _status; private set { _status = value; OnPropertyChanged(); } }
     public double Fraction { get => _fraction; private set { _fraction = value; OnPropertyChanged(); } }
@@ -306,12 +359,22 @@ public sealed class ModelRow : BindableObject
         Status = message;
     }
 
-    private string DescribeState(ModelStore store) => store.StateOf(Model) switch
+    private string DescribeState(ModelStore store)
     {
-        InstallState.Installed => $"On this device · {Gb(store.InstalledBytes(Model))} GB",
-        InstallState.Partial => $"Partly downloaded · {Gb(store.RemainingBytes(Model))} GB still to fetch",
-        _ => $"Not downloaded · {Gb(Model.TotalBytes)} GB · {Model.License}",
-    };
+        if (!Runnable)
+        {
+            // Said as a fact about the hardware rather than as a refusal, and it names
+            // both numbers so the user can see how far off it is instead of guessing.
+            return $"Needs a {Model.MinDeviceMemoryGB} GB device · this one has {DeviceMemoryGB} GB";
+        }
+
+        return store.StateOf(Model) switch
+        {
+            InstallState.Installed => $"On this device · {Gb(store.InstalledBytes(Model))} GB · {Model.License}",
+            InstallState.Partial => $"Partly downloaded · {Gb(store.RemainingBytes(Model))} GB still to fetch",
+            _ => $"Not downloaded · {Gb(Model.TotalBytes)} GB · {Model.License}",
+        };
+    }
 
     private static string Gb(long bytes) => (bytes / 1e9).ToString("0.00");
 }

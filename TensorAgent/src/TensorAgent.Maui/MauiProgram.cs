@@ -54,6 +54,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<Pages.SessionsPage>();
         builder.Services.AddSingleton<Pages.ModelsPage>();
         builder.Services.AddSingleton<Pages.SettingsPage>();
+        builder.Services.AddSingleton<Pages.AboutPage>();
         builder.Services.AddSingleton<AppShell>();
 
         return builder.Build();

@@ -22,7 +22,7 @@ namespace TensorAgent.Maui;
 /// </summary>
 public sealed class AppShell : Shell
 {
-    public AppShell(MainPage chat, Pages.SessionsPage sessions, Pages.ModelsPage models, Pages.SettingsPage settings)
+    public AppShell(MainPage chat, Pages.SessionsPage sessions, Pages.ModelsPage models, Pages.SettingsPage settings, Pages.AboutPage about)
     {
         Title = "TensorAgent";
         FlyoutBehavior = FlyoutBehavior.Flyout;
@@ -33,6 +33,10 @@ public sealed class AppShell : Shell
         Items.Add(new ShellContent { Title = "Chats", Route = "sessions", Content = sessions });
         Items.Add(new ShellContent { Title = "Models", Route = "models", Content = models });
         Items.Add(new ShellContent { Title = "Settings", Route = "settings", Content = settings });
+        // Last, because it is the one item nobody needs twice -- and it is where the
+        // "TensorSharp.ai" banner went when it was taken out of the chat header, which
+        // on a phone was a whole row spent on a link read once.
+        Items.Add(new ShellContent { Title = "About", Route = "about", Content = about });
 
 #if DEBUG
         // The simulator harness cannot tap: simctl has no way to touch the screen, so
