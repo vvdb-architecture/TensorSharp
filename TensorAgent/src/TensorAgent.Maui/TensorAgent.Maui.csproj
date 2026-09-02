@@ -1,0 +1,111 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TensorAgent iOS head: a .NET MAUI app that statically links TensorSharp's
+       GgmlOps.xcframework and hosts the TensorSharp.Server Web UI in a WKWebView
+       behind an in-process loopback HTTP server. Build only with the user-local
+       SDK that carries the maui-ios workload (see ../../README.md). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TensorAgent.Maui</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+
+    <ApplicationTitle>TensorAgent</ApplicationTitle>
+    <ApplicationId>ai.tensorsharp.tensoragent</ApplicationId>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- 17.0 matches build-ios.sh's deployment target for the xcframework; the
+         static archive would refuse to link into an app that claims to run on
+         an older OS than the archive was built for. -->
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
+
+    <!-- Trimming is mandatory on iOS. partial (= MtouchLink SdkOnly) trims the
+         BCL/framework only and copies every TensorSharp assembly whole; the
+         engine's op registries and model loaders are reflection-heavy and the
+         TrimmerRootAssembly items below keep them rooted even if a later change
+         moves to full trimming. -->
+    <TrimMode>partial</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+
+    <!-- GgmlOps is linked statically from the xcframework (NativeReference
+         below); the desktop CMake builds in the backend projects must not run
+         for an iOS head. These properties are also forwarded to the referenced
+         projects as global properties (AdditionalProperties on each
+         ProjectReference) because a plain csproj property never flows across a
+         ProjectReference on its own. -->
+    <TensorSharpSkipGgmlNative>true</TensorSharpSkipGgmlNative>
+    <TensorSharpSkipMlxNative>true</TensorSharpSkipMlxNative>
+    <TensorSharpNativeSkipProperties>TensorSharpSkipGgmlNative=true;TensorSharpSkipMlxNative=true</TensorSharpNativeSkipProperties>
+
+    <!-- LLVM codegen for device Release builds so the AdvSimd/Vector128 paths in
+         TensorSharp.Core get real vector code; ignored for the simulator. -->
+    <MtouchUseLlvm Condition="'$(Configuration)' == 'Release'">true</MtouchUseLlvm>
+
+    <!-- Simulator bundles are ad-hoc signed ("-"); device builds need a real
+         identity + profile passed on the command line (-p:CodesignKey=...). -->
+    <CodesignKey Condition="$(RuntimeIdentifier.Contains('simulator'))">-</CodesignKey>
+
+    <!-- The jetsam-budget entitlements are device-only: the simulator has no
+         memory limit and CompileEntitlements must not emit codesign
+         entitlements for simulator builds. -->
+    <CodesignEntitlements Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">Platforms/iOS/Entitlements.plist</CodesignEntitlements>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" ForegroundFile="Resources/AppIcon/appiconfg.svg" Color="#0b1220" />
+    <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#0b1220" BaseSize="128,128" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Web UI is TensorSharp.Server's wwwroot, byte for byte. It is linked
+         from the Server project rather than copied so the two never fork; at
+         runtime LoopbackWebHost serves it from <bundle>/webui/. -->
+    <BundleResource Include="../../../TensorSharp.Server/wwwroot/**/*"
+                    Link="webui/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Static link of the whole engine: GgmlOps + ggml + ggml-cpu (+ ggml-metal
+         with embedded shader source in the device slice). ForceLoad keeps every
+         object file even though nothing in the app references the symbols
+         directly (they are reached by dlsym through
+         NativeLibrary.GetMainProgramHandle(), see GgmlNative.ImportResolver),
+         and the exported_symbol flags keep the TSGgml_*/ggml_* symbols in the
+         dynamic symbol table of the stripped executable so that dlsym can find
+         them. -->
+    <NativeReference Include="../../../TensorSharp.GGML.Native/build-ios/GgmlOps.xcframework"
+                     Kind="Static"
+                     ForceLoad="True"
+                     SmartLink="False"
+                     IsCxx="True"
+                     Frameworks="Foundation Metal MetalKit MetalPerformanceShaders MetalPerformanceShadersGraph Accelerate"
+                     LinkerFlags="-lc++ -Wl,-exported_symbol,_TSGgml_* -Wl,-exported_symbol,_ggml_*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../TensorSharp.Core/TensorSharp.Core.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Runtime/TensorSharp.Runtime.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Models/TensorSharp.Models.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Backends.GGML/TensorSharp.Backends.GGML.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.AgentHost/TensorSharp.AgentHost.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TrimmerRootAssembly Include="TensorSharp.Core" />
+    <TrimmerRootAssembly Include="TensorSharp.Runtime" />
+    <TrimmerRootAssembly Include="TensorSharp.Models" />
+    <TrimmerRootAssembly Include="TensorSharp.Backends.GGML" />
+    <TrimmerRootAssembly Include="TensorSharp.AgentHost" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+  </ItemGroup>
+
+</Project>

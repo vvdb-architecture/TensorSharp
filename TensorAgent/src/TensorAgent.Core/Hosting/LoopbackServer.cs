@@ -115,10 +115,28 @@ public abstract class LoopbackResponse
     {
         public override async Task WriteAsync(HttpListenerResponse response, CancellationToken ct)
         {
+            // The first frame is pulled BEFORE any header goes out, which is the only
+            // window in which a status code is still available. The chat service
+            // refuses a bad request from its first MoveNextAsync — no model loaded, an
+            // unknown session — and that refusal has to reach the page as a 400 with a
+            // JSON body, not as a 200 event stream that ends immediately. The desktop
+            // adapter does exactly this; a stream that opened its headers first would
+            // turn every rejection into a silent empty reply.
+            await using IAsyncEnumerator<object> enumerator = frames.GetAsyncEnumerator(ct);
+            if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+            {
+                SseFraming.ApplyHeaders(response);
+                response.SendChunked = true;
+                return;
+            }
+
             SseFraming.ApplyHeaders(response);
             response.SendChunked = true;
-            await foreach (object frame in frames.WithCancellation(ct).ConfigureAwait(false))
-                await SseFraming.WriteFrameAsync(response.OutputStream, frame, ct).ConfigureAwait(false);
+            do
+            {
+                await SseFraming.WriteFrameAsync(response.OutputStream, enumerator.Current, ct).ConfigureAwait(false);
+            }
+            while (await enumerator.MoveNextAsync().ConfigureAwait(false));
         }
     }
 }

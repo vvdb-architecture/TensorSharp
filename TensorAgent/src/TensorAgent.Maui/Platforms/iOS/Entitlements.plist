@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Device-only (wired up by CodesignEntitlements in the csproj for the
+	     ios-arm64 RID). Lifts the default jetsam ceiling so a multi-GB GGUF plus
+	     its KV cache fits; both capabilities must also be enabled on the App ID
+	     or profile validation fails at CompileEntitlements. -->
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
+	<key>com.apple.developer.kernel.extended-virtual-addressing</key>
+	<true/>
+</dict>
+</plist>
