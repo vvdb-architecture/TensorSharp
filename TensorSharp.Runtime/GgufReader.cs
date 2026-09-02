@@ -282,6 +282,13 @@ namespace TensorSharp.Runtime
             if (Environment.GetEnvironmentVariable("TS_GGUF_PREFAULT") == "0")
                 return;
 
+            // iOS/iPadOS: reading the whole model through 16 threads only inflates
+            // the app's dirty-page footprint against the jetsam limit, and local
+            // flash has none of the network-filesystem readahead this optimizes
+            // for. Let the mmap'd pages fault in on demand instead.
+            if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
+                return;
+
             // Split GGUF: warm every shard, not just the (tensor-less) first one.
             foreach (var shard in _shards)
                 shard.PrefaultFileCache();

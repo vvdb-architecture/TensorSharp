@@ -61,7 +61,7 @@ namespace TensorSharp.GGML
         public GgmlMemoryPool(GgmlBackendType backendType)
         {
             int systemPageSize = Environment.SystemPageSize;
-            _pageSize = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+            _pageSize = IsAppleOS()
                 ? Math.Max(MetalPageSize, systemPageSize)
                 : Math.Max(GgmlHostPtrAlignment, systemPageSize);
             _useVirtualAlloc = true;
@@ -206,14 +206,29 @@ namespace TensorSharp.GGML
             }
         }
 
+        /// <summary>
+        /// True on every Darwin platform TensorSharp runs on (macOS, iOS/iPadOS,
+        /// Mac Catalyst, tvOS). They share the 16 KB Metal page size and the
+        /// Darwin-specific MAP_ANON value, and - critically - they all feed
+        /// host pointers to ggml-metal's newBufferWithBytesNoCopy, which
+        /// requires page-aligned memory. Falling through to the
+        /// Marshal.AllocHGlobal path on any of them would hand Metal unaligned
+        /// buffers.
+        /// </summary>
+        private static bool IsAppleOS()
+        {
+            return OperatingSystem.IsMacOS() || OperatingSystem.IsIOS()
+                || OperatingSystem.IsMacCatalyst() || OperatingSystem.IsTvOS();
+        }
+
         private static IntPtr AllocateVirtual(nuint alignedSize)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return WindowsVirtualAlloc(IntPtr.Zero, alignedSize, WindowsMemCommit | WindowsMemReserve, WindowsPageReadWrite);
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || IsAppleOS())
             {
-                int flags = UnixMapPrivate | (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? UnixMapAnonMac : UnixMapAnonymous);
+                int flags = UnixMapPrivate | (IsAppleOS() ? UnixMapAnonMac : UnixMapAnonymous);
                 IntPtr ptr = UnixMmap(IntPtr.Zero, alignedSize, UnixProtRead | UnixProtWrite, flags, -1, IntPtr.Zero);
                 return ptr == UnixMapFailed ? IntPtr.Zero : ptr;
             }
@@ -229,7 +244,7 @@ namespace TensorSharp.GGML
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 return WindowsVirtualFree(ptr, UIntPtr.Zero, WindowsMemRelease);
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || IsAppleOS())
                 return UnixMunmap(ptr, size) == 0;
 
             return false;

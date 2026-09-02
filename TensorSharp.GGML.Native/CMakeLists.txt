@@ -8,6 +8,19 @@ option(TENSORSHARP_GGML_NATIVE_ENABLE_VULKAN "Enable the ggml-vulkan backend whe
 # than auto-detection, so later script runs keep honoring the explicit choice
 # while auto-detected defaults are re-evaluated. Not read by the build itself.
 option(TENSORSHARP_GGML_NATIVE_VULKAN_EXPLICIT "The Vulkan on/off choice was made explicitly (build-script cache marker)" OFF)
+# Metal is normally forced ON for every Apple build; the iOS *simulator* slice must
+# be able to opt out. The simulator's Metal device only advertises the Apple2
+# feature set, so ggml-metal's simdgroup matmul / flash-attention kernels would
+# all be reported unsupported and every op would bounce to the CPU through split
+# buffers - a clean CPU-only build is strictly better there. Everything Metal-only
+# in this tree (tsg_metal_*.m/.mm, the MPSGraph convolution, TSG_GGML_USE_METAL)
+# hangs off this one switch, which is why native sources must gate Metal code on
+# TSG_GGML_USE_METAL rather than __APPLE__: the simulator is the one Apple build
+# where the two differ.
+option(TENSORSHARP_GGML_NATIVE_ENABLE_METAL "Enable the ggml-metal backend on Apple platforms" ON)
+# iOS/iPadOS builds produce a static archive (a bare .dylib is not shippable in an
+# app bundle); build-ios.sh merges the slices into GgmlOps.xcframework.
+option(TENSORSHARP_GGML_NATIVE_IOS "Build a static GgmlOps for iOS/iPadOS (device or simulator)" OFF)
 
 # This library is 64-bit only, and a 32-bit configure otherwise fails hundreds of
 # lines into the compile with errors that name neither the cause nor the word
@@ -102,9 +115,12 @@ else()
     set(GGML_CCACHE OFF CACHE BOOL "" FORCE)
 endif()
 
-if (APPLE)
+if (APPLE AND TENSORSHARP_GGML_NATIVE_ENABLE_METAL)
     set(GGML_METAL ON CACHE BOOL "" FORCE)
     set(GGML_METAL_NDEBUG ON CACHE BOOL "" FORCE)
+    # Embedded shader source is required on iOS: the non-embed path shells out to
+    # `xcrun -sdk macosx metal` at build time, while the embed path .incbin's the
+    # .metal source and compiles it at run time via newLibraryWithSource.
     set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "" FORCE)
 endif()
 
@@ -263,7 +279,7 @@ set(TSG_GGMLOPS_SOURCES
     ggml_ops_paged_kv_pool.cpp
     ggml_ops_tensor_parallel.cpp
 )
-if (APPLE)
+if (APPLE AND TENSORSHARP_GGML_NATIVE_ENABLE_METAL)
     # Raises the process-wide default MSL version so ggml's Metal 4 tensor-API probe can compile
     # under the .NET apphost's stale recorded SDK. See the file header for the full story.
     list(APPEND TSG_GGMLOPS_SOURCES tsg_metal_msl_default.m)
@@ -305,7 +321,11 @@ if (TENSORSHARP_GGML_NATIVE_ENABLE_CUDA)
     endif()
 endif()
 
-add_library(GgmlOps SHARED ${TSG_GGMLOPS_SOURCES})
+if (TENSORSHARP_GGML_NATIVE_IOS)
+    add_library(GgmlOps STATIC ${TSG_GGMLOPS_SOURCES})
+else()
+    add_library(GgmlOps SHARED ${TSG_GGMLOPS_SOURCES})
+endif()
 
 if (WIN32)
     # Re-export the statically-linked ggml C API so the managed layer
@@ -364,7 +384,7 @@ target_include_directories(GgmlOps PRIVATE
 )
 target_link_libraries(GgmlOps PRIVATE ggml)
 
-if (APPLE)
+if (APPLE AND TENSORSHARP_GGML_NATIVE_ENABLE_METAL)
     target_compile_definitions(GgmlOps PRIVATE TSG_GGML_USE_METAL=1)
 
     # tsg_metal_msl_default.m talks to Metal and the Objective-C runtime directly.

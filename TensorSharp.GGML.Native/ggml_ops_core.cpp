@@ -2505,7 +2505,7 @@ namespace tsg
     // before the GEMM starts; Apple's tuned convolution runs the same shapes 6-14x
     // faster and reaches the matrix units WITHOUT ggml's mul_mm kernel, whose Metal 4
     // tensor path corrupts this graph. TS_VAE_MPS_CONV=0 opts out.
-    #if defined(__APPLE__)
+    #if defined(TSG_GGML_USE_METAL)
     extern "C" bool tsg_mps_conv2d_available(void);
     extern "C" bool tsg_mps_conv2d(const void* w, int wIsF16, int kw, int kh, int ic, int oc,
                                    const float* x, int W, int H, int T,
@@ -2537,7 +2537,7 @@ namespace tsg
     // convolution library to execute instead of ggml's im2col + mul_mat lowering.
     bool fast_conv_enabled()
     {
-    #if defined(__APPLE__)
+    #if defined(TSG_GGML_USE_METAL)
         if (backend_is_metal())
         {
             static const bool on = []{
@@ -2621,7 +2621,7 @@ namespace tsg
                                     node->data, OW, OH);
         }
     #endif
-    #if defined(__APPLE__)
+    #if defined(TSG_GGML_USE_METAL)
         if (backend_is_metal())
         {
             std::vector<std::uint8_t> kbuf((std::size_t) ggml_nbytes(kern));

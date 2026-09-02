@@ -4584,9 +4584,9 @@ internal enum GgmlIndexReductionOp
 
         public static void EnsureAvailable(GgmlBackendType backendType)
         {
-            if (backendType == GgmlBackendType.Metal && !OperatingSystem.IsMacOS())
+            if (backendType == GgmlBackendType.Metal && !IsApplePlatform())
             {
-                throw new PlatformNotSupportedException("The GGML Metal backend is available on macOS only.");
+                throw new PlatformNotSupportedException("The GGML Metal backend is available on Apple platforms (macOS, iOS/iPadOS, Mac Catalyst) only.");
             }
 
             if (backendType == GgmlBackendType.Cuda && !IsCudaPlatformSupported())
@@ -4630,7 +4630,7 @@ internal enum GgmlIndexReductionOp
 
         public static bool CanInitialize(GgmlBackendType backendType)
         {
-            if (backendType == GgmlBackendType.Metal && !OperatingSystem.IsMacOS())
+            if (backendType == GgmlBackendType.Metal && !IsApplePlatform())
             {
                 return false;
             }
@@ -6407,6 +6407,15 @@ internal enum GgmlIndexReductionOp
                 return IntPtr.Zero;
             }
 
+            if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
+            {
+                // On iOS/iPadOS GgmlOps is a static archive linked into the app
+                // executable (GgmlOps.xcframework via NativeReference with
+                // ForceLoad), so every TSGgml_*/ggml_* symbol lives in the main
+                // program image - there is no separate library to probe for.
+                return NativeLibrary.GetMainProgramHandle();
+            }
+
             EnsureWindowsNativeDependencySearchPaths();
 
             foreach (string candidate in GetCandidatePaths(assembly))
@@ -6462,6 +6471,12 @@ internal enum GgmlIndexReductionOp
             yield return OperatingSystem.IsWindows() ? "GgmlOps.dll" :
                 OperatingSystem.IsMacOS() ? "libGgmlOps.dylib" :
                 "libGgmlOps.so";
+        }
+
+        private static bool IsApplePlatform()
+        {
+            // iOS covers iPadOS; Mac Catalyst reports itself distinctly.
+            return OperatingSystem.IsMacOS() || OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst();
         }
 
         private static bool IsCudaPlatformSupported()
