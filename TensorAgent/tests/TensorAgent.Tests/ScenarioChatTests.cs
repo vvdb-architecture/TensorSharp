@@ -309,7 +309,8 @@ public sealed class ScenarioChatTests : LiveModelHarness
                     content = $"The file {SalesFileName} in your working directory has the columns region, units "
                         + "and revenue. Write and run a program that reads it and works out two things: the total "
                         + "of the revenue column across every row, and which region has the highest total revenue. "
-                        + "Then tell me both answers.",
+                        + "Then tell me both answers, and make the last line of your reply exactly "
+                        + "ANSWER: total=<number>, region=<name>",
                 },
             },
             maxTokens = 900,
@@ -328,9 +329,25 @@ public sealed class ScenarioChatTests : LiveModelHarness
         Assert.True(States(answer, expectedTotal),
             $"the revenue column totals {expectedTotal}; the model answered: {answer}");
 
-        Assert.True(answer.Contains(best.Key, StringComparison.OrdinalIgnoreCase),
-            $"'{best.Key}' has the highest total revenue ({best.Sum(row => (long)row.Revenue)}); "
-            + $"the model answered: {answer}");
+        // Parsed out of a line the request asked for, rather than searched for anywhere
+        // in the prose. "Does the answer contain 'Bellhaven'" is satisfied by a reply
+        // that tabulates all three regions, or by one that names it as the LOWEST --
+        // both of which are wrong answers that the substring check called right. A
+        // single verdict line is what makes the assertion about the model's conclusion
+        // instead of about its vocabulary.
+        Match verdict = Regex.Match(
+            answer,
+            @"ANSWER:\s*total\s*=\s*(?<total>[0-9][0-9,_ ]*)\s*,\s*region\s*=\s*(?<region>[A-Za-z][A-Za-z '\-]*)",
+            RegexOptions.IgnoreCase);
+        Assert.True(verdict.Success,
+            $"the reply has no 'ANSWER: total=..., region=...' line, so which region it settled on cannot be "
+            + $"told apart from which regions it mentioned. The model answered: {answer}");
+
+        long statedTotal = long.Parse(
+            Regex.Replace(verdict.Groups["total"].Value, @"[,_ ]", string.Empty), CultureInfo.InvariantCulture);
+        Assert.Equal(expectedTotal, statedTotal);
+
+        Assert.Equal(best.Key, verdict.Groups["region"].Value.Trim(), StringComparer.OrdinalIgnoreCase);
     }
 
     // =====================================================================================
@@ -465,6 +482,56 @@ public sealed class ScenarioChatTests : LiveModelHarness
         Assert.True(StartsWith(workbook, ZipMagic),
             $"{workbook} is named like a workbook but does not begin with a zip header, so it is not one. "
             + $"It starts: {Preview(workbook)}");
+
+        // A zip header proves a container, not a conversion. An empty workbook, or one
+        // built from numbers the model invented, has the same header as the right
+        // answer -- so the invented region names are what tie these bytes back to the
+        // CSV this test planted. They exist nowhere else.
+        string sheets = SheetXmlOf(workbook);
+        string[] regions = Sales.Select(row => row.Region).Distinct(StringComparer.Ordinal).ToArray();
+        string[] absent = regions
+            .Where(region => !sheets.Contains(region, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.True(absent.Length == 0,
+            $"the workbook does not mention {string.Join(" or ", absent)}, so whatever it contains did not come "
+            + $"from {SalesFileName}. Answer: {answer}");
+
+        // The skill's documented contract, and the whole reason make_xlsx.py exists:
+        // nothing on this device recalculates a sheet, so a formula cell that carries
+        // no cached value reads as EMPTY to every reader -- including this skill's own
+        // analyze_table.py. A workbook full of formulas and no values looks perfect in
+        // a file listing and is blank when opened.
+        MatchCollection formulas = Regex.Matches(sheets, @"<c\b[^>]*>(?:(?!</c>).)*?<f[ >](?:(?!</c>).)*?</c>",
+            RegexOptions.Singleline);
+        // "<v[ >]" is not enough: openpyxl's own output for an uncalculated formula is
+        // <v />, an EMPTY value element, which such a pattern accepts as a cached value
+        // while every reader still sees a blank cell. The value has to have CONTENT,
+        // hence a '>' followed by something that is not the start of the next tag.
+        Match hollow = formulas.FirstOrDefault(cell => !Regex.IsMatch(cell.Value, @"<v[^>]*>[^<]"))!;
+        Assert.True(hollow is null,
+            $"a formula cell carries no cached value, so it reads as blank to anything that does not "
+            + $"recalculate: {hollow?.Value}");
+        Console.WriteLine($"scenario xlsx: {formulas.Count} formula cell(s), all cached; regions all present");
+    }
+
+    /// <summary>
+    /// Every worksheet part of an .xlsx, plus the shared string table the cells point
+    /// into -- which is where openpyxl puts text, so a search of the sheets alone finds
+    /// no region names at all.
+    /// </summary>
+    private static string SheetXmlOf(string workbook)
+    {
+        using var archive = System.IO.Compression.ZipFile.OpenRead(workbook);
+        var text = new StringBuilder();
+        foreach (System.IO.Compression.ZipArchiveEntry entry in archive.Entries)
+        {
+            if (!entry.FullName.StartsWith("xl/worksheets/", StringComparison.Ordinal)
+                && entry.FullName != "xl/sharedStrings.xml")
+                continue;
+            using var reader = new StreamReader(entry.Open());
+            text.AppendLine(reader.ReadToEnd());
+        }
+        return text.ToString();
     }
 
     // =====================================================================================

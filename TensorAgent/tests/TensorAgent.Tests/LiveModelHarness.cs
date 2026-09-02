@@ -14,6 +14,7 @@ using System.Text.Json;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Settings;
+using TensorSharp.AgentHost.Skills;
 
 namespace TensorAgent.Tests;
 
@@ -197,9 +198,23 @@ public abstract class LiveModelHarness : IDisposable
     /// <summary>Why the document scenarios cannot run here, or null when everything they need is present.</summary>
     internal static string? NoDocumentsSkillReason()
     {
-        string manifest = Path.Combine(RepoSkillsDirectory, DocumentsSkillId, "SKILL.md");
+        string directory = Path.Combine(RepoSkillsDirectory, DocumentsSkillId);
+        string manifest = Path.Combine(directory, SkillManifestParser.SkillFileName);
         if (!File.Exists(manifest))
             return $"the '{DocumentsSkillId}' skill is not bundled: {manifest} does not exist";
+
+        // Parse it the way the registry does, not by looking at the directory. A gate
+        // that only checks for a file passes while the runtime finds no skill at all —
+        // the frontmatter 'name' is what the model asks for, and the parser REJECTS a
+        // manifest whose name disagrees with its directory rather than tolerating it.
+        // Checked here, that is a skip naming the problem; unchecked, it is a live test
+        // failing on an assertion about a PDF for reasons nothing mentions.
+        if (!SkillManifestParser.TryParse(File.ReadAllText(manifest), DocumentsSkillId,
+                out SkillManifest? parsed, out string? error))
+            return $"the '{DocumentsSkillId}' skill does not load: {error}";
+        if (!string.Equals(parsed!.Name, DocumentsSkillId, StringComparison.Ordinal))
+            return $"the skill in {directory} calls itself '{parsed.Name}', so the model has no "
+                + $"'{DocumentsSkillId}' skill to invoke";
 
         string[] missing = MissingPackages(InterpreterRoot!, "reportlab", "openpyxl");
         return missing.Length == 0
