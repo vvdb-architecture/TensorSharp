@@ -58,6 +58,10 @@ public sealed class ConfinedPaths
         Policy = policy;
 
         var writable = new List<string> { RealPath(policy.WorkRoot), RealPath(policy.TempRoot) };
+        // An exact writable path is a root of exactly one file, which is what makes it
+        // safe to grant: the prefix test below then matches that file and nothing beside it.
+        foreach (string path in policy.WritablePaths)
+            writable.Add(RealPath(path));
         var readable = new List<string>(writable);
         foreach (string root in policy.ReadableRoots)
             readable.Add(RealPath(root));

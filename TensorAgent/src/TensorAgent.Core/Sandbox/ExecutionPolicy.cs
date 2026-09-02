@@ -68,6 +68,26 @@ public sealed record ExecutionPolicy(
     /// </summary>
     public string? PackageRoot { get; init; }
 
+    /// <summary>
+    /// Individual paths that may be written even though they sit outside
+    /// <see cref="WorkRoot"/> and <see cref="TempRoot"/>.
+    ///
+    /// <para>
+    /// The agent host names these one at a time rather than opening a tree: a skill's
+    /// own output file, the session's state files. Keeping them as exact paths rather
+    /// than as roots is the point — granting the parent directory would grant every
+    /// sibling with it.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string> WritablePaths { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// With <see cref="AllowNetwork"/> off, the one loopback port that is still
+    /// reachable: the host's egress proxy, which an installer is pointed at so that a
+    /// package download can be permitted without permitting the internet.
+    /// </summary>
+    public int? AllowLoopbackPort { get; init; }
+
     /// <summary>True when <paramref name="host"/> is reachable under this policy.</summary>
     public bool IsHostAllowed(string host)
     {
