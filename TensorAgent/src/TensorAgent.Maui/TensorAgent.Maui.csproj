@@ -41,7 +41,12 @@
          ProjectReference on its own. -->
     <TensorSharpSkipGgmlNative>true</TensorSharpSkipGgmlNative>
     <TensorSharpSkipMlxNative>true</TensorSharpSkipMlxNative>
-    <TensorSharpNativeSkipProperties>TensorSharpSkipGgmlNative=true;TensorSharpSkipMlxNative=true</TensorSharpNativeSkipProperties>
+    <!-- TensorSharp.Models builds a net10.0-ios slice only when asked, because the
+         desktop hosts must not pay for an iOS target they cannot use. That slice is
+         where the AVFoundation/ImageIO media provider lives, which is what lets the
+         app decode a HEIC photo straight off the camera. -->
+    <TensorSharpIosTargets>true</TensorSharpIosTargets>
+    <TensorSharpNativeSkipProperties>TensorSharpSkipGgmlNative=true;TensorSharpSkipMlxNative=true;TensorSharpIosTargets=true</TensorSharpNativeSkipProperties>
 
     <!-- LLVM codegen for device Release builds so the AdvSimd/Vector128 paths in
          TensorSharp.Core get real vector code; ignored for the simulator. -->

@@ -197,6 +197,27 @@
     postNative({ type: 'ready', conversation: state.conversationId });
   }
 
+  // ---- copy that only makes sense on a server --------------------------------------
+  // The page is served byte-for-byte from TensorSharp.Server, and its empty state
+  // tells the reader to restart the server with --model. On a phone there is no
+  // command line and no server to restart: the model is chosen in the app's own
+  // Models list. Rewriting the sentence here keeps index.html unforked.
+  function retitleEmptyState() {
+    const replacement = 'No model yet. Open Models in the menu above, pick one that fits this '
+      + 'device, and download it; the chat starts working as soon as it is ready.';
+    document.querySelectorAll('p').forEach(p => {
+      if (/Start TensorSharp\.Server with/.test(p.textContent || '')) {
+        p.textContent = replacement;
+      }
+    });
+  }
+
+  // The page rebuilds its empty state whenever the model state is refetched, so the
+  // rewrite has to survive that rather than run once at load.
+  const observer = new MutationObserver(retitleEmptyState);
+  observer.observe(document.body, { childList: true, subtree: true });
+  retitleEmptyState();
+
   // ---- native bridge ---------------------------------------------------------------
   function postNative(message) {
     try {

@@ -226,7 +226,10 @@ public sealed class EmbeddedPython : IPythonRuntime
         var stdout = new OutputCapture(policy.MaxOutputBytes, context.OnStdoutLine);
         var stderr = new OutputCapture(policy.MaxOutputBytes, context.OnStderrLine);
         var elapsed = Stopwatch.StartNew();
-        TimeSpan timeout = context.EffectiveTimeout;
+        // A deadline that has already passed still has to be a deadline the
+        // timer accepts; interrupting at once is what a caller asking for zero
+        // seconds meant.
+        TimeSpan timeout = context.EffectiveTimeout > TimeSpan.Zero ? context.EffectiveTimeout : TimeSpan.FromMilliseconds(1);
 
         // Serialized here rather than inside the interpreter so a queued run
         // waits with its caller's cancellation token, and so a run that outlived

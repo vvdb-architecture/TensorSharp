@@ -310,6 +310,11 @@ public sealed class WheelInstaller : IInstallHook
     /// must satisfy the confinement, which is what stops a member from landing
     /// through a symlink somewhere else entirely.
     /// </para>
+    /// <para>
+    /// Every member is checked before any member is written. An archive that
+    /// turns hostile halfway through would otherwise leave its first few files
+    /// behind, and a refusal that says nothing was installed has to be true.
+    /// </para>
     /// </summary>
     internal static bool TryExtract(ZipArchive archive, string target, ConfinedPaths confined, out int files, out string? refusal)
     {
@@ -319,6 +324,7 @@ public sealed class WheelInstaller : IInstallHook
         refusal = null;
         string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(target));
 
+        var planned = new List<(ZipArchiveEntry Entry, string Destination)>();
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
             string member = entry.FullName.Replace('\\', '/');
@@ -346,10 +352,15 @@ public sealed class WheelInstaller : IInstallHook
                 return false;
             }
 
-            string? directory = Path.GetDirectoryName(resolved);
+            planned.Add((entry, resolved));
+        }
+
+        foreach ((ZipArchiveEntry entry, string destination) in planned)
+        {
+            string? directory = Path.GetDirectoryName(destination);
             if (directory is { Length: > 0 })
                 Directory.CreateDirectory(directory);
-            entry.ExtractToFile(resolved, overwrite: true);
+            entry.ExtractToFile(destination, overwrite: true);
             files++;
         }
 

@@ -342,9 +342,49 @@ public sealed class LoopbackServer : IDisposable
         string full = Path.GetFullPath(Path.Combine(StaticRoot, relative));
         if (!full.StartsWith(Path.GetFullPath(StaticRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             return null;
+        // The app's own companion script, served from this assembly rather than from
+        // the bundle so it can never drift from the code that expects it.
+        if (relative == CompanionScriptName)
+            return LoopbackResponse.Text(CompanionScript.Value, contentType: "text/javascript; charset=utf-8");
+
         if (!File.Exists(full))
             return null;
+
+        // index.html is TensorSharp.Server's, byte for byte, and must stay that way:
+        // forking it would mean every future change to the Web UI had to be made
+        // twice. Everything the app needs on top of it — resuming a saved
+        // conversation, native attachments, dictated text, the copy that only makes
+        // sense on a server — is added by appending one script tag on the way out.
+        if (relative.Equals("index.html", StringComparison.OrdinalIgnoreCase))
+            return LoopbackResponse.Text(WithCompanionScript(full), contentType: "text/html; charset=utf-8");
+
         return LoopbackResponse.File(full, ContentTypes.For(full));
+    }
+
+    private const string CompanionScriptName = "tensoragent.js";
+
+    private static readonly Lazy<string> CompanionScript = new(() =>
+    {
+        using Stream? stream = typeof(LoopbackServer).Assembly
+            .GetManifestResourceStream("TensorAgent.Core.WebUi.tensoragent.js");
+        if (stream is null)
+        {
+            // A build that lost the resource would produce a page with no session
+            // resume and no attachments, and nothing would say why. Fail loudly.
+            throw new InvalidOperationException(
+                "TensorAgent.Core.WebUi.tensoragent.js is not embedded in the assembly; "
+                + "check the EmbeddedResource item in TensorAgent.Core.csproj.");
+        }
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    });
+
+    private static string WithCompanionScript(string indexPath)
+    {
+        string html = File.ReadAllText(indexPath);
+        const string tag = "\n<script src=\"/" + CompanionScriptName + "\"></script>\n";
+        int close = html.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
+        return close < 0 ? html + tag : html.Insert(close, tag);
     }
 
     public static int FreePort()

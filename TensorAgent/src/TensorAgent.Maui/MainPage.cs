@@ -27,6 +27,8 @@ public sealed class MainPage : ContentPage
     private readonly LoopbackWebHost _host;
     private readonly Label _status;
     private readonly WebView _webView;
+    private Button? _dictate;
+    private Platforms.iOS.Dictation? _dictation;
 
     public MainPage(LoopbackWebHost host)
     {
@@ -43,8 +45,8 @@ public sealed class MainPage : ContentPage
             FontSize = 12,
             TextColor = BarText,
             BackgroundColor = BarBackground,
-            Padding = new Thickness(12, 6),
             LineBreakMode = LineBreakMode.TailTruncation,
+            VerticalOptions = LayoutOptions.Center,
             Text = "Starting the engine…",
         };
 
@@ -62,10 +64,12 @@ public sealed class MainPage : ContentPage
             {
                 new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Star),
+                new RowDefinition(GridLength.Auto),
             },
         };
-        grid.Add(_status, 0, 0);
+        grid.Add(BuildTopBar(), 0, 0);
         grid.Add(_webView, 0, 1);
+        grid.Add(BuildAttachmentBar(), 0, 2);
         Content = grid;
 
 #if DEBUG
@@ -108,6 +112,226 @@ public sealed class MainPage : ContentPage
         }
     }
 #endif
+
+    /// <summary>
+    /// The row of things a phone can do that a browser cannot: the camera, the photo
+    /// library, a file, and the microphone.
+    ///
+    /// <para>
+    /// Each one ends in the same place the Web UI's own paperclip ends — a POST to
+    /// <c>/api/upload</c> whose response is handed to the page's attachment list — so
+    /// an attachment picked natively and one picked in the page are the same thing by
+    /// the time a message is sent. Dictation is different in kind: it produces text,
+    /// so it goes into the composer rather than the attachment list, which is what a
+    /// user expects from a microphone button next to a text box.
+    /// </para>
+    /// </summary>
+    /// <summary>
+    /// The one row of native chrome above the page: where the app is, and how to get
+    /// to the three things the Web UI has no concept of.
+    ///
+    /// <para>
+    /// The chat page hides the shell's navigation bar so the WebView reaches the top
+    /// of the screen, which is what makes it feel like an app rather than a browser.
+    /// That leaves nothing to open the flyout with, so the routes are here instead —
+    /// and being visible rather than behind a gesture matters, because a user who
+    /// has not downloaded a model yet needs to find the model list on their first
+    /// launch.
+    /// </para>
+    /// </summary>
+    private View BuildTopBar()
+    {
+        var bar = new Grid
+        {
+            BackgroundColor = BarBackground,
+            Padding = new Thickness(12, 6, 8, 6),
+            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) },
+        };
+        bar.Add(_status, 0, 0);
+        bar.Add(new HorizontalStackLayout
+        {
+            Spacing = 4,
+            Children =
+            {
+                NavChip("Chats", "//sessions"),
+                NavChip("Models", "//models"),
+                NavChip("Settings", "//settings"),
+            },
+        }, 1, 0);
+        return bar;
+    }
+
+    private Button NavChip(string text, string route)
+    {
+        var button = new Button
+        {
+            Text = text,
+            FontSize = 12,
+            Padding = new Thickness(10, 2),
+            CornerRadius = 12,
+            BackgroundColor = Color.FromArgb("#1c2438"),
+            TextColor = BarText,
+        };
+        button.Clicked += async (_, _) => await Shell.Current.GoToAsync(route);
+        return button;
+    }
+
+    private View BuildAttachmentBar()
+    {
+        _dictate = Chip("Speak", OnDictate);
+        var bar = new HorizontalStackLayout
+        {
+            Spacing = 8,
+            Padding = new Thickness(12, 8),
+            BackgroundColor = BarBackground,
+            Children =
+            {
+                Chip("Photo", () => AttachAsync(MediaSource.Library)),
+                Chip("Camera", () => AttachAsync(MediaSource.Camera)),
+                Chip("Video", () => AttachAsync(MediaSource.Video)),
+                Chip("File", () => AttachAsync(MediaSource.File)),
+                _dictate,
+            },
+        };
+        return new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = bar, BackgroundColor = BarBackground };
+    }
+
+    private Button Chip(string text, Func<Task> onTap)
+    {
+        var button = new Button
+        {
+            Text = text,
+            FontSize = 13,
+            Padding = new Thickness(12, 4),
+            CornerRadius = 14,
+            BackgroundColor = Color.FromArgb("#1c2438"),
+            TextColor = BarText,
+        };
+        button.Clicked += async (_, _) =>
+        {
+            try { await onTap(); }
+            catch (Exception ex) { await Notice(ex.Message); }
+        };
+        return button;
+    }
+
+    private Button Chip(string text, Action onTap) => Chip(text, () => { onTap(); return Task.CompletedTask; });
+
+    private enum MediaSource { Library, Camera, Video, File }
+
+    /// <summary>
+    /// Pick something and upload it through the route the page already uses, then tell
+    /// the page it now has an attachment.
+    /// </summary>
+    private async Task AttachAsync(MediaSource source)
+    {
+        FileResult? picked = source switch
+        {
+            MediaSource.Library => await MediaPicker.Default.PickPhotoAsync(),
+            MediaSource.Camera when MediaPicker.Default.IsCaptureSupported => await MediaPicker.Default.CapturePhotoAsync(),
+            MediaSource.Camera => throw new NotSupportedException("This device has no camera available to the app."),
+            MediaSource.Video => await MediaPicker.Default.PickVideoAsync(),
+            MediaSource.File => await FilePicker.Default.PickAsync(),
+            _ => null,
+        };
+        if (picked is null)
+            return;
+
+        await using Stream content = await picked.OpenReadAsync();
+        using var form = new MultipartFormDataContent();
+        using var part = new StreamContent(content);
+        part.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            string.IsNullOrWhiteSpace(picked.ContentType) ? "application/octet-stream" : picked.ContentType);
+        form.Add(part, "file", picked.FileName);
+
+        using var client = new HttpClient { BaseAddress = new Uri(_host.BaseUrl) };
+        client.DefaultRequestHeaders.Add("Cookie", $"tensoragent_token={_host.Token}");
+        HttpResponseMessage response = await client.PostAsync("/api/upload", form);
+        string payload = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            await Notice($"Upload failed ({(int)response.StatusCode}).");
+            return;
+        }
+
+        // The page's own addAttachment takes exactly what /api/upload returned, so the
+        // payload is forwarded verbatim rather than reshaped here.
+        await _webView.EvaluateJavaScriptAsync("window.TensorAgent.addAttachment(" + payload + ")");
+    }
+
+    /// <summary>
+    /// Dictation, as a toggle. Speech recognition on iOS is a live session rather than
+    /// a request, so the button starts it and the second tap ends it; partial results
+    /// are ignored and only the final transcription reaches the composer, because
+    /// appending partials would rewrite the user's text as they spoke.
+    /// </summary>
+    private async Task OnDictate()
+    {
+        if (_dictation is not null)
+        {
+            _dictation.Stop();
+            return;
+        }
+
+        if (!Platforms.iOS.Dictation.IsSupported)
+        {
+            await Notice("Speech recognition is not available on this device.");
+            return;
+        }
+        if (await Platforms.iOS.Dictation.RequestPermissionsAsync() is { } refused)
+        {
+            await Notice(refused);
+            return;
+        }
+
+        _dictation = new Platforms.iOS.Dictation();
+        _dictate!.Text = "Stop";
+        try
+        {
+            string text = await _dictation.ListenAsync();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                await _webView.EvaluateJavaScriptAsync(
+                    "window.TensorAgent.insertText(" + System.Text.Json.JsonSerializer.Serialize(text) + ")");
+            }
+        }
+        catch (Exception ex)
+        {
+            await Notice("Dictation failed: " + ex.Message);
+        }
+        finally
+        {
+            _dictation.Dispose();
+            _dictation = null;
+            _dictate!.Text = "Speak";
+        }
+    }
+
+    /// <summary>
+    /// Show a message inside the page rather than as a native alert, so it looks the
+    /// same as everything else the chat says.
+    /// </summary>
+    private async Task Notice(string text) => await _webView.EvaluateJavaScriptAsync(
+        "window.TensorAgent.notice(" + System.Text.Json.JsonSerializer.Serialize(text) + ", 'error')");
+
+    /// <summary>
+    /// Point the page at a saved conversation, or at a brand new one.
+    ///
+    /// <para>
+    /// It is a navigation rather than a call into the page because the Web UI builds
+    /// its whole state at load: reusing a loaded page would leave the previous chat's
+    /// engine session, pending attachments and scroll position behind. Reloading with
+    /// the conversation in the query string is what the injected script is written
+    /// against.
+    /// </para>
+    /// </summary>
+    public void OpenConversation(string? conversationId)
+    {
+        string target = conversationId is { Length: > 0 } id
+            ? $"{_host.EntryUrl}&conversation={Uri.EscapeDataString(id)}"
+            : $"{_host.EntryUrl}&conversation=new";
+        MainThread.BeginInvokeOnMainThread(() => _webView.Source = new UrlWebViewSource { Url = target });
+    }
 
     private void StartHost()
     {

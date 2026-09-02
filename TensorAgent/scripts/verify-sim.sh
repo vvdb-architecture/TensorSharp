@@ -9,8 +9,9 @@
 #
 # Checks: GET / is the Server's index.html byte for byte, GET /api/engine shows
 # the static GgmlOps link is alive (no DllNotFoundException), /api without the
-# token is refused, and POST /api/chat streams the demo SSE frames and ends with
-# a done frame.
+# token is refused, POST /api/chat streams the demo SSE frames and ends with a
+# done frame, and the media probe line shows ImageIO/AVFoundation decoded a HEIC,
+# applied a stored EXIF orientation, round-tripped an MP4 and read a WAV.
 set -euo pipefail
 
 LOG="${1:?usage: verify-sim.sh <app stdout log>}"
@@ -70,4 +71,19 @@ TOKENS="$(grep -c '^data: {"token":' <<<"${STREAM}" || true)"
 [[ "${TOKENS}" -gt 10 ]] || fail "POST /api/chat streamed ${TOKENS} token frames"
 grep -q '^data: {"done":true' <<<"${STREAM}" || fail "POST /api/chat did not end with a done frame"
 echo "ok  POST /api/chat streamed ${TOKENS} token frames and a done frame"
+
+# 6. The media probe. TensorSharp.Models/Media/Apple compiles only for net10.0-ios, so
+#    the repo's net10.0 xunit suite cannot execute one line of it: this log line is the
+#    only place ImageIO and AVFoundation are actually run. The desktop suite pins the
+#    contract (InferenceWeb.Tests/MediaProviderParityTests runs the same assertions
+#    against the managed and Magick.NET providers), and MediaProbe runs it here.
+MEDIA="$(grep -o 'media probe {.*' "${LOG}" | tail -1 | sed 's/^media probe //')"
+[[ -n "${MEDIA}" ]] || fail "no 'media probe' line in ${LOG}; the probe is Debug-only, is this a Debug build?"
+echo "    ${MEDIA}"
+grep -q '"allPassed":true' <<<"${MEDIA}" || fail "media probe reported a failed check: ${MEDIA}"
+for CHECK in providers png-roundtrip png-straight-alpha heic-decode exif-orientation mp4-roundtrip audio-decode; do
+    grep -q "\"name\":\"${CHECK}\",\"ok\":true" <<<"${MEDIA}" || fail "media probe check '${CHECK}' is missing or did not pass"
+done
+echo "ok  media probe: HEIC decode, EXIF orientation, MP4 round trip and AVAudioFile all passed"
+
 echo "All simulator checks passed."

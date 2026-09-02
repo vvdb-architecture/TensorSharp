@@ -105,16 +105,20 @@ internal sealed record PythonRuntimeLayout(
         else
         {
             // No manifest: a developer machine pointing at a plain CPython
-            // prefix. Probe the two shapes that exist, and say what was tried.
-            foreach (string candidate in new[]
-                     {
-                         Path.Combine(full, "python", "lib", "python" + version),
-                         Path.Combine(full, "lib", "python" + version),
-                     })
+            // prefix. Any 3.x found is accepted here and reported by version --
+            // whether its PyConfig is the one this build knows is a question
+            // only PythonConfigLayout can answer, and it answers it precisely.
+            foreach (string parent in new[] { Path.Combine(full, "python", "lib"), Path.Combine(full, "lib") })
             {
-                if (Directory.Exists(candidate))
+                if (!Directory.Exists(parent))
+                    continue;
+                string? found = Directory.GetDirectories(parent, "python3.*")
+                    .OrderByDescending(d => d, StringComparer.Ordinal)
+                    .FirstOrDefault();
+                if (found is not null)
                 {
-                    stdlib = candidate;
+                    stdlib = found;
+                    version = Path.GetFileName(found)["python".Length..];
                     break;
                 }
             }
@@ -454,7 +458,9 @@ internal sealed unsafe class PythonInterpreter
             // and install_signal_handlers = 0. These three are ours:
             //  - the bundle is read-only, so a .pyc write would fail on every import;
             //  - site.py has nothing to find and only costs startup time;
-            //  - the app owns the process's stdio, so CPython must not configure it.
+            //  - the app owns the process's stdio, so CPython must not configure
+            //    it (already the isolated default, written anyway so a change in
+            //    that default cannot quietly hand our file descriptors away).
             Marshal.WriteInt32(config, PythonConfigLayout.OffsetOf(nameof(PythonNative.PyConfig.WriteBytecode)), 0);
             Marshal.WriteInt32(config, PythonConfigLayout.OffsetOf(nameof(PythonNative.PyConfig.SiteImport)), 0);
             Marshal.WriteInt32(config, PythonConfigLayout.OffsetOf(nameof(PythonNative.PyConfig.ConfigureCStdio)), 0);

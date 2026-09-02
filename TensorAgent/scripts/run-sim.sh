@@ -47,4 +47,9 @@ echo "==> Launching ${BUNDLE_ID} (stdout follows; the 'entry URL' line carries t
 if [[ -n "${TENSORAGENT_DEMO_PROMPT:-}" ]]; then
     export SIMCTL_CHILD_TENSORAGENT_DEMO_PROMPT="${TENSORAGENT_DEMO_PROMPT}"
 fi
+# Debug builds only: open a page other than the chat, so a screenshot can be taken of
+# the model list or the settings. simctl cannot tap, so there is no other way in.
+if [[ -n "${TENSORAGENT_START_PAGE:-}" ]]; then
+    export SIMCTL_CHILD_TENSORAGENT_START_PAGE="${TENSORAGENT_START_PAGE}"
+fi
 exec xcrun simctl launch --console --terminate-running-process "${SIM_UDID}" "${BUNDLE_ID}"

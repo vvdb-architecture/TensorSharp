@@ -265,7 +265,6 @@ internal static unsafe class PythonNative
         public int SafePath;
         public int IntMaxStrDigits;
         public int CpuCount;
-        public int UseSystemLogger;
         public int PathConfigWarnings;
         public IntPtr ProgramName;
         public IntPtr PythonPathEnv;
@@ -561,6 +560,14 @@ internal static unsafe class PythonNative
 /// </summary>
 internal static class PythonConfigLayout
 {
+    // Every value here was read back out of a real PyConfig_InitIsolatedConfig,
+    // not inferred from CPython's documentation: configure_c_stdio in particular
+    // is 0 in an isolated config and 1 only in a "Python" one, and expecting the
+    // documented 1 would have failed this guard against a perfectly good
+    // interpreter. int_max_str_digits earns its place by being the one
+    // distinctive value (4300, from sys.int_info) in the region where 3.12 and
+    // 3.13 diverge; the run of 1, 1, 0 at the end is what catches a struct whose
+    // tail has shifted by a field.
     private static readonly (string Field, int Expected)[] Probes =
     [
         (nameof(PythonNative.PyConfig.ConfigInit), 3),            // _PyConfig_INIT_ISOLATED
@@ -569,12 +576,15 @@ internal static class PythonConfigLayout
         (nameof(PythonNative.PyConfig.InstallSignalHandlers), 0),
         (nameof(PythonNative.PyConfig.UseHashSeed), 0),
         (nameof(PythonNative.PyConfig.CodeDebugRanges), 1),
+        (nameof(PythonNative.PyConfig.ParseArgv), 0),
         (nameof(PythonNative.PyConfig.SiteImport), 1),
         (nameof(PythonNative.PyConfig.WriteBytecode), 1),
         (nameof(PythonNative.PyConfig.UserSiteDirectory), 0),
-        (nameof(PythonNative.PyConfig.ConfigureCStdio), 1),
+        (nameof(PythonNative.PyConfig.ConfigureCStdio), 0),
         (nameof(PythonNative.PyConfig.BufferedStdio), 1),
+        (nameof(PythonNative.PyConfig.UseFrozenModules), 1),
         (nameof(PythonNative.PyConfig.SafePath), 1),
+        (nameof(PythonNative.PyConfig.IntMaxStrDigits), 4300),
         (nameof(PythonNative.PyConfig.PathConfigWarnings), 0),
         (nameof(PythonNative.PyConfig.ModuleSearchPathsSet), 0),
         (nameof(PythonNative.PyConfig.InstallImportlib), 1),

@@ -10,6 +10,12 @@
     <Description>Platform-neutral core of the TensorAgent iOS app: model catalog and store, resumable downloads, conversation persistence, settings, and the in-process execution runtimes.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Served by LoopbackServer and appended to index.html at request time, so the
+         Server's page stays unforked. Embedded rather than copied to disk because the
+         script and the routes it calls have to ship as one thing. -->
+    <EmbeddedResource Include="WebUi\tensoragent.js" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="TensorAgent.Tests" />
     <InternalsVisibleTo Include="TensorAgent.Maui" />
   </ItemGroup>

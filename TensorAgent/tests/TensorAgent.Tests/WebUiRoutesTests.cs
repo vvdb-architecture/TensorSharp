@@ -266,6 +266,45 @@ public sealed class WebUiRoutesTests : IDisposable
         Assert.Equal(_models.Root, body.GetProperty("modelRoot").GetString());
     }
 
+    // ---- the page itself -------------------------------------------------------------
+
+    [Fact]
+    public async Task TheServersOwnPageIsServedUnchangedApartFromOneAppendedScriptTag()
+    {
+        string root = Path.Combine(_root, "webui");
+        Directory.CreateDirectory(root);
+        const string page = "<html><head><title>TensorSharp</title></head><body><div id=\"chat\"></div></body></html>";
+        await File.WriteAllTextAsync(Path.Combine(root, "index.html"), page);
+        _server.StaticRoot = root;
+
+        string served = await _client!.GetStringAsync("/");
+
+        // Everything the desktop page contains is still there, in order.
+        Assert.Contains("<div id=\"chat\"></div>", served, StringComparison.Ordinal);
+        Assert.Contains("<title>TensorSharp</title>", served, StringComparison.Ordinal);
+        // And exactly one thing was added, before the closing tag so the page's own
+        // top-level bindings already exist when it runs.
+        Assert.Contains("<script src=\"/tensoragent.js\"></script>", served, StringComparison.Ordinal);
+        Assert.True(served.IndexOf("tensoragent.js", StringComparison.Ordinal) < served.IndexOf("</body>", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TheCompanionScriptIsServedFromTheAssemblyAndCarriesTheAppsAdditions()
+    {
+        _server.StaticRoot = Path.Combine(_root, "webui");
+        Directory.CreateDirectory(_server.StaticRoot);
+
+        string script = await _client!.GetStringAsync("/tensoragent.js");
+
+        Assert.Contains("window.TensorAgent", script, StringComparison.Ordinal);
+        Assert.Contains("addAttachment", script, StringComparison.Ordinal);
+        Assert.Contains("insertText", script, StringComparison.Ordinal);
+        Assert.Contains("/api/sessions?conversation=", script, StringComparison.Ordinal);
+        // The routes it calls must be the ones this server actually maps.
+        Assert.Contains("/api/agent/conversations/", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("/api/tensoragent/", script, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task AnUnknownRouteIs404WithJsonRatherThanAnEmptyBody()
     {
