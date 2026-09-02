@@ -324,6 +324,16 @@ TensorSharp/
 │   └── API_EXAMPLES.md          # Detailed API documentation
 ├── TensorSharp.Cli/             # CLI application (one-shot generation, interactive REPL, batch JSONL, benchmarks)
 ├── TensorSharp.TestMatrix/      # Test / benchmark matrix runner, default prompts, env-var sweeps, and per-host baselines
+├── TensorAgent/                 # iPhone / iPad app: the Server's Web UI chat, running entirely on the device
+│   ├── src/TensorAgent.Core/    # Platform-neutral: the model catalog and store, resumable downloads, saved conversations, settings, the loopback server and its route table, and AgentAppHost, which assembles all of it (built here rather than in the iOS head so it can be started, driven over HTTP and torn down by a test)
+│   │   ├── Shell/               # An in-process POSIX shell -- pipelines, redirections, heredocs, globs, functions, and the coreutils a coding model reaches for, awk included -- plus the IShellBackend that lets the agent host run code where Process.Start is unsupported
+│   │   ├── Sandbox/             # ExecutionPolicy and ConfinedPaths: the one set of rules the shell, Python and JavaScript all enforce, since there is no OS sandbox to lean on
+│   │   ├── Python/              # CPython 3.13 embedded by P/Invoke, its audit-hook sandbox, and a pure-wheel installer
+│   │   ├── JavaScript/          # JavaScriptCore over its C API, with Node-shaped console/process/require/fs/timers
+│   │   └── WebUi/               # The one script appended to the Server's index.html, so the page itself is never forked
+│   ├── src/TensorAgent.Maui/    # The net10.0-ios head: WebView + attachments + dictation, the models / chats / settings pages, and where the files live on this device
+│   ├── skills/                  # The skills that were verified to work here, with verdicts.json recording why each one is in or out
+│   └── scripts/                 # build / run / verify for the simulator, prepare-python.sh, verify-skills.py
 ├── InferenceWeb.Tests/          # xUnit unit tests covering ops, KV cache, paged scheduler, batched-model correctness, web/server helpers
 ├── AdvUtils/                    # Utility library (logger)
 ├── docs/                        # Developer reference
