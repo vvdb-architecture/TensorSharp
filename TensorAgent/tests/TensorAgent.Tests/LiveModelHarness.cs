@@ -9,11 +9,13 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Settings;
+using TensorAgent.Core.Python;
 using TensorSharp.AgentHost.Skills;
 
 namespace TensorAgent.Tests;
@@ -188,12 +190,48 @@ public abstract class LiveModelHarness : IDisposable
     }
 
     /// <summary>Why nothing here can run a program, or null when an interpreter was named.</summary>
-    internal static string? NoInterpreterReason() =>
-        string.IsNullOrWhiteSpace(InterpreterRoot)
-            ? $"this test asks the model to run a program, which needs an interpreter: set "
-                + $"{LivePythonFactAttribute.RootVariable}=<TensorAgent/python-runtime/simulator or a CPython 3.13 "
-                + "prefix with lib/python3.13 and libpython3.13.dylib> and re-run"
-            : null;
+    ///
+    /// <para>
+    /// Naming a root is not the same as having one that works, and the gap between the
+    /// two costs three minutes of a live model and then an assertion about a missing
+    /// PDF. The staged <c>python-runtime/simulator</c> is the trap: it holds a complete
+    /// CPython, so every filesystem check passes, but its <c>Python.framework</c> is
+    /// built for the iOS SIMULATOR (Mach-O platform 7) and dyld refuses to load it into
+    /// a native macOS process. The shell then answers every <c>python3</c> with exit
+    /// 127 and the model spends the turn working around it.
+    /// </para>
+    /// <para>
+    /// So the check is the real one: resolve the layout the way the app does and ask
+    /// the loader to open the library. That is dlopen, not <c>Py_Initialize</c> — this
+    /// runs while xUnit is still enumerating tests, and initializing CPython here would
+    /// burn the one interpreter this process gets before any test has chosen its root.
+    /// </para>
+    internal static string? NoInterpreterReason()
+    {
+        if (string.IsNullOrWhiteSpace(InterpreterRoot))
+            return "this test asks the model to run a program, which needs an interpreter: set "
+                + $"{LivePythonFactAttribute.RootVariable}=<a CPython 3.13 prefix with lib/python3.13 and "
+                + "lib/libpython3.13.dylib> and re-run. On macOS, TensorAgent/python-runtime/simulator will "
+                + "NOT do: it is built for the iOS simulator and cannot be loaded by a native test host.";
+
+        if (!PythonRuntimeLayout.TryDiscover(InterpreterRoot!, out PythonRuntimeLayout? layout, out string? error)
+            || layout is null)
+        {
+            return $"{LivePythonFactAttribute.RootVariable}={InterpreterRoot} is not a usable runtime: {error}";
+        }
+
+        string? library = layout.FindLibrary();
+        if (library is null)
+            return $"{LivePythonFactAttribute.RootVariable}={InterpreterRoot} has no loadable libpython; on a "
+                + "test host the symbols cannot come from the app image the way they do on iOS";
+
+        if (!NativeLibrary.TryLoad(library, out nint handle))
+            return $"{library} cannot be loaded into this process -- on macOS this is what an iOS or "
+                + "iOS-simulator build of CPython looks like. Point "
+                + $"{LivePythonFactAttribute.RootVariable} at a CPython built for this machine.";
+        NativeLibrary.Free(handle);
+        return null;
+    }
 
     /// <summary>Why the document scenarios cannot run here, or null when everything they need is present.</summary>
     internal static string? NoDocumentsSkillReason()
