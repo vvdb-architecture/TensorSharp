@@ -9,7 +9,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -180,6 +182,174 @@ public sealed class ShellSessionStateSafetyTests : IDisposable
                 _workspace.ShellStateDirectory, path, 128 * 1024, out _),
             keeper,
             "root-anchored reader");
+    }
+
+    // ---- the host-side state API an in-process backend persists through ----------
+
+    [Fact]
+    public void SaveThenLoad_RoundTripsOrdinaryVariables_AndDropsWhatTheHostOwns()
+    {
+        string child = Path.Combine(_workspace.WorkDirectory, "child");
+        Directory.CreateDirectory(child);
+        var session = new ShellSession(_workspace, ShellProgram.InProcess());
+
+        session.Save(child, new Dictionary<string, string>
+        {
+            ["FOO"] = "bar baz",
+            ["QUOTED"] = "it's \"x\" and $y and `z`",
+            ["MULTI"] = "line one\nline two",
+            ["EMPTY"] = string.Empty,
+            // The wrapper's filter, applied on the way out: none of these may persist.
+            ["PATH"] = "/evil/bin",
+            ["HOME"] = "/somewhere/else",
+            ["LD_PRELOAD"] = "/lib/evil.so",
+            ["DYLD_INSERT_LIBRARIES"] = "/lib/evil.dylib",
+            ["HTTPS_PROXY"] = "http://proxy:3128",
+            ["TS_SECRET"] = "1",
+            // Not an identifier: no shell could export it either.
+            ["1BAD"] = "x",
+        });
+
+        ShellState state = session.Load();
+
+        Assert.Equal(child, state.CurrentDirectory);
+        Assert.Equal(child, session.CurrentDirectory);
+        Assert.Equal("child", session.CurrentDirectoryLabel);
+        Assert.Equal("bar baz", state.Environment["FOO"]);
+        Assert.Equal("it's \"x\" and $y and `z`", state.Environment["QUOTED"]);
+        Assert.Equal("line one\nline two", state.Environment["MULTI"]);
+        Assert.Equal(string.Empty, state.Environment["EMPTY"]);
+        foreach (string dropped in new[] { "PATH", "HOME", "LD_PRELOAD", "DYLD_INSERT_LIBRARIES", "HTTPS_PROXY", "TS_SECRET", "1BAD" })
+            Assert.False(state.Environment.ContainsKey(dropped), dropped + " must not persist");
+        Assert.False(session.TakeEnvironmentWasReset());
+
+        // What was written is what a POSIX shell would source, and nothing was left behind.
+        string envFile = Path.Combine(_workspace.ShellStateDirectory, "env.sh");
+        Assert.All(File.ReadAllText(envFile).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Where(line => line.StartsWith("export ", StringComparison.Ordinal)),
+            line => Assert.Matches("^export [A-Za-z_][A-Za-z0-9_]*=", line));
+        Assert.Empty(Directory.GetFiles(_workspace.ShellStateDirectory, "*.tmp"));
+    }
+
+    [Fact]
+    public void Load_ReadsBothShapesExportPEmits_AndFiltersOnTheWayIn()
+    {
+        var session = new ShellSession(_workspace, ShellProgram.InProcess());
+        File.WriteAllText(Path.Combine(_workspace.ShellStateDirectory, "env.sh"),
+            // bash: double quotes, backslash escapes for " \ $ `, a literal newline inside.
+            "declare -x A=\"x\\\"y\\\\z\\$q\"\n"
+            + "declare -x TWO=\"first\nsecond\"\n"
+            // dash: single quotes, '\'' for an embedded quote.
+            + "export B='it'\\''s'\n"
+            // A readonly export, and a value with no quoting at all.
+            + "declare -rx C=plain\n"
+            // Exported without a value: nothing to restore.
+            + "declare -x NOVAL\n"
+            // Written by hand into the file: still filtered.
+            + "declare -x PATH=\"/evil\"\n"
+            + "export LD_PRELOAD='/x.so'\n");
+
+        ShellState state = session.Load();
+
+        Assert.Equal("x\"y\\z$q", state.Environment["A"]);
+        Assert.Equal("first\nsecond", state.Environment["TWO"]);
+        Assert.Equal("it's", state.Environment["B"]);
+        Assert.Equal("plain", state.Environment["C"]);
+        Assert.False(state.Environment.ContainsKey("NOVAL"));
+        Assert.False(state.Environment.ContainsKey("PATH"));
+        Assert.False(state.Environment.ContainsKey("LD_PRELOAD"));
+        Assert.False(session.TakeEnvironmentWasReset());
+    }
+
+    [Fact]
+    public void Load_OfAFileThatDoesNotParse_ResetsTheEnvironment_AndSaysSoOnce()
+    {
+        var session = new ShellSession(_workspace, ShellProgram.InProcess());
+        string envFile = Path.Combine(_workspace.ShellStateDirectory, "env.sh");
+        File.WriteAllText(envFile, "export GOOD='kept'\nexport BROKEN=\"unterminated\n");
+
+        ShellState state = session.Load();
+
+        // The wrapper's own verdict: a file that will not source costs the whole
+        // environment, never half of it.
+        Assert.Empty(state.Environment);
+        Assert.Equal(string.Empty, File.ReadAllText(envFile));
+        Assert.True(session.TakeEnvironmentWasReset());
+        Assert.False(session.TakeEnvironmentWasReset());
+    }
+
+    [Fact]
+    public void MarkEnvironmentReset_IsReadBackExactlyOnce()
+    {
+        var session = new ShellSession(_workspace, ShellProgram.InProcess());
+
+        Assert.False(session.TakeEnvironmentWasReset());
+        Assert.True(session.MarkEnvironmentReset());
+        Assert.True(session.TakeEnvironmentWasReset());
+        Assert.False(session.TakeEnvironmentWasReset());
+    }
+
+    [Fact]
+    public void Save_ReplacesAPlantedLink_InsteadOfWritingThroughIt()
+    {
+        string target = Path.Combine(_base, "outside-target");
+        File.WriteAllText(target, "untouched");
+        string envFile = Path.Combine(_workspace.ShellStateDirectory, "env.sh");
+        if (!TryCreateFileSymlink(envFile, target))
+            return; // Windows needs Developer Mode or an elevated token to create one.
+
+        var session = new ShellSession(_workspace, ShellProgram.InProcess());
+        session.Save(_workspace.WorkDirectory, new Dictionary<string, string> { ["X"] = "1" });
+
+        Assert.Equal("untouched", File.ReadAllText(target));
+        Assert.Null(new FileInfo(envFile).LinkTarget);
+        Assert.Equal("1", session.Load().Environment["X"]);
+    }
+
+    [Fact]
+    public void Save_WritesAPowerShellSessionsFile_InItsOwnShape()
+    {
+        var session = new ShellSession(_workspace, ShellProgram.InProcess("pwsh", ShellKind.PowerShell));
+        session.Save(_workspace.WorkDirectory, new Dictionary<string, string>
+        {
+            ["FOO"] = "bar",
+            ["MULTI"] = "a\nb",       // cannot live in a line-per-variable file
+            ["Path"] = "C:\\evil",    // the PowerShell wrapper's own filter
+        });
+
+        ShellState state = session.Load();
+        Assert.Equal("bar", state.Environment["FOO"]);
+        Assert.False(state.Environment.ContainsKey("MULTI"));
+        Assert.False(state.Environment.ContainsKey("Path"));
+        Assert.Equal("FOO=bar\n", File.ReadAllText(Path.Combine(_workspace.ShellStateDirectory, "env.txt")));
+    }
+
+    [Fact]
+    public void TheDarwinFStatFallback_AgreesWithTheRuntimeShim_AndItsLayoutIsPinned()
+    {
+        if (!OperatingSystem.IsMacOS())
+            return;
+
+        // The struct is Darwin's __DARWIN_STRUCT_STAT64: 144 bytes with st_size at 96.
+        // A wrong field order would still compile and silently fail the length check.
+        Assert.Equal(144, Marshal.SizeOf<ShellSession.DarwinStat64>());
+        Assert.Equal(96, (int)Marshal.OffsetOf<ShellSession.DarwinStat64>(nameof(ShellSession.DarwinStat64.Size)));
+        Assert.Equal(4, (int)Marshal.OffsetOf<ShellSession.DarwinStat64>(nameof(ShellSession.DarwinStat64.Mode)));
+        Assert.Equal(32, (int)Marshal.OffsetOf<ShellSession.DarwinStat64>(nameof(ShellSession.DarwinStat64.ATimeSec)));
+
+        string path = Path.Combine(_workspace.ShellStateDirectory, "stat-probe");
+        File.WriteAllText(path, new string('x', 1234));
+        using SafeFileHandle handle = File.OpenHandle(path);
+
+        Assert.True(ShellSession.TryFStatDarwin(handle, out ShellSession.UnixFileStatus status));
+        Assert.Equal(1234, status.Size);
+        Assert.Equal(0x8000, status.Mode & 0xF000);
+        Assert.True(status.Ino != 0);
+        Assert.True(status.MTime > 0);
+
+        // And the reader still works through whichever path it took.
+        Assert.True(ShellSession.TryReadStateText(path, out string text));
+        Assert.Equal(1234, text.Length);
     }
 
     private static void AssertFifoRejectedWithoutBlocking(

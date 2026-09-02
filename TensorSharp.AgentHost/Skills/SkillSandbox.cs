@@ -205,6 +205,22 @@ namespace TensorSharp.AgentHost.Skills
                 yield return new BubblewrapSandbox();
             if (OperatingSystem.IsWindows())
                 yield return new WindowsJobObjectSandbox();
+            // iOS has no sandbox helper and cannot start a child to put in one: code runs
+            // INSIDE the app, through an in-process IShellBackend, and the app's own
+            // container is what bounds it. What is claimed here is what that container
+            // gives for free — writes cannot leave the container, there is no home
+            // directory of the user's to read, nothing outlives the process because there
+            // is no other process. The network is NOT claimed: the app has to disable
+            // sockets in its embedded interpreters itself, and it says so by handing
+            // ShellRunner a sandbox of its own with that capability set.
+            if (OperatingSystem.IsIOS() && !OperatingSystem.IsMacCatalyst())
+            {
+                yield return new InProcessSandbox(new SkillSandboxCapabilities(
+                    ConfinesWrites: true,
+                    ConfinesNetwork: false,
+                    ConfinesHomeReads: true,
+                    BoundsProcessTree: true));
+            }
         }
 
         /// <summary>
@@ -215,9 +231,17 @@ namespace TensorSharp.AgentHost.Skills
         {
             ISkillSandbox? sandbox = Detect();
             if (sandbox == null)
-                return OperatingSystem.IsLinux()
-                    ? "no safe OS sandbox available: " + BubblewrapSandbox.AvailabilityError
-                    : "no OS sandbox available on this platform";
+            {
+                if (OperatingSystem.IsLinux())
+                    return "no safe OS sandbox available: " + BubblewrapSandbox.AvailabilityError;
+                // Not "no OS sandbox": there is no OS sandbox to look for on iOS, and an
+                // operator reading that would go looking for one. What is missing is the
+                // host's own in-process runtime.
+                if (OperatingSystem.IsIOS())
+                    return "no in-process runtime registered: this platform runs code inside the app, "
+                         + "and no backend presenting one was supplied";
+                return "no OS sandbox available on this platform";
+            }
 
             IReadOnlyList<string> gaps = sandbox.Capabilities.Gaps();
             return gaps.Count == 0

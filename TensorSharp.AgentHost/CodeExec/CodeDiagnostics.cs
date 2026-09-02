@@ -196,6 +196,13 @@ namespace TensorSharp.AgentHost.CodeExec
 
         private static string? _pythonInstallPrefix;
 
+        /// <summary>
+        /// Forget the probed install spelling. Called by
+        /// <see cref="CodeEnvironment.Configure"/> and <see cref="CodeEnvironment.Reset"/>,
+        /// because the answer was read off PATH and PATH is exactly what those replace.
+        /// </summary>
+        internal static void ResetCaches() => _pythonInstallPrefix = null;
+
         // ---- environment or code? -------------------------------------------
 
         /// <summary>Where the blame for a failed run lies.</summary>

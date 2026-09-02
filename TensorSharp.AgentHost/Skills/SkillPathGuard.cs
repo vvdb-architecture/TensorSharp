@@ -56,10 +56,15 @@ namespace TensorSharp.AgentHost.Skills
         /// macOS (on the default case-insensitive volume) do not. Comparing
         /// case-sensitively everywhere would reject legitimate reads on macOS; comparing
         /// case-insensitively everywhere would let a Linux path that merely looks like
-        /// the root prefix pass the containment test.
+        /// the root prefix pass the containment test. iOS is case-sensitive too — its
+        /// APFS volumes are formatted that way, unlike a Mac's default — and
+        /// <c>IsIOS()</c> is also true on Mac Catalyst, which runs on the Mac's volume,
+        /// so that one is excluded by name.
         /// </summary>
         public static readonly StringComparison PathComparison =
-            OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            OperatingSystem.IsLinux() || (OperatingSystem.IsIOS() && !OperatingSystem.IsMacCatalyst())
+                ? StringComparison.Ordinal
+                : StringComparison.OrdinalIgnoreCase;
 
         /// <summary>
         /// Resolve <paramref name="relativePath"/> against <paramref name="skillRoot"/>.
