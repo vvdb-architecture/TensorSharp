@@ -80,8 +80,12 @@ nunit-*.xml
 # Visual Studio generates per-user debug profiles on F5; they are machine-local.
 launchSettings.json
 
+# Bytecode left behind by running a skill's or a tool's Python scripts. It must
+# never reach the app bundle: a .pyc built by one CPython is dead weight to
+# another, and the bundled interpreter compiles from source anyway.
+__pycache__/
+
 # Benchmark tooling artifacts
-benchmarks/engine_comparison/__pycache__/
 benchmarks/engine_comparison/results/
 /.vs
 /TensorSharp.Server/Properties/launchSettings.json

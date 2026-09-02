@@ -108,7 +108,7 @@ public sealed class AgentAppHost : IDisposable
             WorkRoot: paths.ScratchDirectory,
             ReadableRoots: Array.Empty<string>(),
             TempRoot: paths.ScratchDirectory));
-        Backend = new InProcessShellBackend(Python, JavaScript, Installer);
+        Backend = new InProcessShellBackend(Python, JavaScript, Installer, settings.NetworkHosts);
         Artifacts = new CodeArtifactStore(paths.ArtifactsDirectory);
         ShellRunner runner = new(
             CodeExec,
@@ -128,6 +128,23 @@ public sealed class AgentAppHost : IDisposable
         Uploads = new UploadStoragePolicy(paths.UploadsDirectory);
 
         Options = BuildOptions(paths, settings, backends);
+
+        // A diffusion entry is five files, not one, and only three of them are found by
+        // the scan the pipeline does next to the weights. Publishing all of them here —
+        // before anything can ask for a load — is what makes the catalog's file list the
+        // whole story rather than most of it. See DiffusionCompanions.
+        CatalogModel? selected = settings.SelectedModelId is { Length: > 0 } selectedId
+            ? ModelCatalog.Find(selectedId)
+            : null;
+        IReadOnlyDictionary<string, string> companions = DiffusionCompanions.Publish(
+            selected?.Kind == CatalogArchitectureKind.Diffusion ? selected : null, Models);
+        if (companions.Count > 0)
+        {
+            _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                "image-generation companions: {Companions}",
+                string.Join(", ", companions.Select(c => $"{c.Key}={Path.GetFileName(c.Value)}")));
+        }
+
         Chat = new WebUiChatService(
             ModelService, Sessions, Options, Uploads, Skills,
             CodeRunner!, Workspaces, Artifacts, _loggerFactory);
@@ -145,7 +162,7 @@ public sealed class AgentAppHost : IDisposable
         {
             StaticRoot = webRoot,
         };
-        Server.MapWebUi(Chat, SkillsService, Recorder);
+        Server.MapWebUi(Chat, Options.UploadDirectory, SkillsService, Recorder);
         Server.MapAgent(Catalog, Models, Conversations, Settings, DescribeEngine, RaisePageEvent);
 
     }

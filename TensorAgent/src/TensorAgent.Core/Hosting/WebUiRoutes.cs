@@ -14,6 +14,7 @@ using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Settings;
 using TensorSharp.Chat;
+using TensorSharp.Server.Hosting;
 
 namespace TensorAgent.Core.Hosting;
 
@@ -39,18 +40,28 @@ namespace TensorAgent.Core.Hosting;
 public static class WebUiRoutes
 {
     /// <summary>
-    /// Bind the shared Web UI API. <paramref name="chat"/> is required; the rest are
-    /// optional and their routes answer 503 with a reason when absent, which is what
-    /// lets the app start before a model has been chosen.
+    /// Bind the shared Web UI API. <paramref name="chat"/> and
+    /// <paramref name="uploadDirectory"/> are required; the rest are optional and their
+    /// routes answer 503 with a reason when absent, which is what lets the app start
+    /// before a model has been chosen.
     /// </summary>
+    /// <param name="uploadDirectory">
+    /// The directory <c>/api/upload</c> writes into, which is also what <c>/uploads/</c>
+    /// serves. It is a parameter rather than something read off the chat service because
+    /// serving those files is not optional: every reply the service gives — an
+    /// attachment, a video frame, an edited image, a generated clip — points at a
+    /// <c>/uploads/</c> URL and nothing else.
+    /// </param>
     public static void MapWebUi(
         this LoopbackServer server,
         WebUiChatService chat,
+        string uploadDirectory,
         SkillsService? skills = null,
         ConversationRecorder? recorder = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(chat);
+        ArgumentException.ThrowIfNullOrWhiteSpace(uploadDirectory);
 
         // ---- chat ---------------------------------------------------------------
         server.MapGet("/api/queue/status", (_, _) => Ok(chat.GetQueueStatus()));
@@ -108,6 +119,13 @@ public static class WebUiRoutes
             await using FileStream content = File.OpenRead(file.TempPath);
             return Json(await Guarded(() => chat.UploadAsync(content, file.FileName, file.Length, ct)));
         });
+        // The desktop server mounts the upload directory as static files; here it is a
+        // route, and it has to exist for the same reason: the page renders an
+        // attachment, a frame, an edited image and a generated clip from the URL the
+        // API handed back, so a missing mount is not a missing feature but a chat full
+        // of broken images with a 200 behind each one.
+        server.MapGet("/uploads/{*path}", (request, _) => Task.FromResult(ServeUpload(uploadDirectory, request.RouteValues["path"])));
+
         server.MapPost("/api/image-edit", async (request, ct) =>
         {
             JsonElement body = await request.ReadJsonAsync(ct);
@@ -267,6 +285,34 @@ public static class WebUiRoutes
             modelRoot = models.Root,
             conversationRoot = conversations.Root,
         }));
+    }
+
+    /// <summary>
+    /// One file out of the upload directory, or a 404.
+    ///
+    /// <para>
+    /// Two rules, both the Server's rather than this file's. The content type comes
+    /// from <see cref="UploadContentPolicy"/>, which serves every text and code
+    /// extension as <c>text/plain</c> — an uploaded HTML page must never run in the
+    /// origin that holds the launch token — and an extension the policy does not list
+    /// is a 404 rather than a download of unknown type. The path is resolved and then
+    /// checked for containment, because <c>..</c> survives URL decoding and the
+    /// directory above this one holds the conversations and the settings.
+    /// </para>
+    /// </summary>
+    private static LoopbackResponse? ServeUpload(string uploadDirectory, string relative)
+    {
+        if (string.IsNullOrEmpty(relative) || relative.Contains("..", StringComparison.Ordinal))
+            return LoopbackResponse.Json(new { error = "not found" }, 404);
+
+        string root = Path.GetFullPath(uploadDirectory).TrimEnd(Path.DirectorySeparatorChar);
+        string full = Path.GetFullPath(Path.Combine(root, relative));
+        if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal) || !File.Exists(full))
+            return LoopbackResponse.Json(new { error = "not found" }, 404);
+
+        return UploadContentPolicy.ServeContentTypes.TryGetValue(Path.GetExtension(full), out string? contentType)
+            ? LoopbackResponse.File(full, contentType)
+            : LoopbackResponse.Json(new { error = "not found" }, 404);
     }
 
     private static async IAsyncEnumerable<object> DownloadFrames(

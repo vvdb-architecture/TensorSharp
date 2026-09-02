@@ -253,7 +253,7 @@ public sealed class EmbeddedPython : IPythonRuntime
 
             string payload = PythonInterpreter.CreatePayload(
                 mode, target, argv, context.WorkingDirectory, context.Environment, pathFront, pathBack, context.StandardInput);
-            string policySource = PythonBootstrap.CreatePolicySource(confined, policy.AllowNetwork);
+            string policySource = PythonBootstrap.CreatePolicySource(confined, policy.AllowNetwork, policy.NetworkHosts);
 
             long runId = Interlocked.Increment(ref _runId);
             Task<int> run = _interpreter.RunAsync(runId, policySource, payload, stdout, stderr);

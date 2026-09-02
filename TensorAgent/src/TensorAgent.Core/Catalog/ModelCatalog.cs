@@ -250,7 +250,12 @@ public static class ModelCatalog
                 new CatalogFile(CatalogFileRole.Lora, "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
                     Hf("lightx2v/Qwen-Image-Edit-2511-Lightning", "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"),
                     849_608_296, "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f"),
-                new CatalogFile(CatalogFileRole.VisionProjector, "mmproj-BF16.gguf",
+                // Stored under the family's own name rather than the repository's bare
+                // "mmproj-BF16.gguf": QwenImageModel finds the projector by scanning for a
+                // GGUF whose name says both "mmproj" and which family it belongs to, and a
+                // file called only "mmproj-BF16.gguf" downloads, verifies and is then never
+                // looked at, leaving the edit with no image grounding and no complaint.
+                new CatalogFile(CatalogFileRole.VisionProjector, "Qwen2.5-VL-7B-Instruct-mmproj-BF16.gguf",
                     Hf("unsloth/Qwen2.5-VL-7B-Instruct-GGUF", "mmproj-BF16.gguf"),
                     1_354_163_040, "f0edf43c09b69d6e5dd24262f33b356a1e9dd978e7c3299b3e69141fcbb87553", Optional: true),
             },

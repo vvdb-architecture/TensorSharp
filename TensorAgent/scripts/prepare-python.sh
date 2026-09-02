@@ -45,13 +45,36 @@ BINARY_PACKAGES=(
   "numpy==2.5.2.post1"
   "pillow==10.4.0"
 )
-# Pure-Python packages from PyPI that the bundled skills import.
+# Pure-Python packages from PyPI that the bundled skills import. Every entry here
+# has to be importable with no compiler and no C extension of its own AND no
+# dependency that has one, because nothing on this list is compiled for iOS.
+# That second half is what rules out the obvious document libraries:
+#
+#   python-docx, python-pptx   `from lxml import etree` at module scope
+#                              (docx/oxml/xmlchemy.py, pptx/oxml/__init__.py).
+#                              lxml is a C extension with no iOS wheel.
+#   pdfplumber, pdfminer.six   both ship py3-none-any wheels, but every
+#                              pdfminer.six release back to 20220524 has an
+#                              unguarded `from cryptography.hazmat...` at the top
+#                              of pdfminer/pdfdocument.py, and `cryptography`
+#                              publishes no pure wheel at all.
+#
+# The documents skill writes .docx and .pptx with zipfile + xml.etree instead,
+# and reads PDFs with pypdf. See TensorAgent/skills/documents/SKILL.md.
 PURE_PACKAGES=(
   "pypdf==6.16.2"
   "openpyxl==3.1.5"
   "et_xmlfile==2.0.0"
   "reportlab==5.0.1"
   "imageio==2.37.4"
+  # reportlab declares charset-normalizer and reaches for it from
+  # reportlab/lib/rparsexml.py; without it that path raises ImportError on the
+  # phone and nowhere else. Its py3-none-any wheel is the pure fallback build.
+  "charset-normalizer==3.5.1"
+  # Hardened parsers for XML that arrived from outside the app — an uploaded
+  # .docx is a zip of XML a stranger wrote, and xml.etree will happily expand a
+  # billion-laughs entity on the user's phone.
+  "defusedxml==0.7.1"
   "pyyaml"          # sdist: the pure-Python yaml package is extracted below
   ${TENSORAGENT_PYTHON_PACKAGES:-}
 )

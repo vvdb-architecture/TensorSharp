@@ -72,7 +72,8 @@ internal static class PythonBootstrap
             # audit hook below can never be replaced, while the policy changes
             # with every run. It starts closed: until a run sets it, nothing is
             # readable, nothing is writable and there is no network.
-            _state = {'writable': (), 'readable': (), 'network': False, 'configured': False, 'bundle': ''}
+            _state = {'writable': (), 'readable': (), 'network': False, 'configured': False,
+                      'bundle': '', 'hosts': ()}
             _guard = threading.local()
             _boot_main = sys.modules['__main__']
 
@@ -184,6 +185,75 @@ internal static class PythonBootstrap
             _NETWORK = ('socket.', 'urllib.', 'http.client.', 'ftplib.', 'smtplib.',
                         'imaplib.', 'poplib.', 'nntplib.', 'telnetlib.', 'webbrowser.')
 
+            def _host_name(host):
+                # A name arrives as str or as bytes, sometimes fully qualified and
+                # sometimes bracketed (an IPv6 literal). One spelling comes out.
+                if host is None:
+                    return ''
+                try:
+                    text = host.decode('utf-8', 'replace') if isinstance(host, (bytes, bytearray)) else str(host)
+                except Exception:
+                    return ''
+                return text.strip().strip('[]').rstrip('.').lower()
+
+            def _is_address_literal(name):
+                # An IPv4 or IPv6 literal, told apart from a name without importing
+                # ipaddress inside the hook -- the hook runs on every import the
+                # standard library does, so it may not import anything itself.
+                if ':' in name:
+                    return True
+                return bool(name) and all(c in '0123456789.' for c in name)
+
+            def _host_allowed(name):
+                # An empty list is "any host", which is what a session that named none
+                # means. A named list is exact-or-parent-domain: the same rule
+                # ExecutionPolicy.IsHostAllowed applies to curl and to fetch. The three
+                # runtimes have to agree, or an allow-list is decoration that urllib
+                # walks straight past.
+                allowed = _state['hosts']
+                if not allowed:
+                    return True
+                if not name:
+                    return False
+                for entry in allowed:
+                    if name == entry or name.endswith('.' + entry):
+                        return True
+                return False
+
+            def _refuse_host(name):
+                # Through Literal() rather than pasted between quotes: the shared
+                # wording has an apostrophe in it, and a raw paste closes the Python
+                # string in the middle of the sentence.
+                raise PermissionError(
+                    name + {{Literal(" " + ExecutionPolicy.HostNotAllowedSuffix + ": ")}}
+                    + ', '.join(_state['hosts']))
+
+            def _check_network(event, args):
+                # The two events that name where a connection is going. Every protocol
+                # module reaches the network through one of them, so checking here
+                # covers urllib, http.client and a raw socket alike without having to
+                # know each library's own argument shape.
+                #
+                # Honest limit, stated because the alternative is a promise this cannot
+                # keep: a NUMERIC address in socket.connect is allowed through. It has
+                # to be -- an approved name resolves to an address and that address is
+                # what connect() is then given, and the hook cannot see what
+                # getaddrinfo returned. So an allow-list bounds names, not routes: code
+                # that dials a literal IP with a raw socket is not stopped by it. The
+                # user's network switch, which is enforced above and has no such gap,
+                # is what bounds the network itself.
+                if event == 'socket.getaddrinfo':
+                    name = _host_name(args[0] if args else None)
+                    if not _host_allowed(name):
+                        _refuse_host(name)
+                elif event == 'socket.connect':
+                    address = args[1] if len(args) > 1 else None
+                    if not isinstance(address, tuple) or not address:
+                        return
+                    name = _host_name(address[0])
+                    if not _is_address_literal(name) and not _host_allowed(name):
+                        _refuse_host(name)
+
             def _denied(path, write):
                 roots = _state['writable'] if write else _state['readable']
                 verb = 'write under' if write else 'read under'
@@ -270,8 +340,10 @@ internal static class PythonBootstrap
                     raise PermissionError(event + ': {{NativeMessage}}')
                 if event == 'ctypes.dlopen':
                     _check_dlopen(args)
-                if event.startswith(_NETWORK) and not _state['network']:
-                    raise PermissionError(event + ': {{ExecutionPolicy.NetworkDisabledMessage}}')
+                if event.startswith(_NETWORK):
+                    if not _state['network']:
+                        raise PermissionError(event + ': {{ExecutionPolicy.NetworkDisabledMessage}}')
+                    _check_network(event, args)
                 if event == 'open':
                     _check_open(args)
                 elif event in _WRITE_ONE:
@@ -293,10 +365,11 @@ internal static class PythonBootstrap
             # adversary. Code running in this address space shares it with the
             # host, and no in-process check can change that.
 
-            def _set_policy(writable, readable, network, bundle=''):
+            def _set_policy(writable, readable, network, bundle='', hosts=()):
                 _state['writable'] = tuple(writable)
                 _state['readable'] = tuple(readable)
                 _state['network'] = bool(network)
+                _state['hosts'] = tuple(str(h).lower() for h in hosts)
                 # The one tree dlopen is allowed to load from: the app's own bundle.
                 # Resolved here rather than at the call so a link in the path cannot
                 # make a later prefix test disagree with this one.
@@ -428,7 +501,7 @@ internal static class PythonBootstrap
     {
         ArgumentNullException.ThrowIfNull(policy);
         var confined = new ConfinedPaths(policy, extraReadable);
-        return CreatePolicySource(confined, policy.AllowNetwork);
+        return CreatePolicySource(confined, policy.AllowNetwork, policy.NetworkHosts);
     }
 
     /// <summary>
@@ -438,8 +511,17 @@ internal static class PythonBootstrap
     /// </summary>
     internal static string? BundleRoot { get; set; }
 
-    /// <summary>The same, when the caller already built the confinement.</summary>
-    internal static string CreatePolicySource(ConfinedPaths confined, bool allowNetwork)
+    /// <summary>
+    /// The same, when the caller already built the confinement.
+    ///
+    /// <para>
+    /// <paramref name="hosts"/> has no default on purpose. Every caller has a policy in
+    /// hand and must say what its allow-list is; a defaulted empty list would read as
+    /// "no restriction" and would be how a session's allow-list quietly stops applying
+    /// to Python while it still applies to curl.
+    /// </para>
+    /// </summary>
+    internal static string CreatePolicySource(ConfinedPaths confined, bool allowNetwork, IReadOnlyList<string> hosts)
     {
         ArgumentNullException.ThrowIfNull(confined);
         var source = new StringBuilder();
@@ -451,6 +533,7 @@ internal static class PythonBootstrap
         AppendList(source, "readable", confined.ReadableRoots);
         source.AppendLine($"    network={(allowNetwork ? "True" : "False")},");
         source.AppendLine($"    bundle={Literal(BundleRoot ?? string.Empty)},");
+        AppendList(source, "hosts", hosts);
         source.AppendLine(")");
         return source.ToString();
     }

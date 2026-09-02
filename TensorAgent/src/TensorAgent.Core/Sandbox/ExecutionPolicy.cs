@@ -39,6 +39,25 @@ public sealed record ExecutionPolicy(
     /// <summary>The wording every runtime uses when the network is off, so the model reads one sentence everywhere.</summary>
     public const string NetworkDisabledMessage = "network access is disabled by the user";
 
+    /// <summary>
+    /// The invariant half of <see cref="HostNotAllowedMessage"/>. Separate because the
+    /// Python sandbox builds its own message from it: the hook is generated source and
+    /// cannot call back into managed code to format a string.
+    /// </summary>
+    public const string HostNotAllowedSuffix = "is not in this session's allowed hosts";
+
+    /// <summary>
+    /// The wording every runtime uses for a host <see cref="NetworkHosts"/> does not name.
+    ///
+    /// <para>
+    /// A refusal that does not say which hosts ARE reachable leaves a model with one
+    /// move — try another URL and lose another turn — so the sentence carries the list
+    /// it was measured against.
+    /// </para>
+    /// </summary>
+    public static string HostNotAllowedMessage(string host, IEnumerable<string> allowed)
+        => $"{host} {HostNotAllowedSuffix}: {string.Join(", ", allowed)}";
+
     /// <summary>The wording every runtime uses when scripts are off.</summary>
     public const string ScriptsDisabledMessage = "running scripts is disabled by the user";
 

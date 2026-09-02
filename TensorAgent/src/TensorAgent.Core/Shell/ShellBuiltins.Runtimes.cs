@@ -575,7 +575,7 @@ internal static partial class ShellBuiltins
         }
         if (!exec.Policy.IsHostAllowed(uri.Host))
         {
-            io.Error(name, $"{uri.Host} is not in this session's allowed hosts");
+            io.Error(name, ExecutionPolicy.HostNotAllowedMessage(uri.Host, exec.Policy.NetworkHosts));
             return 6;
         }
 

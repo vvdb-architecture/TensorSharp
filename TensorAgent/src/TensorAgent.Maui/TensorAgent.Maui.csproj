@@ -148,9 +148,14 @@
          not a judgement call in this file: scripts/verify-skills.py checks every
          script's imports against the staged interpreter and refuses anything that
          reaches for a process, a browser or a package that is not there, and
-         skills/verdicts.json records what it decided and why. -->
+         skills/verdicts.json records what it decided and why.
+
+         Bytecode is excluded on purpose: running a skill's scripts on a
+         development machine leaves __pycache__ beside them, and a .pyc compiled
+         by a different CPython than the one in this bundle is either ignored or
+         wrong. The interpreter compiles from source at run time instead. -->
     <BundleResource Include="../../skills/**/*"
-                    Exclude="../../skills/verdicts.json"
+                    Exclude="../../skills/verdicts.json;../../skills/**/__pycache__/**/*"
                     Link="skills/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 

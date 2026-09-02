@@ -342,7 +342,7 @@ internal sealed partial class NodeHost
         if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || uri.Scheme is not ("http" or "https"))
             throw new JsHostException($"Failed to parse URL from {url}") { Code = "ERR_INVALID_URL" };
         if (!_policy.IsHostAllowed(uri.Host))
-            throw new JsHostException($"{uri.Host} is not in this session's allowed hosts") { Code = "ENETDOWN" };
+            throw new JsHostException(ExecutionPolicy.HostNotAllowedMessage(uri.Host, _policy.NetworkHosts)) { Code = "ENETDOWN" };
 
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         IntPtr options = At(args, 1);

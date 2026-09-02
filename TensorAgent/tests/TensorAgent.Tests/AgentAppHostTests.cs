@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Sessions;
+using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Settings;
 using TensorSharp.AgentHost.CodeExec;
 
@@ -397,6 +398,40 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.True(clock.Elapsed > TimeSpan.FromSeconds(1),
             $"shutdown returned in {clock.Elapsed.TotalMilliseconds:0}ms without waiting for the request");
         try { await pending; } catch { /* the connection closes with the server */ }
+    }
+
+    [Fact]
+    public void AnAllowListInSettingsReachesThePolicyEveryRuntimeChecks()
+    {
+        // Three runtimes check ExecutionPolicy.NetworkHosts, and until this was wired
+        // nothing in the app could ever set it: the list was always empty and
+        // IsHostAllowed short-circuited to true, so the check read as enforcement and
+        // enforced nothing.
+        AgentAppHost host = Start(settings =>
+        {
+            AppSettings s = settings.Load();
+            s.AllowNetwork = true;
+            s.NetworkHosts = new List<string> { "pypi.org" };
+            settings.Save(s);
+        });
+
+        string work = Path.Combine(_root, "hosts");
+        Directory.CreateDirectory(work);
+        ConfinedResult refused = ((IShellBackend)host.Backend).Run(new ShellLaunch
+        {
+            Argv = new[] { "sh", "-c", "curl https://example.com" },
+            WorkingDirectory = work,
+            WriteDirectory = work,
+            ReadOnlyDirectory = work,
+            AllowNetwork = true,
+            Timeout = TimeSpan.FromSeconds(15),
+        });
+
+        Assert.False(refused.Ok);
+        Assert.Contains(ExecutionPolicy.HostNotAllowedSuffix, refused.Stderr, StringComparison.Ordinal);
+        // And it must say so rather than reporting the network as off, which is the
+        // advice that sends someone to a switch that is already on.
+        Assert.DoesNotContain(ExecutionPolicy.NetworkDisabledMessage, refused.Stderr, StringComparison.Ordinal);
     }
 
     [Fact]

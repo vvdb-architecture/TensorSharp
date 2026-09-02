@@ -64,7 +64,7 @@ public sealed class WebUiRoutesTests : IDisposable
         _models = new ModelStore(Path.Combine(_root, "weights"));
 
         _server = new LoopbackServer(NullLogger.Instance);
-        _server.MapWebUi(_chat);
+        _server.MapWebUi(_chat, _root);
         _server.MapAgent(ModelCatalog.BuiltIn, _models, _conversations, _settings, () => "test engine");
         _server.Start();
 

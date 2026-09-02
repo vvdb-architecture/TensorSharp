@@ -83,7 +83,7 @@ public sealed class WheelInstaller : IInstallHook
             if (!_policy.AllowNetwork)
                 return ExecutionPolicy.NetworkDisabledMessage;
             if (!_policy.IsHostAllowed(IndexHost))
-                return $"{IndexHost} is not among the hosts this session may reach";
+                return $"{IndexHost} {ExecutionPolicy.HostNotAllowedSuffix}";
             return null;
         }
     }
@@ -103,7 +103,7 @@ public sealed class WheelInstaller : IInstallHook
         if (!request.Policy.AllowNetwork)
             return ExecutionResult.Failed(ExecutionPolicy.NetworkDisabledMessage, where, environment);
         if (!request.Policy.IsHostAllowed(IndexHost))
-            return ExecutionResult.Failed($"{IndexHost} is not among the hosts this session may reach", where, environment);
+            return ExecutionResult.Failed($"{IndexHost} {ExecutionPolicy.HostNotAllowedSuffix}", where, environment);
         if (request.Packages.Count == 0)
             return ExecutionResult.Failed("no packages named", where, environment, 2);
 

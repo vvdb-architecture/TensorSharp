@@ -26,6 +26,14 @@ public sealed class AppSettings
 
     /// <summary>Whether programs and scripts may reach the network (package installs, HTTP).
     /// Enforced in-process by the shell's builtins and Python's audit hook.</summary>
+    /// <summary>
+    /// Hosts code may reach when <see cref="AllowNetwork"/> is on. Empty means any
+    /// host, which is the default: a list is a narrowing the user opts into, not a
+    /// default that would quietly break every fetch the first time someone enables
+    /// the network. Matched by exact name or as a parent domain.
+    /// </summary>
+    [JsonPropertyName("networkHosts")] public List<string> NetworkHosts { get; set; } = new();
+
     [JsonPropertyName("allowNetwork")] public bool AllowNetwork { get; set; } = false;
 
 
