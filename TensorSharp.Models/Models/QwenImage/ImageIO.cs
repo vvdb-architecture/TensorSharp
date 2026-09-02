@@ -6,13 +6,15 @@
 // TensorSharp is licensed under the BSD-3-Clause license found in the LICENSE file in the root directory of this source tree.
 using System;
 using System.IO;
-using ImageMagick;
+using TensorSharp.Models.Media;
 
 namespace TensorSharp.Models.QwenImage
 {
     /// <summary>
-    /// Image load/save/resize helpers for the Qwen-Image edit pipeline, backed by
-    /// the shared Magick.NET image-decoding dependency.
+    /// Image load/save/resize helpers for the Qwen-Image edit pipeline (and the Wan and
+    /// MiniMax-H3 pipelines, which share them), backed by the platform image codec on
+    /// <see cref="MediaCodecs.Image"/> — Magick.NET on desktop, so the results the
+    /// pipelines were validated against are unchanged.
     ///
     /// The canonical in-memory representation here is interleaved <b>HWC RGB</b>
     /// (row-major: pixel (y,x) channel c at index <c>(y*W + x)*3 + c</c>) with
@@ -72,39 +74,25 @@ namespace TensorSharp.Models.QwenImage
     {
         public static RgbImage Load(string path) => Decode(File.ReadAllBytes(path));
 
+        /// <summary>Decode any supported image, upright (EXIF orientation applied: phone
+        /// photos are stored rotated with an orientation tag, and the reference pipelines'
+        /// loaders all honor it). Alpha, if any, is dropped rather than composited — the
+        /// generative pipelines take the colour values as stored.</summary>
         public static RgbImage Decode(byte[] data)
         {
-            using var image = new MagickImage(data);
-            // Apply the EXIF orientation (phone photos are stored rotated with an
-            // orientation tag; the reference pipelines' loaders all honor it).
-            image.AutoOrient();
-            image.Alpha(AlphaOption.Off);
-            if (image.ColorSpace != ColorSpace.sRGB)
-                image.ColorSpace = ColorSpace.sRGB;
-            int w = (int)image.Width, h = (int)image.Height;
-            using var pixels = image.GetPixels();
-            byte[] rgb = pixels.ToByteArray(0, 0, (uint)w, (uint)h, "RGB");
+            byte[] rgba = MediaCodecs.Image.DecodeRgba(data, out int w, out int h);
             var px = new float[(long)w * h * 3];
-            for (long i = 0; i < px.Length; i++)
-                px[i] = rgb[i] / 255f;
+            for (long i = 0, p = 0; i < px.Length; i += 3, p += 4)
+            {
+                px[i] = rgba[p] / 255f;
+                px[i + 1] = rgba[p + 1] / 255f;
+                px[i + 2] = rgba[p + 2] / 255f;
+            }
             return new RgbImage(w, h, px);
         }
 
-        public static byte[] EncodePng(RgbImage img)
-        {
-            var bytes = new byte[(long)img.Width * img.Height * 3];
-            var src = img.Pixels;
-            for (long i = 0; i < bytes.Length; i++)
-            {
-                float v = src[i] * 255f + 0.5f;
-                bytes[i] = (byte)(v < 0 ? 0 : v > 255 ? 255 : v);
-            }
-            var settings = new PixelReadSettings((uint)img.Width, (uint)img.Height,
-                StorageType.Char, PixelMapping.RGB);
-            using var image = new MagickImage(bytes, settings);
-            image.Format = MagickFormat.Png;
-            return image.ToByteArray();
-        }
+        public static byte[] EncodePng(RgbImage img) =>
+            MediaCodecs.Image.EncodePng(ToRgb8(img), img.Width, img.Height, 3);
 
         public static void SavePng(string path, RgbImage img) => File.WriteAllBytes(path, EncodePng(img));
 
@@ -152,27 +140,32 @@ namespace TensorSharp.Models.QwenImage
             return Resize(cropped, w, h);
         }
 
+        /// <summary>Lanczos resize to exactly w x h, aspect ratio ignored (the caller has
+        /// already chosen the geometry). The filter is the provider's: ImageMagick's Lanczos
+        /// on desktop, which the pipelines' parity fixtures were produced with.</summary>
         public static RgbImage Resize(RgbImage img, int w, int h)
         {
             if (w == img.Width && h == img.Height) return img;
-            var bytes = new byte[(long)img.Width * img.Height * 3];
-            for (long i = 0; i < bytes.Length; i++)
-            {
-                float v = img.Pixels[i] * 255f + 0.5f;
-                bytes[i] = (byte)(v < 0 ? 0 : v > 255 ? 255 : v);
-            }
-            var readSettings = new PixelReadSettings((uint)img.Width, (uint)img.Height,
-                StorageType.Char, PixelMapping.RGB);
-            using var image = new MagickImage(bytes, readSettings);
-            image.FilterType = FilterType.Lanczos;
-            image.Resize(new MagickGeometry((uint)w, (uint)h) { IgnoreAspectRatio = true });
-            image.Alpha(AlphaOption.Off);
-            using var pixels = image.GetPixels();
-            byte[] rgb = pixels.ToByteArray(0, 0, (uint)w, (uint)h, "RGB");
+            byte[] rgb = MediaCodecs.Image.ResizeRgb8(ToRgb8(img), img.Width, img.Height, w, h, ResizeFilter.Lanczos);
+            if (rgb.Length != (long)w * h * 3)
+                throw new InvalidDataException($"image codec returned {rgb.Length} bytes for a {w}x{h} resize");
             var px = new float[(long)w * h * 3];
             for (long i = 0; i < px.Length; i++)
                 px[i] = rgb[i] / 255f;
             return new RgbImage(w, h, px);
+        }
+
+        // float [0,1] -> u8 with round-half-up, the quantisation every codec call shares.
+        private static byte[] ToRgb8(RgbImage img)
+        {
+            var bytes = new byte[(long)img.Width * img.Height * 3];
+            var src = img.Pixels;
+            for (long i = 0; i < bytes.Length; i++)
+            {
+                float v = src[i] * 255f + 0.5f;
+                bytes[i] = (byte)(v < 0 ? 0 : v > 255 ? 255 : v);
+            }
+            return bytes;
         }
     }
 }
