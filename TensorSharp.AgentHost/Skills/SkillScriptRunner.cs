@@ -10,7 +10,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -55,6 +54,7 @@ namespace TensorSharp.AgentHost.Skills
     {
         private readonly SkillScriptRunnerOptions _options;
         private readonly ILogger _logger;
+        private readonly IShellBackend _backend;
         private readonly ISkillSandbox? _sandbox;
 
         /// <summary>
@@ -68,11 +68,20 @@ namespace TensorSharp.AgentHost.Skills
         {
             _options = options ?? new SkillScriptRunnerOptions();
             _logger = logger ?? NullLogger.Instance;
-            _sandbox = _options.Sandbox == SkillSandboxMode.Off ? null : SkillSandboxFactory.Detect();
+            // The same seam the shell tool launches through. The default is today's
+            // confined child process under the detected OS sandbox; a host that cannot
+            // start processes supplies its own backend, and the confinement questions
+            // below are answered from THAT backend's sandbox — which is what lets an
+            // in-process runtime with honest capabilities satisfy `required`.
+            _backend = _options.Backend ?? ProcessShellBackend.Detect(_options.Sandbox, _logger);
+            _sandbox = _options.Sandbox == SkillSandboxMode.Off ? null : _backend.Sandbox;
         }
 
         /// <summary>The sandbox in force, or null when running unconfined.</summary>
         public ISkillSandbox? Sandbox => _sandbox;
+
+        /// <summary>What runs each script: a confined child process, or the host's own runtime.</summary>
+        public IShellBackend Backend => _backend;
 
         /// <summary>
         /// True when this runner will actually run anything. False when the host
@@ -131,6 +140,15 @@ namespace TensorSharp.AgentHost.Skills
                         + string.Join(", ", gaps)
                         + ", and skill scripts are configured to run only when they can be confined"
                         + " - pass --skills-sandbox preferred to accept that and run them anyway";
+                }
+
+                // iOS has no OS sandbox to look for: code runs inside the app, and what
+                // is missing is a backend presenting an in-process runtime that confines.
+                if (OperatingSystem.IsIOS())
+                {
+                    return "this host runs skill scripts in an in-process runtime, and no backend presenting "
+                        + "one that confines writes and the network was supplied, and skill scripts are "
+                        + "configured to run only when they can be confined";
                 }
 
                 return "this host provides no OS sandbox (checked: "
@@ -338,14 +356,12 @@ namespace TensorSharp.AgentHost.Skills
             out string stderrText)
         {
             stderrText = string.Empty;
-            var scriptArgs = new List<string> { scriptPath };
-            if (arguments != null)
-                scriptArgs.AddRange(arguments);
 
-            string fileName = interpreter;
-            IReadOnlyList<string> argv = scriptArgs;
-            IDisposable? cleanup = null;
-            string sandboxName = "none";
+            // No shell: the interpreter and the script path lead the argument vector, so
+            // a path or an argument containing ; | > $ ` is data, not syntax.
+            var argv = new List<string> { interpreter, scriptPath };
+            if (arguments != null)
+                argv.AddRange(arguments);
 
             // The session's package environment must be readable inside the sandbox, or
             // PYTHONPATH points at a directory the seatbelt profile denies.
@@ -361,42 +377,11 @@ namespace TensorSharp.AgentHost.Skills
             Dictionary<string, (long Length, DateTime WriteTime)>? preRun =
                 _options.Workspace?.SnapshotWorkFiles();
 
-            if (_sandbox != null)
-            {
-                var request = new SkillSandboxRequest(
-                    interpreter,
-                    scriptArgs,
-                    skill.RootDirectory,
-                    workDirectory,
-                    _options.AllowNetwork,
-                    readablePaths);
-
-                if (_sandbox.TryWrap(request, out string wrappedFile, out IReadOnlyList<string> wrappedArgs,
-                        out IDisposable wrappedCleanup, out string wrapError))
-                {
-                    fileName = wrappedFile;
-                    argv = wrappedArgs;
-                    cleanup = wrappedCleanup;
-                    sandboxName = _sandbox.Name;
-                }
-                else if (_options.Sandbox == SkillSandboxMode.Required)
-                {
-                    return SkillToolResult.Failure(
-                        $"'{normalized}' was not run: the sandbox could not be prepared ({wrapError}), and skill "
-                        + "scripts are configured to run only when they can be confined.");
-                }
-                else
-                {
-                    _logger.LogWarning(LogEventIds.SkillScriptExecuted,
-                        "skills.script.unconfined skill={SkillId} script={Script} reason={Reason}",
-                        skill.Id, normalized, wrapError);
-                }
-            }
-            else if (_options.Sandbox == SkillSandboxMode.Preferred
+            if (_sandbox == null && _options.Sandbox == SkillSandboxMode.Preferred
                 && Interlocked.Exchange(ref s_unconfinedHostWarned, 1) == 0)
             {
                 // `preferred` quietly degrades to no confinement when the host has no
-                // sandbox at all — the one case the TryWrap-failure warning above never
+                // sandbox at all — the one case the degraded-run warning below never
                 // sees, because there is nothing to wrap with.
                 _logger.LogWarning(LogEventIds.SkillScriptExecuted,
                     "skills.script.unconfined host={Host}: --skills-sandbox preferred found no OS sandbox, so skill scripts " +
@@ -405,214 +390,209 @@ namespace TensorSharp.AgentHost.Skills
                     SkillSandboxFactory.DescribeHost());
             }
 
-            var stdout = new BoundedWriter(_options.MaxOutputBytes);
-            var stderr = new BoundedWriter(_options.MaxOutputBytes);
-            var sw = Stopwatch.StartNew();
+            var launch = new ShellLaunch
+            {
+                Argv = argv,
+                WorkingDirectory = workDirectory,
+                WriteDirectory = workDirectory,
+                ReadOnlyDirectory = skill.RootDirectory,
+                ReadablePaths = readablePaths,
+                AllowNetwork = _options.AllowNetwork,
+                Timeout = _options.Timeout,
+                MaxOutputBytes = _options.MaxOutputBytes,
+                Environment = BuildEnvironment(workDirectory, skill.RootDirectory),
+                OnOutputLine = line => Tap(onOutput, line),
+                Purpose = ShellLaunch.Purposes.Script,
+            };
 
+            ConfinedResult result;
             try
             {
-                // No shell: the arguments are passed as a vector, so a path or an
-                // argument containing ; | > $ ` is data, not syntax.
-                var request = new SpawnRequest
+                if (!_backend.TryStart(launch, out IShellJob? job, out ConfinedResult failure))
                 {
-                    FileName = fileName,
-                    Arguments = argv,
-                    WorkingDirectory = workDirectory,
-                    Environment = BuildEnvironment(workDirectory, skill.RootDirectory),
-                    OnStdoutLine = line => { stdout.AppendLine(line); Tap(onOutput, line); },
-                    OnStderrLine = line => { stderr.AppendLine(line); Tap(onOutput, line); },
-                };
-
-                if (!SpawnedProcess.TryStart(request, out SpawnedProcess? started, out string startError)
-                    || started == null)
-                {
-                    return SkillToolResult.Failure(startError.Length > 0
-                        ? $"'{normalized}' could not be started: {startError}"
-                        : $"'{fileName}' could not be started.");
-                }
-
-                using var process = started;
-
-                // A job-object style sandbox attaches to a process that is already
-                // running. If it cannot, the child is killed rather than left running
-                // outside the confinement the caller asked for.
-                if (_sandbox != null && !_sandbox.TryAttach(process, out string attachError))
-                {
-                    TryKill(process);
-                    if (_options.Sandbox == SkillSandboxMode.Required)
+                    string why = failure.Error ?? $"'{interpreter}' could not be started";
+                    // A confinement that could not be set up in `required` mode is the
+                    // refusal the mode exists for, and is phrased as one; anything else
+                    // is the interpreter not starting.
+                    if (why.StartsWith("the sandbox could not be applied", StringComparison.Ordinal))
                     {
                         return SkillToolResult.Failure(
-                            $"'{normalized}' was stopped: the sandbox could not be applied to the process "
-                            + $"({attachError}), and skill scripts are configured to run only when they can be confined.");
+                            $"'{normalized}' was stopped: {why}, and skill scripts are configured to run "
+                            + "only when they can be confined.");
                     }
-                    _logger.LogWarning(LogEventIds.SkillScriptExecuted,
-                        "skills.script.attach-failed skill={SkillId} script={Script} reason={Reason}",
-                        skill.Id, normalized, attachError);
-                }
-
-                // Reading the pipes and closing stdin happen as part of starting: a script
-                // that reads stdin fails fast instead of blocking until the deadline, and a
-                // child whose output nobody drains blocks on a full pipe.
-                bool exited = process.WaitForExit((int)_options.Timeout.TotalMilliseconds);
-                if (!exited)
-                {
-                    TryKill(process);
-                    _logger.LogWarning(LogEventIds.SkillScriptExecuted,
-                        "skills.script.timeout skill={SkillId} script={Script} sandbox={Sandbox} timeoutMs={TimeoutMs}",
-                        skill.Id, normalized, sandboxName, (int)_options.Timeout.TotalMilliseconds);
-                    return SkillToolResult.Failure(
-                        $"'{normalized}' did not finish within "
-                        + $"{_options.Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s and was stopped."
-                        + Describe(stdout, stderr, workDirectory, preRun, _options.Workspace));
-                }
-
-                // Waiting for exit can return before the output pipes have drained, so the
-                // drain is waited for separately — and BOUNDED. This used to be an
-                // unbounded wait, which is the same shape that hung the shell tool: a pipe
-                // stays open while anything still holds the inherited handle, so a script
-                // that leaves a background process behind never reaches EOF. The tree is
-                // killed on dispose regardless; the only question was whether this returns.
-                process.WaitForDrain(DrainMilliseconds);
-                sw.Stop();
-                stderrText = stderr.ToStringWithNotice();
-
-                _logger.LogInformation(LogEventIds.SkillScriptExecuted,
-                    "skills.script.ran skill={SkillId} script={Script} sandbox={Sandbox} exit={ExitCode} ms={ElapsedMs} stdout={StdoutBytes}",
-                    skill.Id, normalized, sandboxName, process.ExitCode, (long)sw.Elapsed.TotalMilliseconds, stdout.Length);
-
-                var sb = new StringBuilder();
-                sb.Append("Ran ").Append(normalized).Append(" (exit code ")
-                  .Append(process.ExitCode.ToString(CultureInfo.InvariantCulture)).Append(", sandbox: ")
-                  .Append(sandboxName).Append(")\n");
-
-                // Say what the sandbox did NOT confine. The model is deciding what to do
-                // with this script's output, and on a platform where the script could
-                // have reached the network or the wider filesystem that is a materially
-                // different situation from one where it could not.
-                IReadOnlyList<string> gaps = _sandbox?.Capabilities.Gaps() ?? AllGaps;
-                if (gaps.Count > 0)
-                    sb.Append("Not confined on this host: ").Append(string.Join("; ", gaps)).Append(".\n");
-
-                sb.Append(Describe(stdout, stderr, workDirectory, preRun, _options.Workspace));
-
-                // A script that died on a missing import is the single most common way a
-                // skill's tooling fails on a fresh host, and the fix is one call away:
-                // the session's environment is shared, so the shell can install what the
-                // script needs. Without this the model re-runs the script unchanged.
-                // A `match` statement on Apple's frozen python3 (3.9) dies as a bare
-                // "SyntaxError: invalid syntax" — which reads as a broken script when
-                // the actual problem is the host's interpreter. Name it.
-                if (process.ExitCode != 0
-                    && (stderr.ToStringWithNotice().Contains("SyntaxError", StringComparison.Ordinal)
-                        || stderr.ToStringWithNotice().Contains("unsupported operand type(s) for |: 'type'", StringComparison.Ordinal))
-                    && interpreter.Contains("python", StringComparison.OrdinalIgnoreCase)
-                    && CodeExec.CodeEnvironment.PythonVersionOf(interpreter) is { } version
-                    && version < new Version(3, 10))
-                {
-                    sb.Append("\nNote: this host's Python is ").Append(version)
-                      .Append(", and skill scripts commonly need 3.10+ (the 'match' statement). If the ")
-                      .Append("script looks correct, the fix is on the host: install a newer Python ")
-                      .Append("(e.g. `brew install python@3.12`) and restart the server — it is picked up automatically.\n");
-                }
-
-                if (process.ExitCode != 0
-                    && CodeExec.CodeDiagnostics.MissingModule(CodeExec.CodeLanguage.Python, stderr.ToStringWithNotice()) is { } missing)
-                {
-                    // A module that is a DIRECTORY OF THIS SKILL is never a package to
-                    // install, and saying so was actively dangerous. skill-creator's entry
-                    // points import `scripts.quick_validate`; the advice this produced was
-                    // "pip install scripts", and `scripts` is a real name on PyPI owned by
-                    // nobody in particular - the host was telling the model to pull a
-                    // stranger's package to satisfy an import of a file sitting beside the
-                    // script. The import itself is now made to work (the skill root goes on
-                    // PYTHONPATH in BuildEnvironment); this is the second half, so that if
-                    // one ever fails again it fails honestly.
-                    string top = missing.Split('.')[0];
-                    bool insideSkill =
-                        File.Exists(Path.Combine(skill.RootDirectory, top + ".py"))
-                        || Directory.Exists(Path.Combine(skill.RootDirectory, top));
-
-                    if (insideSkill)
+                    if (why.StartsWith("the sandbox could not be", StringComparison.Ordinal))
                     {
-                        sb.Append("\n'").Append(missing)
-                          .Append("' is part of this skill, not a package to install - do NOT try to ")
-                          .Append("install it. It failed to import because of how the script was ")
-                          .Append("invoked, not because anything is missing. Run it from the shell ")
-                          .Append("instead, with the skill's own directory on PYTHONPATH.\n");
+                        return SkillToolResult.Failure(
+                            $"'{normalized}' was not run: {why}, and skill scripts are configured to run "
+                            + "only when they can be confined.");
                     }
-                    else
-                    {
-                        string install = CodeExec.CodeDiagnostics.InstallNameFor(CodeExec.CodeLanguage.Python, missing);
-                        sb.Append("\nThe module '").Append(missing)
-                          .Append("' is not installed in this session's environment. Install it from the shell ")
-                          .Append("and run this script again:\n  pip install ").Append(install)
-                          .Append("\nThe shell and skill scripts share one environment, so what you install ")
-                          .Append("there is visible here.\n");
-                    }
+                    return SkillToolResult.Failure($"'{normalized}' could not be started: {why}");
                 }
 
-                // A skill script that fails for any reason OTHER than a missing import
-                // used to end the task. The skill directory is read-only by
-                // construction — correctly, since a skill is untrusted content that
-                // must not rewrite itself and outlive the conversation — so the model
-                // had nothing to fix and no way to fix it, and would either retry the
-                // identical script or give up.
-                //
-                // The way out is a session-local COPY. Staged into the workspace on
-                // failure, it becomes an ordinary file the shell already handles: read it
-                // with sed or cat, change it with apply_patch, run it. The skill on disk
-                // is untouched, so the next conversation still gets the original.
-                if (process.ExitCode != 0 && _options.Workspace is { } fixWorkspace)
+                using (job)
                 {
-                    string overlay = "skill_" + skill.Id + "_"
-                        + Path.GetFileName(normalized).Replace(Path.DirectorySeparatorChar, '_');
-                    try
+                    // Said, not swallowed: a run that went ahead without the confinement
+                    // that was detected is a materially different run, and the operator
+                    // reading the log should see why it happened.
+                    if (_sandbox != null && job!.DegradedReason is { } degraded)
                     {
-                        string sourceText = File.ReadAllText(scriptPath);
-                        if (fixWorkspace.TryWriteFile(overlay, sourceText, out _))
-                        {
-                            sb.Append("\nA copy of this script is now in your working directory as '")
-                              .Append(overlay)
-                              .Append("'. If the script itself is wrong, fix THAT copy: read it from the "
-                                      + "shell, change it with apply_patch, and run it from the shell. "
-                                      + "The skill's own copy is read-only and unchanged.\n");
-                        }
+                        _logger.LogWarning(LogEventIds.SkillScriptExecuted,
+                            "skills.script.unconfined skill={SkillId} script={Script} reason={Reason}",
+                            skill.Id, normalized, degraded);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        // Staging is a convenience; a failure to stage must not replace
-                        // the script's own error with a filesystem one.
-                    }
+                    result = job!.WaitForExit(_options.Timeout);
                 }
-
-                // The files this script produced, kept for the user to download. Same
-                // contract as the shell tool: the model gets ready-made markdown links.
-                IReadOnlyList<SkillProducedFile> files = Array.Empty<SkillProducedFile>();
-                if (_options.CaptureProducedFiles != null && _options.Workspace is { } ws)
-                {
-                    files = _options.CaptureProducedFiles(
-                        workDirectory,
-                        preRun == null ? null : relative => ws.IsUnchangedSince(preRun, relative));
-                    if (files.Count > 0)
-                    {
-                        sb.Append("\nFiles produced. The user downloads them through these links - copy the ")
-                          .Append("markdown links below into your answer verbatim when the user asked for the file:\n");
-                        foreach (SkillProducedFile file in files)
-                            sb.Append("- [").Append(file.Name).Append("](").Append(file.Url).Append(")\n");
-                    }
-                }
-
-                return new SkillToolResult(process.ExitCode == 0, sb.ToString(), skill.Id, normalized)
-                { Files = files };
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
             {
                 return SkillToolResult.Failure($"'{normalized}' could not be run: {ex.Message}");
             }
-            finally
+
+            if (!result.Started)
+                return SkillToolResult.Failure($"'{normalized}' could not be run: {result.Error ?? "it did not start"}");
+
+            string sandboxName = result.SandboxName;
+            if (result.TimedOut)
             {
-                cleanup?.Dispose();
+                _logger.LogWarning(LogEventIds.SkillScriptExecuted,
+                    "skills.script.timeout skill={SkillId} script={Script} sandbox={Sandbox} timeoutMs={TimeoutMs}",
+                    skill.Id, normalized, sandboxName, (int)_options.Timeout.TotalMilliseconds);
+                return SkillToolResult.Failure(
+                    $"'{normalized}' did not finish within "
+                    + $"{_options.Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s and was stopped."
+                    + Describe(result.Stdout, result.Stderr, workDirectory, preRun, _options.Workspace));
             }
+
+            stderrText = result.Stderr;
+
+            _logger.LogInformation(LogEventIds.SkillScriptExecuted,
+                "skills.script.ran skill={SkillId} script={Script} sandbox={Sandbox} exit={ExitCode} ms={ElapsedMs} stdout={StdoutBytes}",
+                skill.Id, normalized, sandboxName, result.ExitCode, (long)result.Elapsed.TotalMilliseconds, result.Stdout.Length);
+
+            var sb = new StringBuilder();
+            sb.Append("Ran ").Append(normalized).Append(" (exit code ")
+              .Append(result.ExitCode.ToString(CultureInfo.InvariantCulture)).Append(", sandbox: ")
+              .Append(sandboxName).Append(")\n");
+
+            // Say what the sandbox did NOT confine. The model is deciding what to do
+            // with this script's output, and on a platform where the script could
+            // have reached the network or the wider filesystem that is a materially
+            // different situation from one where it could not.
+            IReadOnlyList<string> gaps = _sandbox?.Capabilities.Gaps() ?? AllGaps;
+            if (gaps.Count > 0)
+                sb.Append("Not confined on this host: ").Append(string.Join("; ", gaps)).Append(".\n");
+
+            sb.Append(Describe(result.Stdout, result.Stderr, workDirectory, preRun, _options.Workspace));
+
+            // A script that died on a missing import is the single most common way a
+            // skill's tooling fails on a fresh host, and the fix is one call away:
+            // the session's environment is shared, so the shell can install what the
+            // script needs. Without this the model re-runs the script unchanged.
+            // A `match` statement on Apple's frozen python3 (3.9) dies as a bare
+            // "SyntaxError: invalid syntax" — which reads as a broken script when
+            // the actual problem is the host's interpreter. Name it.
+            if (result.ExitCode != 0
+                && (result.Stderr.Contains("SyntaxError", StringComparison.Ordinal)
+                    || result.Stderr.Contains("unsupported operand type(s) for |: 'type'", StringComparison.Ordinal))
+                && interpreter.Contains("python", StringComparison.OrdinalIgnoreCase)
+                && CodeExec.CodeEnvironment.PythonVersionOf(interpreter) is { } version
+                && version < new Version(3, 10))
+            {
+                sb.Append("\nNote: this host's Python is ").Append(version)
+                  .Append(", and skill scripts commonly need 3.10+ (the 'match' statement). If the ")
+                  .Append("script looks correct, the fix is on the host: install a newer Python ")
+                  .Append("(e.g. `brew install python@3.12`) and restart the server — it is picked up automatically.\n");
+            }
+
+            if (result.ExitCode != 0
+                && CodeExec.CodeDiagnostics.MissingModule(CodeExec.CodeLanguage.Python, result.Stderr) is { } missing)
+            {
+                // A module that is a DIRECTORY OF THIS SKILL is never a package to
+                // install, and saying so was actively dangerous. skill-creator's entry
+                // points import `scripts.quick_validate`; the advice this produced was
+                // "pip install scripts", and `scripts` is a real name on PyPI owned by
+                // nobody in particular - the host was telling the model to pull a
+                // stranger's package to satisfy an import of a file sitting beside the
+                // script. The import itself is now made to work (the skill root goes on
+                // PYTHONPATH in BuildEnvironment); this is the second half, so that if
+                // one ever fails again it fails honestly.
+                string top = missing.Split('.')[0];
+                bool insideSkill =
+                    File.Exists(Path.Combine(skill.RootDirectory, top + ".py"))
+                    || Directory.Exists(Path.Combine(skill.RootDirectory, top));
+
+                if (insideSkill)
+                {
+                    sb.Append("\n'").Append(missing)
+                      .Append("' is part of this skill, not a package to install - do NOT try to ")
+                      .Append("install it. It failed to import because of how the script was ")
+                      .Append("invoked, not because anything is missing. Run it from the shell ")
+                      .Append("instead, with the skill's own directory on PYTHONPATH.\n");
+                }
+                else
+                {
+                    string install = CodeExec.CodeDiagnostics.InstallNameFor(CodeExec.CodeLanguage.Python, missing);
+                    sb.Append("\nThe module '").Append(missing)
+                      .Append("' is not installed in this session's environment. Install it from the shell ")
+                      .Append("and run this script again:\n  pip install ").Append(install)
+                      .Append("\nThe shell and skill scripts share one environment, so what you install ")
+                      .Append("there is visible here.\n");
+                }
+            }
+
+            // A skill script that fails for any reason OTHER than a missing import
+            // used to end the task. The skill directory is read-only by
+            // construction — correctly, since a skill is untrusted content that
+            // must not rewrite itself and outlive the conversation — so the model
+            // had nothing to fix and no way to fix it, and would either retry the
+            // identical script or give up.
+            //
+            // The way out is a session-local COPY. Staged into the workspace on
+            // failure, it becomes an ordinary file the shell already handles: read it
+            // with sed or cat, change it with apply_patch, run it. The skill on disk
+            // is untouched, so the next conversation still gets the original.
+            if (result.ExitCode != 0 && _options.Workspace is { } fixWorkspace)
+            {
+                string overlay = "skill_" + skill.Id + "_"
+                    + Path.GetFileName(normalized).Replace(Path.DirectorySeparatorChar, '_');
+                try
+                {
+                    string sourceText = File.ReadAllText(scriptPath);
+                    if (fixWorkspace.TryWriteFile(overlay, sourceText, out _))
+                    {
+                        sb.Append("\nA copy of this script is now in your working directory as '")
+                          .Append(overlay)
+                          .Append("'. If the script itself is wrong, fix THAT copy: read it from the "
+                                  + "shell, change it with apply_patch, and run it from the shell. "
+                                  + "The skill's own copy is read-only and unchanged.\n");
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Staging is a convenience; a failure to stage must not replace
+                    // the script's own error with a filesystem one.
+                }
+            }
+
+            // The files this script produced, kept for the user to download. Same
+            // contract as the shell tool: the model gets ready-made markdown links.
+            IReadOnlyList<SkillProducedFile> files = Array.Empty<SkillProducedFile>();
+            if (_options.CaptureProducedFiles != null && _options.Workspace is { } ws)
+            {
+                files = _options.CaptureProducedFiles(
+                    workDirectory,
+                    preRun == null ? null : relative => ws.IsUnchangedSince(preRun, relative));
+                if (files.Count > 0)
+                {
+                    sb.Append("\nFiles produced. The user downloads them through these links - copy the ")
+                      .Append("markdown links below into your answer verbatim when the user asked for the file:\n");
+                    foreach (SkillProducedFile file in files)
+                        sb.Append("- [").Append(file.Name).Append("](").Append(file.Url).Append(")\n");
+                }
+            }
+
+            return new SkillToolResult(result.ExitCode == 0, sb.ToString(), skill.Id, normalized)
+            { Files = files };
         }
 
         /// <summary>
@@ -711,15 +691,15 @@ namespace TensorSharp.AgentHost.Skills
         /// useful: the model can name the file in its answer, and the caller can find it.
         /// </summary>
         private static string Describe(
-            BoundedWriter stdout, BoundedWriter stderr, string workDirectory,
+            string stdout, string stderr, string workDirectory,
             Dictionary<string, (long Length, DateTime WriteTime)>? preRun = null,
             SessionWorkspace? workspace = null)
         {
             var sb = new StringBuilder();
             if (stdout.Length > 0)
-                sb.Append("\nstdout:\n").Append(stdout.ToStringWithNotice());
+                sb.Append("\nstdout:\n").Append(stdout);
             if (stderr.Length > 0)
-                sb.Append("\nstderr:\n").Append(stderr.ToStringWithNotice());
+                sb.Append("\nstderr:\n").Append(stderr);
 
             string[] produced = ListProducedFiles(workDirectory, preRun, workspace);
             if (produced.Length > 0)
@@ -771,24 +751,6 @@ namespace TensorSharp.AgentHost.Skills
             if (tap == null) return;
             try { tap(line); }
             catch (Exception) { /* the tap is best-effort observability */ }
-        }
-
-        /// <summary>
-        /// How long to wait for the output pipes to drain AFTER the script itself has
-        /// exited. Bounded because a pipe held open by a process the script left running
-        /// never reaches EOF.
-        /// </summary>
-        private const int DrainMilliseconds = 2000;
-
-        private static void TryKill(SpawnedProcess process)
-        {
-            try { process.Kill(); }
-            catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or System.ComponentModel.Win32Exception)
-            {
-                // Already exited, or the platform will not walk the tree. Either way
-                // there is nothing further to do and the caller is already reporting a
-                // timeout.
-            }
         }
 
         private static void TryDeleteDirectory(string directory)
@@ -958,40 +920,6 @@ namespace TensorSharp.AgentHost.Skills
         private static readonly IReadOnlyList<string> AllGaps =
             new SkillSandboxCapabilities(false, false, false, false).Gaps();
 
-        /// <summary>Accumulates process output up to a ceiling, then counts what it drops.</summary>
-        private sealed class BoundedWriter
-        {
-            private readonly int _limit;
-            private readonly StringBuilder _text = new();
-            private long _dropped;
-
-            public BoundedWriter(int limit) => _limit = Math.Max(1024, limit);
-
-            public int Length => _text.Length;
-
-            public void AppendLine(string line)
-            {
-                lock (_text)
-                {
-                    if (_text.Length + line.Length + 1 > _limit)
-                    {
-                        _dropped += line.Length + 1;
-                        return;
-                    }
-                    _text.Append(line).Append('\n');
-                }
-            }
-
-            public string ToStringWithNotice()
-            {
-                lock (_text)
-                {
-                    return _dropped == 0
-                        ? _text.ToString()
-                        : _text.ToString() + $"\n[{_dropped.ToString(CultureInfo.InvariantCulture)} further bytes of output were dropped.]\n";
-                }
-            }
-        }
     }
 
     /// <summary>Bounds, isolation policy and interpreter mapping for <see cref="SkillScriptRunner"/>.</summary>
@@ -1003,6 +931,15 @@ namespace TensorSharp.AgentHost.Skills
         /// rather than run it unconfined.
         /// </summary>
         public SkillSandboxMode Sandbox { get; init; } = SkillSandboxMode.Required;
+
+        /// <summary>
+        /// What runs each script. Null is today's desktop behaviour: a confined child
+        /// process under the OS sandbox detected for <see cref="Sandbox"/>. A host that
+        /// cannot start processes supplies an in-process backend here; its
+        /// <see cref="IShellBackend.Sandbox"/> is then what <c>required</c> is judged
+        /// against.
+        /// </summary>
+        public IShellBackend? Backend { get; init; }
 
         /// <summary>Let the script reach the network. Off by default — the sandbox blocks it.</summary>
         public bool AllowNetwork { get; init; }

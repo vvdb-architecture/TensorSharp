@@ -44,8 +44,33 @@ namespace TensorSharp.AgentHost.CodeExec
             Name = name;
         }
 
-        /// <summary>Absolute path to the interpreter.</summary>
+        /// <summary>
+        /// Absolute path to the interpreter — or, for a shell made by
+        /// <see cref="InProcess"/>, its bare name, since there is no file to run.
+        /// </summary>
         public string Path { get; }
+
+        /// <summary>
+        /// A shell that is not a program on disk: an <see cref="IShellBackend"/> that
+        /// interprets commands itself, inside the host process.
+        ///
+        /// <para>
+        /// Everything the host says about the dialect — the declaration's cheat sheet,
+        /// the persistence paragraph, the install substitutions (<c>true</c>/<c>false</c>)
+        /// — is keyed on <see cref="Kind"/> and <see cref="DialectName"/>, so an
+        /// in-process backend that speaks a POSIX subset presents as <c>sh</c> and the
+        /// prompt is right about it. <see cref="ArgumentsFor"/> is meaningless for such
+        /// a shell and no in-process backend calls it.
+        /// </para>
+        /// </summary>
+        /// <param name="name">What the model is told it is typing into.</param>
+        /// <param name="kind">Which dialect the backend actually implements.</param>
+        public static ShellProgram InProcess(string name = "sh", ShellKind kind = ShellKind.Posix)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("an in-process shell needs a name", nameof(name));
+            return new ShellProgram(name.Trim(), kind, name.Trim());
+        }
 
         /// <summary>Which dialect it speaks.</summary>
         public ShellKind Kind { get; }

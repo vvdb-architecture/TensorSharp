@@ -18,6 +18,22 @@ using TensorSharp.AgentHost.Skills;
 namespace TensorSharp.AgentHost.CodeExec
 {
     /// <summary>
+    /// What the host asks after a failure that named a member which does not exist:
+    /// what the package really has. <see cref="ApiProbe"/> answers by running a probe
+    /// under the installed interpreter; a host with embedded interpreters supplies its
+    /// own through <see cref="ShellRunner"/>. Silent (null) whenever it cannot say.
+    /// </summary>
+    public interface IApiProbe
+    {
+        /// <summary>Read the real API and describe it, or return null when there is nothing useful to say.</summary>
+        /// <param name="miss">What the run got wrong, as read out of its output.</param>
+        /// <param name="command">The command that failed, where the imports come from.</param>
+        /// <param name="workspace">The session workspace — its env directory is where the package is.</param>
+        /// <param name="ranIn">The directory the failing command ran in.</param>
+        string? Explain(CodeDiagnostics.ApiMiss miss, string command, SessionWorkspace workspace, string? ranIn);
+    }
+
+    /// <summary>
     /// When a run fails because the model guessed a library's API, go and read the real
     /// API out of the installed package and put it in the tool result.
     ///
@@ -66,19 +82,27 @@ namespace TensorSharp.AgentHost.CodeExec
     /// host could not investigate it.
     /// </para>
     /// </summary>
-    public sealed class ApiProbe
+    public sealed class ApiProbe : IApiProbe
     {
-        private readonly CodeExecOptions _options;
-        private readonly ISkillSandbox? _sandbox;
+        private readonly IShellBackend _backend;
 
         /// <summary>How long the probe may spend reading the package. Beyond this, say nothing.</summary>
         private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(8);
 
         /// <summary>Create a probe that runs under the same terms as the run it explains.</summary>
         public ApiProbe(CodeExecOptions options, ISkillSandbox? sandbox)
+            : this(new ProcessShellBackend(
+                sandbox,
+                (options ?? throw new ArgumentNullException(nameof(options))).Unconfined
+                    ? SkillSandboxMode.Preferred
+                    : options.Sandbox))
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
-            _sandbox = sandbox;
+        }
+
+        /// <summary>Create a probe that launches its interpreter through <paramref name="backend"/>.</summary>
+        public ApiProbe(IShellBackend backend)
+        {
+            _backend = backend ?? throw new ArgumentNullException(nameof(backend));
         }
 
         /// <summary>
@@ -190,11 +214,12 @@ namespace TensorSharp.AgentHost.CodeExec
         private string? Run(
             string interpreter, IReadOnlyList<string> arguments, SessionWorkspace workspace, string? ranIn)
         {
-            ConfinedResult result = ConfinedProcess.Run(
-                new ConfinedLaunch
+            var argv = new List<string>(arguments.Count + 1) { interpreter };
+            argv.AddRange(arguments);
+            ConfinedResult result = _backend.Run(
+                new ShellLaunch
                 {
-                    Interpreter = interpreter,
-                    Arguments = arguments,
+                    Argv = argv,
                     WriteDirectory = workspace.TempDirectory,
                     WorkingDirectory = ranIn is { Length: > 0 } ? ranIn : workspace.WorkDirectory,
                     ReadOnlyDirectory = workspace.Root,
@@ -204,10 +229,9 @@ namespace TensorSharp.AgentHost.CodeExec
                     AllowNetwork = false,
                     Timeout = Deadline,
                     MaxOutputBytes = 8 * 1024,
-                    EnvironmentVariables = ProbeEnvironment(workspace),
-                },
-                _sandbox,
-                _options.Unconfined ? SkillSandboxMode.Preferred : _options.Sandbox);
+                    Environment = ProbeEnvironment(workspace),
+                    Purpose = ShellLaunch.Purposes.ApiProbe,
+                });
 
             if (!result.Started || result.TimedOut)
                 return null;

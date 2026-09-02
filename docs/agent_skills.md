@@ -760,6 +760,72 @@ the allowance above doing what it says, on a directory anything on the machine
 can write anyway, and it is the reason the claim is "writes confined to the
 working directory" and not "writes confined, full stop".
 
+### Launch backends
+
+Everything above the launch — reading the model's arguments, extracting installs,
+building the scrubbed environment, the attempt ledger, artifact capture and every
+sentence of a result — is host-side C# shared by every platform. What actually
+*runs* something sits behind one seam, `TensorSharp.AgentHost.CodeExec.IShellBackend`:
+
+```csharp
+public interface IShellBackend
+{
+    string Name { get; }              // "process", "in-process"
+    ShellProgram? Shell { get; }      // the dialect the model is told about
+    ISkillSandbox? Sandbox { get; }   // what this backend actually confines
+    bool CanRun { get; }
+    string? UnavailableReason { get; }
+    bool TryStart(ShellLaunch launch, out IShellJob? job, out ConfinedResult failure);
+    ConfinedResult Run(ShellLaunch launch);   // TryStart + WaitForExit(launch.Timeout)
+}
+```
+
+A `ShellLaunch` is either a shell **command line** (the model's text, after the host
+has performed and substituted its installs, plus the `ShellSession` whose working
+directory and exports it restores and re-saves) or an **argument vector** (a skill
+script, a syntax check, an API probe, a package install — no shell ever parses
+these), together with the host's terms: the working directory, the environment,
+what may be written and read, whether the network is open, the deadline and the
+output cap. `Purpose` says which of the five callers made it.
+
+`ProcessShellBackend` is the desktop implementation and the default everywhere:
+the command becomes the wrapper script the session writes, the argv is launched as
+it is, and both go through `ConfinedProcess` under the detected OS sandbox — the
+behaviour described in the rest of this section, unchanged. `ShellRunner`,
+`PackageInstaller`, `SyntaxCheck`, `ApiProbe` and `SkillScriptRunner` all launch
+through it, so there is one launch sequence rather than the two there used to be.
+
+**The in-process option.** A host that cannot start processes at all — the iOS app,
+where there is no `posix_spawn`, no `sandbox-exec` and no child to put in one —
+supplies its own backend through the `ShellRunner` constructor and
+`SkillScriptRunnerOptions.Backend`, and runs the command inside its own process
+over embedded interpreters. Three things make that honest rather than a bypass:
+
+* **State is persisted through the session, not a wrapper.** `ShellSession.Load()`
+  reads the saved working directory and parses `env.sh` (the `declare -x NAME="…"`
+  and `export NAME='…'` shapes `export -p` emits); `ShellSession.Save(cwd, env)`
+  writes both back through the same filter the wrapper pipes `export -p` through,
+  atomically; `MarkEnvironmentReset()` writes the marker the result reads. So `cd`,
+  `export`, "Working directory is now …" and the reset note behave identically
+  whichever backend ran the command.
+* **Confinement is what the backend's `Sandbox` says it is.** `InProcessSandbox`
+  wraps nothing; it carries the capabilities the host asserts (writes confined to the
+  workspace by path checks, sockets disabled in the interpreters, no home directory,
+  nothing outlives the process). `CanRun`, the declaration's network promise and the
+  result's `Not confined on this host:` line are all read from it, so a backend that
+  confines writes and the network satisfies `required` without
+  `--code-exec-unconfined` — and one that does not is refused, with the gap named.
+* **The declaration describes the embedded runtime.** `CodeEnvironment.Configure`
+  replaces the PATH probes — the "On this host:" tool list, interpreter resolution and
+  Python version lookup — so the prompt and the coaching name what is actually there.
+  `ShellProgram.InProcess("sh")` is the dialect such a backend presents.
+
+On iOS `SkillSandboxFactory.Detect()` yields an `InProcessSandbox` claiming writes,
+home reads and the process tree but **not** the network, so the app has to present
+its own sandbox object (via the constructor) once its interpreters have sockets
+disabled; `SpawnedProcess.TryStart` answers "this platform cannot start programs"
+there rather than reaching the kernel.
+
 ## Model-family caveats
 
 Skills are delivered differently depending on what a family's chat format can

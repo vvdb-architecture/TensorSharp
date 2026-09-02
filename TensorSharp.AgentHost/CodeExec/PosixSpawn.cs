@@ -152,6 +152,12 @@ namespace TensorSharp.AgentHost.CodeExec
             if (OperatingSystem.IsWindows())
                 return false;
 
+            // The symbol exists in iOS's libSystem, so the probe below would say yes —
+            // and the kernel then refuses every spawn with an errno. Say no up front:
+            // these platforms run code in-process (see IShellBackend), never in a child.
+            if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
+                return false;
+
             IntPtr fa = Zeroed(OpaqueSize);
             IntPtr attr = Zeroed(OpaqueSize);
             try

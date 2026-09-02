@@ -15,12 +15,23 @@ using System.Linq;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
 using TensorSharp.AgentHost.Skills;
 
 namespace TensorSharp.AgentHost.CodeExec
 {
+    /// <summary>
+    /// The persisted shell state as a host-side reader sees it: where the next command
+    /// starts and what it inherits. See <see cref="ShellSession.Load"/>.
+    /// </summary>
+    /// <param name="CurrentDirectory">The validated working directory — inside the workspace, or the work directory itself.</param>
+    /// <param name="Environment">The exported variables, already filtered of everything the host sets per launch.</param>
+    public sealed record ShellState(
+        string CurrentDirectory,
+        IReadOnlyDictionary<string, string> Environment);
+
     /// <summary>
     /// The shell state that survives from one call to the next — the working directory
     /// and the exported environment — and the script each command is wrapped in to
@@ -232,7 +243,7 @@ namespace TensorSharp.AgentHost.CodeExec
             int flags;
             if (OperatingSystem.IsLinux())
                 flags = LinuxONonBlock | LinuxONoFollow | LinuxOCloseExec;
-            else if (OperatingSystem.IsMacOS())
+            else if (IsDarwin)
                 flags = MacONonBlock | MacONoFollow | MacOCloseExec;
             else
                 return null; // Safe fallback for a Unix whose open(2) values we do not know.
@@ -262,13 +273,13 @@ namespace TensorSharp.AgentHost.CodeExec
 
             if (OperatingSystem.IsWindows())
                 return OpenWindowsFileUnderRoot(fullRoot, fullPath);
-            if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+            if (!OperatingSystem.IsLinux() && !IsDarwin)
                 return null;
 
-            int noFollow = OperatingSystem.IsMacOS() ? MacONoFollow : LinuxONoFollow;
-            int closeExec = OperatingSystem.IsMacOS() ? MacOCloseExec : LinuxOCloseExec;
-            int directoryFlag = OperatingSystem.IsMacOS() ? MacODirectory : LinuxODirectory;
-            int nonBlock = OperatingSystem.IsMacOS() ? MacONonBlock : LinuxONonBlock;
+            int noFollow = IsDarwin ? MacONoFollow : LinuxONoFollow;
+            int closeExec = IsDarwin ? MacOCloseExec : LinuxOCloseExec;
+            int directoryFlag = IsDarwin ? MacODirectory : LinuxODirectory;
+            int nonBlock = IsDarwin ? MacONonBlock : LinuxONonBlock;
 
             int rootFd;
             do
@@ -396,17 +407,10 @@ namespace TensorSharp.AgentHost.CodeExec
                 return true;
             }
 
-            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            if (OperatingSystem.IsLinux() || IsDarwin)
             {
-                int result;
-                UnixFileStatus status;
-                do
-                {
-                    result = FStatUnix(handle, out status);
-                }
-                while (result != 0 && Marshal.GetLastWin32Error() == InterruptedSystemCall);
-
-                if (result == 0 && (status.Mode & UnixFileTypeMask) == UnixRegularFile)
+                if (TryFStat(handle, out UnixFileStatus status)
+                    && (status.Mode & UnixFileTypeMask) == UnixRegularFile)
                 {
                     snapshot = new RegularFileSnapshot(
                         status.Size,
@@ -418,6 +422,112 @@ namespace TensorSharp.AgentHost.CodeExec
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// macOS, iOS, tvOS and Mac Catalyst share the Darwin ABI — the open(2) flag
+        /// values and the stat layout below are the same on all of them — and
+        /// <see cref="OperatingSystem.IsMacOS"/> is false on every one but the first.
+        /// Selecting on it alone made the state files unreadable on iOS: every read fell
+        /// through to "a Unix whose values we do not know", so a <c>cd</c> never
+        /// persisted on the host side even when a backend had written the file.
+        /// </summary>
+        private static bool IsDarwin =>
+            OperatingSystem.IsMacOS() || OperatingSystem.IsIOS()
+            || OperatingSystem.IsTvOS() || OperatingSystem.IsMacCatalyst();
+
+        /// <summary>
+        /// fstat the open handle: through the runtime's own System.Native shim where it
+        /// can be named, through libc where it cannot.
+        ///
+        /// <para>
+        /// The shim is the normal path and is what every desktop build uses — its status
+        /// record has one layout on every Unix. On iOS the shim is statically linked into
+        /// the app and a user <c>DllImport</c> by its library name is not guaranteed to
+        /// resolve under Mono AOT, and the failure is an exception at the first call.
+        /// That exception used to escape into a host-side state read; now it costs one
+        /// fallback to libc's own <c>fstat</c>, whose Darwin layout is fixed and known.
+        /// </para>
+        /// </summary>
+        private static bool TryFStat(SafeFileHandle handle, out UnixFileStatus status)
+        {
+            try
+            {
+                int result;
+                do
+                {
+                    result = FStatUnix(handle, out status);
+                }
+                while (result != 0 && Marshal.GetLastWin32Error() == InterruptedSystemCall);
+                return result == 0;
+            }
+            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+            {
+                status = default;
+            }
+
+            return IsDarwin && TryFStatDarwin(handle, out status);
+        }
+
+        /// <summary>
+        /// libc's <c>fstat</c> on Darwin, read into the shim's normalized record.
+        ///
+        /// <para>
+        /// Two entry points for one layout: arm64 Darwin has only the 64-bit-inode
+        /// <c>stat</c> and exports it as plain <c>fstat</c>; x86_64 kept the legacy
+        /// 32-bit-inode layout under that name and exports the 64-bit one as
+        /// <c>fstat$INODE64</c>. Picking by architecture is what keeps the struct below
+        /// correct on both — and on a Mac this is testable against the shim's answer,
+        /// which is how the layout is pinned.
+        /// </para>
+        /// </summary>
+        internal static bool TryFStatDarwin(SafeFileHandle handle, out UnixFileStatus status)
+        {
+            status = default;
+            if (!IsDarwin)
+                return false;
+
+            int fd = handle.DangerousGetHandle().ToInt32();
+            DarwinStat64 stat;
+            int result;
+            try
+            {
+                do
+                {
+                    result = RuntimeInformation.ProcessArchitecture == Architecture.X64
+                        ? FStatDarwinInode64(fd, out stat)
+                        : FStatDarwin(fd, out stat);
+                }
+                while (result != 0 && Marshal.GetLastWin32Error() == InterruptedSystemCall);
+            }
+            catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+            {
+                return false;
+            }
+            if (result != 0)
+                return false;
+
+            status = new UnixFileStatus
+            {
+                Mode = stat.Mode,
+                Uid = stat.Uid,
+                Gid = stat.Gid,
+                Size = stat.Size,
+                ATime = stat.ATimeSec,
+                ATimeNsec = stat.ATimeNsec,
+                MTime = stat.MTimeSec,
+                MTimeNsec = stat.MTimeNsec,
+                CTime = stat.CTimeSec,
+                CTimeNsec = stat.CTimeNsec,
+                BirthTime = stat.BirthTimeSec,
+                BirthTimeNsec = stat.BirthTimeNsec,
+                Dev = stat.Dev,
+                RDev = stat.RDev,
+                Ino = unchecked((long)stat.Ino),
+                UserFlags = stat.Flags,
+                HardLinkCount = stat.NLink,
+            };
+            return true;
         }
 
         private static ulong CombineUnixTime(long seconds, long nanoseconds) =>
@@ -466,6 +576,12 @@ namespace TensorSharp.AgentHost.CodeExec
         [DllImport("libSystem.Native", EntryPoint = "SystemNative_FStat", SetLastError = true)]
         private static extern int FStatUnix(SafeFileHandle handle, out UnixFileStatus status);
 
+        [DllImport("libc", EntryPoint = "fstat", SetLastError = true)]
+        private static extern int FStatDarwin(int fd, out DarwinStat64 status);
+
+        [DllImport("libc", EntryPoint = "fstat$INODE64", SetLastError = true)]
+        private static extern int FStatDarwinInode64(int fd, out DarwinStat64 status);
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode,
             ExactSpelling = true, SetLastError = true)]
         private static extern SafeFileHandle CreateFileW(
@@ -491,7 +607,7 @@ namespace TensorSharp.AgentHost.CodeExec
         /// struct stat layouts while still checking the already-open descriptor.
         /// </summary>
         [StructLayout(LayoutKind.Sequential)]
-        private struct UnixFileStatus
+        internal struct UnixFileStatus
         {
             public int Flags;
             public int Mode;
@@ -514,6 +630,41 @@ namespace TensorSharp.AgentHost.CodeExec
             // record size (it occupied prior tail padding). Keeping it explicit is also
             // safe with older runtimes, which simply leave it zero.
             public uint HardLinkCount;
+        }
+
+        /// <summary>
+        /// Darwin's <c>struct stat</c> with 64-bit inodes (<c>__DARWIN_STRUCT_STAT64</c>):
+        /// 144 bytes, the timespecs 8-aligned after <c>st_rdev</c>. Sequential layout
+        /// reproduces the C padding, and a test pins the size and the offset of
+        /// <c>st_size</c> so a wrong field order cannot compile into a silently wrong
+        /// length check.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct DarwinStat64
+        {
+            public int Dev;
+            public ushort Mode;
+            public ushort NLink;
+            public ulong Ino;
+            public uint Uid;
+            public uint Gid;
+            public int RDev;
+            public long ATimeSec;
+            public long ATimeNsec;
+            public long MTimeSec;
+            public long MTimeNsec;
+            public long CTimeSec;
+            public long CTimeNsec;
+            public long BirthTimeSec;
+            public long BirthTimeNsec;
+            public long Size;
+            public long Blocks;
+            public int BlkSize;
+            public uint Flags;
+            public uint Gen;
+            public int LSpare;
+            public long QSpare0;
+            public long QSpare1;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -563,9 +714,10 @@ namespace TensorSharp.AgentHost.CodeExec
         {
             string root = Path.GetFullPath(_workspace.Root);
             string full = Path.GetFullPath(path);
-            StringComparison comparison = OperatingSystem.IsLinux()
-                ? StringComparison.Ordinal
-                : StringComparison.OrdinalIgnoreCase;
+            // The guard's rule, not a second copy of it: Linux and iOS volumes are
+            // case-sensitive, a Mac's and Windows' are not, and two containment checks
+            // that disagree about that are two checks one of which is wrong.
+            StringComparison comparison = SkillPathGuard.PathComparison;
             return full.Equals(root, comparison)
                 || full.StartsWith(root + Path.DirectorySeparatorChar, comparison);
         }
@@ -606,6 +758,302 @@ namespace TensorSharp.AgentHost.CodeExec
                 try { if (File.Exists(file)) File.Delete(file); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
+        }
+
+        // ---- the state, read and written by the host ---------------------------
+
+        /// <summary>
+        /// The state the next command starts from, read the way the wrapper script
+        /// restores it — for a backend that has no wrapper script.
+        ///
+        /// <para>
+        /// The wrapper is the only thing that ever wrote these files, and until now the
+        /// only thing that read the environment back: the host read the working
+        /// directory for its own labels and left <c>env.sh</c> to the shell. An
+        /// in-process backend has no shell to source it, so the parse the shell did is
+        /// done here, over the two shapes <c>export -p</c> actually emits —
+        /// <c>declare -x NAME="value"</c> from bash and <c>export NAME='value'</c> from
+        /// dash — and the plain <c>NAME=value</c> lines the PowerShell wrapper writes.
+        /// </para>
+        /// <para>
+        /// A file that does not parse gets the wrapper's own response, not a partial
+        /// answer: the environment is reset, the marker
+        /// <see cref="TakeEnvironmentWasReset"/> reads is written, and the result of the
+        /// command says so. The names the host sets on every launch (PATH, HOME, the
+        /// proxy and CA variables, <c>LD_PRELOAD</c>) are dropped on the way in as well
+        /// as on the way out — a command can write this file by hand.
+        /// </para>
+        /// </summary>
+        public ShellState Load()
+        {
+            var environment = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (TryReadStateText(EnvFile, out string text) && text.Length > 0)
+            {
+                bool parsed = _shell.Kind == ShellKind.PowerShell
+                    ? TryParsePowerShellEnvironment(text, environment)
+                    : TryParsePosixExports(text, environment);
+                if (!parsed)
+                {
+                    environment.Clear();
+                    MarkEnvironmentReset();
+                }
+            }
+            return new ShellState(CurrentDirectory, environment);
+        }
+
+        /// <summary>
+        /// Persist what a command left behind, the way the wrapper's EXIT trap does:
+        /// the directory it ended in and the variables it exported, minus everything
+        /// the host decides per launch.
+        ///
+        /// <para>
+        /// Both files are written whole and renamed into place. The rename is not
+        /// tidiness: this directory is writable by the confined command, which can leave
+        /// a symlink where <c>env.sh</c> was, and a host-side open-and-write would follow
+        /// it to wherever it pointed. <c>rename(2)</c> replaces the link itself. The
+        /// scratch name is random and created exclusively, so it cannot be planted
+        /// either.
+        /// </para>
+        /// <para>
+        /// What is dropped is dropped by the same filter the wrapper pipes
+        /// <c>export -p</c> through, applied to the same rendered line — one rule, in one
+        /// place. A name that is not a shell identifier is skipped for the same reason a
+        /// shell could not export it. The file is bounded at the wrapper's 256 KB, by
+        /// whole statements rather than by <c>head -c</c>, so it can never be left
+        /// unparseable by its own writer.
+        /// </para>
+        /// </summary>
+        /// <param name="currentDirectory">
+        /// Where the session resumes. Written as given, validated on read exactly as the
+        /// wrapper's value is; a backend that honoured a per-call
+        /// <c>CallWorkDirectory</c> passes the directory it was in BEFORE that move.
+        /// </param>
+        /// <param name="environment">The exported variables at the end of the command.</param>
+        public void Save(string currentDirectory, IReadOnlyDictionary<string, string> environment)
+        {
+            ArgumentNullException.ThrowIfNull(currentDirectory);
+            ArgumentNullException.ThrowIfNull(environment);
+            Directory.CreateDirectory(_workspace.ShellStateDirectory);
+
+            bool powerShell = _shell.Kind == ShellKind.PowerShell;
+            var sb = new StringBuilder();
+            foreach (KeyValuePair<string, string> pair in environment.OrderBy(p => p.Key, StringComparer.Ordinal))
+            {
+                if (!IsShellIdentifier(pair.Key))
+                    continue;
+
+                string line;
+                if (powerShell)
+                {
+                    // The PowerShell wrapper's own rule: a value with a line break cannot
+                    // live in a line-per-variable file, and half of one restored later is
+                    // worse than none.
+                    if (pair.Value.IndexOfAny(LineBreaks) >= 0
+                        || Regex.IsMatch(pair.Key, PowerShellEnvFilter, RegexOptions.IgnoreCase))
+                    {
+                        continue;
+                    }
+                    line = pair.Key + "=" + pair.Value;
+                }
+                else
+                {
+                    line = "export " + pair.Key + "=" + Sq(pair.Value);
+                    if (Regex.IsMatch(line, PosixEnvFilter))
+                        continue;
+                }
+
+                if (sb.Length + line.Length + 1 > MaxEnvFileBytes)
+                    break;
+                sb.Append(line).Append('\n');
+            }
+
+            WriteStateAtomically(EnvFile, sb.ToString());
+            WriteStateAtomically(CwdFile, currentDirectory);
+        }
+
+        /// <summary>
+        /// Record that the saved environment was found unusable and thrown away, so the
+        /// next result can say so. The wrapper writes the same marker.
+        /// </summary>
+        /// <returns>False when the marker could not be written — the note will not appear.</returns>
+        public bool MarkEnvironmentReset()
+        {
+            try
+            {
+                Directory.CreateDirectory(_workspace.ShellStateDirectory);
+                WriteStateAtomically(EnvFile, string.Empty);
+                WriteStateAtomically(EnvFile + ".reset", string.Empty);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>The wrapper's <c>head -c 262144</c>, as a bound on whole statements.</summary>
+        private const int MaxEnvFileBytes = 262144;
+
+        private static readonly char[] LineBreaks = { '\r', '\n' };
+
+        private static bool IsShellIdentifier(string name)
+        {
+            if (name.Length == 0 || !(char.IsAsciiLetter(name[0]) || name[0] == '_'))
+                return false;
+            foreach (char c in name)
+            {
+                if (!(char.IsAsciiLetterOrDigit(c) || c == '_'))
+                    return false;
+            }
+            return true;
+        }
+
+        private static void WriteStateAtomically(string path, string content)
+        {
+            string directory = Path.GetDirectoryName(path)!;
+            string scratch = Path.Combine(
+                directory, "." + Path.GetFileName(path) + "-" + Path.GetRandomFileName() + ".tmp");
+            using (var stream = new FileStream(
+                scratch, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 4096))
+            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+            {
+                writer.Write(content);
+            }
+            File.Move(scratch, path, overwrite: true);
+        }
+
+        /// <summary>
+        /// The statement head <c>export -p</c> emits: an optional declaration keyword,
+        /// the name, and either <c>=</c> or the end of the line (a name exported without
+        /// a value).
+        /// </summary>
+        private static readonly Regex PosixStatementHead = new(
+            @"^(declare -[-aAilnrtux]+ |export |typeset -[-aAilnrtux]+ |readonly )?([A-Za-z_][A-Za-z0-9_]*)(=|$)",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// Read <c>export -p</c> output back into names and values.
+        ///
+        /// <para>
+        /// Quoting is honoured the way a shell would honour it, because that is what the
+        /// file is: bash writes double quotes with <c>\" \\ \$ \`</c> escapes and a
+        /// literal newline inside them; dash writes single quotes with <c>'\''</c> for an
+        /// embedded quote; a bare word needs neither. A statement that does not parse —
+        /// a quote left open by a truncated file — fails the whole file, which is the
+        /// wrapper's own verdict (<c>( . "$__ts_env" )</c> in a subshell) and the caller
+        /// resets the environment as it does.
+        /// </para>
+        /// </summary>
+        internal static bool TryParsePosixExports(string text, IDictionary<string, string> into)
+        {
+            int i = 0;
+            int n = text.Length;
+            while (i < n)
+            {
+                while (i < n && (text[i] is ' ' or '\t' or '\r' or '\n'))
+                    i++;
+                if (i >= n)
+                    break;
+
+                int eol = text.IndexOf('\n', i);
+                if (eol < 0)
+                    eol = n;
+                string head = text.Substring(i, eol - i).TrimEnd('\r');
+                Match m = PosixStatementHead.Match(head);
+                if (!m.Success)
+                    return false;
+
+                string name = m.Groups[2].Value;
+                // The filter is written against the statement as the wrapper sees it —
+                // keyword and all — so it is applied to the same text here.
+                bool dropped = Regex.IsMatch(head, PosixEnvFilter);
+                if (m.Groups[3].Value != "=")
+                {
+                    // `declare -x NAME`: exported but never given a value. Nothing to restore.
+                    i = eol;
+                    continue;
+                }
+
+                i += m.Length;
+                var value = new StringBuilder();
+                while (i < n && text[i] != '\n')
+                {
+                    char c = text[i];
+                    if (c == '\'')
+                    {
+                        int close = text.IndexOf('\'', i + 1);
+                        if (close < 0)
+                            return false;
+                        value.Append(text, i + 1, close - i - 1);
+                        i = close + 1;
+                    }
+                    else if (c == '"')
+                    {
+                        i++;
+                        bool closed = false;
+                        while (i < n)
+                        {
+                            char d = text[i];
+                            if (d == '"')
+                            {
+                                closed = true;
+                                i++;
+                                break;
+                            }
+                            if (d == '\\' && i + 1 < n && "\"\\$`\n".IndexOf(text[i + 1]) >= 0)
+                            {
+                                if (text[i + 1] != '\n')
+                                    value.Append(text[i + 1]);
+                                i += 2;
+                                continue;
+                            }
+                            value.Append(d);
+                            i++;
+                        }
+                        if (!closed)
+                            return false;
+                    }
+                    else if (c == '\\' && i + 1 < n)
+                    {
+                        if (text[i + 1] != '\n')
+                            value.Append(text[i + 1]);
+                        i += 2;
+                    }
+                    else if (c == '\r')
+                    {
+                        i++;
+                    }
+                    else
+                    {
+                        value.Append(c);
+                        i++;
+                    }
+                }
+
+                if (!dropped)
+                    into[name] = value.ToString();
+            }
+            return true;
+        }
+
+        /// <summary>The PowerShell wrapper's <c>NAME=value</c> lines, filtered by the same name rule it applies.</summary>
+        internal static bool TryParsePowerShellEnvironment(string text, IDictionary<string, string> into)
+        {
+            foreach (string raw in text.Split('\n'))
+            {
+                string line = raw.TrimEnd('\r');
+                if (line.Length == 0)
+                    continue;
+                int eq = line.IndexOf('=');
+                if (eq <= 0)
+                    return false;
+                string name = line.Substring(0, eq);
+                if (!IsShellIdentifier(name))
+                    return false;
+                if (!Regex.IsMatch(name, PowerShellEnvFilter, RegexOptions.IgnoreCase))
+                    into[name] = line.Substring(eq + 1);
+            }
+            return true;
         }
 
         /// <summary>

@@ -22,6 +22,37 @@ using TensorSharp.Runtime.Logging;
 namespace TensorSharp.AgentHost.CodeExec
 {
     /// <summary>
+    /// What the host asks of an installer: whether it installs at all, and to put a
+    /// named list of packages into a session's environment. <see cref="PackageInstaller"/>
+    /// is the pip/npm implementation; a host with no package manager — or a wheel
+    /// unpacker of its own — supplies another through <see cref="ShellRunner"/>.
+    /// </summary>
+    public interface IPackageInstaller
+    {
+        /// <summary>Whether this host installs anything at all.</summary>
+        bool CanInstall { get; }
+
+        /// <summary>
+        /// Install <paramref name="packages"/> into <paramref name="workspace"/>'s
+        /// environment.
+        /// </summary>
+        /// <returns>Null on success or when there was nothing to do; otherwise why it failed, phrased for the model.</returns>
+        /// <param name="performed">
+        /// False when nothing was actually installed because every package was already in
+        /// this session's ledger. <b>A null return does not mean an install happened.</b>
+        /// </param>
+        string? Install(
+            SessionWorkspace workspace, CodeLanguage language,
+            IReadOnlyList<string> packages, Action<string>? onOutput, out bool performed);
+
+        /// <summary>Install, without asking whether anything actually happened.</summary>
+        string? Install(
+            SessionWorkspace workspace, CodeLanguage language,
+            IReadOnlyList<string> packages, Action<string>? onOutput = null) =>
+            Install(workspace, language, packages, onOutput, out _);
+    }
+
+    /// <summary>
     /// Installing packages the way the HOST asks for them: a validated name list, an
     /// argument vector the host builds, and a network hole that closes with the install.
     ///
@@ -41,20 +72,37 @@ namespace TensorSharp.AgentHost.CodeExec
     /// how a control meant for one path quietly stops applying to the other.
     /// </para>
     /// </summary>
-    public sealed class PackageInstaller
+    public sealed class PackageInstaller : IPackageInstaller
     {
         private readonly CodeExecOptions _options;
-        private readonly ISkillSandbox? _sandbox;
+        private readonly IShellBackend _backend;
         private readonly ILogger _logger;
 
         /// <param name="options">The host's terms: whether installing is allowed at all, the timeouts, the allow-list.</param>
         /// <param name="sandbox">The confinement to run the installer under, or null.</param>
         /// <param name="logger">Where denied egress is reported.</param>
         public PackageInstaller(CodeExecOptions options, ISkillSandbox? sandbox, ILogger? logger = null)
+            : this(new ProcessShellBackend(sandbox, ModeOf(options), logger: logger), options, logger)
         {
+        }
+
+        /// <param name="backend">What launches the installer — a confined child process on a desktop.</param>
+        /// <param name="options">The host's terms: whether installing is allowed at all, the timeouts, the allow-list.</param>
+        /// <param name="logger">Where denied egress is reported.</param>
+        public PackageInstaller(IShellBackend backend, CodeExecOptions options, ILogger? logger = null)
+        {
+            _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _options = options ?? throw new ArgumentNullException(nameof(options));
-            _sandbox = sandbox;
             _logger = logger ?? NullLogger.Instance;
+        }
+
+        /// <summary>The backend the installer launches through.</summary>
+        public IShellBackend Backend => _backend;
+
+        private static SkillSandboxMode ModeOf(CodeExecOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(options);
+            return options.Unconfined ? SkillSandboxMode.Preferred : options.Sandbox;
         }
 
         /// <summary>Whether this host installs anything at all.</summary>
@@ -162,11 +210,12 @@ namespace TensorSharp.AgentHost.CodeExec
                 environment["NO_PROXY"] = string.Empty;
             }
 
-            ConfinedResult result = ConfinedProcess.Run(
-                new ConfinedLaunch
+            var argv = new List<string>(plan.Arguments.Count + 1) { plan.Interpreter };
+            argv.AddRange(plan.Arguments);
+            ConfinedResult result = _backend.Run(
+                new ShellLaunch
                 {
-                    Interpreter = plan.Interpreter,
-                    Arguments = plan.Arguments,
+                    Argv = argv,
                     // A manifest install reads package.json from the read-only work tree
                     // and writes only into the session package environment.
                     WriteDirectory = workspace.EnvDirectory,
@@ -181,10 +230,9 @@ namespace TensorSharp.AgentHost.CodeExec
                     // The install is the longest silent stretch of all — a pip download is
                     // exactly what a user should be watching instead of a spinner.
                     OnOutputLine = onOutput,
-                    EnvironmentVariables = environment,
-                },
-                _sandbox,
-                _options.Unconfined ? SkillSandboxMode.Preferred : _options.Sandbox);
+                    Environment = environment,
+                    Purpose = ShellLaunch.Purposes.Install,
+                });
 
             if (result.Ok)
                 return null;
@@ -286,7 +334,7 @@ namespace TensorSharp.AgentHost.CodeExec
         /// area is written to avoid.
         /// </para>
         /// </summary>
-        internal bool ProxyIsEnforced => _sandbox is { Name: "sandbox-exec" };
+        internal bool ProxyIsEnforced => _backend.Sandbox is { Name: "sandbox-exec" };
 
         /// <summary>
         /// Reject a package name that is not one.

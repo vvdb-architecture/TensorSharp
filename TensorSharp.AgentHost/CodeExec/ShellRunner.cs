@@ -16,7 +16,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp.AgentHost.Skills;
@@ -88,13 +87,13 @@ namespace TensorSharp.AgentHost.CodeExec
     {
         private readonly CodeExecOptions _options;
         private readonly ILogger _logger;
+        private readonly IShellBackend _backend;
         private readonly ISkillSandbox? _sandbox;
-        private readonly ApiProbe _apiProbe;
-        private readonly SyntaxCheck _syntax;
+        private readonly IApiProbe _apiProbe;
+        private readonly ISyntaxVerifier _syntax;
         private readonly CodeArtifactStore? _artifacts;
-        private readonly PackageInstaller _installer;
+        private readonly IPackageInstaller _installer;
         private readonly ShellProgram? _shell;
-        private readonly string? _shellError;
         private readonly ConcurrentDictionary<string, ShellSession> _sessions = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, BackgroundJobs> _jobs = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, Lazy<string?>>>
@@ -103,22 +102,49 @@ namespace TensorSharp.AgentHost.CodeExec
         /// <param name="options">The host's terms.</param>
         /// <param name="logger">Where runs are recorded, as metadata only.</param>
         /// <param name="artifacts">Where produced files are kept, or null to keep none.</param>
+        /// <param name="backend">
+        /// What actually runs a launch. Null is today's desktop behaviour — a confined
+        /// child process under the detected OS sandbox and the shell found on PATH
+        /// (<see cref="ProcessShellBackend.Detect(CodeExecOptions, ILogger?, ISkillSandbox?, ShellProgram?)"/>).
+        /// A host that cannot start processes supplies its own; its
+        /// <see cref="IShellBackend.Sandbox"/> is then what every confinement question
+        /// here is answered from, so an in-process backend with honest capabilities
+        /// runs without <c>--code-exec-unconfined</c>.
+        /// </param>
+        /// <param name="sandbox">
+        /// A sandbox for the default backend to use instead of detecting one. Ignored
+        /// when <paramref name="backend"/> is supplied — a backend owns its own.
+        /// </param>
+        /// <param name="shell">
+        /// A shell for the default backend to use instead of resolving one from PATH.
+        /// Ignored when <paramref name="backend"/> is supplied.
+        /// </param>
+        /// <param name="syntax">Parses files after a write; null uses the interpreters the backend launches.</param>
+        /// <param name="apiProbe">Reads a package's real API after a failed run; null uses the backend's interpreters.</param>
+        /// <param name="installer">Performs installs; null is pip/npm through the backend.</param>
         public ShellRunner(
             CodeExecOptions? options = null,
             ILogger? logger = null,
-            CodeArtifactStore? artifacts = null)
+            CodeArtifactStore? artifacts = null,
+            IShellBackend? backend = null,
+            ISkillSandbox? sandbox = null,
+            ShellProgram? shell = null,
+            ISyntaxVerifier? syntax = null,
+            IApiProbe? apiProbe = null,
+            IPackageInstaller? installer = null)
         {
             _options = options ?? new CodeExecOptions();
             _logger = logger ?? NullLogger.Instance;
-            _sandbox = _options.Sandbox == SkillSandboxMode.Off ? null : SkillSandboxFactory.Detect();
+            _backend = backend ?? ProcessShellBackend.Detect(_options, _logger, sandbox, shell);
+            // Read off the backend rather than detected here, so that everything this
+            // class says about confinement — CanRun, the declaration's network promise,
+            // the result's gap list — is about what will actually run the command.
+            _sandbox = _backend.Sandbox;
+            _shell = _backend.Shell;
             _artifacts = artifacts;
-            _installer = new PackageInstaller(_options, _sandbox, _logger);
-            _apiProbe = new ApiProbe(_options, _sandbox);
-            _syntax = new SyntaxCheck(_options, _sandbox);
-
-            // Resolved once, at construction: the answer cannot change while the process
-            // runs, and the prompt has to state the dialect before the first call.
-            ShellProgram.TryResolve(_options.Shell, out _shell, out _shellError);
+            _installer = installer ?? new PackageInstaller(_backend, _options, _logger);
+            _apiProbe = apiProbe ?? new ApiProbe(_backend);
+            _syntax = syntax ?? new SyntaxCheck(_backend);
 
             // The watchdog's sink is static because the callers that trip it — a syntax
             // check, a violation monitor, an interpreter probe — hold no logger. First
@@ -126,6 +152,9 @@ namespace TensorSharp.AgentHost.CodeExec
             ForkWatchdog.Observer ??= detail => _logger.LogWarning(
                 LogEventIds.CodeExecForkWedged, "codeexec.forkwedged {Detail}", detail);
         }
+
+        /// <summary>What runs each launch: a confined child process, or the host's own runtime.</summary>
+        public IShellBackend Backend => _backend;
 
         /// <summary>The sandbox in use, or null.</summary>
         public ISkillSandbox? Sandbox => _sandbox;
@@ -140,7 +169,7 @@ namespace TensorSharp.AgentHost.CodeExec
         public bool KeepsArtifacts => _artifacts != null;
 
         /// <summary>The installer skill scripts use for their own missing dependencies.</summary>
-        public PackageInstaller Installer => _installer;
+        public IPackageInstaller Installer => _installer;
 
         /// <summary>
         /// Whether commands may run here at all.
@@ -160,6 +189,7 @@ namespace TensorSharp.AgentHost.CodeExec
         public bool CanRun =>
             _options.Enabled
             && _shell != null
+            && _backend.CanRun
             && (_options.Unconfined
                 || _options.Sandbox != SkillSandboxMode.Required
                 || Confines(_sandbox, requireNetworkConfinement: !_options.AllowNetwork));
@@ -193,8 +223,8 @@ namespace TensorSharp.AgentHost.CodeExec
                     return "running model-written commands is not enabled on this host "
                          + $"(start it with {CodeExecOptions.EnabledFlag})";
                 }
-                if (_shell == null)
-                    return _shellError ?? "this host has no shell to run commands with";
+                if (_shell == null || !_backend.CanRun)
+                    return _backend.UnavailableReason ?? "this host has no shell to run commands with";
 
                 if (_sandbox is { } present)
                 {
@@ -435,27 +465,24 @@ namespace TensorSharp.AgentHost.CodeExec
             EnsureNodeResolution(workspace);
             ShellSession session = SessionFor(workspace);
             var environment = BuildEnvironment(workspace, out IReadOnlyList<string> networkReadablePaths);
-            ShellSession.ShellScript script;
-            try
-            {
-                script = session.WriteScript(command, workDirectory);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return CodeExecResult.Refused($"the command could not be prepared: {ex.Message}");
-            }
 
-            var launch = new ConfinedLaunch
+            // Everything the host has decided, handed across the seam. The backend
+            // decides nothing about policy: what may be written, read or reached, for
+            // how long, and in which directory are all settled here, and a backend that
+            // is a child process and one that is an in-process interpreter receive the
+            // same terms.
+            var launch = new ShellLaunch
             {
-                Interpreter = _shell!.Path,
-                Arguments = _shell.ArgumentsFor(script.Path),
+                Command = command,
+                Session = session,
+                CallWorkDirectory = workDirectory,
+                WorkingDirectory = workDirectory ?? session.CurrentDirectory,
                 // Generated code writes its work tree plus narrowly separated temp and
                 // shell-persistence roots. The package environment and host-authored
                 // scripts/logs stay read-only, so a symlink planted in one command cannot
                 // redirect a later host write outside the sandbox.
                 WriteDirectory = workspace.WorkDirectory,
                 WritablePaths = new[] { workspace.TempDirectory, workspace.ShellStateDirectory },
-                WorkingDirectory = workDirectory ?? session.CurrentDirectory,
                 ReadOnlyDirectory = workspace.Root,
                 ReadablePaths = ReadablePathsFor(
                     workspace, request.ReadablePaths, networkReadablePaths),
@@ -465,8 +492,9 @@ namespace TensorSharp.AgentHost.CodeExec
                 AllowNetwork = _options.AllowNetwork,
                 Timeout = TimeoutFor(request.Timeout),
                 MaxOutputBytes = _options.MaxOutputBytes,
-                EnvironmentVariables = environment,
+                Environment = environment,
                 OnOutputLine = onOutput,
+                Purpose = ShellLaunch.Purposes.Shell,
             };
 
             if (request.Background)
@@ -503,7 +531,7 @@ namespace TensorSharp.AgentHost.CodeExec
 
             _logger.LogInformation(LogEventIds.CodeExecRan,
                 "codeexec.ran shell={Shell} sandbox={Sandbox} installs={Installs} exit={Exit} timedOut={TimedOut} ms={Ms} bytes={Bytes}",
-                _shell.Name, result.SandboxName, notes.Count,
+                _shell!.Name, result.SandboxName, notes.Count,
                 result.ExitCode, result.TimedOut, (long)result.Elapsed.TotalMilliseconds,
                 result.Stdout.Length + result.Stderr.Length);
 
@@ -512,7 +540,7 @@ namespace TensorSharp.AgentHost.CodeExec
                 // Describe does with it — parsing imports for the API probe, finding the
                 // files the command redirected into — is reasoning about what the model
                 // wrote, not about the line the shell finally received.
-                typed, Rewrite(result, script, workspace, launch.WorkingDirectory),
+                typed, Scrub(result, workspace, launch.WorkingDirectory),
                 workspace, session, before, notes, launch.Timeout,
                 repeats, failedBefore, rewrites, installedFor, installsOk, fileToolsAvailable);
         }
@@ -564,10 +592,9 @@ namespace TensorSharp.AgentHost.CodeExec
         /// </para>
         /// </summary>
         private ConfinedResult RunWithAutoInstall(
-            ConfinedLaunch launch, SessionWorkspace workspace, List<string> notes,
+            ShellLaunch launch, SessionWorkspace workspace, List<string> notes,
             Action<string>? onOutput, out AutoInstallOutcome installedFor)
         {
-            SkillSandboxMode mode = _options.Unconfined ? SkillSandboxMode.Preferred : _options.Sandbox;
             // The whole CALL's deadline, not each process's. launch.Timeout bounds one
             // run; without a budget across the loop, a command asking for 20s could spend
             // six runs plus five installs — over two minutes — inside a single tool call
@@ -585,7 +612,7 @@ namespace TensorSharp.AgentHost.CodeExec
 
             while (true)
             {
-                ConfinedResult result = ConfinedProcess.Run(launch, _sandbox, mode);
+                ConfinedResult result = _backend.Run(launch);
 
                 if (result.Ok || result.TimedOut || !result.Started
                     || !_installer.CanInstall
@@ -668,45 +695,22 @@ namespace TensorSharp.AgentHost.CodeExec
         }
 
         /// <summary>
-        /// Put the shell's own diagnostics back into the model's frame of reference.
+        /// Rewrite every host path in the output into the model's frame of reference.
         ///
         /// <para>
-        /// The wrapper is the host's business, not the model's, and every mention of it in
-        /// the output is a false lead: bash blames "/…/state/cmd-7.sh: line 24", which
-        /// names a file the model has never seen at a line twenty past anything it wrote.
-        /// The path becomes "command" and the number becomes the line of the command
-        /// itself, so a syntax error points at the line the model actually typed.
+        /// The model's own files, the package environment, the temp directory. See
+        /// OutputPaths — 13.9% of the characters in this server's logged tool results
+        /// were these prefixes, and one logged round was lost to a model splicing two of
+        /// them together into a directory that never existed. The other half of this —
+        /// the wrapper script's own path and line numbers — is the backend's, because
+        /// only the backend that wrote the script knows where the model's text began in
+        /// it; see <see cref="ProcessShellBackend.Rewrite"/>.
         /// </para>
         /// </summary>
-        private static ConfinedResult Rewrite(
-            ConfinedResult result, ShellSession.ShellScript script,
-            SessionWorkspace workspace, string? ranIn)
+        private static ConfinedResult Scrub(ConfinedResult result, SessionWorkspace workspace, string? ranIn)
         {
-            string Fix(string text)
-            {
-                if (text.Length == 0)
-                    return text;
-
-                if (text.Contains(script.Path, StringComparison.Ordinal))
-                {
-                    // "<path>: line 24: " -> "command line 4: ", then any bare mention of
-                    // the path (a traceback naming the script, a shell prefixing every line).
-                    text = Regex.Replace(
-                        text,
-                        Regex.Escape(script.Path) + @":\s*line\s+(\d+):",
-                        match => "command line "
-                            + Math.Max(1, int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) - script.CommandOffset)
-                                .ToString(CultureInfo.InvariantCulture) + ":");
-                    text = text.Replace(script.Path, "command", StringComparison.Ordinal);
-                }
-
-                // And every OTHER host path the same way: the model's own files, the
-                // package environment, the temp directory. See OutputPaths — 13.9% of
-                // the characters in this server's logged tool results were these
-                // prefixes, and one logged round was lost to a model splicing two of
-                // them together into a directory that never existed.
-                return OutputPaths.Scrub(text, workspace, ranIn);
-            }
+            string Fix(string text) =>
+                text.Length == 0 ? text : OutputPaths.Scrub(text, workspace, ranIn);
 
             return result with { Stdout = Fix(result.Stdout), Stderr = Fix(result.Stderr) };
         }
@@ -1158,6 +1162,12 @@ namespace TensorSharp.AgentHost.CodeExec
         /// </summary>
         private static IEnumerable<(string Typed, string? Real)> InterpreterAliases()
         {
+            // A host that described its own embedded runtime maps `python` and `python3`
+            // itself; a shim over a name that is not a file on PATH would be a script
+            // that execs nothing.
+            if (CodeEnvironment.IsConfigured)
+                yield break;
+
             if (!CodeEnvironment.TryResolveInterpreter(CodeLanguage.Python, out string? python, out _)
                 || string.IsNullOrEmpty(python))
             {
@@ -1544,7 +1554,7 @@ namespace TensorSharp.AgentHost.CodeExec
 
         private sealed class BackgroundJobs : IDisposable
         {
-            private readonly ConcurrentDictionary<string, (ConfinedJob Job, JobLog Log)> _running =
+            private readonly ConcurrentDictionary<string, (IShellJob Job, JobLog Log)> _running =
                 new(StringComparer.Ordinal);
             private int _next;
 
@@ -1557,11 +1567,11 @@ namespace TensorSharp.AgentHost.CodeExec
                 "job-" + System.Threading.Interlocked.Increment(ref _next)
                     .ToString(CultureInfo.InvariantCulture);
 
-            public void Add(string id, ConfinedJob job, JobLog log) => _running[id] = (job, log);
+            public void Add(string id, IShellJob job, JobLog log) => _running[id] = (job, log);
 
             public void Dispose()
             {
-                foreach ((ConfinedJob job, JobLog log) in _running.Values)
+                foreach ((IShellJob job, JobLog log) in _running.Values)
                 {
                     // The process first, then its log: closing the file while the reader
                     // threads are still delivering lines is what the writer's own lock
@@ -1584,7 +1594,7 @@ namespace TensorSharp.AgentHost.CodeExec
             });
 
         private CodeExecResult StartBackground(
-            SessionWorkspace workspace, ConfinedLaunch launch)
+            SessionWorkspace workspace, ShellLaunch launch)
         {
             string logDirectory = Path.Combine(workspace.StateDirectory, ".jobs");
             Directory.CreateDirectory(logDirectory);
@@ -1608,22 +1618,12 @@ namespace TensorSharp.AgentHost.CodeExec
             }
 
             Action<string>? tap = launch.OnOutputLine;
-            var teed = new ConfinedLaunch
+            ShellLaunch teed = launch with
             {
-                Interpreter = launch.Interpreter,
-                Arguments = launch.Arguments,
-                WriteDirectory = launch.WriteDirectory,
-                WorkingDirectory = launch.WorkingDirectory,
-                ReadOnlyDirectory = launch.ReadOnlyDirectory,
-                ReadablePaths = launch.ReadablePaths,
-                WritablePaths = launch.WritablePaths,
-                AllowNetwork = launch.AllowNetwork,
-                AllowLoopbackPort = launch.AllowLoopbackPort,
                 // A background job has no deadline of its own: it ends when it ends, when
                 // something kills it, or when the session does.
                 Timeout = System.Threading.Timeout.InfiniteTimeSpan,
                 MaxOutputBytes = _options.MaxOutputBytes,
-                EnvironmentVariables = launch.EnvironmentVariables,
                 OnOutputLine = line =>
                 {
                     log.WriteLine(line);
@@ -1631,9 +1631,7 @@ namespace TensorSharp.AgentHost.CodeExec
                 },
             };
 
-            if (!ConfinedProcess.TryStart(
-                    teed, _sandbox, _options.Unconfined ? SkillSandboxMode.Preferred : _options.Sandbox,
-                    out ConfinedJob? job, out ConfinedResult failure))
+            if (!_backend.TryStart(teed, out IShellJob? job, out ConfinedResult failure))
             {
                 log.Dispose();
                 return CodeExecResult.Refused(failure.Error ?? "the command could not be started");
