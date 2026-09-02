@@ -132,4 +132,10 @@ public sealed class Conversation
 }
 
 /// <summary>Row of the sessions list; cheap to build without loading messages.</summary>
-public sealed record ConversationSummary(string Id, string Title, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? ModelId, int MessageCount);
+public sealed record ConversationSummary(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("createdAt")] DateTimeOffset CreatedAt,
+    [property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt,
+    [property: JsonPropertyName("modelId")] string? ModelId,
+    [property: JsonPropertyName("messageCount")] int MessageCount);

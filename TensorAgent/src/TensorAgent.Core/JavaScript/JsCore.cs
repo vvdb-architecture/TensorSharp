@@ -236,6 +236,10 @@ internal static unsafe class JsCore
     internal static extern bool JSValueIsStrictEqual(IntPtr context, IntPtr a, IntPtr b);
 
     [DllImport(Library, ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    internal static extern bool JSValueIsInstanceOfConstructor(IntPtr context, IntPtr value, IntPtr constructor, IntPtr* exception);
+
+    [DllImport(Library, ExactSpelling = true)]
     internal static extern IntPtr JSValueMakeUndefined(IntPtr context);
 
     [DllImport(Library, ExactSpelling = true)]

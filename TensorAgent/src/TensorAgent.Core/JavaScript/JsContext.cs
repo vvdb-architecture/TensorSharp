@@ -46,6 +46,19 @@ internal sealed class ScriptExitException : Exception
     public int ExitCode { get; }
 }
 
+/// <summary>
+/// Carries a JavaScript value back out through a managed unwind so it can be
+/// re-thrown unchanged. <c>require</c> uses it: a module that throws a
+/// <c>TypeError</c> must reach the caller as that <c>TypeError</c>, not as a
+/// generic <c>Error</c> whose message happens to start with "TypeError:".
+/// </summary>
+internal sealed class JsRethrowException : Exception
+{
+    public JsRethrowException(IntPtr value, string message) : base(message) => Value = value;
+
+    public IntPtr Value { get; }
+}
+
 /// <summary>A JavaScript exception that reached the host, already formatted for stderr.</summary>
 internal sealed class JsScriptException : Exception
 {
@@ -123,6 +136,7 @@ internal sealed unsafe class JsContext : IDisposable
     private readonly IntPtr _group;
     private readonly IntPtr _context;
     private readonly List<IntPtr> _protectedFunctions = new();
+    private readonly List<IntPtr> _protectedValues = new();
     private bool _disposed;
 
     internal JsContext()
@@ -273,6 +287,20 @@ internal sealed unsafe class JsContext : IDisposable
             JsCore.JSValueUnprotect(_context, value);
     }
 
+    /// <summary>
+    /// Roots a value for the rest of the run. Used for the handful of things whose
+    /// lifetime is the context's anyway — the module cache, an error object being
+    /// carried back across a managed unwind — where tracking a release point would
+    /// cost more than it saves.
+    /// </summary>
+    internal void ProtectUntilDispose(IntPtr value)
+    {
+        if (value == IntPtr.Zero)
+            return;
+        Protect(value);
+        _protectedValues.Add(value);
+    }
+
     // ---- properties --------------------------------------------------------------------
 
     internal void SetProperty(IntPtr target, string name, IntPtr value)
@@ -323,6 +351,41 @@ internal sealed unsafe class JsContext : IDisposable
     internal bool IsArray(IntPtr value) => value != IntPtr.Zero && JsCore.JSValueIsArray(_context, value);
 
     internal bool IsFunction(IntPtr value) => IsObject(value) && JsCore.JSObjectIsFunction(_context, value);
+
+    /// <summary>The <c>instanceof</c> test, used to tell a real <c>Error</c> from a plain object.</summary>
+    internal bool IsInstanceOf(IntPtr value, IntPtr constructor)
+    {
+        if (!IsObject(value) || constructor == IntPtr.Zero)
+            return false;
+        IntPtr exception = IntPtr.Zero;
+        bool result = JsCore.JSValueIsInstanceOfConstructor(_context, value, constructor, &exception);
+        return exception == IntPtr.Zero && result;
+    }
+
+    /// <summary>A deferred promise plus its two resolvers, for host work that finishes off-thread.</summary>
+    internal IntPtr NewPromise(out IntPtr resolve, out IntPtr reject)
+    {
+        IntPtr resolveLocal = IntPtr.Zero, rejectLocal = IntPtr.Zero, exception = IntPtr.Zero;
+        IntPtr promise = JsCore.JSObjectMakeDeferredPromise(_context, &resolveLocal, &rejectLocal, &exception);
+        ThrowIfException(exception);
+        resolve = resolveLocal;
+        reject = rejectLocal;
+        return promise;
+    }
+
+    /// <summary>
+    /// Defines a property the script can use but will not trip over: it does not
+    /// show up in <c>Object.keys(globalThis)</c> and cannot be deleted, which is
+    /// what keeps the engine's own plumbing out of a model's way.
+    /// </summary>
+    internal void SetHiddenProperty(IntPtr target, string name, IntPtr value)
+    {
+        const uint dontEnumDontDelete = 4 | 8;
+        using JsString key = JsString.Create(name);
+        IntPtr exception = IntPtr.Zero;
+        JsCore.JSObjectSetProperty(_context, target, key.Handle, value, dontEnumDontDelete, &exception);
+        ThrowIfException(exception);
+    }
 
     internal bool ToBoolean(IntPtr value) => value != IntPtr.Zero && JsCore.JSValueToBoolean(_context, value);
 
@@ -390,11 +453,20 @@ internal sealed unsafe class JsContext : IDisposable
     /// program error to report, not a host failure to unwind through.
     /// </summary>
     internal IntPtr TryCall(IntPtr function, IntPtr thisObject, IntPtr[] arguments, out JsErrorInfo? error)
+        => TryCall(function, thisObject, arguments, out error, out _);
+
+    /// <summary>
+    /// As above, but also hands back the thrown value itself so a caller that
+    /// wants to re-throw the SAME error object — <c>require</c> propagating a
+    /// module's failure — can, instead of flattening it to its message.
+    /// </summary>
+    internal IntPtr TryCall(IntPtr function, IntPtr thisObject, IntPtr[] arguments, out JsErrorInfo? error, out IntPtr thrown)
     {
         fixed (IntPtr* p = arguments)
         {
             IntPtr exception = IntPtr.Zero;
             IntPtr result = JsCore.JSObjectCallAsFunction(_context, function, thisObject, (nuint)arguments.Length, p, &exception);
+            thrown = exception;
             error = exception == IntPtr.Zero ? null : Describe(exception);
             return result;
         }
@@ -574,6 +646,8 @@ internal sealed unsafe class JsContext : IDisposable
                 SetProperty(marker, ExitMarkerProperty, Number(exit.ExitCode));
                 return marker;
             }
+            if (ex is JsRethrowException rethrow)
+                return rethrow.Value;
             if (ex is JsHostException host)
                 return MakeError(host.Message, host.Code, host.Path);
             if (ex is JsScriptException script)
@@ -600,6 +674,9 @@ internal sealed unsafe class JsContext : IDisposable
             JsCore.JSValueUnprotect(_context, function);
         }
         _protectedFunctions.Clear();
+        foreach (IntPtr value in _protectedValues)
+            JsCore.JSValueUnprotect(_context, value);
+        _protectedValues.Clear();
         JsCore.JSGlobalContextRelease(_context);
         JsCore.JSContextGroupRelease(_group);
     }

@@ -89,11 +89,42 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- CPython 3.13, from BeeWare's Python-Apple-support build, linked as a dynamic
+         framework and embedded in the bundle. It has to be a real link rather than a
+         runtime dlopen: the interpreter's P/Invokes bind through
+         NativeLibrary.GetMainProgramHandle(), which resolves against the main
+         executable and everything already loaded with it.
+
+         The slice is chosen by RuntimeIdentifier because the device and simulator
+         builds are different binaries, and staged by scripts/prepare-python.sh, which
+         must be run before an app build (the runtime is not in git). -->
+    <NativeReference Condition="'$(RuntimeIdentifier)' == 'ios-arm64' AND Exists('../../python-runtime/device/Frameworks/Python.framework')"
+                     Include="../../python-runtime/device/Frameworks/Python.framework"
+                     Kind="Framework" />
+    <NativeReference Condition="$(RuntimeIdentifier.Contains('simulator')) AND Exists('../../python-runtime/simulator/Frameworks/Python.framework')"
+                     Include="../../python-runtime/simulator/Frameworks/Python.framework"
+                     Kind="Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The standard library and the pure-Python packages, verbatim, under
+         <bundle>/python/. EmbeddedPython points PyConfig.module_search_paths here. -->
+    <BundleResource Condition="'$(RuntimeIdentifier)' == 'ios-arm64'"
+                    Include="../../python-runtime/device/python/**/*"
+                    Link="python/%(RecursiveDir)%(Filename)%(Extension)" />
+    <BundleResource Condition="$(RuntimeIdentifier.Contains('simulator'))"
+                    Include="../../python-runtime/simulator/python/**/*"
+                    Link="python/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../../TensorSharp.Core/TensorSharp.Core.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
     <ProjectReference Include="../../../TensorSharp.Runtime/TensorSharp.Runtime.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
     <ProjectReference Include="../../../TensorSharp.Models/TensorSharp.Models.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
     <ProjectReference Include="../../../TensorSharp.Backends.GGML/TensorSharp.Backends.GGML.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
     <ProjectReference Include="../../../TensorSharp.AgentHost/TensorSharp.AgentHost.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Chat/TensorSharp.Chat.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../TensorAgent.Core/TensorAgent.Core.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -102,10 +133,15 @@
     <TrimmerRootAssembly Include="TensorSharp.Models" />
     <TrimmerRootAssembly Include="TensorSharp.Backends.GGML" />
     <TrimmerRootAssembly Include="TensorSharp.AgentHost" />
+    <TrimmerRootAssembly Include="TensorSharp.Chat" />
+    <TrimmerRootAssembly Include="TensorAgent.Core" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <!-- The only place a phone can log to is stdout, which the simulator's launch
+         console shows and a device log capture picks up. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
   </ItemGroup>
 
 </Project>

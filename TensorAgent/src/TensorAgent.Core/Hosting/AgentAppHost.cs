@@ -193,7 +193,14 @@ public sealed class AgentAppHost : IDisposable
         uploadDirectory: paths.UploadsDirectory,
         logDirectory: paths.LogsDirectory,
         fileLoggingEnabled: true,
-        samplingDefaults: null);
+        samplingDefaults: null,
+        // A skill that cannot run its own scripts is a document, not a skill: the
+        // bundled ones are chosen precisely because they do work end to end. What
+        // gates them is the user's own switch, read here, not a build-time default.
+        skillsEnabled: true,
+        skillsDiscovery: true,
+        skillsAllowScripts: settings.AllowCodeExecution,
+        skillsAllowNetwork: settings.AllowNetwork);
 
     public void Dispose()
     {

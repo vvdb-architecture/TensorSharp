@@ -218,7 +218,7 @@ public sealed class WebUiRoutesTests : IDisposable
 
         JsonElement listed = await BodyOf(await _client.GetAsync("/api/agent/conversations"));
         Assert.Contains(listed.GetProperty("conversations").EnumerateArray(),
-            c => c.GetProperty("Id").GetString() == id);
+            c => c.GetProperty("id").GetString() == id);
 
         JsonElement renamed = await BodyOf(await _client.PostAsJsonAsync(
             $"/api/agent/conversations/{id}", new { title = "Trip planning" }));

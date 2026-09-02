@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using Foundation;
+using Microsoft.Extensions.Logging;
 using TensorAgent.Maui.Hosting;
 
 namespace TensorAgent.Maui;
@@ -23,7 +24,11 @@ public static class MauiProgram
         // The Web UI is TensorSharp.Server/wwwroot linked into the bundle as
         // webui/ (see the BundleResource item in the csproj).
         string webRoot = Path.Combine(NSBundle.MainBundle.BundlePath, "webui");
-        builder.Services.AddSingleton(_ => new LoopbackWebHost(webRoot, EngineProbe.Run));
+        // Console logging is what `simctl launch --console` shows and what a device
+        // log capture picks up; there is nowhere else for a phone to log to.
+        builder.Logging.AddConsole();
+        builder.Services.AddSingleton(sp => new LoopbackWebHost(
+            webRoot, sp.GetService<ILoggerFactory>()));
         builder.Services.AddSingleton<MainPage>();
         builder.Services.AddSingleton<AppShell>();
 
