@@ -843,8 +843,18 @@ public sealed class MediaScenarioTests : IDisposable
             $"this measured {Path.GetFileName(files.Dit)}, not the catalog's {model.Weights.FileName}; "
             + $"peak was {peak / 1e9:F2} GB. Point {LiveMedia.ImageModelDirVariable} at the catalog's own "
             + "files to check the tier.");
+        // Two separate claims. First, the tier the catalog advertises has to be one the
+        // measurement supports — that is the promise to the user.
         Assert.True(peak < budget,
             $"{model.Id} is offered at {model.MinDeviceMemoryGB} GB, which grants about {budget / 1e9:F2} GB, "
             + $"but one edit allocated {peak / 1e9:F2} GB on the device");
+
+        // Second, a regression guard on the number itself. 16.0 GB is what this costs
+        // today; a change that pushes it materially higher is worth knowing about even
+        // though no phone can run it either way.
+        const double measuredCeiling = 17.5e9;
+        Assert.True(peak < measuredCeiling,
+            $"one edit allocated {peak / 1e9:F2} GB, above the {measuredCeiling / 1e9:F1} GB this "
+            + "cost when it was last measured; something got materially heavier");
     }
 }

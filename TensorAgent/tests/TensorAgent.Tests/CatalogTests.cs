@@ -25,7 +25,10 @@ public sealed class CatalogTests
                 Assert.Matches("^[0-9a-f]{64}$", f.Sha256);
                 Assert.False(f.FileName.Contains('/'), $"{m.Id}: file names are bare ({f.FileName})");
             }
-            Assert.Contains(m.MinDeviceMemoryGB, new[] { 6, 8, 12, 16 });
+            // 24 is not a phone that exists; it is how an entry says "no current device
+            // grants enough memory for this", which is a measured fact about
+            // Qwen-Image-Edit rather than a placeholder. ForDevice then never offers it.
+            Assert.Contains(m.MinDeviceMemoryGB, new[] { 6, 8, 12, 16, 24 });
             Assert.NotEmpty(m.License);
         }
     }

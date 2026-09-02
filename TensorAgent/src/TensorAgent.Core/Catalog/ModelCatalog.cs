@@ -260,13 +260,13 @@ public static class ModelCatalog
                     1_354_163_040, "f0edf43c09b69d6e5dd24262f33b356a1e9dd978e7c3299b3e69141fcbb87553", Optional: true),
             },
             Modalities = CatalogModalities.Image | CatalogModalities.ImageOutput,
-            MinDeviceMemoryGB = 16,
+            MinDeviceMemoryGB = 24,
             ContextLength = 0,
             KvCacheDtype = "f16",
             Sampling = new CatalogSampling(1.0f, 0, 1.0f, 0.0f),
             Experimental = true,
             License = ApacheLicense,
-            Notes = "Image editing and generation from a picture plus a prompt, 4 Lightning steps at 512 px. The networks are loaded one at a time to fit; expect a minute or more per image.",
+            Notes = "Image editing from a picture plus a prompt. MEASURED at 16.0 GB of Metal allocation for one edit with this Q2_K DiT -- the smallest published -- against the ~11.3 GB a 16 GB iPhone grants one app, so it does not fit any current iPhone and is not offered on one. Reducing the output area saves about 1.2 GB per halving and the CPU-offload path does not lower allocation on unified memory, so neither closes the gap. It runs correctly where the memory exists.",
         },
     };
 
