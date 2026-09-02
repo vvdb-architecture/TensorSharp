@@ -85,8 +85,25 @@ public abstract class LoopbackResponse
     /// listening. Pass the request's own source; null leaves a dropped client
     /// generating to the end of its budget.
     /// </param>
-    public static LoopbackResponse Sse(IAsyncEnumerable<object> frames, CancellationTokenSource? clientGone = null)
-        => new SseResponse(frames, clientGone);
+    /// <param name="keepAlive">
+    /// How often a comment goes out while the producer has nothing to say, or null for
+    /// <see cref="DefaultKeepAlive"/>. It is a parameter because the alternative is a
+    /// test that spends five seconds per assertion waiting for a heartbeat, which is a
+    /// test nobody runs; nothing in the app passes one.
+    /// </param>
+    public static LoopbackResponse Sse(
+        IAsyncEnumerable<object> frames,
+        CancellationTokenSource? clientGone = null,
+        TimeSpan? keepAlive = null)
+        => new SseResponse(frames, clientGone, keepAlive ?? DefaultKeepAlive);
+
+    /// <summary>
+    /// How long a stream may say nothing before it writes a comment instead. Cheap
+    /// enough to leave on for the life of every stream, and short enough that a page
+    /// which went away during a minutes-long prefill is noticed while stopping the
+    /// generation still saves something.
+    /// </summary>
+    internal static readonly TimeSpan DefaultKeepAlive = TimeSpan.FromSeconds(5);
 
     private sealed class JsonResponse(object payload, int status) : LoopbackResponse
     {
@@ -140,7 +157,7 @@ public abstract class LoopbackResponse
         }
     }
 
-    private sealed class SseResponse(IAsyncEnumerable<object> frames, CancellationTokenSource? clientGone = null) : LoopbackResponse
+    private sealed class SseResponse(IAsyncEnumerable<object> frames, CancellationTokenSource? clientGone, TimeSpan keepAlive) : LoopbackResponse
     {
         public override async Task WriteAsync(HttpListenerResponse response, CancellationToken ct)
         {
@@ -180,22 +197,39 @@ public abstract class LoopbackResponse
                     // Waited on with its own token rather than the request's: a
                     // cancelled Task.Delay completes immediately, and looping on that
                     // would spin writing keep-alives as fast as the socket allows.
-                    using var tick = new CancellationTokenSource(Heartbeat);
+                    using var tick = new CancellationTokenSource(keepAlive);
                     try { await next.WaitAsync(tick.Token).ConfigureAwait(false); }
                     catch (OperationCanceledException) { }
 
                     if (next.IsCompleted)
                         break;
                     if (!await WriteAsync(response, null, ct).ConfigureAwait(false))
+                    {
+                        // The reader is gone and the producer has just been cancelled,
+                        // but its pull is still in flight — and an async iterator
+                        // refuses to be disposed while it is running, with a
+                        // NotSupportedException that would surface as a failed request
+                        // rather than as a client that left. So the last pull is waited
+                        // for; the cancellation is what ends it.
+                        await Finish(next).ConfigureAwait(false);
                         return;
+                    }
                 }
                 if (!await next.ConfigureAwait(false))
                     return;
             }
         }
 
-        /// <summary>How often a comment is sent while nothing else is, to notice a reader that has gone.</summary>
-        private static readonly TimeSpan Heartbeat = TimeSpan.FromSeconds(5);
+        /// <summary>
+        /// Let a cancelled producer come to a stop, and drop whatever it says on the
+        /// way out. Nobody is listening any more, so a frame it still had, or the
+        /// cancellation it throws, is not this request's business.
+        /// </summary>
+        private static async Task Finish(Task<bool> pull)
+        {
+            try { await pull.ConfigureAwait(false); }
+            catch (Exception) { /* the reader left; whatever ends the producer ends it */ }
+        }
 
         /// <summary>
         /// Write one frame, or a keep-alive comment when <paramref name="frame"/> is
@@ -297,7 +331,13 @@ public sealed class LoopbackServer : IDisposable
         Port = port == 0 ? FreePort() : port;
         Token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(24));
         _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
-        _listener.IgnoreWriteExceptions = true;
+        // Write failures must reach the handler. A failed write is the ONLY way this
+        // transport learns that a reader has gone — there is no disconnect callback —
+        // and an event stream that never learns it keeps a model generating for a page
+        // that closed. Told to ignore them, the listener swallows the exception and
+        // reports a successful write to a socket that has been reset, which turns the
+        // per-request cancellation and the keep-alive below into dead code.
+        _listener.IgnoreWriteExceptions = false;
     }
 
     public int Port { get; }
@@ -407,9 +447,12 @@ public sealed class LoopbackServer : IDisposable
         {
             // client disconnected or server stopping
         }
-        catch (HttpListenerException)
+        catch (Exception ex) when (ex is HttpListenerException or IOException)
         {
-            // client disconnected mid-write (an aborted SSE stream)
+            // The client disconnected mid-write: an aborted SSE stream, or a page that
+            // went away while a reply was going out. Now that write exceptions are not
+            // ignored (see the constructor) this is the ordinary shape of a reader
+            // leaving, and logging it as a failed request would bury the real ones.
         }
         catch (Exception ex)
         {

@@ -6,6 +6,7 @@ using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Settings;
 using TensorSharp.AgentHost.CodeExec;
+using TensorSharp.Server;
 
 namespace TensorAgent.Tests;
 
@@ -441,4 +442,69 @@ public sealed class AgentAppHostTests : IDisposable
         using var bare = new HttpClient { BaseAddress = new Uri(host.Server.BaseUrl) };
         Assert.Equal(HttpStatusCode.Forbidden, (await bare.GetAsync("/api/agent/settings")).StatusCode);
     }
+    [Fact]
+    public async Task ShuttingDownWaitsForTheEngineItselfAndNotOnlyForTheRequests()
+    {
+        // Draining the requests is not the same as draining the engine, which is what
+        // the neighbouring test covers and where the segmentation fault came back from.
+        // Cancellation reaches a generation between tokens, so the HTTP request can be
+        // finished while the engine's own threads are still inside a graph compute, and
+        // releasing the model at that moment unmaps the weights a ggml kernel is
+        // reading. The engine's live counters exist only once a model is loaded, which
+        // is not something a unit test can have: what the shutdown asks is substituted
+        // here, what it does with the answer is the real thing.
+        using var idle = new ManualResetEventSlim(initialState: false);
+        // Both are completed from inside the shutdown itself, so their continuations
+        // have to go elsewhere: run inline, the rest of this test would execute on the
+        // thread that is trying to shut the host down.
+        var polled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var host = new AgentAppHost(Paths, modelService: new ReleaseRecordingModelService(() => released.TrySetResult()));
+        _host = host;
+        host.EngineHasWorkInFlight = () =>
+        {
+            polled.TrySetResult();
+            return !idle.IsSet;
+        };
+        host.Start();
+
+        try
+        {
+            Task shutdown = Task.Run(host.Dispose);
+
+            Task asked = await Task.WhenAny(polled.Task, shutdown);
+            Assert.True(ReferenceEquals(asked, polled.Task),
+                "the shutdown finished without ever asking the engine whether it was still working");
+
+            // Long enough that a shutdown which is not waiting has finished by now.
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            Assert.False(released.Task.IsCompleted, "the weights were freed while the engine was still computing");
+            Assert.False(shutdown.IsCompleted, "the shutdown returned while the engine was still computing");
+
+            idle.Set();
+            Task finished = await Task.WhenAny(shutdown, Task.Delay(TimeSpan.FromSeconds(20)));
+            Assert.True(ReferenceEquals(finished, shutdown), "the engine went idle and the shutdown never returned");
+            await shutdown;
+            _host = null;
+
+            Assert.True(released.Task.IsCompleted, "the engine went idle and the model was never released");
+        }
+        finally
+        {
+            // However this ends, the stand-in stops claiming work, so tearing the
+            // fixture down cannot sit in the drain for the full timeout.
+            idle.Set();
+        }
+    }
+
+    private sealed class ReleaseRecordingModelService(Action onRelease) : ModelService, IDisposable
+    {
+        void IDisposable.Dispose()
+        {
+            onRelease();
+            base.Dispose();
+        }
+    }
+
 }

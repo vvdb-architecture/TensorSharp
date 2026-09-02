@@ -52,16 +52,30 @@ public static class WebUiRoutes
     /// attachment, a video frame, an edited image, a generated clip — points at a
     /// <c>/uploads/</c> URL and nothing else.
     /// </param>
+    /// <param name="chatFrames">
+    /// Where <c>/api/chat</c>'s frames come from, or null for the chat service's own
+    /// stream — which is what the app uses.
+    ///
+    /// <para>
+    /// It is a parameter so that the wrapper this route puts around those frames can
+    /// be tested. That wrapper, <see cref="Recording"/>, is what writes an answer down
+    /// when the turn ends; the frames it reads are produced only by a loaded model, so
+    /// without a seam here the wiring between the route and the recorder is checked by
+    /// nothing, and losing it costs the user exactly the answer they are reading.
+    /// </para>
+    /// </param>
     public static void MapWebUi(
         this LoopbackServer server,
         WebUiChatService chat,
         string uploadDirectory,
         SkillsService? skills = null,
-        ConversationRecorder? recorder = null)
+        ConversationRecorder? recorder = null,
+        Func<JsonElement, CancellationToken, IAsyncEnumerable<object>>? chatFrames = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(chat);
         ArgumentException.ThrowIfNullOrWhiteSpace(uploadDirectory);
+        chatFrames ??= chat.ChatStreamAsync;
 
         // ---- chat ---------------------------------------------------------------
         server.MapGet("/api/queue/status", (_, _) => Ok(chat.GetQueueStatus()));
@@ -73,7 +87,7 @@ public static class WebUiRoutes
         });
         server.MapPost("/api/chat", async (request, ct) =>
             LoopbackResponse.Sse(
-                Recording(Guarded(chat.ChatStreamAsync(await request.ReadJsonAsync(ct), ct)), recorder),
+                Recording(Guarded(chatFrames(await request.ReadJsonAsync(ct), ct)), recorder),
                 request.Cancellation));
 
         // ---- sessions -----------------------------------------------------------

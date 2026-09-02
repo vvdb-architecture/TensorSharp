@@ -57,6 +57,13 @@ public sealed class AgentAppHost : IDisposable
     /// <param name="javaScript">An engine to use instead of the default; null discovers one.</param>
     /// <param name="port">A fixed loopback port, or 0 to take a free one.</param>
     /// <param name="backends">What this build can run, best first; null offers Metal then CPU.</param>
+    /// <param name="modelService">
+    /// The engine service to own, or null to build one. The app never passes one; a
+    /// test does, because the shutdown order this class exists to enforce — stop
+    /// serving, wait for the engine, then free the weights — is otherwise invisible
+    /// from outside, and getting it wrong costs a segmentation fault rather than a
+    /// failed assertion.
+    /// </param>
     public AgentAppHost(
         AgentPaths paths,
         string? webRoot = null,
@@ -64,7 +71,8 @@ public sealed class AgentAppHost : IDisposable
         IPythonRuntime? python = null,
         IJavaScriptRuntime? javaScript = null,
         int port = 0,
-        IReadOnlyList<BackendOption>? backends = null)
+        IReadOnlyList<BackendOption>? backends = null,
+        ModelService? modelService = null)
     {
         Paths = paths ?? throw new ArgumentNullException(nameof(paths));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
@@ -123,7 +131,8 @@ public sealed class AgentAppHost : IDisposable
             InstallDirectory = paths.InstalledSkillsDirectory,
         });
 
-        ModelService = new ModelService(_loggerFactory.CreateLogger<ModelService>());
+        ModelService = modelService ?? new ModelService(_loggerFactory.CreateLogger<ModelService>());
+        EngineHasWorkInFlight = EngineIsProcessing;
         Sessions = new SessionManager();
         Uploads = new UploadStoragePolicy(paths.UploadsDirectory);
 
@@ -376,22 +385,39 @@ public sealed class AgentAppHost : IDisposable
     /// reach zero, with a cap so a wedged request cannot stop the app from closing.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// What <see cref="WaitForTheEngineToStop"/> polls, and the only thing that decides
+    /// how long the shutdown waits. Replaceable so a test can hold the shutdown open
+    /// deterministically instead of racing a real engine.
+    /// </summary>
+    internal Func<bool> EngineHasWorkInFlight { get; set; } = () => false;
+
+    /// <summary>
+    /// Whether the engine is still working, straight from its own counters. A component
+    /// that cannot say what it is doing is not a reason to keep the app open; the wait
+    /// is a precaution, not a contract, so an engine that will not answer reads as idle.
+    /// </summary>
+    private bool EngineIsProcessing()
+    {
+        try
+        {
+            if (!ModelService.EngineHost.TryGetLiveStats(out int processing, out int waiting, out _))
+                return false;
+            return processing > 0 || waiting > 0;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     private void WaitForTheEngineToStop()
     {
         var deadline = Stopwatch.StartNew();
         while (deadline.Elapsed < EngineDrainTimeout)
         {
-            try
-            {
-                if (!ModelService.EngineHost.TryGetLiveStats(out int processing, out int waiting, out _))
-                    return;
-                if (processing == 0 && waiting == 0)
-                    return;
-            }
-            catch (Exception)
-            {
+            if (!EngineHasWorkInFlight())
                 return;
-            }
             Thread.Sleep(25);
         }
         _loggerFactory.CreateLogger("TensorAgent.Host")

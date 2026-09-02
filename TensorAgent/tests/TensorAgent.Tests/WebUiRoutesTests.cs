@@ -160,6 +160,56 @@ public sealed class WebUiRoutesTests : IDisposable
     }
 
     [Fact]
+    public async Task TheAnswerIsWrittenDownWhenTheStreamEndsAndNotWhenTheNextRequestCarriesIt()
+    {
+        // The recorder has tests of its own; this is about the wiring. /api/chat wraps
+        // the service's frames in WebUiRoutes.Recording, and that wrapper is what closes
+        // the turn. Drop it and an answer is saved only when the NEXT request happens to
+        // carry it — which on a phone means the answer the user is reading is exactly
+        // the one that is lost. Everything on this path is the real thing except the
+        // frames themselves, because producing those needs a loaded model.
+        var recorder = new ConversationRecorder(_conversations);
+        using var server = new LoopbackServer(NullLogger.Instance) { RequireToken = false };
+        server.MapWebUi(_chat, _root, skills: null, recorder: recorder, chatFrames: (body, _) => Answer(body));
+        server.Start();
+        using var client = new HttpClient { BaseAddress = new Uri(server.BaseUrl) };
+
+        JsonElement created = await BodyOf(await client.PostAsync("/api/sessions?conversation=new", null));
+        string sessionId = created.GetProperty("sessionId").GetString()!;
+        string conversationId = created.GetProperty("conversationId").GetString()!;
+
+        HttpResponseMessage streamed = await client.PostAsync("/api/chat", new StringContent(
+            $$"""{"sessionId":"{{sessionId}}","messages":[{"role":"user","content":"what is 2 + 2"}]}""",
+            Encoding.UTF8, "application/json"));
+        string frames = await streamed.Content.ReadAsStringAsync();
+
+        // The page still sees every frame: the wrapper reads them, it does not eat them.
+        Assert.Equal("text/event-stream", streamed.Content.Headers.ContentType!.MediaType);
+        Assert.Contains("data: {\"thinking\":\"adding them\"}", frames, StringComparison.Ordinal);
+        Assert.Contains("data: {\"token\":\"It is \"}", frames, StringComparison.Ordinal);
+
+        // And the answer is on disk with no second request having been made, which is
+        // what a relaunch reads.
+        Conversation saved = new ConversationStore(_conversations.Root).Load(conversationId)!;
+        StoredMessage answer = Assert.Single(saved.Messages);
+        Assert.Equal("assistant", answer.Role);
+        Assert.Equal("It is 4.", answer.Content);
+        Assert.Equal("adding them", answer.Thinking);
+
+        // Shaped like the frames the chat service produces: the session id arrives only
+        // on the last one, and it is what tells the wrapper where to file the answer.
+        static async IAsyncEnumerable<object> Answer(JsonElement body)
+        {
+            string sessionId = body.GetProperty("sessionId").GetString()!;
+            yield return new { thinking = "adding them" };
+            yield return new { token = "It is " };
+            await Task.Yield();
+            yield return new { token = "4." };
+            yield return new { done = true, tokenCount = 2, aborted = false, error = (string?)null, sessionId };
+        }
+    }
+
+    [Fact]
     public async Task WithNoSkillRegistryTheSkillsRouteStillAnswersThePage()
     {
         HttpResponseMessage response = await _client.GetAsync("/api/skills");
