@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.Extensions.FileProviders;
 
 namespace TensorSharp.Server.Hosting
 {
@@ -95,17 +92,13 @@ namespace TensorSharp.Server.Hosting
         internal static string Classify(string ext) =>
             Extensions.TryGetValue(ext, out var entry) ? entry.MediaType : "unknown";
 
-        internal static IContentTypeProvider BuildServeContentTypes() =>
-            new FileExtensionContentTypeProvider(Extensions.ToDictionary(
-                kv => kv.Key, kv => kv.Value.ContentType, StringComparer.OrdinalIgnoreCase));
-
-        internal static StaticFileOptions BuildStaticFileOptions(string uploadDirectory) => new()
-        {
-            FileProvider = new PhysicalFileProvider(uploadDirectory),
-            RequestPath = "/uploads",
-            ContentTypeProvider = BuildServeContentTypes(),
-            OnPrepareResponse = ctx =>
-                ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff",
-        };
+        /// <summary>
+        /// The content type <c>/uploads</c> serves each accepted extension back with,
+        /// keyed by extension. Text/code is always <c>text/plain</c>. The static-file
+        /// middleware that consumes this is ASP.NET Core's and lives in the Server
+        /// (<c>UploadStaticFiles</c>); this library only owns the table.
+        /// </summary>
+        internal static IReadOnlyDictionary<string, string> ServeContentTypes { get; } =
+            Extensions.ToDictionary(kv => kv.Key, kv => kv.Value.ContentType, StringComparer.OrdinalIgnoreCase);
     }
 }

@@ -1,0 +1,332 @@
+// Copyright (c) Zhongkai Fu. All rights reserved.
+// https://github.com/zhongkaifu/TensorSharp
+//
+// This file is part of TensorSharp.
+//
+// TensorSharp is licensed under the BSD-3-Clause license found in the LICENSE file in the root directory of this source tree.
+//
+// TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
+
+using System.Text;
+using System.Text.Json;
+using Microsoft.Extensions.Logging.Abstractions;
+using TensorSharp.Chat;
+using TensorSharp.Server.Hosting;
+using TensorSharp.Server.ProtocolAdapters;
+
+namespace InferenceWeb.Tests;
+
+/// <summary>
+/// <see cref="WebUiChatService"/> without a model: the preflight refusals and the
+/// transport-free replies must match what <see cref="WebUiAdapter"/> answered when
+/// the code lived inside it, because the Web UI page — served by the Server and by
+/// the iOS app's loopback server alike — is written against exactly those shapes.
+/// </summary>
+public class WebUiChatServiceTests : IDisposable
+{
+    private readonly string _baseDir;
+
+    public WebUiChatServiceTests()
+    {
+        _baseDir = Path.Combine(Path.GetTempPath(), "ts-webui-service-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_baseDir);
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_baseDir, recursive: true); } catch { /* best effort */ }
+    }
+
+    private ServerHostingOptions Options() => new(
+        startupModelPath: Path.Combine(_baseDir, "models", "foo.gguf"),
+        startupMmProjPath: Path.Combine(_baseDir, "models", "mmproj-foo.gguf"),
+        defaultBackend: "ggml_cpu",
+        supportedBackends: new[] { new BackendOption("ggml_cpu", "GGML CPU") },
+        defaultMaxTokens: 100,
+        maxTokensPinned: false,
+        defaultVideoFrames: 0,
+        defaultVideoFps: 0,
+        defaultVideoWidth: 0,
+        defaultVideoHeight: 0,
+        defaultVideoSteps: 0,
+        defaultVideoMode: null,
+        uploadDirectory: _baseDir,
+        logDirectory: Path.Combine(_baseDir, "logs"),
+        fileLoggingEnabled: false,
+        samplingDefaults: null);
+
+    private sealed record Fixture(
+        WebUiChatService Service,
+        ModelService Model,
+        SessionManager Sessions,
+        UploadStoragePolicy Uploads,
+        ServerHostingOptions Options,
+        SkillRegistry Skills);
+
+    private Fixture Build(UploadStoragePolicy uploads = null)
+    {
+        var model = new ModelService();
+        var sessions = new SessionManager();
+        var options = Options();
+        var skills = new SkillRegistry(new SkillRegistryOptions());
+        uploads ??= new UploadStoragePolicy(_baseDir);
+        var service = new WebUiChatService(
+            model, sessions, options, uploads, skills,
+            codeRunner: null, workspaces: null, codeArtifacts: null,
+            NullLoggerFactory.Instance);
+        return new Fixture(service, model, sessions, uploads, options, skills);
+    }
+
+    /// <summary>Reads one property out of an anonymous payload object as text.</summary>
+    private static string? Field(object payload, string name)
+    {
+        using JsonDocument doc = JsonDocument.Parse(JsonSerializer.Serialize(payload));
+        JsonElement value = doc.RootElement.GetProperty(name);
+        return value.ValueKind == JsonValueKind.String ? value.GetString() : value.ToString();
+    }
+
+    private static JsonElement Json(string json) => JsonSerializer.Deserialize<JsonElement>(json);
+
+    private static async Task<WebUiRequestRejectedException> RejectionOf(IAsyncEnumerable<object> frames)
+    {
+        return await Assert.ThrowsAsync<WebUiRequestRejectedException>(async () =>
+        {
+            await foreach (object _ in frames) { }
+        });
+    }
+
+    // ---- /api/chat preflight -------------------------------------------------
+
+    [Fact]
+    public async Task ChatStream_WithNoModelLoaded_Rejects400BeforeTheFirstFrame()
+    {
+        Fixture f = Build();
+        bool hookFired = false;
+        f.Service.OnChatRequest = (_, _) => hookFired = true;
+
+        var ex = await RejectionOf(f.Service.ChatStreamAsync(
+            Json("""{"messages":[{"role":"user","content":"hi"}]}"""), CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("No model loaded", ex.Message);
+        Assert.Equal("""{"error":"No model loaded"}""", JsonSerializer.Serialize(ex.Payload));
+        Assert.False(hookFired, "OnChatRequest must not fire for a rejected request");
+    }
+
+    [Fact]
+    public async Task ChatStream_ModelNamedInTheBody_IsRefusedBeforeAnythingElse()
+    {
+        Fixture f = Build();
+        Assert.False(WebUiChatPolicy.TryValidateChatRequest("other.gguf", null, out string expected));
+
+        var ex = await RejectionOf(f.Service.ChatStreamAsync(
+            Json("""{"model":"other.gguf","messages":[]}"""), CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal(expected, ex.Message);
+    }
+
+    [Fact]
+    public async Task ChatStream_UnknownSession_Is404()
+    {
+        Fixture f = Build();
+
+        var ex = await RejectionOf(f.Service.ChatStreamAsync(
+            Json("""{"sessionId":"deadbeef","messages":[]}"""), CancellationToken.None));
+
+        Assert.Equal(404, ex.StatusCode);
+        // Compare the payload's VALUES, not its serialized text: System.Text.Json escapes
+        // an apostrophe as \u0027, so a literal comparison would assert the escaping rule
+        // rather than the contract.
+        Assert.Equal("Session 'deadbeef' not found or has been disposed.", Field(ex.Payload, "error"));
+    }
+
+    [Fact]
+    public async Task ChatStream_NewChatOnAKnownSession_ResetsItBeforeTheNoModelRefusal()
+    {
+        Fixture f = Build();
+        ChatSession session = f.Sessions.CreateSession();
+        session.TrackedHistory.Add(new ChatMessage { Role = "user", Content = "earlier" });
+
+        var ex = await RejectionOf(f.Service.ChatStreamAsync(
+            Json($$"""{"sessionId":"{{session.Id}}","newChat":true,"messages":[]}"""), CancellationToken.None));
+
+        // The refusal order is the adapter's: session lookup and reset come before the
+        // model check, so a New Chat on a model-less server still clears the desk.
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Empty(session.TrackedHistory);
+    }
+
+    // ---- sessions and models ---------------------------------------------------
+
+    [Fact]
+    public void GetModels_MatchesTheAdapterByteForByte()
+    {
+        Fixture f = Build();
+        var adapter = new WebUiAdapter(
+            f.Model, new InferenceQueue(), f.Sessions, f.Options, f.Uploads, f.Skills,
+            codeRunner: null, workspaces: null, codeArtifacts: null, NullLoggerFactory.Instance);
+
+        var result = adapter.GetModels();
+        object adapterValue = result.GetType().GetProperty("Value")?.GetValue(result);
+        string viaAdapter = JsonSerializer.Serialize(adapterValue);
+        string viaService = JsonSerializer.Serialize(f.Service.GetModels());
+
+        Assert.Equal(viaService, viaAdapter);
+        using var doc = JsonDocument.Parse(viaService);
+        JsonElement root = doc.RootElement;
+        Assert.Equal("foo.gguf", root.GetProperty("models")[0].GetString());
+        Assert.Equal("mmproj-foo.gguf", root.GetProperty("mmProjModels")[0].GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("loaded").ValueKind);
+        Assert.Equal("ggml_cpu", root.GetProperty("defaultBackend").GetString());
+        Assert.Equal("ggml_cpu", root.GetProperty("supportedBackends")[0].GetProperty("Value").GetString());
+        Assert.Equal(100, root.GetProperty("defaultMaxTokens").GetInt32());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("video").ValueKind);
+        Assert.True(root.GetProperty("skills").GetProperty("enabled").GetBoolean());
+        Assert.DoesNotContain(_baseDir, viaService);
+    }
+
+    [Fact]
+    public void QueueStatus_IsIdleBeforeAnyRequest_AndCarriesTheLegacyCount()
+    {
+        Fixture f = Build();
+
+        Assert.Equal(
+            """{"busy":false,"processing":0,"pending_requests":0,"total_processed":7}""",
+            JsonSerializer.Serialize(f.Service.GetQueueStatus(7)));
+    }
+
+    [Fact]
+    public async Task Sessions_CreateThenDispose_RoundTripsThroughTheContract()
+    {
+        Fixture f = Build();
+
+        using var created = JsonDocument.Parse(JsonSerializer.Serialize(f.Service.CreateSession()));
+        string id = created.RootElement.GetProperty("sessionId").GetString();
+        Assert.Equal(32, id.Length);
+        Assert.True(DateTime.TryParse(created.RootElement.GetProperty("createdAt").GetString(), out _));
+        Assert.NotNull(f.Sessions.GetSession(id));
+
+        string disposed = JsonSerializer.Serialize(await f.Service.DisposeSessionAsync(id, CancellationToken.None));
+        Assert.Equal($$"""{"ok":true,"sessionId":"{{id}}"}""", disposed);
+        Assert.Null(f.Sessions.TryRemove(id));
+
+        var again = await Assert.ThrowsAsync<WebUiRequestRejectedException>(
+            () => f.Service.DisposeSessionAsync(id, CancellationToken.None));
+        Assert.Equal(404, again.StatusCode);
+        Assert.False(bool.Parse(Field(again.Payload, "ok")!));
+        Assert.Equal($"Session '{id}' not found.", Field(again.Payload, "error"));
+
+        var theDefault = await Assert.ThrowsAsync<WebUiRequestRejectedException>(
+            () => f.Service.DisposeSessionAsync(SessionManager.DefaultSessionId, CancellationToken.None));
+        Assert.Equal(400, theDefault.StatusCode);
+        Assert.False(bool.Parse(Field(theDefault.Payload, "ok")!));
+        Assert.Equal("Cannot dispose the default session.", Field(theDefault.Payload, "error"));
+    }
+
+    [Fact]
+    public async Task LoadModel_NamingAFileThatIsNotHosted_Is400WithTheOkFalseShape()
+    {
+        Fixture f = Build();
+
+        var ex = await Assert.ThrowsAsync<WebUiRequestRejectedException>(
+            () => f.Service.LoadModelAsync(Json("""{"model":"other.gguf"}"""), CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(ex.Payload));
+        Assert.False(doc.RootElement.GetProperty("ok").GetBoolean());
+        Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("error").GetString()));
+    }
+
+    // ---- upload ----------------------------------------------------------------
+
+    [Fact]
+    public async Task Upload_SmallTextFile_ReturnsTheTextContractAndKeepsTheFile()
+    {
+        Fixture f = Build();
+        byte[] bytes = Encoding.UTF8.GetBytes("hello, world");
+        using var stream = new MemoryStream(bytes);
+
+        object reply = await f.Service.UploadAsync(stream, "notes.txt", bytes.Length, CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(reply));
+        JsonElement root = doc.RootElement;
+        Assert.True(root.GetProperty("ok").GetBoolean());
+        Assert.Equal("text", root.GetProperty("mediaType").GetString());
+        Assert.Equal("notes.txt", root.GetProperty("fileName").GetString());
+        Assert.Equal("hello, world", root.GetProperty("textContent").GetString());
+        Assert.False(root.GetProperty("truncated").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("modelContextLimit").ValueKind);
+        string file = root.GetProperty("file").GetString();
+        Assert.EndsWith(".txt", file);
+        Assert.Equal("/uploads/" + file, root.GetProperty("url").GetString());
+        Assert.Equal("hello, world", File.ReadAllText(Path.Combine(_baseDir, file)));
+        Assert.Equal(bytes.Length, f.Uploads.UsedBytes);
+        // The property ORDER is part of the contract the page reads; pin it.
+        Assert.Equal(
+            new[]
+            {
+                "ok", "file", "url", "mediaType", "fileName", "textContent", "truncated",
+                "truncateLimit", "truncateUnit", "modelContextLimit", "originalTokenCount", "returnedTokenCount",
+            },
+            root.EnumerateObject().Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task Upload_UnsupportedExtension_Is400WritesNothingAndReturnsTheReservation()
+    {
+        Fixture f = Build();
+        using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+
+        var ex = await Assert.ThrowsAsync<WebUiRequestRejectedException>(
+            () => f.Service.UploadAsync(stream, "tool.exe", 3, CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Contains("'.exe'", ex.Message);
+        Assert.Equal(0, f.Uploads.UsedBytes);
+        Assert.Empty(Directory.GetFiles(_baseDir));
+    }
+
+    [Fact]
+    public async Task Upload_OverThePerFileCap_Is413()
+    {
+        Fixture f = Build(new UploadStoragePolicy(_baseDir, maxFileBytes: 4));
+        using var stream = new MemoryStream(new byte[10]);
+
+        var ex = await Assert.ThrowsAsync<WebUiRequestRejectedException>(
+            () => f.Service.UploadAsync(stream, "big.txt", 10, CancellationToken.None));
+
+        Assert.Equal(413, ex.StatusCode);
+        Assert.Empty(Directory.GetFiles(_baseDir));
+    }
+
+    // ---- refusals shared with the image / video routes --------------------------
+
+    [Fact]
+    public void ImageEditAndVideo_WithoutTheRightModel_AreRefusedWithTheAdapterMessages()
+    {
+        Fixture f = Build();
+
+        var edit = Assert.Throws<WebUiRequestRejectedException>(() => f.Service.EnsureImageEditAvailable());
+        Assert.Equal(400, edit.StatusCode);
+        Assert.Equal("""{"error":"The loaded model is not a Qwen-Image-Edit model."}""", JsonSerializer.Serialize(edit.Payload));
+
+        var video = Assert.Throws<WebUiRequestRejectedException>(() => f.Service.EnsureVideoGenerationAvailable());
+        Assert.Equal(400, video.StatusCode);
+        Assert.Equal("""{"error":"The loaded model is not a video-generation model."}""", JsonSerializer.Serialize(video.Payload));
+    }
+
+    [Fact]
+    public async Task ImageEditStream_WithoutTheModel_IsOneDoneErrorFrame()
+    {
+        Fixture f = Build();
+        var frames = new List<object>();
+
+        await foreach (object frame in f.Service.ImageEditStreamAsync(Json("""{"prompt":"x"}"""), CancellationToken.None))
+            frames.Add(frame);
+
+        Assert.Single(frames);
+        Assert.Equal("""{"done":true,"error":"The loaded model is not a Qwen-Image-Edit model."}""", JsonSerializer.Serialize(frames[0]));
+    }
+}

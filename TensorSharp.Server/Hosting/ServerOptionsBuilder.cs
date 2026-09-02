@@ -62,7 +62,7 @@ namespace TensorSharp.Server.Hosting
             string backendInput = configuredBackend ?? Environment.GetEnvironmentVariable("BACKEND");
             string requestedBackend = backendInput ?? (OperatingSystem.IsMacOS() ? "ggml_metal" : "ggml_cpu");
 
-            var supportedBackends = BackendCatalog.GetSupportedBackends().ToArray();
+            var supportedBackends = BackendCatalogProbes.GetSupportedBackends().ToArray();
             string defaultBackend = BackendCatalog.ResolveDefaultBackend(requestedBackend, supportedBackends);
 
             bool maxTokensPinned = configuredMaxTokens.HasValue;

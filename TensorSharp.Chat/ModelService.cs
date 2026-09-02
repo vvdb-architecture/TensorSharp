@@ -14,6 +14,7 @@ using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using TensorSharp.Runtime.Scheduling;
 using TensorSharp.Server.Skills;
 
 namespace TensorSharp.Server
@@ -96,6 +97,33 @@ namespace TensorSharp.Server
         /// want to manage their own session bookkeeping).</summary>
         public InferenceEngineHost EngineHost => _engineHost;
 
+        /// <summary>
+        /// Builds the on-node tensor-parallel group a model load shards across, or null
+        /// (the default) for a single-node load. Hosts that carry TensorSharp.Distributed
+        /// (the Server, the CLI) set it; this library does not reference that assembly,
+        /// so a host without peers — or without a CUDA backend to link — never pays for it.
+        /// Read at load time: set it before <see cref="LoadModel"/>.
+        /// </summary>
+        public Func<BackendType, ITensorParallelGroup> TensorParallelGroupFactory
+        {
+            get => _lifecycle.TensorParallelGroupFactory;
+            set => _lifecycle.TensorParallelGroupFactory = value;
+        }
+
+        /// <summary>
+        /// Sizing for the continuous-batching engine built lazily on the first request
+        /// (paged KV pool, batch limits, speculation). Null (the default) keeps
+        /// <see cref="SchedulerConfig.FromEnvironment"/>, i.e. the TS_SCHED_* variables;
+        /// a host with no shell to set them in — an app sizing the KV pool against its
+        /// memory budget — supplies the config directly. Applies to the next engine
+        /// construction, so set it before the first request or before a model load.
+        /// </summary>
+        public SchedulerConfig SchedulerConfigOverride
+        {
+            get => _engineHost.SchedulerConfigOverride;
+            set => _engineHost.SchedulerConfigOverride = value;
+        }
+
         public void LoadModel(string modelPath, string mmProjPath, string backendStr)
         {
             // Tear down the per-model engine and the diffusion batch scheduler BEFORE the model is
@@ -104,6 +132,21 @@ namespace TensorSharp.Server
             _generation.ResetDiffusionScheduler();
             _intrinsicSession.TrackedHistory.Clear();
             _lifecycle.LoadModel(modelPath, mmProjPath, backendStr);
+        }
+
+        /// <summary>
+        /// Release the loaded model without loading another, in the same order a swap
+        /// uses: the engine and the diffusion scheduler go first (their worker threads
+        /// must not race the model's disposal), then the intrinsic history, then the
+        /// weights. A no-op when nothing is loaded. Exists so a host under memory
+        /// pressure can free the model and keep the service, sessions and skills.
+        /// </summary>
+        public void UnloadModel()
+        {
+            _engineHost.Reset();
+            _generation.ResetDiffusionScheduler();
+            _intrinsicSession.TrackedHistory.Clear();
+            _lifecycle.Unload();
         }
 
         /// <summary>

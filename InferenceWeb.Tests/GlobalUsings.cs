@@ -5,3 +5,4 @@ global using TensorSharp.AgentHost.Skills;
 global using TensorSharp.Runtime.Speculative;
 global using TensorSharp.Server;
 global using TensorSharp.Server.Logging;
+global using TensorSharp.Chat;
