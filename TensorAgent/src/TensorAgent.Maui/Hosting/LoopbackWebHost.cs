@@ -97,6 +97,9 @@ public sealed class LoopbackWebHost : IDisposable
         {
             DeviceMemoryGB = DeviceMemoryGigabytes(),
             BundledSkillsDirectory = Path.Combine(NSBundle.MainBundle.BundlePath, "skills"),
+            // The interpreter's standard library is staged into the bundle beside the
+            // Python framework, which is where PyConfig's module search paths point.
+            PythonRuntimeDirectory = NSBundle.MainBundle.BundlePath,
         };
     }
 

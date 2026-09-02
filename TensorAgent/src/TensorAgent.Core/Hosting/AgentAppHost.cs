@@ -15,6 +15,7 @@ using TensorAgent.Core.JavaScript;
 using TensorAgent.Core.Python;
 using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Settings;
+using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Shell;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
@@ -50,8 +51,8 @@ public sealed class AgentAppHost : IDisposable
     /// <param name="paths">Where this installation keeps its files.</param>
     /// <param name="webRoot">The bundled copy of the Web UI, or null to serve no static files.</param>
     /// <param name="loggerFactory">Where the engine and the code runner log.</param>
-    /// <param name="python">The embedded Python, when this build has one.</param>
-    /// <param name="javaScript">The embedded JavaScript engine, when this build has one.</param>
+    /// <param name="python">An interpreter to use instead of the default; null discovers one.</param>
+    /// <param name="javaScript">An engine to use instead of the default; null discovers one.</param>
     /// <param name="port">A fixed loopback port, or 0 to take a free one.</param>
     public AgentAppHost(
         AgentPaths paths,
@@ -87,7 +88,23 @@ public sealed class AgentAppHost : IDisposable
         Workspaces = new SessionWorkspaceManager(paths.ScratchDirectory, _loggerFactory.CreateLogger("TensorAgent.Workspaces"));
         Workspaces.SweepOrphans();
 
-        Backend = new InProcessShellBackend(python, javaScript);
+        // Both runtimes are discovered rather than required. Each reports its own
+        // availability with a reason, the shell repeats that reason when a model tries
+        // to use one, and the engine line says so before anything is attempted — so a
+        // build without an interpreter is a build that says it has no interpreter,
+        // never one that fails halfway through a script.
+        Python = python ?? Discover(() => new EmbeddedPython(paths.PythonRuntimeDirectory));
+        JavaScript = javaScript ?? Discover(() => new JavaScriptCoreEngine());
+        // The installer's own policy answers "can this app install anything at all",
+        // which is the user's network switch; each individual install is re-checked
+        // against the policy of the launch that asked for it.
+        Installer = new WheelInstaller(new ExecutionPolicy(
+            AllowScripts: settings.AllowCodeExecution,
+            AllowNetwork: settings.AllowNetwork,
+            WorkRoot: paths.ScratchDirectory,
+            ReadableRoots: Array.Empty<string>(),
+            TempRoot: paths.ScratchDirectory));
+        Backend = new InProcessShellBackend(Python, JavaScript, Installer);
         Artifacts = new CodeArtifactStore(paths.ArtifactsDirectory);
         ShellRunner runner = new(
             CodeExec,
@@ -139,6 +156,9 @@ public sealed class AgentAppHost : IDisposable
     public CodeExecOptions CodeExec { get; }
     public SessionWorkspaceManager Workspaces { get; }
     public InProcessShellBackend Backend { get; }
+    public IPythonRuntime? Python { get; }
+    public IJavaScriptRuntime? JavaScript { get; }
+    public IInstallHook? Installer { get; }
     public CodeArtifactStore Artifacts { get; }
     public ICodeRunner? CodeRunner { get; }
     public SkillRegistry Skills { get; }
@@ -179,6 +199,106 @@ public sealed class AgentAppHost : IDisposable
         parts.Add(CodeExec.AllowNetwork ? "network on" : "network off");
         parts.Add($"{Skills.Skills.Count} skills");
         return string.Join(" · ", parts);
+    }
+
+    /// <summary>
+    /// Run a handful of representative commands through the real backend and report
+    /// what each did.
+    ///
+    /// <para>
+    /// It exists because the interesting failures on this platform are not compile
+    /// errors. An interpreter that links but cannot find its standard library, a
+    /// sandbox that refuses a path it should allow, a shell builtin that behaves
+    /// differently under ahead-of-time compilation — all of those produce an app that
+    /// starts perfectly and then fails the first time a model tries to do anything.
+    /// This turns that into a line in the launch log.
+    /// </para>
+    /// <para>
+    /// It runs the checks under the app's real policy, in a throwaway directory, and
+    /// it never runs on its own: the caller decides. Nothing here writes outside that
+    /// directory, and the network check is expected to be refused.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<SelfTestResult> SelfTest()
+    {
+        string root = Path.Combine(Paths.ScratchDirectory, "selftest-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(root);
+        try
+        {
+            return new[]
+            {
+                Check("shell", new[] { "sh", "-c", "echo hello | tr a-z A-Z" }, root, "HELLO"),
+                Check("shell:files", new[] { "sh", "-c", "printf 'b\na\n' > f.txt && sort f.txt | tr -d '\n'" }, root, "ab"),
+                Check("shell:awk", new[] { "sh", "-c", "echo 'x 2' | awk '{print $2*3}'" }, root, "6"),
+                Check("python", new[] { "python3", "-c", "import sys, json; print(json.dumps({'v': sys.version_info[:2]}))" }, root, "[3, 13]"),
+                Check("python:stdlib", new[] { "python3", "-c", "import re, zipfile, sqlite3; print('stdlib ok')" }, root, "stdlib ok"),
+                // The packages the bundled skills import. A staged wheel whose compiled
+                // extension did not make it into the bundle imports fine on a laptop
+                // and fails here, which is exactly the failure this catches.
+                Check("python:numpy", new[] { "python3", "-c", "import numpy; print(numpy.arange(3).sum())" }, root, "3"),
+                Check("python:pillow", new[] { "python3", "-c", "from PIL import Image; print(Image.new('RGB', (2, 2)).size)" }, root, "(2, 2)"),
+                Check("node", new[] { "node", "-e", "console.log([1,2,3].map(n => n * 2).join(','))" }, root, "2,4,6"),
+                Check("node:print", new[] { "node", "-p", "1 + 1" }, root, "2"),
+                Check("sandbox:write", new[] { "sh", "-c", "echo x > /tmp/tensoragent-selftest-escape" }, root, expectFailure: true),
+                Check("sandbox:network", new[] { "sh", "-c", "curl https://example.com" }, root, expectFailure: true),
+            };
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch (Exception) { /* scratch */ }
+        }
+    }
+
+    private SelfTestResult Check(string name, string[] argv, string root, string? expected = null, bool expectFailure = false)
+    {
+        try
+        {
+            ConfinedResult result = ((IShellBackend)Backend).Run(new ShellLaunch
+            {
+                Argv = argv,
+                WorkingDirectory = root,
+                WriteDirectory = root,
+                ReadOnlyDirectory = root,
+                AllowNetwork = false,
+                Timeout = TimeSpan.FromSeconds(30),
+            });
+
+            string output = (result.Stdout + result.Stderr).Trim();
+            bool ok = expectFailure
+                ? !result.Ok
+                : result.Ok && (expected is null || output.Contains(expected, StringComparison.Ordinal));
+
+            // A Python traceback puts the useful sentence last and the useless frames
+            // first, so a failure is reported from the end. A one-line log entry that
+            // says "Traceback (most recent call last):" and nothing else is worthless.
+            string detail = ok || !output.Contains('\n')
+                ? output
+                : output[(output.LastIndexOf('\n') + 1)..];
+            return new SelfTestResult(name, ok, detail.Length > 240 ? detail[..240] + "…" : detail);
+        }
+        catch (Exception ex)
+        {
+            return new SelfTestResult(name, false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Build a runtime, and treat "it could not be built" as an absence rather than
+    /// as a crash. A missing framework, a bundle staged without its interpreter or a
+    /// platform that has neither must cost the app its scripting, not its startup.
+    /// </summary>
+    private T? Discover<T>(Func<T> build) where T : class
+    {
+        try
+        {
+            return build();
+        }
+        catch (Exception ex)
+        {
+            _loggerFactory.CreateLogger("TensorAgent.Runtimes")
+                .LogWarning(ex, "{Runtime} is not available on this host", typeof(T).Name);
+            return null;
+        }
     }
 
     private static ServerHostingOptions BuildOptions(AgentPaths paths, AppSettings settings) => new(
@@ -223,6 +343,12 @@ public sealed class AgentAppHost : IDisposable
     }
 }
 
+/// <summary>One self-test check: what was tried, whether it behaved, and what it said.</summary>
+public sealed record SelfTestResult(string Name, bool Ok, string Detail)
+{
+    public override string ToString() => $"{(Ok ? "ok  " : "FAIL")} {Name}: {Detail}";
+}
+
 /// <summary>
 /// Where this installation keeps its files.
 ///
@@ -247,6 +373,13 @@ public sealed record AgentPaths(string DataRoot, string CacheRoot)
     public string LogsDirectory => Path.Combine(CacheRoot, "logs");
     public string InstalledSkillsDirectory => Path.Combine(DataRoot, "skills");
     public string BundledSkillsDirectory { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Where the bundled CPython lives: the directory holding <c>python/</c> and the
+    /// extension frameworks. Empty when this build ships no interpreter, which the
+    /// runtime reports as unavailable rather than failing to construct.
+    /// </summary>
+    public string PythonRuntimeDirectory { get; init; } = string.Empty;
     public string SettingsFile => Path.Combine(DataRoot, "settings.json");
 
     public void EnsureCreated()

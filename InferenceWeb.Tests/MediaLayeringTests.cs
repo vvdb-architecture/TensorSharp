@@ -135,6 +135,87 @@ public class MediaLayeringTests
         Assert.Contains("'$(TargetPlatformIdentifier)' == 'ios'", (string?)removal!.Parent?.Attribute("Condition") ?? string.Empty);
     }
 
+    /// <summary>
+    /// Every source under <c>Media/Apple/</c> is wrapped in <c>#if IOS || MACCATALYST</c>.
+    ///
+    /// <para>Without the guard the file compiles into the net10.0 build, where its
+    /// <c>using AVFoundation;</c> does not resolve — that much fails loudly. The reason this
+    /// test exists is the quieter case: a new Apple-folder file that happens to use no Apple
+    /// types would compile on desktop, and a module initializer or a registration in it would
+    /// then run on a server. The provider is registered by a module initializer, so "compiles
+    /// on desktop" and "hijacks MediaCodecs on desktop" are the same thing.</para>
+    /// </summary>
+    [Fact]
+    public void EverySourceUnderMediaApple_IsGatedToApplePlatforms()
+    {
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+            return;
+
+        string apple = Path.Combine(repoRoot, "TensorSharp.Models", "Media", "Apple");
+        Assert.True(Directory.Exists(apple), $"{apple} is missing; the iOS media provider lives there");
+
+        var files = Directory.EnumerateFiles(apple, "*.cs", SearchOption.AllDirectories).ToList();
+        Assert.NotEmpty(files);
+        foreach (string file in files)
+        {
+            string text = File.ReadAllText(file);
+            Assert.True(
+                text.Contains("#if IOS || MACCATALYST", StringComparison.Ordinal),
+                $"{Path.GetFileName(file)} is not gated with '#if IOS || MACCATALYST'");
+            Assert.True(
+                text.TrimEnd().EndsWith("#endif", StringComparison.Ordinal),
+                $"{Path.GetFileName(file)} does not close its platform guard at the end of the file");
+        }
+    }
+
+    /// <summary>
+    /// The iOS provider's on-device probe and the simulator harness that fails on it agree
+    /// about which checks exist.
+    ///
+    /// <para><c>Media/Apple/</c> compiles only for <c>net10.0-ios</c>, so no test in this
+    /// net10.0 assembly can execute a line of it — <see cref="MediaProviderParityTests"/> pins
+    /// the contract against the two providers that do run here, and
+    /// <c>TensorAgent.Maui.Hosting.MediaProbe</c> runs it for real on the device.
+    /// <c>scripts/verify-sim.sh</c> is what turns that into a failure rather than a log line,
+    /// and it matches on the check names — so a check renamed on one side and not the other
+    /// would silently stop being verified. This is the guard for that.</para>
+    /// </summary>
+    [Fact]
+    public void TheOnDeviceMediaProbe_AndTheSimulatorHarness_ListTheSameChecks()
+    {
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+            return;
+
+        string probe = Path.Combine(repoRoot, "TensorAgent", "src", "TensorAgent.Maui", "Hosting", "MediaProbe.cs");
+        string verify = Path.Combine(repoRoot, "TensorAgent", "scripts", "verify-sim.sh");
+        string program = Path.Combine(repoRoot, "TensorAgent", "src", "TensorAgent.Maui", "MauiProgram.cs");
+        if (!File.Exists(probe) || !File.Exists(verify) || !File.Exists(program))
+            return;
+
+        // The app installs the provider before anything can decode, and runs the probe.
+        string mauiProgram = File.ReadAllText(program);
+        Assert.Contains("AppleMediaProvider.Register()", mauiProgram);
+        Assert.Contains("MediaProbe.Run()", mauiProgram);
+
+        var declared = new SortedSet<string>(
+            Regex.Matches(File.ReadAllText(probe), @"(?<![A-Za-z])Check\(""(?<name>[a-z0-9-]+)""")
+                .Select(m => m.Groups["name"].Value));
+        Assert.NotEmpty(declared);
+
+        // The HEIC and orientation checks are the reason the provider exists; losing either
+        // would leave the interesting half of it unverified on every platform.
+        Assert.Contains("heic-decode", declared);
+        Assert.Contains("exif-orientation", declared);
+
+        Match loop = Regex.Match(File.ReadAllText(verify), @"for CHECK in (?<names>[a-z0-9 -]+); do");
+        Assert.True(loop.Success, "verify-sim.sh no longer iterates the media probe's checks");
+        var verified = new SortedSet<string>(loop.Groups["names"].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        Assert.Equal(declared, verified);
+    }
+
     private static string? FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

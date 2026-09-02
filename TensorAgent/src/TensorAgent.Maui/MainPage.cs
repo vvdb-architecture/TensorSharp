@@ -349,6 +349,16 @@ public sealed class MainPage : ContentPage
                 $"{probe.Backend} · GgmlOps {(probe.MainProgramHandleResolved ? "linked" : "NOT linked")}" +
                 $" · {probe.GpuName ?? "no Metal device"} · :{_host.Port}";
             _webView.Source = new UrlWebViewSource { Url = _host.EntryUrl };
+#if DEBUG
+            // What the launch log cannot tell you otherwise: whether the interpreters
+            // that linked can actually run, and whether the sandbox refuses what it
+            // must. Debug only, off the UI thread, into a throwaway directory.
+            _ = Task.Run(() =>
+            {
+                foreach (Core.Hosting.SelfTestResult check in _host.App.SelfTest())
+                    Console.WriteLine("TensorAgent: selftest " + check);
+            });
+#endif
         }
         catch (Exception ex)
         {

@@ -62,6 +62,11 @@ public sealed class EmbeddedPython : IPythonRuntime
     public EmbeddedPython(string? runtimeRoot = null)
     {
         _root = runtimeRoot;
+        // Constructing with a root is the same promise as Configure: this is where
+        // the app's own signed extension modules live, and the only tree the audit
+        // hook will allow a dlopen from.
+        if (!string.IsNullOrEmpty(runtimeRoot))
+            PythonBootstrap.BundleRoot ??= runtimeRoot;
     }
 
     /// <summary>
@@ -87,6 +92,10 @@ public sealed class EmbeddedPython : IPythonRuntime
         {
             s_configuredRoot = runtimeRoot;
             s_configuredPaths = extraModulePaths?.ToArray() ?? [];
+            // The audit hook lets a run dlopen only from inside this tree, because
+            // every compiled extension module on iOS is a signed framework the
+            // import machinery loads that way. Without it, `import numpy` is refused.
+            PythonBootstrap.BundleRoot = runtimeRoot;
         }
     }
 

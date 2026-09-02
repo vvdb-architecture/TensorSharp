@@ -226,7 +226,7 @@ namespace TensorSharp.Models.MiniMaxH3
                 w = Snap((int)Math.Round(image.Width * scale));
                 h = Snap((int)Math.Round(image.Height * scale));
             }
-            return w == image.Width && h == image.Height ? image : ImageIO.Resize(image, w, h);
+            return w == image.Width && h == image.Height ? image : QwenImage.ImageIO.Resize(image, w, h);
         }
 
         private static int Snap(int v)
@@ -381,7 +381,7 @@ namespace TensorSharp.Models.MiniMaxH3
                 ? null
                 : second.Width == fitted.Width && second.Height == fitted.Height
                     ? second
-                    : ImageIO.Resize(second, fitted.Width, fitted.Height);
+                    : QwenImage.ImageIO.Resize(second, fitted.Width, fitted.Height);
             float[] patches = Patchify(fitted, fittedSecond, out int gridH, out int gridW);
             int tokens = gridH * gridW;
             int merged = tokens / (SpatialMerge * SpatialMerge);

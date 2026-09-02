@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using ImageMagick;
+using ImageMagick.Drawing;
 using StbImageSharp;
 using TensorSharp.Models.Media;
 using TensorSharp.Models.Media.Desktop;
@@ -347,7 +348,11 @@ public class MediaProviderContractTests : IDisposable
         Assert.Equal(n, viaProvider.SampleCount);
         Assert.Equal(viaAudioIO.Channels[0], viaProvider.Channels[0]);
         Assert.Equal(viaAudioIO.Channels[1], viaProvider.Channels[1]);
-        Assert.InRange(viaProvider.Channels[0][n / 4], 0.4f, 0.55f);
+        // The tone survives the 16-bit round trip at the amplitude it was written with. Checked
+        // as the peak over the buffer, not the sample at n/4: 440 Hz at 22050 Hz is ~50 samples
+        // per period, so index 551 is an arbitrary point on the sine, not its crest.
+        Assert.Equal(0.5f, viaProvider.Channels[0].Max(Math.Abs), precision: 3);
+        Assert.Equal(0.25f, viaProvider.Channels[1].Max(Math.Abs), precision: 3);
 
         // The rate-conforming entry point still serves the model pipelines.
         DecodedAudio mono16k = AudioIO.Decode(wav, 16000, 1);

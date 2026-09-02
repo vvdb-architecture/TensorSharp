@@ -28,7 +28,8 @@ namespace TensorAgent.Core.JavaScript;
 /// <c>JSEvaluateScript</c>, <c>JSObjectMakeFunctionWithCallback</c> — is plain
 /// P/Invoke. The same framework sits at the same path on macOS, so every line of
 /// this runs under <c>dotnet test</c> on a developer's machine rather than only on
-/// a device.
+/// a device, with <see cref="JsCore"/> settling the one VM option that makes the
+/// two behave alike.
 /// </para>
 ///
 /// <para>
@@ -49,9 +50,12 @@ namespace TensorAgent.Core.JavaScript;
 /// <c>JSContextRefPrivate.h</c> but present in the shipping framework — which arms
 /// a watchdog that terminates any single entry into the VM that overruns. This
 /// engine probes for that symbol at run time and uses it when it is there, which
-/// makes the timeout real; there is a test that proves an infinite loop comes
-/// back. When the symbol is missing the engine says the script is still running
-/// and that it cannot preempt it, and does not pretend to have killed anything.
+/// makes the timeout real; there is a test that proves an empty
+/// <c>while (true) {}</c> comes back on the deadline. Whether running code
+/// NOTICES the watchdog is a second question with a surprising answer — see
+/// <c>JsCore.UsePollingTraps</c>, which is what keeps this working under a JIT.
+/// When the symbol is missing the engine says the script is still running and
+/// that it cannot preempt it, and does not pretend to have killed anything.
 /// </para>
 /// </summary>
 public sealed class JavaScriptCoreEngine : IJavaScriptRuntime
@@ -82,7 +86,7 @@ public sealed class JavaScriptCoreEngine : IJavaScriptRuntime
     {
         try
         {
-            JsCore.EnsureResolver();
+            JsCore.EnsureInitialized();
             IntPtr group = JsCore.JSContextGroupCreate();
             if (group == IntPtr.Zero)
                 return (false, "JavaScriptCore loaded but JSContextGroupCreate returned null");
@@ -272,6 +276,11 @@ public sealed class JavaScriptCoreEngine : IJavaScriptRuntime
 
         if (first != completion.Task)
         {
+            // A cancelled run is not a timed-out run; the caller asked for it to
+            // stop and gets the exception it asked for. The JavaScript thread is a
+            // background thread and ends at its own deadline.
+            cancellationToken.ThrowIfCancellationRequested();
+
             // The watchdog should have ended this already. Reaching here means it
             // was unavailable, or the thread is inside a host call rather than
             // inside JavaScript. Either way it has NOT been stopped, and saying so

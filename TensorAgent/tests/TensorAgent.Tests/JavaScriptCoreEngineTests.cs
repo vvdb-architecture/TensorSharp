@@ -609,21 +609,55 @@ public sealed class JavaScriptCoreEngineTests : IDisposable
             "JSContextGroupSetExecutionTimeLimit did not resolve; the engine cannot stop a runaway script on this host");
     }
 
-    [Fact]
-    public void ARunawayLoopIsActuallyStopped()
+    /// <summary>
+    /// The one that matters. An empty <c>while (true) {}</c> allocates nothing,
+    /// calls nothing and never leaves optimized code, so nothing but a real
+    /// interrupt can end it — which is exactly why it is the loop worth testing.
+    /// </summary>
+    [Theory]
+    [InlineData("while (true) {}")]
+    [InlineData("let n = 0; while (true) { n++; }")]
+    [InlineData("while (true) { Math.sqrt(2); }")]
+    [InlineData("const a = []; while (true) { a.length = 0; a.push(1); }")]
+    public void ARunawayLoopIsActuallyStopped(string code)
     {
         var clock = Stopwatch.StartNew();
-        ExecutionResult result = Eval("let n = 0; while (true) { n++; }",
+        ExecutionResult result = Eval(code, Context(timeout: TimeSpan.FromSeconds(1)));
+        clock.Stop();
+
+        Assert.True(result.TimedOut, "the run should have reported a timeout: " + result.Stderr);
+        Assert.Equal(ExecutionResult.TimeoutExitCode, result.ExitCode);
+        // Interrupted ON the deadline, not merely abandoned two seconds past it.
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2),
+            $"the loop was not interrupted at the deadline: {clock.Elapsed} / {result.Stderr}");
+        Assert.Contains("stopped by JavaScriptCore's execution watchdog", result.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("cannot preempt", result.Stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ARunawayLoopInsideATimerIsAlsoStopped()
+    {
+        var clock = Stopwatch.StartNew();
+        ExecutionResult result = Eval("setTimeout(() => { while (true) {} }, 1);",
             Context(timeout: TimeSpan.FromSeconds(1)));
         clock.Stop();
 
-        Assert.True(result.TimedOut);
+        Assert.True(result.TimedOut, result.Stderr);
         Assert.Equal(ExecutionResult.TimeoutExitCode, result.ExitCode);
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), $"the loop was not interrupted promptly: {clock.Elapsed}");
-        if (_engine.CanInterruptRunawayScripts)
-            Assert.Contains("watchdog", result.Stderr, StringComparison.Ordinal);
-        else
-            Assert.Contains("cannot preempt it", result.Stderr, StringComparison.Ordinal);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"took {clock.Elapsed}");
+    }
+
+    [Fact]
+    public void ARunawayLoopInsideARequiredModuleIsStopped()
+    {
+        Write("spin.js", "while (true) {}\n");
+        Write("main.js", "require('./spin');\n");
+        var clock = Stopwatch.StartNew();
+        ExecutionResult result = RunFile("main.js", context: Context(timeout: TimeSpan.FromSeconds(1)));
+        clock.Stop();
+
+        Assert.True(result.TimedOut, result.Stderr);
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(2), $"took {clock.Elapsed}");
     }
 
     // ---- network -----------------------------------------------------------------------
@@ -677,19 +711,28 @@ public sealed class JavaScriptCoreEngineTests : IDisposable
     // ---- syntax check ------------------------------------------------------------------
 
     [Fact]
-    public void SyntaxCheckPassesOnValidSource()
+    public async Task SyntaxCheckPassesOnValidSource()
     {
         string path = Write("ok.js", "const a = 1;\nmodule.exports = a;\n");
-        SyntaxCheckResult result = _engine.CheckSyntaxAsync(path, CancellationToken.None).GetAwaiter().GetResult();
+        SyntaxCheckResult result = await _engine.CheckSyntaxAsync(path, CancellationToken.None);
         Assert.True(result.Ok, result.Message);
         Assert.Null(result.Message);
     }
 
     [Fact]
-    public void SyntaxCheckReportsPathAndLine()
+    public async Task SyntaxCheckAcceptsATopLevelReturn()
+    {
+        // Legal in a CommonJS module, so `node --check` accepts it and so does this.
+        string path = Write("early.js", "if (process.env.SKIP) { return; }\nmodule.exports = 1;\n");
+        SyntaxCheckResult result = await _engine.CheckSyntaxAsync(path, CancellationToken.None);
+        Assert.True(result.Ok, result.Message);
+    }
+
+    [Fact]
+    public async Task SyntaxCheckReportsPathAndLine()
     {
         string path = Write("broken.js", "const a = 1;\nconst b = ;\nconst c = 3;\n");
-        SyntaxCheckResult result = _engine.CheckSyntaxAsync(path, CancellationToken.None).GetAwaiter().GetResult();
+        SyntaxCheckResult result = await _engine.CheckSyntaxAsync(path, CancellationToken.None);
 
         Assert.False(result.Ok);
         Assert.NotNull(result.Message);
@@ -711,6 +754,33 @@ public sealed class JavaScriptCoreEngineTests : IDisposable
         // Both ends survive: the first line and the last are what answer "did it work".
         Assert.Contains("line 0 ", result.Stdout, StringComparison.Ordinal);
         Assert.Contains("line 3999 ", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACircularObjectPrintsSomethingRatherThanCrashing()
+    {
+        // JSON.stringify refuses a cycle; console.log must still come back.
+        ExecutionResult result = Eval("const a = {}; a.self = a; console.log(a); console.log('after');");
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("after", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnErrorObjectPrintsItsNameMessageAndStack()
+    {
+        ExecutionResult result = Eval("function f(){ return new Error('inspect me'); } console.log(f());");
+        Assert.Equal(0, result.ExitCode);
+        Assert.StartsWith("Error: inspect me\n    at ", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CancellingTheRunThrows()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(100));
+        Assert.Throws<OperationCanceledException>(() =>
+            _engine.RunCodeAsync("while (true) {}", Array.Empty<string>(),
+                Context(timeout: TimeSpan.FromSeconds(30)), cancellation.Token).GetAwaiter().GetResult());
     }
 
     // ---- isolation ---------------------------------------------------------------------

@@ -141,7 +141,7 @@ internal sealed unsafe class JsContext : IDisposable
 
     internal JsContext()
     {
-        JsCore.EnsureResolver();
+        JsCore.EnsureInitialized();
         _group = JsCore.JSContextGroupCreate();
         if (_group == IntPtr.Zero)
             throw new InvalidOperationException("JSContextGroupCreate returned null");
@@ -153,8 +153,6 @@ internal sealed unsafe class JsContext : IDisposable
         }
         Global = JsCore.JSContextGetGlobalObject(_context);
     }
-
-    internal IntPtr Handle => _context;
 
     internal IntPtr Global { get; }
 
@@ -518,10 +516,29 @@ internal sealed unsafe class JsContext : IDisposable
     /// <summary>Takes a thrown JS value apart into something printable.</summary>
     internal JsErrorInfo Describe(IntPtr value)
     {
+        // Reading properties off the thrown value can itself throw — a Proxy with a
+        // hostile getter is enough — and this runs on the path that reports a
+        // failure, so it must not become one.
+        try
+        {
+            return DescribeCore(value);
+        }
+        catch (Exception ex)
+        {
+            return new JsErrorInfo(string.Empty, "an exception was thrown that could not be inspected: " + ex.Message,
+                null, 0, Array.Empty<string>(), false);
+        }
+    }
+
+    private JsErrorInfo DescribeCore(IntPtr value)
+    {
         if (!IsObject(value))
         {
+            // The watchdog's termination arrives here, not as an Error object: it
+            // is a bare value whose string form is the sentence below, with no
+            // name, no stack and no properties to read.
             string text = ToStringValue(value);
-            return new JsErrorInfo(string.Empty, text, null, 0, Array.Empty<string>(), false);
+            return new JsErrorInfo(string.Empty, text, null, 0, Array.Empty<string>(), IsTermination(text));
         }
 
         string name = StringPropertyOrEmpty(value, "name");
@@ -537,7 +554,7 @@ internal sealed unsafe class JsContext : IDisposable
         // The watchdog's termination is not a program error; it arrives as a plain
         // Error with this exact message and no stack, and the engine reports it as
         // a timeout instead of printing a traceback the model cannot act on.
-        bool terminated = message.Contains("JavaScript execution terminated", StringComparison.Ordinal);
+        bool terminated = IsTermination(message);
 
         int? exitCode = null;
         IntPtr marker = GetProperty(value, ExitMarkerProperty);
@@ -546,6 +563,10 @@ internal sealed unsafe class JsContext : IDisposable
 
         return new JsErrorInfo(name, message, sourceUrl, line, StackFrames(value), terminated, exitCode);
     }
+
+    /// <summary>What JavaScriptCore says when its execution watchdog stops a script.</summary>
+    private static bool IsTermination(string message)
+        => message.Contains("JavaScript execution terminated", StringComparison.Ordinal);
 
     /// <summary>
     /// JavaScriptCore writes stacks as <c>fn@file:line:col</c>; Node writes

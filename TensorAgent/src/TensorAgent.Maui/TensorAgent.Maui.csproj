@@ -111,6 +111,36 @@
                      Kind="Framework" />
   </ItemGroup>
 
+  <!-- CPython's compiled extension modules — binascii, _socket, _ssl, numpy's core,
+       Pillow's imaging, 76 of them — cannot be plain files inside the bundle: iOS
+       refuses to dlopen a Mach-O that is not in a signed framework, which is why
+       Python-Apple-support ships each .so as its own framework and leaves a .fwork
+       placeholder where the .so used to be. The placeholders are already staged with
+       the standard library; without the frameworks beside them every `import binascii`
+       fails at dlopen and most of the standard library goes with it.
+
+       They are embedded rather than linked. Nothing references their symbols at build
+       time — Python resolves them by dlopen at import — and force-loading 76 dylibs
+       at launch would cost startup time for modules a given script never imports. -->
+  <ItemGroup>
+    <_TensorAgentPythonSlice Include="device" Condition="'$(RuntimeIdentifier)' == 'ios-arm64'" />
+    <_TensorAgentPythonSlice Include="simulator" Condition="$(RuntimeIdentifier.Contains('simulator'))" />
+  </ItemGroup>
+
+  <Target Name="TensorAgentEmbedPythonExtensions"
+          BeforeTargets="_CollectBundleResources;_CopyResourcesToBundle"
+          Condition="'@(_TensorAgentPythonSlice)' != ''">
+    <ItemGroup>
+      <_TensorAgentPythonExtension
+          Include="../../python-runtime/%(_TensorAgentPythonSlice.Identity)/Frameworks/**/*"
+          Exclude="../../python-runtime/%(_TensorAgentPythonSlice.Identity)/Frameworks/Python.framework/**/*" />
+      <BundleResource Include="@(_TensorAgentPythonExtension)"
+                      Link="Frameworks/%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+    <Message Importance="normal"
+             Text="TensorAgent: embedding @(_TensorAgentPythonExtension->Count()) Python extension files" />
+  </Target>
+
   <ItemGroup>
     <!-- The skills that were verified to work inside this app, under
          <bundle>/skills/, which is one of the two roots the registry scans (the

@@ -72,7 +72,7 @@ internal static class PythonBootstrap
             # audit hook below can never be replaced, while the policy changes
             # with every run. It starts closed: until a run sets it, nothing is
             # readable, nothing is writable and there is no network.
-            _state = {'writable': (), 'readable': (), 'network': False, 'configured': False}
+            _state = {'writable': (), 'readable': (), 'network': False, 'configured': False, 'bundle': ''}
             _guard = threading.local()
             _boot_main = sys.modules['__main__']
 
@@ -168,8 +168,17 @@ internal static class PythonBootstrap
                 'os.kill', 'os.killpg'))
             # Refused under every policy: a dlopen/dlsym pair reaches the same
             # syscalls the rules above cover, from outside Python.
+            #
+            # dlopen is the one exception, and it has to be. On iOS every compiled
+            # extension module is its own signed framework, and the import machinery
+            # loads them by dlopen -- so a blanket refusal does not stop an attacker,
+            # it stops `import numpy`. The rule is therefore about WHICH library:
+            # anything inside the app's own bundle is code that shipped with the app
+            # and was already signed and reviewed; anything else is refused exactly as
+            # before. dlsym and call_function stay refused outright, so a handle that
+            # somehow appears still cannot be used to call into it.
             _NO_NATIVE = frozenset((
-                'ctypes.dlopen', 'ctypes.dlsym', 'ctypes.dlsym/handle',
+                'ctypes.dlsym', 'ctypes.dlsym/handle',
                 'ctypes.call_function', 'ctypes.cdata'))
             # Anything that opens a socket, resolves a name or speaks a protocol.
             _NETWORK = ('socket.', 'urllib.', 'http.client.', 'ftplib.', 'smtplib.',
@@ -181,6 +190,38 @@ internal static class PythonBootstrap
                 if not roots:
                     return path + ': Permission denied (this run may not touch the file system)'
                 return path + ': Permission denied (this run may only ' + verb + ' ' + ', '.join(roots) + ')'
+
+            def _check_dlopen(args):
+                # The bundle is the app's own code. Everything else -- a library the
+                # script wrote, one somewhere on the device, an empty name meaning the
+                # main program -- is refused with the same sentence as before.
+                bundle = _state['bundle']
+                name = args[0] if args else None
+                # A null name is dlopen(NULL): a handle to the main program image,
+                # which is already loaded. It brings no new code into the process, and
+                # both numpy and Pillow ask for one while probing during import. It is
+                # allowed for that reason and no other -- ctypes.dlsym and
+                # ctypes.call_function stay refused, so the handle cannot be used to
+                # reach anything through it.
+                if name is None or name == '':
+                    return
+                # Naming the library is the whole value of this message: "a native
+                # library was refused" tells a reader nothing they can act on, and
+                # this is the refusal most likely to be a mistake rather than an attack.
+                _guard.busy = True
+                try:
+                    try:
+                        text = os.path.realpath(os.fsdecode(name))
+                    except Exception:
+                        text = str(name)
+                finally:
+                    _guard.busy = False
+                if bundle and (text == bundle or text.startswith(bundle + os.sep)):
+                    return
+                raise PermissionError(
+                    'ctypes.dlopen(' + text + '): {{NativeMessage}}'
+                    + (' The only tree this run may load from is ' + bundle if bundle
+                       else ' This host named no bundle, so nothing may be loaded.'))
 
             def _check(path, write, event):
                 if path is None or isinstance(path, int):
@@ -227,6 +268,8 @@ internal static class PythonBootstrap
                     raise PermissionError(event + ': {{ProcessMessage}}')
                 if event in _NO_NATIVE:
                     raise PermissionError(event + ': {{NativeMessage}}')
+                if event == 'ctypes.dlopen':
+                    _check_dlopen(args)
                 if event.startswith(_NETWORK) and not _state['network']:
                     raise PermissionError(event + ': {{ExecutionPolicy.NetworkDisabledMessage}}')
                 if event == 'open':
@@ -250,10 +293,17 @@ internal static class PythonBootstrap
             # adversary. Code running in this address space shares it with the
             # host, and no in-process check can change that.
 
-            def _set_policy(writable, readable, network):
+            def _set_policy(writable, readable, network, bundle=''):
                 _state['writable'] = tuple(writable)
                 _state['readable'] = tuple(readable)
                 _state['network'] = bool(network)
+                # The one tree dlopen is allowed to load from: the app's own bundle.
+                # Resolved here rather than at the call so a link in the path cannot
+                # make a later prefix test disagree with this one.
+                try:
+                    _state['bundle'] = os.path.realpath(bundle) if bundle else ''
+                except Exception:
+                    _state['bundle'] = ''
                 _state['configured'] = True
 
             # ------------------------------------------------------------- run
@@ -381,6 +431,13 @@ internal static class PythonBootstrap
         return CreatePolicySource(confined, policy.AllowNetwork);
     }
 
+    /// <summary>
+    /// The app's own bundle, the only tree from which <c>ctypes.dlopen</c> is
+    /// permitted. Set once, at startup, by whatever configured the interpreter; empty
+    /// on a host that has no bundle, where every dlopen stays refused.
+    /// </summary>
+    internal static string? BundleRoot { get; set; }
+
     /// <summary>The same, when the caller already built the confinement.</summary>
     internal static string CreatePolicySource(ConfinedPaths confined, bool allowNetwork)
     {
@@ -393,6 +450,7 @@ internal static class PythonBootstrap
         AppendList(source, "writable", confined.WritableRoots);
         AppendList(source, "readable", confined.ReadableRoots);
         source.AppendLine($"    network={(allowNetwork ? "True" : "False")},");
+        source.AppendLine($"    bundle={Literal(BundleRoot ?? string.Empty)},");
         source.AppendLine(")");
         return source.ToString();
     }

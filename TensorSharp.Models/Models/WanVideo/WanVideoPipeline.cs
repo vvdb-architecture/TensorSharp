@@ -264,7 +264,7 @@ namespace TensorSharp.Models.WanVideo
             if (i2v)
             {
                 beat.Set("image-encode", 0, steps, "VAE encode");
-                var resized = ImageIO.Resize(image, width, height);
+                var resized = QwenImage.ImageIO.Resize(image, width, height);
                 if (ti2v)
                 {
                     float[] pixels = ToPlanarSigned(resized, 1, height, width);

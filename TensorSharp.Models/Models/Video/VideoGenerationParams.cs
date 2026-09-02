@@ -149,8 +149,8 @@ namespace TensorSharp.Models.Video
         internal RgbImage ResolveImage()
         {
             if (Image != null) return Image;
-            if (ImageBytes is { Length: > 0 }) return ImageIO.Decode(ImageBytes);
-            if (!string.IsNullOrWhiteSpace(ImagePath)) return ImageIO.Load(ImagePath);
+            if (ImageBytes is { Length: > 0 }) return QwenImage.ImageIO.Decode(ImageBytes);
+            if (!string.IsNullOrWhiteSpace(ImagePath)) return QwenImage.ImageIO.Load(ImagePath);
             return null;
         }
 
@@ -158,7 +158,7 @@ namespace TensorSharp.Models.Video
         internal RgbImage ResolveEndImage()
         {
             if (EndImage != null) return EndImage;
-            if (!string.IsNullOrWhiteSpace(EndImagePath)) return ImageIO.Load(EndImagePath);
+            if (!string.IsNullOrWhiteSpace(EndImagePath)) return QwenImage.ImageIO.Load(EndImagePath);
             return null;
         }
     }

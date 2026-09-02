@@ -171,9 +171,72 @@ public sealed class EmbeddedPythonTests : IDisposable
         foreach (ExecutionPolicy policy in new[] { Policy(network: false), Policy(network: true) })
         {
             string source = PythonBootstrap.CreateSandboxSource(policy);
-            Assert.Contains("'ctypes.dlopen'", source);
+            // Symbol lookup and the call gate stay refused outright: a handle that
+            // somehow appears still cannot be used to reach native code.
             Assert.Contains("'ctypes.dlsym'", source);
+            Assert.Contains("'ctypes.call_function'", source);
             Assert.Contains("step around every other check", source);
+        }
+    }
+
+    [Fact]
+    public void ALibraryLoadIsAllowedOnlyFromTheAppsOwnBundle()
+    {
+        // A blanket refusal of dlopen does not stop an attacker on this platform: it
+        // stops `import numpy`. Every compiled extension module is a signed framework
+        // that the import machinery loads by dlopen, so the rule has to be about which
+        // library, and the bundle root is what decides.
+        string? previous = PythonBootstrap.BundleRoot;
+        try
+        {
+            PythonBootstrap.BundleRoot = Path.Combine(_root, "bundle");
+            Directory.CreateDirectory(PythonBootstrap.BundleRoot);
+            string source = PythonBootstrap.CreateSandboxSource(Policy());
+
+            Assert.Contains("def _check_dlopen", source);
+            Assert.Contains("bundle=", source);
+            Assert.Contains(PythonBootstrap.Literal(PythonBootstrap.BundleRoot), source);
+            // The decision is made on the resolved path, so a symlink laid inside the
+            // bundle cannot point at a library outside it.
+            Assert.Contains("os.path.realpath", source);
+            Assert.Contains("text.startswith(bundle + os.sep)", source);
+        }
+        finally
+        {
+            PythonBootstrap.BundleRoot = previous;
+        }
+    }
+
+    [Fact]
+    public void AHandleToTheMainProgramIsAllowedBecauseItLoadsNothing()
+    {
+        // dlopen(NULL) returns a handle to the image already running. numpy and
+        // Pillow both ask for one while probing during import, and refusing it makes
+        // them unimportable while preventing nothing: no new code enters the process.
+        string source = PythonBootstrap.CreateSandboxSource(Policy());
+        Assert.Contains("if name is None or name == '':", source);
+        // What keeps that safe is the pair that is still refused outright.
+        Assert.Contains("'ctypes.dlsym'", source);
+        Assert.Contains("'ctypes.call_function'", source);
+    }
+
+    [Fact]
+    public void WithNoBundleEveryLibraryLoadStaysRefused()
+    {
+        string? previous = PythonBootstrap.BundleRoot;
+        try
+        {
+            PythonBootstrap.BundleRoot = null;
+            string source = PythonBootstrap.CreateSandboxSource(Policy());
+            Assert.Contains("bundle=''", source);
+            // With no bundle the prefix test can never pass, so every named library is
+            // refused and the message says why rather than leaving the reader guessing.
+            Assert.Contains("if bundle and (text == bundle or text.startswith(bundle + os.sep)):", source);
+            Assert.Contains("This host named no bundle", source);
+        }
+        finally
+        {
+            PythonBootstrap.BundleRoot = previous;
         }
     }
 

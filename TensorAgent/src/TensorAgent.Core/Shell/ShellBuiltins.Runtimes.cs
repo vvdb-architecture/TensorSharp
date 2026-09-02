@@ -381,8 +381,16 @@ internal static partial class ShellBuiltins
             }
             switch (arg)
             {
-                case "-e" or "--eval" or "-p" or "--print":
+                case "-e" or "--eval":
                     code = i + 1 < argv.Length ? argv[++i] : throw new ShellUsageException("-e needs an argument", 2);
+                    continue;
+                // node's -p is -e plus "print what the expression evaluated to". Running
+                // it as a bare -e discards the value and prints nothing at all, which
+                // looks to a model like a command that succeeded and produced no output.
+                case "-p" or "--print":
+                    code = i + 1 < argv.Length
+                        ? "console.log(" + argv[++i] + ")"
+                        : throw new ShellUsageException("-p needs an argument", 2);
                     continue;
                 case "-v" or "--version":
                     io.Out.WriteLine("v(JavaScriptCore)");

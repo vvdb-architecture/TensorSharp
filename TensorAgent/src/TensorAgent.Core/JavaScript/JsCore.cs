@@ -77,27 +77,28 @@ internal static unsafe class JsCore
     internal const string Library = "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore";
 
     private static readonly object s_gate = new();
-    private static bool s_resolverRegistered;
+    private static bool s_initialized;
     private static IntPtr s_moduleHandle;
 
     /// <summary>
-    /// Registers the assembly's import resolver once, before any P/Invoke below.
+    /// Everything that has to happen before the first VM exists: the assembly's
+    /// import resolver, and the one JavaScriptCore option this engine depends on.
     ///
     /// <para>
-    /// The default runtime probe already opens the absolute path on macOS. The
-    /// resolver exists for iOS, where the framework is linked into the app image
+    /// The resolver is for iOS, where the framework is linked into the app image
     /// and the app may be run from a location where <c>dlopen</c> of a system
     /// framework path is not what finds the symbols; there the main program handle
     /// does, exactly as <c>GgmlNative</c> resolves its statically linked archive.
+    /// On macOS the default probe already opens the absolute path.
     /// </para>
     /// </summary>
-    internal static void EnsureResolver()
+    internal static void EnsureInitialized()
     {
-        if (s_resolverRegistered)
+        if (s_initialized)
             return;
         lock (s_gate)
         {
-            if (s_resolverRegistered)
+            if (s_initialized)
                 return;
             try
             {
@@ -108,7 +109,56 @@ internal static unsafe class JsCore
                 // Another type in this assembly got there first; its resolver
                 // falls through to the default probe, which finds the framework.
             }
-            s_resolverRegistered = true;
+            UsePollingTraps();
+            s_initialized = true;
+        }
+    }
+
+    [DllImport("libc", EntryPoint = "setenv", SetLastError = true)]
+    private static extern int SetEnvironmentVariable(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string value,
+        int overwrite);
+
+    /// <summary>
+    /// Makes the execution watchdog dependable, by asking JavaScriptCore to notice
+    /// a termination request by polling rather than by signal.
+    ///
+    /// <para>
+    /// JavaScriptCore's watchdog sets a flag; how running code notices it depends
+    /// on the tier. The interpreter checks the flag at every loop back-edge, which
+    /// is prompt and unconditional — and is the only tier iOS ever uses, because a
+    /// third-party app gets no dynamic-codesigning entitlement and JSC therefore
+    /// runs with no JIT at all. JIT-compiled code elides that check and is
+    /// interrupted by a signal instead, which means the timeout silently stops
+    /// working inside any host that interferes with signal delivery. One does:
+    /// under the <c>vstest</c> test host, a JIT-compiled <c>while (true) {}</c> is
+    /// never interrupted, while the same code in a plain process stops exactly on
+    /// the deadline. A timeout that holds in production and not under test is a
+    /// timeout nobody can trust, so the polled check is turned on for every tier.
+    /// The cost is one flag test per loop iteration in JIT-compiled code; the
+    /// benefit is that the deadline is enforced by the same mechanism everywhere,
+    /// including the one the phone actually runs.
+    /// </para>
+    ///
+    /// <para>
+    /// JavaScriptCore reads its options from the real environment once, when the
+    /// first VM is created, so this must be <c>setenv</c> (which .NET's
+    /// <see cref="Environment.SetEnvironmentVariable"/> is not — it never touches
+    /// the process environment) and must happen before that. <c>overwrite: 0</c>
+    /// leaves an explicit setting from the outside alone.
+    /// </para>
+    /// </summary>
+    private static void UsePollingTraps()
+    {
+        try
+        {
+            SetEnvironmentVariable("JSC_usePollingTraps", "true", 0);
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            // Without it the watchdog still works in every tier but the JIT's, and
+            // the engine's timeout report says honestly what it could not stop.
         }
     }
 
@@ -201,9 +251,6 @@ internal static unsafe class JsCore
     [return: MarshalAs(UnmanagedType.U1)]
     internal static extern bool JSCheckScriptSyntax(IntPtr context, IntPtr script, IntPtr sourceUrl, int startingLineNumber, IntPtr* exception);
 
-    [DllImport(Library, ExactSpelling = true)]
-    internal static extern void JSGarbageCollect(IntPtr context);
-
     // ---- strings -----------------------------------------------------------------------
 
     [DllImport(Library, ExactSpelling = true)]
@@ -230,10 +277,6 @@ internal static unsafe class JsCore
     [DllImport(Library, ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
     internal static extern bool JSValueIsObject(IntPtr context, IntPtr value);
-
-    [DllImport(Library, ExactSpelling = true)]
-    [return: MarshalAs(UnmanagedType.U1)]
-    internal static extern bool JSValueIsStrictEqual(IntPtr context, IntPtr a, IntPtr b);
 
     [DllImport(Library, ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
@@ -305,9 +348,6 @@ internal static unsafe class JsCore
     [DllImport(Library, ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
     internal static extern bool JSObjectHasProperty(IntPtr context, IntPtr obj, IntPtr propertyName);
-
-    [DllImport(Library, ExactSpelling = true)]
-    internal static extern IntPtr JSObjectGetPropertyAtIndex(IntPtr context, IntPtr obj, uint index, IntPtr* exception);
 
     [DllImport(Library, ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
