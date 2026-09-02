@@ -144,8 +144,6 @@ public sealed class AgentAppHost : IDisposable
         Server.MapWebUi(Chat, SkillsService, Recorder);
         Server.MapAgent(Catalog, Models, Conversations, Settings, DescribeEngine, RaisePageEvent);
 
-        _owned.Add(Server);
-        _owned.Add(ModelService);
     }
 
     public AgentPaths Paths { get; }
@@ -332,14 +330,30 @@ public sealed class AgentAppHost : IDisposable
         skillsAllowScripts: settings.AllowCodeExecution,
         skillsAllowNetwork: settings.AllowNetwork);
 
+    /// <summary>
+    /// Shut down in the only order that is safe: the server first, then the engine.
+    ///
+    /// <para>
+    /// The server owns the requests, and a request in flight is very often inside the
+    /// model. Freeing the model first hands the native compute threads memory that has
+    /// been unmapped underneath them, and the process dies with a segmentation fault
+    /// in whichever kernel happened to be reading. Stopping the server waits for those
+    /// requests to finish, so by the time the model is released nothing is using it.
+    /// </para>
+    /// </summary>
     public void Dispose()
     {
-        for (int i = _owned.Count - 1; i >= 0; i--)
+        Close(Server);
+        Close(ModelService);
+        foreach (IDisposable owned in _owned)
+            Close(owned);
+        _owned.Clear();
+
+        static void Close(IDisposable owned)
         {
-            try { _owned[i].Dispose(); }
+            try { owned.Dispose(); }
             catch (Exception) { /* teardown is best effort; the process is going away */ }
         }
-        _owned.Clear();
     }
 }
 

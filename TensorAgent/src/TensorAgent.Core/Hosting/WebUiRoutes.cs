@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using System.Text;
 using System.Text.Json;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Sessions;
@@ -60,7 +61,9 @@ public static class WebUiRoutes
             return Json(await Guarded(() => chat.LoadModelAsync(body, ct)));
         });
         server.MapPost("/api/chat", async (request, ct) =>
-            LoopbackResponse.Sse(Guarded(chat.ChatStreamAsync(await request.ReadJsonAsync(ct), ct))));
+            LoopbackResponse.Sse(
+                Recording(Guarded(chat.ChatStreamAsync(await request.ReadJsonAsync(ct), ct)), recorder),
+                request.Cancellation));
 
         // ---- sessions -----------------------------------------------------------
         //
@@ -111,14 +114,14 @@ public static class WebUiRoutes
             return Json(await Guarded(() => chat.ImageEditAsync(body, ct)));
         });
         server.MapPost("/api/image-edit/stream", async (request, ct) =>
-            LoopbackResponse.Sse(Guarded(chat.ImageEditStreamAsync(await request.ReadJsonAsync(ct), ct))));
+            LoopbackResponse.Sse(Guarded(chat.ImageEditStreamAsync(await request.ReadJsonAsync(ct), ct)), request.Cancellation));
         server.MapPost("/api/video-generate", async (request, ct) =>
         {
             JsonElement body = await request.ReadJsonAsync(ct);
             return Json(await Guarded(() => chat.VideoGenerateAsync(body, ct)));
         });
         server.MapPost("/api/video-generate/stream", async (request, ct) =>
-            LoopbackResponse.Sse(Guarded(chat.VideoGenerateStreamAsync(await request.ReadJsonAsync(ct), ct))));
+            LoopbackResponse.Sse(Guarded(chat.VideoGenerateStreamAsync(await request.ReadJsonAsync(ct), ct)), request.Cancellation));
 
         // ---- skills -------------------------------------------------------------
         if (skills is null)
@@ -202,7 +205,7 @@ public static class WebUiRoutes
             IReadOnlyCollection<CatalogFileRole>? optional = settings.Load().DownloadOptionalFiles
                 ? new[] { CatalogFileRole.Projector, CatalogFileRole.Lora, CatalogFileRole.TextEncoder, CatalogFileRole.Vae }
                 : null;
-            return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(DownloadFrames(models, model, optional, ct)));
+            return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(DownloadFrames(models, model, optional, ct), request.Cancellation));
         });
 
         server.MapDelete("/api/agent/catalog/{id}", (request, _) =>
@@ -339,6 +342,54 @@ public static class WebUiRoutes
         remainingBytes = store.RemainingBytes(model),
         path = store.WeightsPath(model),
     };
+
+    /// <summary>
+    /// Pass the turn's frames through, and write the answer down when it ends.
+    ///
+    /// <para>
+    /// The frames are the only place the assistant's reply exists on this side: the
+    /// service streams it and the page assembles it. Reassembling it here, from the
+    /// same <c>token</c>, <c>replace</c> and <c>thinking</c> events the page reads,
+    /// is what lets a chat survive the app being killed the moment after an answer
+    /// appears. An aborted turn is still saved, because the partial answer is what
+    /// the user is looking at.
+    /// </para>
+    /// </summary>
+    private static async IAsyncEnumerable<object> Recording(IAsyncEnumerable<object> frames, ConversationRecorder? recorder)
+    {
+        if (recorder is null)
+        {
+            await foreach (object frame in frames.ConfigureAwait(false))
+                yield return frame;
+            yield break;
+        }
+
+        var content = new StringBuilder();
+        var thinking = new StringBuilder();
+        string? sessionId = null;
+
+        await foreach (object frame in frames.ConfigureAwait(false))
+        {
+            yield return frame;
+
+            // The frames are anonymous objects, so they are read the way the page
+            // reads them: as JSON. Serialising each one costs a little, and it is the
+            // only way to stay honest about what was actually sent.
+            using JsonDocument document = JsonDocument.Parse(JsonSerializer.Serialize(frame, SseFraming.JsonOptions));
+            JsonElement root = document.RootElement;
+            if (root.TryGetProperty("token", out JsonElement token) && token.GetString() is { } piece)
+                content.Append(piece);
+            else if (root.TryGetProperty("replace", out JsonElement replace) && replace.GetString() is { } whole)
+                content.Clear().Append(whole);
+            else if (root.TryGetProperty("thinking", out JsonElement thought) && thought.GetString() is { } reasoning)
+                thinking.Append(reasoning);
+            if (root.TryGetProperty("sessionId", out JsonElement id) && id.GetString() is { Length: > 0 } value)
+                sessionId = value;
+        }
+
+        if (sessionId is not null)
+            recorder.Complete(sessionId, content.ToString(), thinking.ToString());
+    }
 
     /// <summary>
     /// Read the session id out of whatever shape the chat service returned. It is an

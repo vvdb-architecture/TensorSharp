@@ -64,6 +64,50 @@ public sealed class ConversationRecorder
         => _sessionToConversation.TryGetValue(sessionId, out string? id) ? id : null;
 
     /// <summary>
+    /// Record the answer a turn produced, once it has finished.
+    ///
+    /// <para>
+    /// <see cref="Record"/> alone is not enough, and the gap is the one that hurts on
+    /// a phone. It runs when a request arrives, so it saves the history the page sent
+    /// — which does not yet contain the reply that request is about to generate. The
+    /// reply is only written down when the NEXT request carries it, so a user who
+    /// asks a question, reads the answer and switches away loses exactly the answer
+    /// they were reading. This closes the turn instead of waiting for another one.
+    /// </para>
+    /// </summary>
+    /// <param name="sessionId">The session the answer belongs to.</param>
+    /// <param name="content">The assistant's text, as the page assembled it.</param>
+    /// <param name="thinking">Its reasoning, when the model produced any.</param>
+    public void Complete(string sessionId, string content, string? thinking = null)
+    {
+        if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(thinking))
+            return;
+        try
+        {
+            string? conversationId = ConversationFor(sessionId);
+            if (conversationId is null || _store.Load(conversationId) is not { } conversation)
+                return;
+
+            // An answer that arrives twice for the same turn replaces the first: a
+            // regenerated reply is a correction, not a second message.
+            if (conversation.Messages.Count > 0 && conversation.Messages[^1].Role == "assistant")
+                conversation.Messages.RemoveAt(conversation.Messages.Count - 1);
+
+            conversation.Messages.Add(new StoredMessage
+            {
+                Role = "assistant",
+                Content = content,
+                Thinking = string.IsNullOrEmpty(thinking) ? null : thinking,
+            });
+            _store.Save(conversation);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // Same reasoning as Record: a lost transcript must not cost the answer.
+        }
+    }
+
+    /// <summary>
     /// Record one accepted chat turn.
     ///
     /// <para>

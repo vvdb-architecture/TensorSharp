@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -36,6 +37,13 @@ public sealed class LoopbackRequest
     public IReadOnlyDictionary<string, string> RouteValues { get; }
     public string? Query(string name) => Context.Request.QueryString[name];
     public CancellationToken Aborted { get; internal set; }
+
+    /// <summary>
+    /// This request's own cancellation source. A streaming handler passes it to
+    /// <see cref="LoopbackResponse.Sse"/> so the producer is stopped the moment a
+    /// write shows the client has gone.
+    /// </summary>
+    public CancellationTokenSource? Cancellation { get; internal set; }
 
     public async Task<JsonElement> ReadJsonAsync(CancellationToken ct)
     {
@@ -68,7 +76,14 @@ public abstract class LoopbackResponse
     public static LoopbackResponse Status(int status) => new TextResponse(string.Empty, status, "text/plain");
     public static LoopbackResponse NotFound(object? payload = null) => payload is null ? Status(404) : Json(payload, 404);
     /// <summary>A Server-Sent-Events stream: each yielded object becomes one 'data: {json}' frame.</summary>
-    public static LoopbackResponse Sse(IAsyncEnumerable<object> frames) => new SseResponse(frames);
+    /// <param name="frames">The frames to write, pulled one at a time.</param>
+    /// <param name="clientGone">
+    /// Cancelled when a write fails, so the producer stops as soon as nobody is
+    /// listening. Pass the request's own source; null leaves a dropped client
+    /// generating to the end of its budget.
+    /// </param>
+    public static LoopbackResponse Sse(IAsyncEnumerable<object> frames, CancellationTokenSource? clientGone = null)
+        => new SseResponse(frames, clientGone);
 
     private sealed class JsonResponse(object payload, int status) : LoopbackResponse
     {
@@ -111,7 +126,7 @@ public abstract class LoopbackResponse
         }
     }
 
-    private sealed class SseResponse(IAsyncEnumerable<object> frames) : LoopbackResponse
+    private sealed class SseResponse(IAsyncEnumerable<object> frames, CancellationTokenSource? clientGone = null) : LoopbackResponse
     {
         public override async Task WriteAsync(HttpListenerResponse response, CancellationToken ct)
         {
@@ -134,7 +149,21 @@ public abstract class LoopbackResponse
             response.SendChunked = true;
             do
             {
-                await SseFraming.WriteFrameAsync(response.OutputStream, enumerator.Current, ct).ConfigureAwait(false);
+                try
+                {
+                    await SseFraming.WriteFrameAsync(response.OutputStream, enumerator.Current, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException)
+                {
+                    // The reader has gone: the page was closed, or the user pressed
+                    // stop, which aborts the fetch. There is no disconnect event on
+                    // HttpListener, so a failed write is how it is learned — and it
+                    // has to be learned, because otherwise the model keeps generating
+                    // into nothing, holding the session and draining the battery for
+                    // however many tokens were left in the budget.
+                    clientGone?.Cancel();
+                    throw;
+                }
             }
             while (await enumerator.MoveNextAsync().ConfigureAwait(false));
         }
@@ -254,9 +283,12 @@ public sealed class LoopbackServer : IDisposable
         }
     }
 
+    private int _inFlight;
+
     private async Task HandleAsync(HttpListenerContext ctx)
     {
         var response = ctx.Response;
+        Interlocked.Increment(ref _inFlight);
         try
         {
             string path = Uri.UnescapeDataString(ctx.Request.Url?.AbsolutePath ?? "/");
@@ -285,10 +317,17 @@ public sealed class LoopbackServer : IDisposable
             {
                 if (m != method || !pattern.TryMatch(path, out var values))
                     continue;
-                var request = new LoopbackRequest(ctx, path, values) { Aborted = _cts.Token };
-                result = await handler(request, _cts.Token).ConfigureAwait(false);
+                // One source per request, linked to the server's. A handler that
+                // streams hands this to LoopbackResponse.Sse so that a reader walking
+                // away stops the work being done for it.
+                using var perRequest = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                var request = new LoopbackRequest(ctx, path, values) { Aborted = perRequest.Token, Cancellation = perRequest };
+                result = await handler(request, perRequest.Token).ConfigureAwait(false);
                 if (result is not null)
-                    break;
+                {
+                    await result.WriteAsync(response, perRequest.Token).ConfigureAwait(false);
+                    return;
+                }
             }
 
             result ??= TryStatic(method, path);
@@ -321,6 +360,7 @@ public sealed class LoopbackServer : IDisposable
         finally
         {
             try { response.Close(); } catch { }
+            Interlocked.Decrement(ref _inFlight);
         }
     }
 
@@ -396,12 +436,35 @@ public sealed class LoopbackServer : IDisposable
         return port;
     }
 
+    /// <summary>
+    /// Stop accepting, cancel what is running, and wait for it to actually stop.
+    ///
+    /// <para>
+    /// The wait is the part that matters. A request in flight is very often inside
+    /// the inference engine, and the engine's weights are freed by whatever disposes
+    /// the host next. Returning from here while a generation is still running hands
+    /// that code a window in which it frees memory the native compute threads are
+    /// still reading, and the process dies with a segmentation fault somewhere
+    /// unrelated-looking. Cancellation is delivered between tokens, so this is a
+    /// short wait in practice; the cap is there so a wedged request cannot stop the
+    /// app from closing.
+    /// </para>
+    /// </summary>
     public void Dispose()
     {
         _cts.Cancel();
         try { _listener.Stop(); } catch { }
         try { _listener.Close(); } catch { }
+
+        var deadline = Stopwatch.StartNew();
+        while (Volatile.Read(ref _inFlight) > 0 && deadline.Elapsed < DrainTimeout)
+            Thread.Sleep(20);
+        if (Volatile.Read(ref _inFlight) > 0)
+            _log.LogWarning("loopback shut down with {Count} request(s) still running", Volatile.Read(ref _inFlight));
     }
+
+    /// <summary>How long <see cref="Dispose"/> waits for running requests before giving up on them.</summary>
+    public static TimeSpan DrainTimeout { get; set; } = TimeSpan.FromSeconds(20);
 }
 
 /// <summary>A handler may throw this to answer with a status + JSON payload (the same
