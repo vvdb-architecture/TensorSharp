@@ -1,14 +1,36 @@
-﻿using System;
+// Copyright (c) Zhongkai Fu. All rights reserved.
+// https://github.com/zhongkaifu/TensorSharp
+//
+// This file is part of TensorSharp.
+//
+// TensorSharp is licensed under the BSD-3-Clause license found in the LICENSE file in the root directory of this source tree.
+//
+// TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using TensorSharp.Cuda;
 using TensorSharp.GGML;
-using TensorSharp.MLX;
 
 namespace TensorSharp.Server
 {
-    internal sealed record BackendOption(string Value, string Label);
+    public sealed record BackendOption(string Value, string Label);
 
+    /// <summary>
+    /// The backend vocabulary: the ordered descriptor table every host offers, the
+    /// canonical spelling of each backend name and its <see cref="BackendType"/>
+    /// mapping.
+    ///
+    /// <para>
+    /// This is the pure half. Deciding which of these backends is actually usable on
+    /// the current machine means touching the CUDA, MLX and GGML backends, and those
+    /// assemblies are not something a host-neutral library can pull in (an iOS
+    /// consumer cannot link TensorSharp.Backends.Cuda at all). So the probes are handed
+    /// in as delegates: TensorSharp.Server passes its real ones from
+    /// <c>BackendCatalogProbes</c>, and an app that knows its one backend passes
+    /// constants.
+    /// </para>
+    /// </summary>
     internal static class BackendCatalog
     {
         // TensorSharp.Server should always expose the two CPU choices distinctly:
@@ -24,14 +46,19 @@ namespace TensorSharp.Server
             new("cpu", "CPU (Pure C#)", GgmlBackendType.Cpu, AlwaysAvailable: true),
         };
 
+        /// <summary>
+        /// The descriptor table filtered by the host's availability probes, in UI order.
+        /// Every probe is required: a missing one used to fall back to the real backend
+        /// probe, which is exactly the dependency this library exists to avoid.
+        /// </summary>
         internal static IReadOnlyList<BackendOption> GetSupportedBackends(
-            Func<GgmlBackendType, bool> isGgmlBackendAvailable = null,
-            Func<bool> isCudaBackendAvailable = null,
-            Func<bool> isMlxBackendAvailable = null)
+            Func<GgmlBackendType, bool> isGgmlBackendAvailable,
+            Func<bool> isCudaBackendAvailable,
+            Func<bool> isMlxBackendAvailable)
         {
-            isGgmlBackendAvailable ??= IsGgmlBackendAvailable;
-            isCudaBackendAvailable ??= CudaBackend.IsAvailable;
-            isMlxBackendAvailable ??= MlxBackend.IsAvailable;
+            if (isGgmlBackendAvailable == null) throw new ArgumentNullException(nameof(isGgmlBackendAvailable));
+            if (isCudaBackendAvailable == null) throw new ArgumentNullException(nameof(isCudaBackendAvailable));
+            if (isMlxBackendAvailable == null) throw new ArgumentNullException(nameof(isMlxBackendAvailable));
 
             return BackendDescriptors
                 .Where(descriptor => descriptor.AlwaysAvailable ||
@@ -89,50 +116,6 @@ namespace TensorSharp.Server
             };
         }
 
-        // The reason a GGML backend probe threw, per backend, so the startup banner
-        // can say WHY a backend is missing instead of just omitting it from the list.
-        // First failure wins; the probe may run more than once.
-        private static readonly Dictionary<GgmlBackendType, string> ProbeFailures = new();
-
-        private static bool IsGgmlBackendAvailable(GgmlBackendType backendType)
-        {
-            try
-            {
-                // Backend discovery runs at web-app startup, so it must not spin up
-                // any GGML device — otherwise picking a non-GGML backend (MLX,
-                // direct CUDA) would still trigger `ggml_metal_device_init` / etc.
-                // logs at startup. CanInitializeBackend is a lightweight compile-flag
-                // + platform check; the real GGML init is deferred until a GGML
-                // backend is actually selected.
-                return GgmlBasicOps.CanInitializeBackend(backendType);
-            }
-            catch (Exception ex)
-            {
-                lock (ProbeFailures)
-                {
-                    ProbeFailures.TryAdd(backendType, ex.Message);
-                }
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// The probe exceptions swallowed above, one <c>"ggml_metal: reason"</c> line
-        /// per backend, so the startup banner's backend list carries a cause.
-        /// </summary>
-        internal static IReadOnlyList<string> DescribeProbeFailures()
-        {
-            lock (ProbeFailures)
-            {
-                return ProbeFailures
-                    .Select(kv => "ggml_" + kv.Key.ToString().ToLowerInvariant() + ": " + kv.Value)
-                    .ToArray();
-            }
-        }
-
         private sealed record BackendDescriptor(string Value, string Label, GgmlBackendType? GgmlBackendType, bool AlwaysAvailable);
     }
 }
-
-
-

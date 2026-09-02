@@ -21,7 +21,7 @@ namespace TensorSharp.Server.Hosting
     /// endpoint, adapter, and helper can pull the same view of "what is hosted
     /// on this server" without each one re-parsing argv.
     /// </summary>
-    internal sealed class ServerHostingOptions
+    public sealed class ServerHostingOptions
     {
         /// <summary>
         /// Address the server binds when the operator does not choose one.

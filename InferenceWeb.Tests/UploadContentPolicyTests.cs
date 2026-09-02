@@ -8,7 +8,7 @@ using TensorSharp.Server.Hosting;
 namespace InferenceWeb.Tests;
 
 /// <summary>
-/// Tests for <see cref="UploadContentPolicy"/>: the upload extension allow-list
+/// Tests for <see cref="UploadContentPolicy"/> and <see cref="UploadStaticFiles"/>: the upload extension allow-list
 /// and the content types /uploads serves back. Uploaded files are attacker
 /// content, so an uploaded .html/.svg must never come back with a content type
 /// a browser will execute in the server's origin.
@@ -52,7 +52,7 @@ public class UploadContentPolicyTests
     [InlineData(".pdf", "application/pdf")]
     public void Serve_MediaExtensions_KeepRealContentTypes(string ext, string expected)
     {
-        var provider = UploadContentPolicy.BuildServeContentTypes();
+        var provider = UploadStaticFiles.BuildServeContentTypes();
         Assert.True(provider.TryGetContentType("f" + ext, out string contentType));
         Assert.Equal(expected, contentType);
     }
@@ -67,7 +67,7 @@ public class UploadContentPolicyTests
     [InlineData(".txt")]
     public void Serve_TextExtensions_AlwaysComeBackAsPlainText(string ext)
     {
-        var provider = UploadContentPolicy.BuildServeContentTypes();
+        var provider = UploadStaticFiles.BuildServeContentTypes();
         Assert.True(provider.TryGetContentType("f" + ext, out string contentType));
         Assert.Equal("text/plain; charset=utf-8", contentType);
     }
@@ -79,14 +79,14 @@ public class UploadContentPolicyTests
     [InlineData("f")]
     public void Serve_UnlistedExtensions_HaveNoContentType(string fileName)
     {
-        var provider = UploadContentPolicy.BuildServeContentTypes();
+        var provider = UploadStaticFiles.BuildServeContentTypes();
         Assert.False(provider.TryGetContentType(fileName, out _));
     }
 
     [Fact]
     public void Serve_CoversEveryAcceptedUploadExtension()
     {
-        var provider = UploadContentPolicy.BuildServeContentTypes();
+        var provider = UploadStaticFiles.BuildServeContentTypes();
         foreach (string ext in UploadContentPolicy.SupportedExtensions)
             Assert.True(provider.TryGetContentType("f" + ext, out _),
                 $"accepted upload extension {ext} has no serve content type");
@@ -98,7 +98,7 @@ public class UploadContentPolicyTests
         string dir = Directory.CreateTempSubdirectory("ts-uploads-test").FullName;
         try
         {
-            var options = UploadContentPolicy.BuildStaticFileOptions(dir);
+            var options = UploadStaticFiles.BuildStaticFileOptions(dir);
 
             Assert.Equal("/uploads", options.RequestPath.Value);
             Assert.False(options.ServeUnknownFileTypes);

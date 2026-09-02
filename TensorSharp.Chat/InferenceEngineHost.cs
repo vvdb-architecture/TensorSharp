@@ -39,6 +39,14 @@ namespace TensorSharp.Server
         private string _fingerprint;
         private bool _disposed;
 
+        /// <summary>
+        /// Engine sizing supplied by the host; null means
+        /// <see cref="SchedulerConfig.FromEnvironment"/>. Read when the engine is
+        /// (re)built, which the log line below records so an operator can tell which
+        /// source sized the KV pool.
+        /// </summary>
+        public SchedulerConfig SchedulerConfigOverride { get; set; }
+
         internal InferenceEngineHost(ModelLifecycleService lifecycle, ILogger logger)
         {
             _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
@@ -69,14 +77,16 @@ namespace TensorSharp.Server
                     return _engine;
 
                 _engine?.Dispose();
-                var cfg = SchedulerConfig.FromEnvironment();
+                SchedulerConfig cfg = SchedulerConfigOverride;
+                string cfgSource = cfg != null ? "host" : "environment";
+                cfg ??= SchedulerConfig.FromEnvironment();
                 _engine = new InferenceEngine(model, cfg, _logger);
                 _fingerprint = fp;
                 var poolStats = _engine.PoolStats;
                 _logger.LogInformation(
-                    "InferenceEngine constructed for fingerprint {Fingerprint} (blocks={NumBlocks}, blockSize={BlockSize}, kvCapacityTokens={KvCapacity}, maxBatched={MaxBatched})",
+                    "InferenceEngine constructed for fingerprint {Fingerprint} (blocks={NumBlocks}, blockSize={BlockSize}, kvCapacityTokens={KvCapacity}, maxBatched={MaxBatched}, config={ConfigSource})",
                     fp, poolStats.totalBlocks, poolStats.blockSize,
-                    (long)poolStats.totalBlocks * poolStats.blockSize, cfg.MaxNumBatchedTokens);
+                    (long)poolStats.totalBlocks * poolStats.blockSize, cfg.MaxNumBatchedTokens, cfgSource);
                 return _engine;
             }
         }

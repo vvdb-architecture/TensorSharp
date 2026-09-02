@@ -305,7 +305,15 @@ builder.Services.AddSingleton<ICodeRunner>(sp => codeExecOptions.Enabled
             codeArtifactStore),
         codeExecOptions)
     : null!);
-builder.Services.AddSingleton<ModelService>();
+// The model service comes from TensorSharp.Chat, which does not reference
+// TensorSharp.Distributed (it must stay linkable by hosts with no CUDA and no
+// peers), so multi-node tensor parallelism is handed in here: the factory reads
+// the TENSORSHARP_TP_* variables --tp / --tp-node-id / --tp-peers set above and
+// returns null for the ordinary single-node case.
+builder.Services.AddSingleton(sp => new ModelService(sp.GetRequiredService<ILogger<ModelService>>())
+{
+    TensorParallelGroupFactory = DistributedTensorParallel.CreateGroup,
+});
 builder.Services.AddSingleton<InferenceQueue>();
 builder.Services.AddSingleton<SessionManager>();
 // Engine is owned by ModelService now (so its lifecycle is tied to the
@@ -550,7 +558,7 @@ else
 // comes back as text/plain (an uploaded .html page must never execute in the
 // server's origin), unlisted extensions 404, and every response carries
 // X-Content-Type-Options: nosniff.
-app.UseStaticFiles(UploadContentPolicy.BuildStaticFileOptions(hostingOptions.UploadDirectory));
+app.UseStaticFiles(UploadStaticFiles.BuildStaticFileOptions(hostingOptions.UploadDirectory));
 
 app.MapHealthEndpoints(app.Environment, hostingOptions.WebUiEnabled);
 app.MapSessionEndpoints();

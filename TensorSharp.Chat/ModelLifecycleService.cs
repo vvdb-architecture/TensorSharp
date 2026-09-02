@@ -11,7 +11,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using TensorSharp.Cuda;
 
 namespace TensorSharp.Server
 {
@@ -40,6 +39,14 @@ namespace TensorSharp.Server
         }
 
         public bool IsLoaded => _model != null;
+
+        /// <summary>
+        /// Builds the on-node <see cref="ITensorParallelGroup"/> a load shards across, given
+        /// the resolved backend; null (the default) means a single-node load. Set by hosts
+        /// that carry TensorSharp.Distributed. Read once per load, so it must be set before
+        /// <see cref="LoadModel"/>.
+        /// </summary>
+        public Func<BackendType, ITensorParallelGroup> TensorParallelGroupFactory { get; set; }
 
         /// <summary>
         /// When the operator explicitly named an MTP draft via
@@ -141,6 +148,15 @@ namespace TensorSharp.Server
             }
         }
 
+        /// <summary>
+        /// Release the loaded model (and its projector and draft head) without loading
+        /// another. The engine and diffusion scheduler that were built on top of the
+        /// model must already be torn down: <see cref="ModelService.UnloadModel"/> does
+        /// that ordering, which is why this is the seam it calls rather than a public API
+        /// on its own.
+        /// </summary>
+        internal void Unload() => UnloadCurrentModel();
+
         private void UnloadCurrentModel()
         {
             string previousModel = LoadedModelName;
@@ -164,22 +180,13 @@ namespace TensorSharp.Server
             var loadSw = Stopwatch.StartNew();
             try
             {
-                // Check for distributed TP configuration via environment variables.
-                ITensorParallelGroup tpGroup = null;
-                var distConfig = TensorSharp.Distributed.DistributedTpConfig.TryFromEnvironment(
-                    localDegree: GetLocalTpDegree());
-                if (distConfig != null)
-                {
-                    // The on-node group has to match the backend: direct CUDA
-                    // drives CudaAllocators, the ggml backends drive per-rank
-                    // ggml backends.
-                    tpGroup = _backend is BackendType.GgmlCuda or BackendType.GgmlVulkan
-                        ? new TensorSharp.Distributed.DistributedTensorParallelGroup(
-                            ModelBase.CreateGgmlLocalTpGroup(_backend, distConfig.LocalDegree),
-                            distConfig.NodeId, distConfig.PeerEndpoints)
-                        : new TensorSharp.Distributed.DistributedTensorParallelGroup(
-                            distConfig.LocalDegree, distConfig.NodeId, distConfig.PeerEndpoints);
-                }
+                // Multi-node tensor parallelism is the host's decision, not this
+                // library's: the group is built by TensorSharp.Distributed, which
+                // references the CUDA backend and so cannot be linked by every host
+                // (an iOS app has no peers and no CUDA). The Server and CLI hand in a
+                // factory that reads TENSORSHARP_TP_* and builds the on-node group to
+                // match the backend; with no factory the load is single-node.
+                ITensorParallelGroup tpGroup = TensorParallelGroupFactory?.Invoke(_backend);
 
                 // Block drafters go to the factory rather than being attached
                 // afterwards like Gemma 4's draft head: their weights have to be
@@ -300,14 +307,6 @@ namespace TensorSharp.Server
             {
                 return 0;
             }
-        }
-
-        private static int GetLocalTpDegree()
-        {
-            string envTp = Environment.GetEnvironmentVariable("TENSORSHARP_TP_DEGREE");
-            if (int.TryParse(envTp, out int degree) && degree > 1)
-                return degree;
-            return 1;
         }
     }
 }
