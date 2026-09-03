@@ -18,6 +18,13 @@ namespace TensorAgent.Maui;
 
 public static class MauiProgram
 {
+    /// <summary>
+    /// The scheduler's own name for the solo-prefill chunk size. Left overridable so a
+    /// device experiment can try another value without a rebuild, which is how 1024
+    /// was chosen.
+    /// </summary>
+    private const string SoloPrefillChunkVariable = "TS_SCHED_SOLO_PREFILL_CHUNK";
+
     public static MauiApp CreateMauiApp()
     {
         // Media before anything else can decode: a photo from Photos is HEIC, a clip from
@@ -29,6 +36,34 @@ public static class MauiProgram
         // ImageIO/AVFoundation visible where the app is assembled, and it is idempotent.
         AppleMediaProvider.Register();
         Console.WriteLine($"TensorAgent: media providers {MediaCodecs.Describe()}");
+
+        // Prefill in chunks a phone can actually hold.
+        //
+        // A solo request prefills up to min(SoloPrefillChunkSize, MaxNumBatchedTokens)
+        // tokens in ONE fused pass -- 4096 by default. That default is written for a
+        // desktop GPU, where a big chunk is several times faster than splitting one,
+        // and it is fatal here: on an iPhone 17 Pro Max, pasting a 140-line document
+        // into the chat got as far as "Expanded Gemma4 global attention cache to 8192
+        // tokens" and then the app was killed outright -- "App terminated due to
+        // signal 9", jetsam, with no answer and no error the user could see.
+        //
+        // Measured on that device with the same 22 kB paste and gemma-4-E2B on Metal:
+        //   default (4096) -> killed by jetsam, no answer
+        //   2048           -> survives, correct answer, 50.0 s
+        //   1024           -> survives, correct answer, 42.4 s
+        //
+        // 1024 is not a reluctant compromise: it was FASTER than 2048 here, because on
+        // a memory-constrained device the pressure a big chunk creates costs more than
+        // the fused pass saves. The desktop reasoning does not transfer, so the phone
+        // gets its own value rather than the shared default.
+        //
+        // Set through the environment because that is the seam SchedulerConfig already
+        // reads, and it is read when the engine is constructed -- which happens after
+        // this. Managed-to-managed, so SetEnvironmentVariable is enough here (a NATIVE
+        // getenv would not see it).
+        if (Environment.GetEnvironmentVariable(SoloPrefillChunkVariable) is not { Length: > 0 })
+            Environment.SetEnvironmentVariable(SoloPrefillChunkVariable, "1024");
+        Console.WriteLine($"TensorAgent: solo prefill chunk {Environment.GetEnvironmentVariable(SoloPrefillChunkVariable)} tokens");
 #if DEBUG
         // Debug only, and the only place the iOS media provider is ever executed: the repo's
         // xunit suite is a net10.0 host that cannot load an iOS assembly, so ImageIO and
