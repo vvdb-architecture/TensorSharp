@@ -53,6 +53,21 @@ namespace TensorSharp.AgentHost.Skills
         public string? InstallDirectory { get; init; }
 
         /// <summary>
+        /// A file recording skills the user has deleted, so they stay deleted.
+        ///
+        /// <para>
+        /// A skill that ships INSIDE the application cannot be removed by deleting it:
+        /// the bundle is read-only, and it is recreated by the next install of the app
+        /// anyway. Without somewhere to write down "the user got rid of this", deleting
+        /// a built-in skill either fails outright or works until the next launch, and
+        /// both of those are worse than not offering the button. Ids listed here are
+        /// skipped by discovery. Null keeps the old behaviour, which is what the
+        /// desktop server wants: an operator manages that directory with a shell.
+        /// </para>
+        /// </summary>
+        public string? RemovedRecordFile { get; init; }
+
+        /// <summary>
         /// How deep to walk under a root looking for <c>SKILL.md</c>. Two levels
         /// covers both conventions in the wild — <c>root/&lt;skill&gt;/SKILL.md</c> and
         /// the layout of <see href="https://github.com/anthropics/skills"/>, where
@@ -224,6 +239,10 @@ namespace TensorSharp.AgentHost.Skills
 
             lock (_writeGate)
             {
+                // Installing a skill is the user asking for it back, so any record of
+                // them having deleted it is stale from this moment. Cleared BEFORE the
+                // copy, so the rebuild at the end of this block already sees it.
+                ForgetRemoved(staged!.Manifest.Name);
                 string destination = ReserveInstallDirectory(staged!.Manifest.Name, overwrite);
                 try
                 {
@@ -293,7 +312,11 @@ namespace TensorSharp.AgentHost.Skills
                     if (!TryLoad(skillRoot, SkillOrigin.Installed, null, out Skill? staged, out string? error))
                         throw new SkillInstallException(error ?? "the skill could not be read");
 
-                    string destination = ReserveInstallDirectory(staged!.Manifest.Name, overwrite);
+                    // Installing a skill is the user asking for it back, so any record of
+                // them having deleted it is stale from this moment. Cleared BEFORE the
+                // copy, so the rebuild at the end of this block already sees it.
+                ForgetRemoved(staged!.Manifest.Name);
+                string destination = ReserveInstallDirectory(staged!.Manifest.Name, overwrite);
                     Directory.Move(skillRoot, destination);
 
                     Index built = Build();
@@ -329,17 +352,96 @@ namespace TensorSharp.AgentHost.Skills
             {
                 if (!_index.ById.TryGetValue((id ?? string.Empty).Trim(), out Skill? skill))
                     return false;
-                if (skill.Origin != SkillOrigin.Installed)
+                if (skill.Origin == SkillOrigin.Installed)
+                {
+                    TryDeleteDirectory(skill.RootDirectory);
+                }
+                else if (_options.RemovedRecordFile is { Length: > 0 })
+                {
+                    // It lives in a read-only root -- inside the app bundle, on a phone.
+                    // The bytes cannot go, so the ID is written down instead and
+                    // discovery skips it from now on, including after the app is
+                    // reinstalled and the bundle puts the files back.
+                    RecordRemoved(skill.Id);
+                }
+                else
                 {
                     throw new InvalidOperationException(
                         $"'{skill.Id}' was discovered under {skill.DiscoveredUnder} and is not managed by TensorSharp; " +
                         "remove it from that directory instead.");
                 }
 
-                TryDeleteDirectory(skill.RootDirectory);
                 _index = Build();
                 _logger.LogInformation(LogEventIds.SkillRemoved, "skills.removed id={SkillId}", skill.Id);
                 return true;
+            }
+        }
+
+        /// <summary>Ids the user has deleted. Empty when no record file is configured.</summary>
+        private HashSet<string> RemovedIds()
+        {
+            var removed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string? file = _options.RemovedRecordFile;
+            if (string.IsNullOrEmpty(file) || !File.Exists(file))
+                return removed;
+            try
+            {
+                foreach (string line in File.ReadAllLines(file))
+                {
+                    string id = line.Trim();
+                    if (id.Length > 0 && !id.StartsWith('#'))
+                        removed.Add(id);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A record that cannot be read must not take the registry down with it;
+                // the cost is a deleted skill coming back, which is visible and fixable.
+                _logger.LogWarning(LogEventIds.SkillRejected,
+                    "skills.removed.unreadable file={File} reason={Reason}", file, ex.Message);
+            }
+            return removed;
+        }
+
+        private void RecordRemoved(string id)
+        {
+            string file = _options.RemovedRecordFile!;
+            HashSet<string> removed = RemovedIds();
+            if (!removed.Add(id))
+                return;
+            try
+            {
+                string? directory = Path.GetDirectoryName(file);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+                File.WriteAllLines(file, removed.OrderBy(x => x, StringComparer.Ordinal));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw new InvalidOperationException(
+                    $"'{id}' could not be removed: the record of deleted skills at {file} is not writable.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Forget that <paramref name="id"/> was ever deleted, so installing it again
+        /// works. Without this a user who removed a built-in skill and then installed
+        /// their own copy of it would watch the install succeed and the skill not
+        /// appear.
+        /// </summary>
+        private void ForgetRemoved(string id)
+        {
+            string? file = _options.RemovedRecordFile;
+            if (string.IsNullOrEmpty(file) || !File.Exists(file))
+                return;
+            HashSet<string> removed = RemovedIds();
+            if (!removed.Remove(id))
+                return;
+            try { File.WriteAllLines(file, removed.OrderBy(x => x, StringComparer.Ordinal)); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(LogEventIds.SkillRejected,
+                    "skills.removed.unwritable file={File} reason={Reason}", file, ex.Message);
             }
         }
 
@@ -354,6 +456,7 @@ namespace TensorSharp.AgentHost.Skills
             var visited = new HashSet<string>(SkillPathGuard.PathComparison == StringComparison.Ordinal
                 ? StringComparer.Ordinal
                 : StringComparer.OrdinalIgnoreCase);
+            HashSet<string> removed = RemovedIds();
 
             foreach ((string root, SkillOrigin origin) in EnumerateRoots())
             {
@@ -393,6 +496,13 @@ namespace TensorSharp.AgentHost.Skills
                     if (!TryLoad(dir, origin, normalized, out Skill? skill, out string? error))
                     {
                         errors.Add(new SkillLoadError(dir, error!));
+                        continue;
+                    }
+
+                    if (removed.Contains(skill!.Id))
+                    {
+                        // Deleted by the user. Not an error and not reported as one:
+                        // this is the skill being gone, which is what was asked for.
                         continue;
                     }
 

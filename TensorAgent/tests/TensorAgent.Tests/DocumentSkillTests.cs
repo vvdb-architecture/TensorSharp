@@ -677,4 +677,56 @@ public sealed class DocumentSkillTests
         }
     }
 
+    /// <summary>
+    /// A deleted skill stays deleted — including one that ships inside the app.
+    ///
+    /// <para>
+    /// Most of this app's skills live in the bundle, which is read-only and is
+    /// rewritten by every install of the app, so "delete" cannot mean "delete the
+    /// files". Before this it meant one of two worse things: the removal was refused
+    /// outright ("remove it from that directory instead", which a phone user cannot
+    /// do), or it appeared to work and the skill was back on the next launch. Both
+    /// are worse than not offering the button.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ARemovedSkillDoesNotComeBackWhenTheRegistryIsRebuilt()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-rm-" + Guid.NewGuid().ToString("N"));
+        string bundled = Path.Combine(root, "bundled");
+        string installed = Path.Combine(root, "installed");
+        Directory.CreateDirectory(installed);
+
+        // A skill that ships with the app: a read-only root, exactly like the bundle.
+        string one = Path.Combine(bundled, "weather");
+        Directory.CreateDirectory(one);
+        File.WriteAllText(Path.Combine(one, "SKILL.md"),
+            "---\nname: weather\ndescription: Tells you the weather.\n---\n\n# Weather\n");
+
+        string record = Path.Combine(root, "removed-skills.txt");
+        SkillRegistryOptions Options() => new()
+        {
+            Roots = new[] { bundled, installed },
+            InstallDirectory = installed,
+            RemovedRecordFile = record,
+        };
+
+        var registry = new SkillRegistry(Options());
+        Assert.Contains(registry.Skills, s => s.Id == "weather");
+
+        Assert.True(registry.Remove("weather"), "removing a bundled skill must succeed");
+        Assert.DoesNotContain(registry.Skills, s => s.Id == "weather");
+
+        // The bytes are still on disk, because a real bundle is read-only and the app
+        // cannot delete them. What must not happen is the skill coming back.
+        Assert.True(File.Exists(Path.Combine(one, "SKILL.md")),
+            "the test's own premise is wrong if the file was deletable");
+
+        // A fresh registry is what the next launch builds.
+        var relaunched = new SkillRegistry(Options());
+        Assert.DoesNotContain(relaunched.Skills, s => s.Id == "weather");
+
+        try { Directory.Delete(root, true); } catch { }
+    }
+
 }

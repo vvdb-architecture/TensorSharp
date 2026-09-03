@@ -129,6 +129,12 @@ public sealed class AgentAppHost : IDisposable
         {
             Roots = new[] { paths.BundledSkillsDirectory, paths.InstalledSkillsDirectory },
             InstallDirectory = paths.InstalledSkillsDirectory,
+            // Most of this app's skills ship INSIDE the bundle, which is read-only and
+            // is rewritten by every install of the app. Deleting one therefore cannot
+            // be done by deleting files: without this record the delete either failed
+            // outright or lasted until the next launch. It lives in the data root, so
+            // it survives app updates the way the user's conversations do.
+            RemovedRecordFile = Path.Combine(paths.DataRoot, "removed-skills.txt"),
         });
 
         ModelService = modelService ?? new ModelService(_loggerFactory.CreateLogger<ModelService>());
