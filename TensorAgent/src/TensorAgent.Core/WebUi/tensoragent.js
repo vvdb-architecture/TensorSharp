@@ -131,6 +131,61 @@
     return { turn: turn, bubble: b };
   }
 
+  // What the assistant is doing, and what it did.
+  //
+  // The desktop page shows a live activity block and DELETES it when the step
+  // finishes, which suits a wide screen you are watching. On a phone the useful
+  // thing is the opposite: a short trace that stays, so a user who looked away can
+  // see that it read a skill, ran a script and edited a file, without scrolling
+  // through the raw output of each. Live status while it runs; one line per step
+  // once it is done.
+  var TOOL_LABEL = {
+    shell: ['Generating code', 'Running code'],
+    apply_patch: ['Preparing patch', 'Applying patch'],
+    read_file: ['Preparing read', 'Reading file'],
+    edit_file: ['Preparing edit', 'Editing file'],
+    write_file: ['Preparing file', 'Writing file'],
+    skills_list: ['Preparing lookup', 'Checking skills'],
+    skills_read: ['Preparing read', 'Reading skill'],
+    skills_run: ['Preparing run', 'Running skill'],
+  };
+  function labelFor(tool, phase) {
+    var pair = TOOL_LABEL[tool];
+    if (pair) return pair[phase === 'writing' ? 0 : 1];
+    var name = tool ? String(tool).replace(/_/g, ' ') : 'operation';
+    return (phase === 'writing' ? 'Preparing ' : 'Running ') + name;
+  }
+
+  function trace(view, f) {
+    var phase = String(f.tool_progress || '');
+    if (phase === 'finished') {
+      if (view.live) {
+        // Keep it, as a finished line. The desktop removes this; on a phone the
+        // trace IS the answer to "what did it just do for 40 seconds".
+        var secs = Math.round(Number(f.seconds) || 0);
+        view.live.className = 'step done';
+        view.live.querySelector('.txt').textContent =
+          (f.detail ? String(f.detail) : view.live._label || 'Done')
+          + (secs ? ' · ' + secs + 's' : '');
+        view.live = null;
+      }
+      return;
+    }
+    if (phase !== 'writing' && phase !== 'running') return;
+
+    if (!view.live) {
+      view.live = el('div', 'step live');
+      view.live.appendChild(el('span', 'dot'));
+      view.live.appendChild(el('span', 'txt'));
+      view.turn.insertBefore(view.live, view.bubble);
+    }
+    var label = labelFor(f.tool ? String(f.tool) : (view.live._tool || ''), phase);
+    if (f.tool) view.live._tool = String(f.tool);
+    view.live._label = label;
+    view.live.querySelector('.txt').textContent = label + '…';
+    if (stickBottom) toBottom();
+  }
+
   function addCopy(turn, getText) {
     var c = el('button', 'copy', 'Copy');
     c.addEventListener('click', function () {
@@ -356,15 +411,7 @@
         }
         if (f.token) { answer += f.token; view.bubble.innerHTML = render(answer); }
         if (f.replace) { answer = f.replace; view.bubble.innerHTML = render(answer); }
-        if (f.progress || f.phase) {
-          var label = (f.tool || f.skill || f.phase || '') + (f.path ? ' · ' + f.path : '');
-          if (label) {
-            var s = el('div', 'step' + (f.ok === false ? ' fail' : ''));
-            s.appendChild(el('span', 'dot'));
-            s.appendChild(el('span', null, label));
-            view.turn.insertBefore(s, view.bubble);
-          }
-        }
+        if (f.tool_progress) trace(view, f);
         if (f.detail || f.output) steps += ' ' + (f.detail || '') + ' ' + (f.output || '');
         if (f.error) {
           steps += ' ' + f.error;
@@ -379,6 +426,7 @@
         if (stickBottom) toBottom();
       }
       function finish() {
+        if (view.live) { view.live.className = 'step done'; view.live = null; }
         offered = offerNetworkIfRefused(answer + ' ' + steps, offered);
         state.history.push({ role: 'assistant', content: answer });
         if (answer) addCopy(view.turn, function () { return answer; });
@@ -553,6 +601,20 @@
   function dictationEnded() {
     hold.classList.remove('rec');
     $('holdlabel').textContent = 'Hold to talk';
+    // Hand back to the text box with what was said already in it. Speaking is how
+    // the message STARTS; reading it back, fixing a word and pressing send is how it
+    // finishes, and staying in voice mode hides the very text the user needs to
+    // check. Only leave voice mode if we are still in it -- the user may have
+    // switched already.
+    if (voice.checked) {
+      voice.checked = false;
+      document.body.classList.remove('voice');
+    }
+    autoGrow();
+    text.focus();
+    // Put the caret at the end so typing continues the sentence rather than
+    // landing in front of it.
+    try { text.setSelectionRange(text.value.length, text.value.length); } catch (e) {}
   }
 
   // iOS recognises ONE language per session and does not detect which is being

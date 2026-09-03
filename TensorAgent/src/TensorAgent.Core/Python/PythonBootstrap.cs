@@ -86,6 +86,34 @@ internal static class PythonBootstrap
             mimetypes.knownfiles = []
             mimetypes.init([])
 
+            # HTTPS needs a certificate authority bundle, and on this platform there
+            # is none. _ssl ships, so TLS is available, but OpenSSL looks for a trust
+            # store at a compiled-in path that does not exist inside an app bundle:
+            # every https:// then fails CERTIFICATE_VERIFY_FAILED. That is why the
+            # research skill could search from a development machine, where the
+            # interpreter had the system store, and never from a phone.
+            #
+            # certifi is staged beside the other packages; point OpenSSL at it before
+            # anything imports ssl. os.environ (not just the managed environment) is
+            # what getenv sees, which is what OpenSSL reads.
+            def _tensoragent_trust_store():
+                # Searched rather than passed in: the packages directory is already on
+                # the path the host configured, and finding it here keeps the managed
+                # side from having to know the layout of a wheel.
+                roots = list(sys.path)
+                for _entry in roots:
+                    try:
+                        _bundle = os.path.join(_entry, 'certifi', 'cacert.pem')
+                        if os.path.isfile(_bundle):
+                            os.environ['SSL_CERT_FILE'] = _bundle
+                            os.environ['SSL_CERT_DIR'] = os.path.dirname(_bundle)
+                            return _bundle
+                    except Exception:
+                        continue
+                return None
+
+            _tensoragent_ca = _tensoragent_trust_store()
+
             # The live policy. A dict rather than a closure constant because the
             # audit hook below can never be replaced, while the policy changes
             # with every run. It starts closed: until a run sets it, nothing is
@@ -419,7 +447,18 @@ internal static class PythonBootstrap
                     # A plain dict, not the process environment: nothing here can
                     # start a child that would inherit it, and mutating the app's
                     # real environment from a script would be a surprise.
-                    os.environ = dict(request['env'])
+                    #
+                    # The CA bundle is the one thing carried across. It is a property
+                    # of this interpreter, not of the caller -- the trust store found
+                    # at startup is where certificates live for every run -- and a
+                    # caller who forgot it would get CERTIFICATE_VERIFY_FAILED on
+                    # every https:// with nothing pointing at the cause. A caller that
+                    # sets it explicitly still wins.
+                    _run_env = dict(request['env'])
+                    if _tensoragent_ca:
+                        _run_env.setdefault('SSL_CERT_FILE', _tensoragent_ca)
+                        _run_env.setdefault('SSL_CERT_DIR', os.path.dirname(_tensoragent_ca))
+                    os.environ = _run_env
                     sys.stdin = io.StringIO(request['stdin'] or '')
                     for entry in back:
                         if entry not in sys.path:

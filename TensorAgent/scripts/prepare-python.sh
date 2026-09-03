@@ -75,6 +75,12 @@ PURE_PACKAGES=(
   # .docx is a zip of XML a stranger wrote, and xml.etree will happily expand a
   # billion-laughs entity on the user's phone.
   "defusedxml==0.7.1"
+  # The CA bundle. _ssl.framework ships, so Python CAN speak TLS on the phone --
+  # but OpenSSL has no trust store there, and macOS's is not it. Without this every
+  # https:// from a skill or from generated code fails certificate verification,
+  # which is why the research skill could search from a laptop and never from a
+  # device. The bootstrap points SSL_CERT_FILE at this.
+  "certifi"
   "pyyaml"          # sdist: the pure-Python yaml package is extracted below
   ${TENSORAGENT_PYTHON_PACKAGES:-}
 )

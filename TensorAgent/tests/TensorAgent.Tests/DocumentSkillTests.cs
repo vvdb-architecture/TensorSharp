@@ -73,6 +73,9 @@ public sealed class DocumentSkillTests
         ["charset-normalizer"] = "charset_normalizer",
         ["defusedxml"] = "defusedxml",
         ["pyyaml"] = "yaml",
+        // Not imported by any skill script: it is the CA bundle the interpreter points
+        // OpenSSL at, so https:// works on a device that has no system trust store.
+        ["certifi"] = "certifi",
     };
 
     /// <summary>
@@ -590,6 +593,16 @@ public sealed class DocumentSkillTests
                     research!, "scripts/fetch_page.py", new[] { "https://example.com" });
                 string body = result.Content ?? string.Empty;
 
+                // The search is the half a user actually starts with ("find me X"),
+                // and it fails differently from a fetch: it resolves a second host,
+                // follows a redirect and parses HTML. Run it in the same sandbox.
+                if (allow)
+                {
+                    SkillToolResult found = runner.Run(research!, "scripts/search.py", new[] { "financial news" });
+                    Assert.True((found.Content ?? string.Empty).Contains("results for", StringComparison.OrdinalIgnoreCase),
+                        "the search returned nothing usable through the sandbox: " + found.Content);
+                }
+
                 if (!allow)
                 {
                     Assert.False(body.Contains("Example Domain", StringComparison.OrdinalIgnoreCase),
@@ -609,6 +622,58 @@ public sealed class DocumentSkillTests
         finally
         {
             try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// The interpreter can verify a TLS certificate.
+    ///
+    /// <para>
+    /// _ssl ships in the app bundle, so TLS is AVAILABLE on a phone; what is not
+    /// there is a trust store. OpenSSL looks for one at a compiled-in path that does
+    /// not exist inside an app bundle, so every https:// fails
+    /// CERTIFICATE_VERIFY_FAILED -- and only on the device, because a development
+    /// machine's interpreter has the system store and quietly succeeds. That
+    /// asymmetry is why the research skill was reported as never working while every
+    /// test of it passed. This asserts the bundle is found and actually used.
+    /// </para>
+    /// </summary>
+    [LivePythonFact]
+    public async Task TheInterpreterHasACertificateStoreAndCanVerifyTls()
+    {
+        var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+        Assert.True(python.IsAvailable, python.UnavailableReason);
+
+        string work = Path.Combine(Path.GetTempPath(), "tensoragent-tls-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        try
+        {
+            var policy = new ExecutionPolicy(
+                AllowScripts: true, AllowNetwork: true, WorkRoot: work,
+                ReadableRoots: Array.Empty<string>(), TempRoot: work);
+            var context = new InterpreterContext(work, new Dictionary<string, string> { ["HOME"] = work }, policy);
+
+            const string probe = """
+                import os, ssl, sys
+                where = os.environ.get('SSL_CERT_FILE')
+                if not where or not os.path.isfile(where):
+                    print('NO CA BUNDLE: SSL_CERT_FILE=' + repr(where))
+                    raise SystemExit(1)
+                ctx = ssl.create_default_context()
+                if ctx.cert_store_stats().get('x509_ca', 0) < 1:
+                    print('CA BUNDLE LOADED NOTHING: ' + where)
+                    raise SystemExit(1)
+                print('ok ' + where + ' with ' + str(ctx.cert_store_stats()['x509_ca']) + ' authorities')
+                """;
+
+            ExecutionResult result = await python.RunCodeAsync(probe, [], context, CancellationToken.None);
+            Assert.True(result.ExitCode == 0,
+                "the interpreter cannot verify a certificate, so every https:// from a skill or from "
+                + $"generated code fails on the device.{Environment.NewLine}{result.Stdout}{result.Stderr}");
+        }
+        finally
+        {
+            try { Directory.Delete(work, true); } catch { }
         }
     }
 

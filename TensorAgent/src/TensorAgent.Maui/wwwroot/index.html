@@ -164,6 +164,9 @@ body { display: flex; flex-direction: column; }
 }
 .step .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
 .step.fail .dot { background: var(--danger); }
+.step.live .dot { animation: pulse 1.1s ease-in-out infinite; }
+.step.done { color: #7f8ea8; }
+.step.done .dot { background: var(--ok); animation: none; }
 
 .notice {
   align-self: center; font-size: 13px; padding: 8px 12px; border-radius: 10px;
