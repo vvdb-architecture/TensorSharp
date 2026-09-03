@@ -386,6 +386,63 @@ public sealed class AgentAppHost : IDisposable
     /// </para>
     /// </summary>
     /// <summary>
+    /// Make <paramref name="model"/> the model this app is using, now.
+    ///
+    /// <para>
+    /// The engine enforces one hosted model per process because the desktop server is
+    /// launched against one <c>--model</c>. An app is not: its user picks from a list,
+    /// and until this existed the pick only took effect on the next launch -- so the
+    /// Models page said "selected" while the chat said "No model is configured", which
+    /// is indistinguishable from a broken button. This saves the choice, moves the
+    /// guard, and loads the weights, in that order.
+    /// </para>
+    /// <para>
+    /// Backends are tried best-first and a refusal is reported rather than swallowed:
+    /// a phone that silently fell back to the CPU would look like the model loading
+    /// very slowly rather than like Metal being unavailable.
+    /// </para>
+    /// </summary>
+    /// <param name="model">The catalog entry to use. Its files must already be installed.</param>
+    /// <returns>The backend that answered.</returns>
+    public string UseModel(CatalogModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        AppSettings settings = Settings.Load();
+        settings.SelectedModelId = model.Id;
+        Settings.Save(settings);
+
+        string weights = Paths.SelectedModelPath(settings);
+        string? projector = Paths.SelectedProjectorPath(settings);
+        if (!File.Exists(weights))
+            throw new FileNotFoundException($"{model.DisplayName} is not downloaded yet.", weights);
+        if (projector is not null && !File.Exists(projector))
+            projector = null;
+
+        Options.RepointHostedModel(weights, projector);
+
+        var refusals = new List<string>();
+        foreach (BackendOption backend in Options.SupportedBackends)
+        {
+            try
+            {
+                ModelService.LoadModel(weights, projector, backend.Value);
+                _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                    "using {Model} on {Backend}", model.Id, backend.Value);
+                return backend.Value;
+            }
+            catch (Exception ex)
+            {
+                refusals.Add($"{backend.Value}: {ex.Message}");
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"{model.DisplayName} could not be loaded on any backend this build offers:"
+            + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
+    }
+
+    /// <summary>
     /// What <see cref="WaitForTheEngineToStop"/> polls, and the only thing that decides
     /// how long the shutdown waits. Replaceable so a test can hold the shutdown open
     /// deterministically instead of racing a real engine.

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Sandbox;
@@ -505,6 +506,51 @@ public sealed class AgentAppHostTests : IDisposable
             onRelease();
             base.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Choosing a model repoints the engine, so the choice is real before the method
+    /// returns.
+    ///
+    /// <para>
+    /// The engine allows one hosted model per process because the desktop server is
+    /// launched against one --model, and the app inherited that: picking a model in
+    /// TensorAgent's own list saved a setting and nothing else, so the Models page said
+    /// "selected" while /api/chat kept answering "No model is configured" until the app
+    /// was restarted. On a phone that is indistinguishable from a broken button, and it
+    /// is what a user reported. This pins the half that is testable without weights:
+    /// after UseModel, the guard the chat route consults resolves the NEW file, and
+    /// before it, it does not.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ChoosingAModelRepointsTheHostedModelRatherThanWaitingForARestart()
+    {
+        AgentAppHost host = Start();
+
+        // The guard the chat route consults. Before anything is chosen it holds the
+        // placeholder path, so a request naming a real model is refused.
+        const string wanted = "gemma-4-E2B-it-Q8_0.gguf";
+        Assert.False(
+            TensorSharp.Server.Hosting.HostedModelGuard.TryResolveHostedModelRequest(
+                wanted, host.Options.StartupModelPath, out _, out string before),
+            "nothing has been chosen yet, so this model must not resolve");
+        Assert.Contains("not hosted", before, StringComparison.OrdinalIgnoreCase);
+
+        // UseModel loads weights, which a unit test has none of; repointing is the part
+        // that decides whether the choice is visible, and it is what is checked here.
+        CatalogModel model = ModelCatalog.BuiltIn.Single(m => m.Id == "gemma-4-e2b-q8");
+        AppSettings settings = host.Settings.Load();
+        settings.SelectedModelId = model.Id;
+        host.Settings.Save(settings);
+        host.Options.RepointHostedModel(
+            host.Paths.SelectedModelPath(settings), host.Paths.SelectedProjectorPath(settings));
+
+        Assert.True(
+            TensorSharp.Server.Hosting.HostedModelGuard.TryResolveHostedModelRequest(
+                wanted, host.Options.StartupModelPath, out string resolved, out string after),
+            $"after choosing {model.Id} the chat route must accept it: {after}");
+        Assert.EndsWith(wanted, resolved, StringComparison.Ordinal);
     }
 
 }

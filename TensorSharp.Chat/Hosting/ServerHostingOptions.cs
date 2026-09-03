@@ -119,10 +119,37 @@ namespace TensorSharp.Server.Hosting
         public bool WebUiEnabled { get; }
 
         /// <summary>Absolute path of the model the server was launched with, or null when no model is hosted.</summary>
-        public string StartupModelPath { get; }
+        public string StartupModelPath { get; private set; }
 
         /// <summary>Absolute path of the projector the server was launched with, or null when none is hosted.</summary>
-        public string StartupMmProjPath { get; }
+        public string StartupMmProjPath { get; private set; }
+
+        /// <summary>
+        /// Point the "one hosted model per process" invariant at a different pair.
+        ///
+        /// <para>
+        /// The desktop server never calls this: it is launched against one
+        /// <c>--model</c> and changing it means restarting, which is the right rule for
+        /// a process an operator started with arguments. An app has no arguments and no
+        /// operator. When someone picks a model in TensorAgent's own list, telling them
+        /// it will apply "next time the app starts" is not a smaller version of the
+        /// feature -- on a phone it reads as the button not working, and the chat keeps
+        /// saying "No model is configured" while the list says the model is selected.
+        /// </para>
+        /// <para>
+        /// This only moves the guard's target. The caller is still responsible for
+        /// actually loading the new pair through <c>ModelService</c>, and for doing it
+        /// in an order where no request can see a hosted path whose weights are not
+        /// loaded yet.
+        /// </para>
+        /// </summary>
+        /// <param name="modelPath">Absolute path of the model to host, or null for none.</param>
+        /// <param name="mmProjPath">Absolute path of its projector, or null for none.</param>
+        public void RepointHostedModel(string modelPath, string mmProjPath)
+        {
+            StartupModelPath = modelPath;
+            StartupMmProjPath = mmProjPath;
+        }
 
         /// <summary>Canonical name of the backend chosen at startup (e.g. <c>ggml_metal</c>).</summary>
         public string DefaultBackend { get; }

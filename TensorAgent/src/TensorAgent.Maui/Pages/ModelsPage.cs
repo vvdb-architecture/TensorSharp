@@ -197,15 +197,39 @@ public sealed class ModelsPage : ContentPage
         await DownloadAsync(row);
     }
 
-    private void Select(ModelRow row)
+    /// <summary>
+    /// Use this model now, and go back to the chat.
+    ///
+    /// <para>
+    /// This used to save the choice and say it would apply "when TensorAgent next
+    /// starts", which on a phone reads as a button that did nothing: the list said the
+    /// model was selected while the chat kept answering "No model is configured".
+    /// AgentAppHost.UseModel repoints the engine and loads the weights, so the choice
+    /// is real by the time this returns.
+    /// </para>
+    /// <para>
+    /// Loading is seconds of work (22 s for a 5 GB model on an iPhone 17 Pro Max), so
+    /// it happens off the UI thread with the row showing what it is doing, and the page
+    /// returns to the chat by itself afterwards -- being left on the list, having just
+    /// chosen something, is a dead end the user has to navigate out of.
+    /// </para>
+    /// </summary>
+    private async void Select(ModelRow row)
     {
-        AppSettings settings = _app.Settings.Load();
-        settings.SelectedModelId = row.Model.Id;
-        _app.Settings.Save(settings);
-        Refresh();
-        // The engine reads the selected model when the host is built, so the choice
-        // takes effect on the next launch. Saying so is better than a silent no-op.
-        DisplayAlert("Model selected", $"{row.Model.DisplayName} will be used when TensorAgent next starts.", "OK");
+        row.BeginLoading();
+        try
+        {
+            string backend = await Task.Run(() => _app.UseModel(row.Model));
+            Refresh();
+            await Shell.Current.GoToAsync("//main");
+            Console.WriteLine($"TensorAgent: now using {row.Model.Id} on {backend}");
+        }
+        catch (Exception ex)
+        {
+            row.Failed(ex.Message);
+            await DisplayAlert("Could not use this model", ex.Message, "OK");
+            Refresh();
+        }
     }
 
     private async Task DownloadAsync(ModelRow row)
@@ -325,6 +349,14 @@ public sealed class ModelRow : BindableObject
         IsBusy = true;
         ActionLabel = "Stop";
         Status = "Starting…";
+    }
+
+    /// <summary>Loading the weights, which is seconds rather than instant.</summary>
+    public void BeginLoading()
+    {
+        IsBusy = true;
+        ActionLabel = "Loading…";
+        Status = "Loading onto the GPU…";
     }
 
     public void Report(ModelDownloadProgress p)
