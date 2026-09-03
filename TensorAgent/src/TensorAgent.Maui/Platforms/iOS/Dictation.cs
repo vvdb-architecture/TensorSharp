@@ -36,6 +36,11 @@ internal sealed class Dictation : IDisposable
 {
     private readonly AVAudioEngine _engine = new();
     private SFSpeechRecognizer? _recognizer;
+    private readonly string _language;
+
+    /// <param name="language">BCP-47 tag such as "en-US" or "zh-CN"; empty follows the device.</param>
+    public Dictation(string? language = null) => _language = language ?? string.Empty;
+
     private SFSpeechAudioBufferRecognitionRequest? _request;
     private SFSpeechRecognitionTask? _task;
     private TaskCompletionSource<string>? _completion;
@@ -63,8 +68,15 @@ internal sealed class Dictation : IDisposable
     /// </summary>
     public async Task<string> ListenAsync()
     {
-        _recognizer = new SFSpeechRecognizer(NSLocale.CurrentLocale)
-            ?? throw new InvalidOperationException("This device has no speech recogniser for the current language.");
+        // One locale per session: iOS does not detect the spoken language, so the
+        // caller's choice decides. Empty follows the device, which is right until the
+        // user speaks the other language they use.
+        NSLocale locale = string.IsNullOrWhiteSpace(_language)
+            ? NSLocale.CurrentLocale
+            : new NSLocale(_language);
+        _recognizer = new SFSpeechRecognizer(locale)
+            ?? throw new InvalidOperationException(
+                $"This device has no speech recogniser for {(_language.Length > 0 ? _language : "the current language")}.");
         if (!_recognizer.Available)
             throw new InvalidOperationException("The speech recogniser is not available right now.");
 

@@ -159,6 +159,8 @@ public sealed class MainPage : ContentPage
             // Guarded in JS as well: on the very first appearance the page may not have
             // loaded yet, and there is nothing to refresh until it has.
             await _webView.EvaluateJavaScriptAsync(
+                "window.TensorAgent && window.TensorAgent.nativeReady ? window.TensorAgent.nativeReady() : false");
+            await _webView.EvaluateJavaScriptAsync(
                 "window.TensorAgent && window.TensorAgent.refreshModel ? window.TensorAgent.refreshModel() : false");
         }
         catch (Exception ex)
@@ -230,25 +232,15 @@ public sealed class MainPage : ContentPage
         return button;
     }
 
-    private View BuildAttachmentBar()
-    {
-        _dictate = Chip("Speak", OnDictate);
-        var bar = new HorizontalStackLayout
-        {
-            Spacing = 8,
-            Padding = new Thickness(12, 8),
-            BackgroundColor = BarBackground,
-            Children =
-            {
-                Chip("Photo", () => AttachAsync(MediaSource.Library)),
-                Chip("Camera", () => AttachAsync(MediaSource.Camera)),
-                Chip("Video", () => AttachAsync(MediaSource.Video)),
-                Chip("File", () => AttachAsync(MediaSource.File)),
-                _dictate,
-            },
-        };
-        return new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = bar, BackgroundColor = BarBackground };
-    }
+    /// <summary>
+    /// Nothing. The row of Photo / Camera / Video / File / Speak chips lived here
+    /// because the desktop page had no idea a phone was underneath it. The app's own
+    /// page has a "+" that opens the same four choices and a Voice switch for the
+    /// fifth, so this row was the same commands a second time, spending a row of a
+    /// small screen to say what the composer already said. The page now asks for
+    /// these through OnPageEvent instead.
+    /// </summary>
+    private View BuildAttachmentBar() => new ContentView { IsVisible = false, HeightRequest = 0 };
 
     private Button Chip(string text, Func<Task> onTap)
     {
@@ -319,27 +311,36 @@ public sealed class MainPage : ContentPage
     /// are ignored and only the final transcription reaches the composer, because
     /// appending partials would rewrite the user's text as they spoke.
     /// </summary>
-    private async Task OnDictate()
+    /// <summary>
+    /// Start listening, because the user is holding the button down.
+    ///
+    /// <para>
+    /// Hold-to-talk rather than a toggle: the page's Voice switch turns the composer
+    /// into one large button, and a press that lasts exactly as long as the speech is
+    /// what a phone user expects from it. The session ends in
+    /// <see cref="StopDictation"/> when the finger lifts, so nothing here waits for a
+    /// result -- the transcription is delivered to the composer whenever it arrives.
+    /// </para>
+    /// </summary>
+    private async Task StartDictationAsync()
     {
         if (_dictation is not null)
-        {
-            _dictation.Stop();
             return;
-        }
 
         if (!Platforms.iOS.Dictation.IsSupported)
         {
             await Notice("Speech recognition is not available on this device.");
+            await _webView.EvaluateJavaScriptAsync("window.TensorAgent.dictationEnded()");
             return;
         }
         if (await Platforms.iOS.Dictation.RequestPermissionsAsync() is { } refused)
         {
             await Notice(refused);
+            await _webView.EvaluateJavaScriptAsync("window.TensorAgent.dictationEnded()");
             return;
         }
 
-        _dictation = new Platforms.iOS.Dictation();
-        _dictate!.Text = "Stop";
+        _dictation = new Platforms.iOS.Dictation(_host.App.Settings.Load().SpeechLanguage);
         try
         {
             string text = await _dictation.ListenAsync();
@@ -355,10 +356,17 @@ public sealed class MainPage : ContentPage
         }
         finally
         {
-            _dictation.Dispose();
+            _dictation?.Dispose();
             _dictation = null;
-            _dictate!.Text = "Speak";
+            await _webView.EvaluateJavaScriptAsync("window.TensorAgent.dictationEnded()");
         }
+    }
+
+    /// <summary>End the session the finger was holding open.</summary>
+    private void StopDictation()
+    {
+        try { _dictation?.Stop(); }
+        catch (Exception ex) { Console.WriteLine("TensorAgent: stop dictation failed: " + ex.Message); }
     }
 
     /// <summary>
@@ -387,13 +395,60 @@ public sealed class MainPage : ContentPage
         MainThread.BeginInvokeOnMainThread(() => _webView.Source = new UrlWebViewSource { Url = target });
     }
 
+    /// <summary>
+    /// What the page asks the app to do.
+    ///
+    /// <para>
+    /// The page owns the chrome now, so the things only native code can do -- the
+    /// camera, the photo library, the document picker, dictation, and leaving the
+    /// chat for another route -- are reached by the page ASKING for them over the
+    /// transport that already exists, rather than by a second row of native buttons
+    /// duplicating the page's own "+". A WKWebView message handler would be the
+    /// platform way; this keeps the client free of any iOS-specific API and is
+    /// testable over plain HTTP.
+    /// </para>
+    /// </summary>
     private void OnPageEvent(string kind, System.Text.Json.JsonElement message)
     {
-        if (!string.Equals(kind, "generating", StringComparison.Ordinal))
-            return;
-        bool generating = message.TryGetProperty("value", out System.Text.Json.JsonElement value)
-            && value.ValueKind == System.Text.Json.JsonValueKind.True;
-        Platforms.iOS.DeviceState.KeepAwake(generating && _host.App.Settings.Load().KeepAwakeWhileGenerating);
+        switch (kind)
+        {
+            case "generating":
+                bool generating = message.TryGetProperty("value", out System.Text.Json.JsonElement value)
+                    && value.ValueKind == System.Text.Json.JsonValueKind.True;
+                Platforms.iOS.DeviceState.KeepAwake(generating && _host.App.Settings.Load().KeepAwakeWhileGenerating);
+                return;
+
+            case "open-models":
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try { await Shell.Current.GoToAsync("//models"); }
+                    catch (Exception ex) { Console.WriteLine("TensorAgent: open-models failed: " + ex.Message); }
+                });
+                return;
+
+            case "pick":
+                string what = message.TryGetProperty("what", out System.Text.Json.JsonElement w)
+                    ? w.GetString() ?? string.Empty : string.Empty;
+                MediaSource? source = what switch
+                {
+                    "photo" => MediaSource.Library,
+                    "camera" => MediaSource.Camera,
+                    "video" => MediaSource.Video,
+                    "file" => MediaSource.File,
+                    _ => null,
+                };
+                if (source is { } picked)
+                    MainThread.BeginInvokeOnMainThread(async () => await AttachAsync(picked));
+                return;
+
+            case "dictate-start":
+                MainThread.BeginInvokeOnMainThread(async () => await StartDictationAsync());
+                return;
+
+            case "dictate-stop":
+                MainThread.BeginInvokeOnMainThread(StopDictation);
+                return;
+        }
     }
 
     private void StartHost()

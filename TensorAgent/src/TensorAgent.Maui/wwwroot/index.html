@@ -254,6 +254,15 @@ body.voice #plus { display: none; }
 }
 .switch input:checked + .track { background: var(--accent); }
 .switch input:checked + .track::after { transform: translateX(14px); }
+/* The dictation language sits beside the Voice switch, and only appears with it:
+   iOS listens in one language per session and cannot detect which is spoken. */
+#lang { display: none; gap: 4px; }
+body.voice #lang { display: inline-flex; }
+.langbtn {
+  font-size: 11px; padding: 3px 8px; border-radius: 999px;
+  background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
+}
+.langbtn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 #skills-btn { margin-left: auto; font-size: 12px; color: var(--muted); background: none; border: 0; padding: 4px; }
 
 /* ---- sheets -------------------------------------------------------------
@@ -321,6 +330,7 @@ body.voice #plus { display: none; }
   <div id="toggles">
     <label class="switch"><input type="checkbox" id="think"><span class="track"></span><span>Reasoning</span></label>
     <label class="switch"><input type="checkbox" id="voice"><span class="track"></span><span>Voice</span></label>
+    <span id="lang"></span>
     <button id="skills-btn" type="button">🧩 Skills</button>
   </div>
 </div>

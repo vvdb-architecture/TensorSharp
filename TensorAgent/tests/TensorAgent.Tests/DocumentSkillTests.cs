@@ -545,4 +545,71 @@ public sealed class DocumentSkillTests
         }
     }
 
+    /// <summary>
+    /// A skill script reaches the network when, and only when, the user's switch is on.
+    ///
+    /// <para>
+    /// Reported as "the research skill does not work and cannot access network". The
+    /// chain from AppSettings.AllowNetwork through SkillHostOptions to the launch reads
+    /// correctly, but reading is not evidence: this runs the research skill's own
+    /// fetcher through the real runner, once with the switch off and once on, and
+    /// asserts the refusal in the first case and a real page in the second. If the
+    /// switch works, the bug the user hit is that it was off and the refusal did not
+    /// say so loudly enough -- which is a different fix from a broken pipe.
+    /// </para>
+    /// </summary>
+    [LivePythonFact]
+    public void AResearchScriptReachesTheNetworkOnlyWhenTheSwitchIsOn()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-net-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+
+            string skillsRoot = Path.GetDirectoryName(Skill)!;
+            var registry = new SkillRegistry(new SkillRegistryOptions { Roots = new[] { skillsRoot } });
+            Skill? research = registry.Skills.FirstOrDefault(s => s.Id == "research");
+            Assert.True(research is not null, "the research skill did not load out of the repository");
+
+            foreach (bool allow in new[] { false, true })
+            {
+                var manager = new SessionWorkspaceManager(Path.Combine(root, "s" + allow));
+                SessionWorkspace workspace = manager.GetOrCreate("net");
+                var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+                {
+                    Backend = new InProcessShellBackend(python),
+                    Workspace = workspace,
+                    Sandbox = SkillSandboxMode.Required,
+                    AllowNetwork = allow,
+                    Timeout = TimeSpan.FromSeconds(90),
+                });
+
+                SkillToolResult result = runner.Run(
+                    research!, "scripts/fetch_page.py", new[] { "https://example.com" });
+                string body = result.Content ?? string.Empty;
+
+                if (!allow)
+                {
+                    Assert.False(body.Contains("Example Domain", StringComparison.OrdinalIgnoreCase),
+                        "the network is off and a page came back anyway");
+                    Assert.True(
+                        body.Contains("network", StringComparison.OrdinalIgnoreCase),
+                        $"with the network off the refusal must SAY so, or the user cannot tell a "
+                        + $"blocked fetch from a broken skill. It said: {body}");
+                }
+                else
+                {
+                    Assert.True(body.Contains("Example Domain", StringComparison.OrdinalIgnoreCase),
+                        $"the switch is on and the skill still could not read a page: {body}");
+                }
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
 }

@@ -24,6 +24,9 @@
     generating: false,
     abort: null,
     maxTokens: 2048,
+    speech: '',            // BCP-47 for dictation; empty follows the device
+    settings: null,
+    native: false,         // true when the page is inside the app, not a browser
   };
 
   // ---- tiny helpers --------------------------------------------------------
@@ -390,10 +393,10 @@
       closeSheets();
       // The native side owns the camera, the library and the document picker;
       // the file input is the fallback when the page is open in a browser.
-      if (window.TensorAgentNative && window.TensorAgentNative.pick) {
-        window.TensorAgentNative.pick(kind);
-        return;
-      }
+      // The app owns the camera, the library and the document picker. It is asked
+      // over the same loopback transport everything else uses, so this file needs no
+      // iOS-specific object; MainPage.OnPageEvent turns it into a native picker.
+      if (state.native) { post('/api/agent/events', { type: 'pick', what: kind }); return; }
       var input = $('file-input');
       input.setAttribute('accept',
         kind === 'photo' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'camera' ? 'image/*' : '*/*');
@@ -475,21 +478,44 @@
     if (!voice.checked) text.focus();
   });
   function startRec() {
-    if (!window.TensorAgentNative || !window.TensorAgentNative.startDictation) {
-      notice('Voice input needs the app’s microphone permission.', 'error');
-      return;
-    }
+    if (!state.native) { notice('Voice input is only available in the app.', 'error'); return; }
     hold.classList.add('rec');
     $('holdlabel').textContent = 'Listening… release to stop';
-    window.TensorAgentNative.startDictation();
+    post('/api/agent/events', { type: 'dictate-start' });
   }
   function stopRec() {
     if (!hold.classList.contains('rec')) return;
+    $('holdlabel').textContent = 'Transcribing…';
+    post('/api/agent/events', { type: 'dictate-stop' });
+  }
+  // The app says when the session has really ended, because the transcription
+  // arrives after the finger lifts and the button must not look idle before it does.
+  function dictationEnded() {
     hold.classList.remove('rec');
     $('holdlabel').textContent = 'Hold to talk';
-    if (window.TensorAgentNative && window.TensorAgentNative.stopDictation) {
-      window.TensorAgentNative.stopDictation();
-    }
+  }
+
+  // iOS recognises ONE language per session and does not detect which is being
+  // spoken, so a bilingual user has to say which -- and the place to say it is next
+  // to the button they are about to hold, not three screens away in Settings.
+  var LANGS = [
+    { id: '', label: 'Auto' },
+    { id: 'en-US', label: 'EN' },
+    { id: 'zh-CN', label: '中文' }
+  ];
+  function paintLang() {
+    var box = $('lang');
+    box.innerHTML = '';
+    LANGS.forEach(function (l) {
+      var b = el('button', 'langbtn' + (state.speech === l.id ? ' on' : ''), l.label);
+      b.type = 'button';
+      b.addEventListener('click', function () {
+        state.speech = l.id;
+        paintLang();
+        post('/api/agent/settings', Object.assign({}, state.settings || {}, { speechLanguage: l.id }));
+      });
+      box.appendChild(b);
+    });
   }
   ['pointerdown'].forEach(function (e) { hold.addEventListener(e, function (ev) { ev.preventDefault(); startRec(); }); });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (e) { hold.addEventListener(e, stopRec); });
@@ -499,8 +525,11 @@
   // actually start from. It used to be read into a control the page then reset.
   function applySettings() {
     return fetch('/api/agent/settings').then(function (r) { return r.json(); }).then(function (s) {
+      state.settings = s || null;
       if (s && typeof s.thinkByDefault === 'boolean') think.checked = s.thinkByDefault;
       if (s && Array.isArray(s.defaultSkills)) { state.skills = s.defaultSkills.slice(); paintSkillChips(); }
+      if (s && typeof s.speechLanguage === 'string') state.speech = s.speechLanguage;
+      paintLang();
       return s;
     }).catch(function () { return null; });
   }
@@ -528,6 +557,9 @@
     // promise, so an async function here can never report success to native code.
     refreshModel: function () { refreshModel(); return true; },
     hasModel: function () { return !!state.model; },
+    dictationEnded: dictationEnded,
+    /** The app calls this once at startup so the page knows native pickers exist. */
+    nativeReady: function () { state.native = true; return true; },
   };
 
   // ---- start ---------------------------------------------------------------

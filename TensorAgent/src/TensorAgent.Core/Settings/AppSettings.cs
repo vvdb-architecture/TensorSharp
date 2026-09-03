@@ -51,6 +51,14 @@ public sealed class AppSettings
     [JsonPropertyName("defaultSkills")] public List<string> DefaultSkills { get; set; } = new();
 
     /// <summary>Keep the screen awake while generating.</summary>
+    /// <summary>
+    /// BCP-47 language the speech recogniser listens in, or empty to follow the
+    /// device. iOS recognises ONE language per session -- it does not detect which
+    /// one is being spoken -- so a bilingual user has to be able to say which, and
+    /// the device language is only ever right for one of them.
+    /// </summary>
+    [JsonPropertyName("speechLanguage")] public string SpeechLanguage { get; set; } = string.Empty;
+
     [JsonPropertyName("keepAwakeWhileGenerating")] public bool KeepAwakeWhileGenerating { get; set; } = true;
 
     /// <summary>Allow model downloads over cellular.</summary>
