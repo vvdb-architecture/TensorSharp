@@ -32,6 +32,9 @@ namespace TensorAgent.Maui.Pages;
 public sealed class ModelsPage : ContentPage
 {
     private readonly AgentAppHost _app;
+
+    /// <summary>The running app, so the debug reproduction hook can drive the same path a tap does.</summary>
+    internal AgentAppHost Host => _app;
     private readonly ObservableCollection<ModelRow> _rows = new();
     private readonly Dictionary<string, CancellationTokenSource> _running = new(StringComparer.Ordinal);
 

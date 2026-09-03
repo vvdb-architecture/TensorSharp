@@ -292,6 +292,38 @@
     setThink(on) { const t = document.getElementById('reasoning-toggle'); if (t) t.checked = !!on; },
     setSkills(names) { if (typeof setSelectedSkills === 'function') setSelectedSkills(names || []); },
     history() { return chatHistory; },
+    /**
+     * Re-read which model is loaded.
+     *
+     * The page learns the model ONCE, at load, into the top-level `currentLoadedModel`
+     * (fetchServerState -> updateStatusBadge). That is right for a server, where the
+     * model cannot change without a restart, and wrong here: the app can now switch
+     * models while the page is alive. Without this the header kept saying "No model
+     * configured" after a model had been chosen and loaded, and sendMessage's own
+     * guard -- `if (!currentLoadedModel) alert('No model is configured...')` -- refused
+     * to send, so the request never reached the server that was, by then, perfectly
+     * able to answer it. The native side calls this whenever the chat is shown.
+     *
+     * fetchServerState is the page's own function and does the rest correctly:
+     * renderEmptyState() returns early while chatHistory is non-empty, so a running
+     * conversation is not cleared, and createSession() gives the NEW model a session
+     * of its own rather than reusing one bound to the model that was replaced.
+     */
+    refreshModel() {
+      // Deliberately NOT async. WKWebView's evaluateJavaScript -- which is what
+      // MAUI's EvaluateJavaScriptAsync calls -- does not await a promise: an async
+      // function hands back a Promise object, which stringifies to something that is
+      // not "true", so a caller polling this can never see it succeed no matter what
+      // the page does. Start the refresh, and let hasModel() report the outcome.
+      if (typeof fetchServerState === 'function') {
+        try { fetchServerState(); } catch (e) { /* reported by hasModel staying false */ }
+      }
+      return true;
+    },
+    /** Whether the page currently believes a model is loaded. Synchronous on purpose. */
+    hasModel() {
+      return typeof currentLoadedModel !== 'undefined' && !!currentLoadedModel;
+    },
   };
 
   // ================================================================================

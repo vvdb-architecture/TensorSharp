@@ -98,10 +98,29 @@ public sealed class MainPage : ContentPage
 
         try
         {
-            // fetchServerState() runs at page load and must have populated
-            // currentLoadedModel before sendMessage() accepts anything; a short
-            // wait is the simplest way to sequence after that fetch.
-            await Task.Delay(1500);
+            // sendMessage() refuses while the page's currentLoadedModel is null, so this
+            // has to wait for a model rather than for a fixed delay. It used to sleep
+            // 1500 ms, which was enough when a model was already loaded at startup and
+            // not when one is being loaded concurrently -- the prompt fired first and
+            // was silently refused, which is exactly the bug being tested for, produced
+            // by the harness instead of by the product. Polling refreshModel() is both
+            // the correct wait and a direct exercise of the fix.
+            bool ready = false;
+            for (int i = 0; i < 60 && !ready; i++)
+            {
+                await Task.Delay(1000);
+                await _webView.EvaluateJavaScriptAsync(
+                    "window.TensorAgent && window.TensorAgent.refreshModel ? window.TensorAgent.refreshModel() : 0");
+                // hasModel() is the synchronous half: refreshModel starts the fetch and
+                // this reports what the page ended up believing.
+                string? answer = await _webView.EvaluateJavaScriptAsync(
+                    "window.TensorAgent && window.TensorAgent.hasModel ? window.TensorAgent.hasModel() : false");
+                ready = answer is not null && answer.Contains("true", StringComparison.OrdinalIgnoreCase);
+            }
+            Console.WriteLine($"TensorAgent: demo prompt sees a loaded model = {ready}");
+            if (!ready)
+                return;
+
             string js = "document.getElementById('message-input').value = " + JsonSerializer.Serialize(prompt) + "; sendMessage();";
             await _webView.EvaluateJavaScriptAsync(js);
             Console.WriteLine("TensorAgent: demo prompt sent through the Web UI: " + prompt);
@@ -112,6 +131,41 @@ public sealed class MainPage : ContentPage
         }
     }
 #endif
+
+    /// <summary>
+    /// Re-sync the page's idea of which model is loaded, every time the chat is shown.
+    ///
+    /// <para>
+    /// The Web UI reads the loaded model ONCE, at page load, into its own
+    /// `currentLoadedModel`. That is correct for the desktop server, where the model
+    /// cannot change while the page is open. In the app it can: the user picks one in
+    /// the Models list. Without this the header still said "No model configured" after
+    /// a model had been chosen AND loaded, and the page's own send guard refused to
+    /// send anything -- so the prompt never reached a server that was ready to answer
+    /// it. Reported from a phone, twice: repointing the engine was necessary and not
+    /// sufficient, because the half the user actually looks at had not been told.
+    /// </para>
+    /// <para>
+    /// Done on appearing rather than as a message from the Models page, so it is right
+    /// however the chat is reached -- the flyout, the back gesture, or the automatic
+    /// return after choosing a model. It costs one request to a loopback server.
+    /// </para>
+    /// </summary>
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        try
+        {
+            // Guarded in JS as well: on the very first appearance the page may not have
+            // loaded yet, and there is nothing to refresh until it has.
+            await _webView.EvaluateJavaScriptAsync(
+                "window.TensorAgent && window.TensorAgent.refreshModel ? window.TensorAgent.refreshModel() : false");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TensorAgent: model refresh on appearing failed: " + ex.Message);
+        }
+    }
 
     /// <summary>
     /// The row of things a phone can do that a browser cannot: the camera, the photo

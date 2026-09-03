@@ -43,6 +43,35 @@ public sealed class AppShell : Shell
         // without this only the first page could ever be screenshotted. Launching with
         // TENSORAGENT_START_PAGE=models opens that route instead, which is how
         // scripts/run-sim.sh captures the model list and the settings.
+        // TENSORAGENT_USE_MODEL=<catalog id> reproduces, without a tap, exactly what a
+        // user does in the Models list: choose an installed model, have it loaded, and
+        // land back in the chat. It exists because the bug this guards against was
+        // reported twice from a phone and could not be reproduced from the outside --
+        // devicectl cannot touch the screen, so the one path that mattered was the one
+        // path no test could drive. Paired with TENSORAGENT_DEMO_PROMPT it drives the
+        // whole reported failure: select a model, then send a prompt, and see whether
+        // the page still refuses with "No model is configured".
+        string? use = Environment.GetEnvironmentVariable("TENSORAGENT_USE_MODEL");
+        if (!string.IsNullOrWhiteSpace(use))
+        {
+            Dispatcher.Dispatch(async () =>
+            {
+                try
+                {
+                    Core.Catalog.CatalogModel? picked = Core.Catalog.ModelCatalog.Find(use.Trim());
+                    if (picked is null)
+                    {
+                        Console.WriteLine($"TensorAgent: TENSORAGENT_USE_MODEL={use} is not a catalog id");
+                        return;
+                    }
+                    string backend = await Task.Run(() => models.Host.UseModel(picked));
+                    Console.WriteLine($"TensorAgent: debug hook loaded {picked.Id} on {backend}");
+                    await GoToAsync("//main");
+                }
+                catch (Exception ex) { Console.WriteLine("TensorAgent: debug model use failed: " + ex.Message); }
+            });
+        }
+
         string? start = Environment.GetEnvironmentVariable("TENSORAGENT_START_PAGE");
         if (!string.IsNullOrWhiteSpace(start))
         {
