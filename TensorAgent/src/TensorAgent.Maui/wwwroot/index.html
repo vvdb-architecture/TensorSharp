@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover so the composer can sit against the home indicator, and
+     user-scalable=no because a chat that pinch-zooms while you type is a bug. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="color-scheme" content="dark">
+<title>TensorAgent</title>
+<style>
+/* ============================================================================
+   TensorAgent — the phone UI.
+
+   This is NOT the desktop Web UI restyled. The desktop page is laid out for a
+   mouse, a wide window and an operator who launched a server with arguments;
+   this one is laid out for a thumb on a 6.9-inch screen held in one hand. It
+   talks to exactly the same loopback API, so nothing the app can do is lost.
+
+   Three rules it follows and the desktop page does not:
+     * one row of chrome, never two — vertical space is the scarce resource;
+     * every control the thumb reaches is at the BOTTOM, near the keyboard;
+     * the layout follows the VISIBLE viewport, so opening the keyboard never
+       pushes the conversation off the screen.
+   ========================================================================= */
+
+:root {
+  --bg: #0b1220;
+  --surface: #151d31;
+  --surface-2: #1b2540;
+  --border: #26314d;
+  --text: #e6edf7;
+  --muted: #8b9ab8;
+  --accent: #3b82f6;
+  --accent-soft: #1e3a8a;
+  --danger: #ef4444;
+  --ok: #22c55e;
+  --radius: 16px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  /* Kept in step with visualViewport by the script. */
+  --vh: 100dvh;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0;
+  height: var(--vh);
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+body { display: flex; flex-direction: column; }
+
+/* ---- one row of chrome ---------------------------------------------------
+   Requirement: the busy indicator, the model name and New Chat share a single
+   line. The model name is the flexible element because it is the only one
+   whose length is not ours to choose. */
+#bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(var(--safe-top) + 8px) 12px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+  min-height: 0;
+}
+#busy {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--muted); flex: 0 0 auto; opacity: .35;
+  transition: opacity .2s, background .2s;
+}
+#busy.on { background: var(--accent); opacity: 1; animation: pulse 1.1s ease-in-out infinite; }
+#busy.queued { background: #f59e0b; opacity: 1; }
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.55); } }
+
+#model {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: none; border: 0; padding: 0; text-align: left;
+}
+#model .sub { color: var(--muted); font-weight: 400; font-size: 12px; }
+#model.empty { color: var(--muted); font-weight: 500; }
+
+#new {
+  flex: 0 0 auto;
+  font-size: 13px; font-weight: 600;
+  padding: 7px 12px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border);
+}
+#new:active { background: var(--accent-soft); }
+
+/* ---- the conversation ---------------------------------------------------- */
+#chat {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 12px 12px 4px;
+  display: flex; flex-direction: column; gap: 10px;
+  overscroll-behavior: contain;
+}
+
+.turn { display: flex; flex-direction: column; max-width: 100%; }
+.turn.me { align-items: flex-end; }
+.turn.bot { align-items: flex-start; }
+
+.bubble {
+  max-width: 88%;
+  padding: 10px 13px;
+  border-radius: var(--radius);
+  word-wrap: break-word; overflow-wrap: anywhere;
+  font-size: 15.5px; line-height: 1.5;
+}
+.me .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
+.bot .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
+.bubble p { margin: 0 0 8px; } .bubble p:last-child { margin-bottom: 0; }
+.bubble pre {
+  background: #0a0f1c; border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px; overflow-x: auto; font-size: 13px; margin: 8px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.bubble code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+.bubble :not(pre) > code { background: #0a0f1c; padding: 1px 5px; border-radius: 5px; }
+.bubble a { color: #93c5fd; }
+.bubble img { max-width: 100%; border-radius: 10px; display: block; margin: 6px 0; }
+.bubble table { border-collapse: collapse; width: 100%; font-size: 13px; display: block; overflow-x: auto; }
+.bubble th, .bubble td { border: 1px solid var(--border); padding: 5px 7px; text-align: left; }
+
+.copy {
+  align-self: flex-start; margin-top: 4px;
+  font-size: 11px; color: var(--muted); background: none; border: 0; padding: 4px 2px;
+}
+
+/* Reasoning: collapsed by default, because on a phone it otherwise buries the answer. */
+.think { width: 88%; margin-bottom: 2px; }
+.think summary {
+  font-size: 12px; color: var(--muted); cursor: pointer; padding: 5px 0;
+  list-style: none;
+}
+.think summary::-webkit-details-marker { display: none; }
+.think summary::before { content: "▸ "; }
+.think[open] summary::before { content: "▾ "; }
+.think .body {
+  font-size: 13px; color: var(--muted); white-space: pre-wrap;
+  border-left: 2px solid var(--border); padding: 4px 0 4px 9px; margin-bottom: 6px;
+}
+
+/* Tool / skill activity, shown as a quiet line rather than a wall of JSON. */
+.step {
+  font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 6px; padding: 2px 0;
+}
+.step .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
+.step.fail .dot { background: var(--danger); }
+
+.notice {
+  align-self: center; font-size: 13px; padding: 8px 12px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+  max-width: 92%;
+}
+.notice.error { border-color: var(--danger); color: #fca5a5; }
+
+/* ---- the empty state ---------------------------------------------------- */
+#empty { margin: auto; text-align: center; padding: 20px; color: var(--muted); }
+#empty h1 { font-size: 26px; margin: 0 0 6px; color: var(--text); letter-spacing: -.02em; }
+#empty p { font-size: 14px; margin: 0 0 14px; }
+#empty .cta {
+  display: inline-block; font-size: 14px; font-weight: 600; padding: 10px 18px;
+  border-radius: 999px; background: var(--accent); color: #fff; border: 0;
+}
+
+/* ---- the composer ------------------------------------------------------- */
+#composer {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 8px 10px calc(8px + var(--safe-bottom));
+}
+
+#chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#chips:empty { display: none; }
+.chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px 8px 4px 4px; font-size: 12px; color: var(--muted);
+  max-width: 60%;
+}
+/* Requirement: a picked image is SHOWN, not just named. */
+.chip img { width: 34px; height: 34px; object-fit: cover; border-radius: 7px; display: block; }
+.chip .ic { width: 34px; height: 34px; display: grid; place-items: center; font-size: 17px; }
+.chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip .x { background: none; border: 0; color: var(--muted); font-size: 15px; padding: 0 2px; }
+
+#skillchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#skillchips:empty { display: none; }
+.skillchip {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+  background: var(--accent-soft); color: #bfdbfe; border: 1px solid #2b4a91;
+}
+
+#row { display: flex; align-items: flex-end; gap: 8px; }
+
+.round {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 19px;
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+}
+.round:active { background: var(--accent-soft); }
+.round.send { background: var(--accent); color: #fff; border-color: var(--accent); font-size: 17px; }
+.round.send[disabled] { opacity: .4; }
+.round.stop { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+#textwrap { flex: 1 1 auto; min-width: 0; }
+#text {
+  width: 100%; resize: none; border-radius: 19px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  padding: 9px 13px; font: inherit; font-size: 16px; /* 16px: below it iOS zooms on focus */
+  max-height: 26vh; min-height: 38px; line-height: 1.35;
+}
+#text:focus { outline: none; border-color: var(--accent); }
+
+/* ---- hold-to-talk -------------------------------------------------------
+   Requirement: hold the button to record, release to stop. It replaces the
+   text field entirely while in voice mode, so the thumb has one large target
+   instead of a small icon beside a keyboard. */
+#hold {
+  flex: 1 1 auto; height: 44px; border-radius: 22px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+  font-size: 15px; font-weight: 600; display: none;
+  align-items: center; justify-content: center; gap: 8px;
+  user-select: none; -webkit-user-select: none; touch-action: none;
+}
+body.voice #hold { display: flex; }
+body.voice #textwrap { display: none; }
+body.voice #plus { display: none; }
+#hold.rec { background: var(--danger); border-color: var(--danger); color: #fff; }
+#hold .lvl { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+#hold.rec .lvl { animation: pulse .8s ease-in-out infinite; }
+
+#toggles { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.track {
+  width: 34px; height: 20px; border-radius: 999px; background: var(--border);
+  position: relative; transition: background .15s; flex: 0 0 auto;
+}
+.track::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(14px); }
+#skills-btn { margin-left: auto; font-size: 12px; color: var(--muted); background: none; border: 0; padding: 4px; }
+
+/* ---- sheets -------------------------------------------------------------
+   One pattern for every secondary surface: a bottom sheet. It is where a
+   thumb already is, and it never covers the conversation completely. */
+.sheet-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  display: none; z-index: 40;
+}
+.sheet-bg.on { display: block; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--border);
+  padding: 8px 12px calc(14px + var(--safe-bottom));
+  transform: translateY(100%); transition: transform .22s ease;
+  max-height: 82vh; overflow-y: auto;
+}
+.sheet.on { transform: translateY(0); }
+.grab { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px auto 12px; }
+.sheet h2 { font-size: 15px; margin: 0 0 10px; }
+.opt {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 13px 10px; border-radius: 12px; background: var(--surface-2);
+  border: 1px solid var(--border); color: var(--text); font-size: 15px;
+  margin-bottom: 8px; text-align: left;
+}
+.opt .em { font-size: 20px; width: 24px; text-align: center; }
+.opt:active { background: var(--accent-soft); }
+.opt .hint { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.skillrow { display: flex; align-items: flex-start; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+.skillrow:last-child { border-bottom: 0; }
+.skillrow .meta { flex: 1 1 auto; min-width: 0; }
+.skillrow .nm { font-size: 14px; font-weight: 600; }
+.skillrow .ds { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- Requirement 1: busy indicator, model name and New Chat on ONE line. -->
+<div id="bar">
+  <span id="busy" title="Generation activity"></span>
+  <button id="model" class="empty" type="button">No model yet<span class="sub"></span></button>
+  <button id="new" type="button">New</button>
+</div>
+
+<div id="chat">
+  <div id="empty">
+    <h1>TensorAgent</h1>
+    <p>Private AI that runs on this iPhone.<br>Nothing you type leaves the device.</p>
+    <button class="cta" id="empty-cta" type="button">Choose a model</button>
+  </div>
+</div>
+
+<div id="composer">
+  <div id="skillchips"></div>
+  <div id="chips"></div>
+  <div id="row">
+    <button class="round" id="plus" type="button" title="Attach">＋</button>
+    <div id="textwrap"><textarea id="text" rows="1" placeholder="Message TensorAgent…"></textarea></div>
+    <button class="round" id="hold" type="button"><span class="lvl"></span><span id="holdlabel">Hold to talk</span></button>
+    <button class="round send" id="send" type="button" title="Send">➤</button>
+  </div>
+  <div id="toggles">
+    <label class="switch"><input type="checkbox" id="think"><span class="track"></span><span>Reasoning</span></label>
+    <label class="switch"><input type="checkbox" id="voice"><span class="track"></span><span>Voice</span></label>
+    <button id="skills-btn" type="button">🧩 Skills</button>
+  </div>
+</div>
+
+<div class="sheet-bg" id="sheet-bg"></div>
+
+<div class="sheet" id="attach-sheet">
+  <div class="grab"></div>
+  <h2>Add to this message</h2>
+  <button class="opt" data-pick="photo"><span class="em">🖼️</span> Photo</button>
+  <button class="opt" data-pick="camera"><span class="em">📷</span> Camera</button>
+  <button class="opt" data-pick="video"><span class="em">🎬</span> Video</button>
+  <button class="opt" data-pick="file"><span class="em">📄</span> File</button>
+</div>
+
+<div class="sheet" id="skills-sheet">
+  <div class="grab"></div>
+  <h2>Skills</h2>
+  <div id="skills-list"></div>
+</div>
+
+<div class="sheet" id="model-sheet">
+  <div class="grab"></div>
+  <h2>Model</h2>
+  <div id="model-info"></div>
+  <button class="opt" id="open-models"><span class="em">📚</span> Manage models<span class="hint">download, switch</span></button>
+</div>
+
+<input type="file" id="file-input" style="display:none" multiple
+       accept="image/*,video/*,audio/*,.pdf,.txt,.csv,.json,.md,.py,.js,.html,.xml,.log">
+</body>
+</html>

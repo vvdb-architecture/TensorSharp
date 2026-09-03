@@ -7,7 +7,7 @@
 #   The log carries the "entry URL" line (Debug builds only) with the port and
 #   the per-launch token; every /api request must present that token.
 #
-# Checks: GET / is the Server's index.html byte for byte, GET /api/engine shows
+# Checks: GET / is TensorAgent's own index.html byte for byte, GET /api/engine shows
 # the static GgmlOps link is alive (no DllNotFoundException), /api without the
 # token is refused, POST /api/chat streams the demo SSE frames and ends with a
 # done frame, and the media probe line shows ImageIO/AVFoundation decoded a HEIC,
@@ -33,18 +33,22 @@ echo "==> ${BASE} (token ${TOKEN:0:6}…)"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-# 1. index.html is the Server's, plus exactly one appended script tag. The whole of
+# 1. index.html is TENSORAGENT's own page, plus exactly one appended script tag.
+#    It used to be TensorSharp.Server's, served byte-for-byte with a phone layout
+#    injected over it. The app now ships its own phone-first page: the desktop page
+#    is laid out for a mouse and a wide window, and no amount of injected CSS makes
+#    that a good phone app. The whole of
 #    the Server's file must still be there, in order: the app adds to the page and
 #    never forks it.
 TMP="$(mktemp)"
-SOURCE="${REPO_ROOT}/TensorSharp.Server/wwwroot/index.html"
+SOURCE="${REPO_ROOT}/TensorAgent/src/TensorAgent.Maui/wwwroot/index.html"
 trap 'rm -f "${TMP}"' EXIT
 curl -fsS -o "${TMP}" "${AUTH[@]}" "${BASE}"
 SERVED_BYTES="$(wc -c < "${TMP}")"
 SOURCE_BYTES="$(wc -c < "${SOURCE}")"
 # The tag goes in before </body>, not at the end, so the test is: take it out again
-# and what is left must be the Server's file byte for byte.
-python3 - "${TMP}" "${SOURCE}" <<'PYCHECK' || fail "GET / is not TensorSharp.Server/wwwroot/index.html plus one script tag"
+# and what is left must be the app's own file byte for byte.
+python3 - "${TMP}" "${SOURCE}" <<'PYCHECK' || fail "GET / is not TensorAgent/src/TensorAgent.Maui/wwwroot/index.html plus one script tag"
 import sys
 served = open(sys.argv[1], 'rb').read()
 source = open(sys.argv[2], 'rb').read()
@@ -56,7 +60,7 @@ if served.replace(tag, b'', 1) != source:
     print('the page differs from the Server\'s beyond the one added tag', file=sys.stderr)
     sys.exit(1)
 PYCHECK
-echo "ok  GET / is the Server's index.html (${SOURCE_BYTES} bytes) plus the companion tag (${SERVED_BYTES} served)"
+echo "ok  GET / is TensorAgent's own index.html (${SOURCE_BYTES} bytes) plus the companion tag (${SERVED_BYTES} served)"
 
 # 2. Token gate.
 CODE="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}api/models")"

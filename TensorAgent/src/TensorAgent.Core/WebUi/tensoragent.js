@@ -1,434 +1,539 @@
-// TensorAgent's additions to TensorSharp.Server's Web UI, injected by the loopback
-// server after the page's own script. The page itself is served byte-for-byte from the
-// Server's wwwroot; everything the app needs beyond it lives here:
+// ============================================================================
+// TensorAgent — the phone client.
 //
-//   * session resume: the app opens the page with ?conversation=<id>, this script binds
-//     the engine session to that conversation and re-renders its saved messages through
-//     the page's own bubble builders (so a resumed chat looks exactly like a live one);
-//   * native attachments: the app's camera / microphone / file flows upload through the
-//     same /api/upload route and hand the response to TensorAgent.addAttachment, which
-//     puts it in the page's pending list;
-//   * dictation: TensorAgent.insertText appends recognised speech to the composer;
-//   * WKWebView has no alert()/confirm() UI, so those become in-page notices.
-//
-// The page declares its state with top-level let/function bindings, which a later
-// <script> in the same document shares, so no page change is needed.
+// It speaks the same loopback API the desktop Web UI speaks, so every capability
+// the app has is still reachable; what is different is the shape of the surface
+// around it. Written as one file with no dependencies because it is served from
+// the app bundle over 127.0.0.1 and a build step for a single page would be a
+// cost with no return.
+// ============================================================================
 (function () {
   'use strict';
 
-  const params = new URLSearchParams(location.search);
-  const requested = params.get('conversation');
-  const state = { conversationId: requested && requested !== 'new' ? requested : null, ready: false };
+  var $ = function (id) { return document.getElementById(id); };
+  var chat = $('chat'), text = $('text'), send = $('send'), busy = $('busy');
+  var modelBtn = $('model'), think = $('think'), voice = $('voice'), hold = $('hold');
 
-  // ---- alert / confirm without a WKUIDelegate ------------------------------------
-  function notice(text, kind) {
-    let host = document.getElementById('ta-notices');
-    if (!host) {
-      host = document.createElement('div');
-      host.id = 'ta-notices';
-      host.style.cssText = 'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:90vw;pointer-events:none';
-      document.body.appendChild(host);
-    }
-    const el = document.createElement('div');
-    el.textContent = text;
-    el.style.cssText = 'background:' + (kind === 'error' ? '#7a2b2b' : '#2a2f45') + ';color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.35);pointer-events:auto';
-    host.appendChild(el);
-    setTimeout(() => el.remove(), 5000);
+  var state = {
+    model: null, arch: null, backend: null,
+    session: null, conversation: null,
+    history: [],            // {role, content, attachments}
+    attachments: [],        // /api/upload responses
+    skills: [],             // selected skill names
+    catalogSkills: [],
+    generating: false,
+    abort: null,
+    maxTokens: 2048,
+  };
+
+  // ---- tiny helpers --------------------------------------------------------
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
   }
-  window.alert = (m) => notice(String(m), 'error');
-  // confirm() cannot be made asynchronous; the two confirmations in the page (skill
-  // delete) are re-implemented below as an in-page dialog.
-  window.confirm = () => true;
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+  }
+  function atBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 90; }
+  function toBottom() { chat.scrollTop = chat.scrollHeight; }
 
-  function askConfirm(text) {
-    return new Promise(resolve => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9998;display:flex;align-items:center;justify-content:center';
-      const box = document.createElement('div');
-      box.style.cssText = 'background:#1c2033;color:#fff;padding:18px 20px;border-radius:14px;max-width:80vw;font-size:15px';
-      const p = document.createElement('div'); p.textContent = text; p.style.marginBottom = '14px';
-      const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end';
-      const no = document.createElement('button'); no.textContent = 'Cancel';
-      const yes = document.createElement('button'); yes.textContent = 'Delete'; yes.className = 'danger';
-      [no, yes].forEach(b => b.style.cssText = 'padding:8px 14px;border-radius:8px;border:0;font-size:14px');
-      no.onclick = () => { overlay.remove(); resolve(false); };
-      yes.onclick = () => { overlay.remove(); resolve(true); };
-      row.append(no, yes); box.append(p, row); overlay.append(box); document.body.appendChild(overlay);
+  // ---- the layout follows the VISIBLE viewport ----------------------------
+  // The single most important line in this file for a phone. Without it the
+  // keyboard pushes the composer below the fold and WebKit scrolls the document
+  // to chase it, taking the conversation off the top of the screen.
+  var vv = window.visualViewport, pendingVh = 0;
+  function applyVh() {
+    document.documentElement.style.setProperty('--vh', (vv ? vv.height : window.innerHeight) + 'px');
+    if (window.scrollY !== 0) window.scrollTo(0, 0);
+  }
+  function scheduleVh() {
+    if (pendingVh) return;
+    pendingVh = requestAnimationFrame(function () { pendingVh = 0; applyVh(); });
+  }
+  if (vv) { vv.addEventListener('resize', scheduleVh); vv.addEventListener('scroll', scheduleVh); }
+  window.addEventListener('orientationchange', function () { setTimeout(applyVh, 200); });
+  applyVh();
+
+  var stickBottom = true;
+  chat.addEventListener('scroll', function () { stickBottom = atBottom(); });
+  if (vv) vv.addEventListener('resize', function () { if (stickBottom) setTimeout(toBottom, 60); });
+  text.addEventListener('focus', function () { if (stickBottom) { setTimeout(toBottom, 60); setTimeout(toBottom, 350); } });
+
+  // ---- markdown ------------------------------------------------------------
+  // Deliberately small: fenced code, inline code, bold/italic, links, headings
+  // and lists. Everything is escaped first, so a model that emits HTML cannot
+  // put nodes into this page.
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function render(md) {
+    var out = '', rest = String(md == null ? '' : md), fence = /```([a-zA-Z0-9_+-]*)\n([\s\S]*?)(?:```|$)/;
+    var m;
+    while ((m = fence.exec(rest))) {
+      out += inline(rest.slice(0, m.index));
+      out += '<pre><code>' + esc(m[2]) + '</code></pre>';
+      rest = rest.slice(m.index + m[0].length);
+    }
+    return out + inline(rest);
+  }
+  function inline(s) {
+    var t = esc(s);
+    t = t.replace(/`([^`\n]+)`/g, function (_, c) { return '<code>' + c + '</code>'; });
+    t = t.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+    // Images before links: an image is a link with a bang in front of it.
+    t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img alt="$1" src="$2">');
+    t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    t = t.replace(/^### (.*)$/gm, '<strong>$1</strong>');
+    t = t.replace(/^## (.*)$/gm, '<strong>$1</strong>');
+    t = t.replace(/^# (.*)$/gm, '<strong>$1</strong>');
+    return t.split(/\n{2,}/).map(function (p) {
+      return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+
+  // ---- the transcript ------------------------------------------------------
+  function clearEmpty() { var e = $('empty'); if (e) e.remove(); }
+
+  function addTurn(role, content, attachments) {
+    clearEmpty();
+    var turn = el('div', 'turn ' + (role === 'user' ? 'me' : 'bot'));
+    var b = el('div', 'bubble');
+    if (attachments && attachments.length) {
+      attachments.forEach(function (a) {
+        if (a.mediaType === 'image') {
+          var img = document.createElement('img');
+          img.src = a.url; img.alt = a.fileName || 'image';
+          b.appendChild(img);
+        } else {
+          b.appendChild(el('div', null, '📄 ' + (a.fileName || a.file)));
+        }
+      });
+    }
+    if (content) {
+      var body = el('div');
+      body.innerHTML = render(content);
+      b.appendChild(body);
+    }
+    turn.appendChild(b);
+    chat.appendChild(turn);
+    if (stickBottom) toBottom();
+    return { turn: turn, bubble: b };
+  }
+
+  function addCopy(turn, getText) {
+    var c = el('button', 'copy', 'Copy');
+    c.addEventListener('click', function () {
+      var t = getText();
+      if (navigator.clipboard) navigator.clipboard.writeText(t);
+      c.textContent = 'Copied'; setTimeout(function () { c.textContent = 'Copy'; }, 1200);
+    });
+    turn.appendChild(c);
+  }
+
+  function notice(msg, kind) {
+    clearEmpty();
+    var n = el('div', 'notice' + (kind === 'error' ? ' error' : ''), msg);
+    chat.appendChild(n);
+    if (stickBottom) toBottom();
+    return n;
+  }
+
+  // ---- model state ---------------------------------------------------------
+  function paintModel(d) {
+    state.model = (d && d.loaded) || null;
+    state.arch = (d && d.architecture) || null;
+    state.backend = (d && d.loadedBackend) || null;
+    state.maxTokens = (d && d.defaultMaxTokens) || 2048;
+    if (!state.model) {
+      modelBtn.className = 'empty';
+      modelBtn.textContent = 'No model yet';
+    } else {
+      modelBtn.className = '';
+      modelBtn.textContent = pretty(state.model);
+      var sub = el('span', 'sub', state.backend === 'ggml_metal' ? '  GPU' : state.backend === 'ggml_cpu' ? '  CPU' : '');
+      modelBtn.appendChild(sub);
+    }
+    send.disabled = !state.model;
+  }
+  function pretty(file) {
+    return String(file).replace(/\.gguf$/i, '').replace(/-(it|instruct)\b/i, '').replace(/[-_]/g, ' ');
+  }
+
+  function refreshModel() {
+    return fetch('/api/models').then(function (r) { return r.json(); }).then(function (d) {
+      paintModel(d);
+      return d;
+    }).catch(function () { return null; });
+  }
+
+  // ---- sessions and conversations -----------------------------------------
+  function newSession(conversationId) {
+    // Written as one literal rather than assembled, so the route this binds a
+    // conversation with is greppable -- a test pins exactly this string, because a
+    // session opened without a conversation silently loses the transcript.
+    var url = conversationId
+      ? '/api/sessions?conversation=' + encodeURIComponent(conversationId)
+      : '/api/sessions?conversation=new';
+    return post(url).then(function (r) { return r.json(); }).then(function (s) {
+      state.session = s.sessionId || null;
+      state.conversation = s.conversation || s.conversationId || conversationId || null;
+      return s;
     });
   }
 
-  if (typeof deleteSkill === 'function') {
-    const original = deleteSkill;
-    // Same signature the modal's buttons call; the page's version asks confirm() first.
-    deleteSkill = async function (idx) {
-      const sk = (typeof skillsRoster !== 'undefined' && skillsRoster[idx]) || null;
-      const name = sk ? (sk.name || sk.id || 'this skill') : 'this skill';
-      if (!(await askConfirm('Delete skill "' + name + '" from this device?'))) return;
-      const realConfirm = window.confirm;
-      window.confirm = () => true;
-      try { return await original(idx); } finally { window.confirm = realConfirm; }
-    };
+  // Requirement 9: open the most recent conversation, so the app resumes where
+  // the user left off instead of greeting them with a blank page every launch.
+  function resumeLatest() {
+    return fetch('/api/agent/conversations').then(function (r) { return r.json(); }).then(function (d) {
+      var list = (d && d.conversations) || [];
+      if (!list.length) return newSession(null);
+      var latest = list[0];
+      return fetch('/api/agent/conversations/' + encodeURIComponent(latest.id))
+        .then(function (r) { return r.json(); })
+        .then(function (c) {
+          var msgs = (c && c.messages) || [];
+          if (msgs.length) {
+            clearEmpty();
+            msgs.forEach(function (m) {
+              state.history.push({ role: m.role, content: m.content });
+              addTurn(m.role, m.content, m.attachments);
+            });
+            toBottom();
+          }
+          return newSession(latest.id);
+        })
+        .catch(function () { return newSession(null); });
+    }).catch(function () { return newSession(null); });
   }
 
-  // ---- session binding -----------------------------------------------------------
-  // The page creates one engine session per load; the app needs to know which saved
-  // conversation that session belongs to, so the create call carries the id (or 'new').
-  createSession = async function () {
-    try {
-      const target = state.conversationId ? state.conversationId : 'new';
-      const res = await fetch('/api/sessions?conversation=' + encodeURIComponent(target), { method: 'POST' });
-      const data = await res.json();
-      if (data && data.sessionId) currentSessionId = data.sessionId;
-      if (data && data.conversationId) {
-        state.conversationId = data.conversationId;
-        postNative({ type: 'conversation', id: state.conversationId });
+  // ---- sending -------------------------------------------------------------
+  function setGenerating(on) {
+    state.generating = on;
+    busy.className = on ? 'on' : '';
+    send.textContent = on ? '■' : '➤';
+    send.className = 'round ' + (on ? 'stop' : 'send');
+    send.disabled = !on && !state.model;
+  }
+
+  function sendMessage() {
+    if (state.generating) { stop(); return; }
+    var t = text.value.trim();
+    if (!t && !state.attachments.length) return;
+    if (!state.model) { openSheet('model-sheet'); return; }
+
+    var atts = state.attachments.slice();
+    addTurn('user', t, atts);
+    state.history.push({ role: 'user', content: t });
+    text.value = ''; autoGrow();
+    state.attachments = []; paintChips();
+
+    var msg = { role: 'user', content: t || describe(atts) };
+    var images = atts.filter(function (a) { return a.mediaType === 'image'; }).map(function (a) { return a.file; });
+    var audio = atts.filter(function (a) { return a.mediaType === 'audio'; }).map(function (a) { return a.file; });
+    var others = atts.filter(function (a) { return a.mediaType !== 'image' && a.mediaType !== 'audio'; }).map(function (a) { return a.file; });
+    if (images.length) msg.imagePaths = images;
+    if (audio.length) msg.audioPaths = audio;
+    if (others.length) msg.filePaths = others;
+
+    var body = {
+      messages: state.history.slice(0, -1).map(function (h) { return { role: h.role, content: h.content }; }).concat([msg]),
+      maxTokens: state.maxTokens,
+      think: !!think.checked,
+    };
+    if (state.session) body.sessionId = state.session;
+    if (state.skills.length) body.skills = state.skills;
+
+    stream(body);
+  }
+  function describe(atts) {
+    return atts.map(function (a) { return (a.fileName || a.file); }).join(', ');
+  }
+
+  function stop() {
+    if (state.abort) { try { state.abort.abort(); } catch (e) {} }
+    setGenerating(false);
+  }
+
+  function stream(body) {
+    setGenerating(true);
+    var view = addTurn('assistant', '');
+    var answer = '', thinking = '', thinkBox = null, thinkBody = null;
+    var ctrl = new AbortController();
+    state.abort = ctrl;
+
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (t) { throw new Error(t || ('HTTP ' + res.status)); });
       }
-    } catch (e) {
-      console.error('Failed to create chat session:', e);
-      currentSessionId = null;
-    }
-  };
-
-  // After the page's "New Chat" the next createSession must mint a fresh conversation.
-  if (typeof clearChat === 'function') {
-    const originalClear = clearChat;
-    clearChat = async function () {
-      state.conversationId = null;
-      await originalClear();
-    };
+      var reader = res.body.getReader(), dec = new TextDecoder(), buf = '';
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return finish();
+          buf += dec.decode(r.value, { stream: true });
+          var parts = buf.split('\n');
+          buf = parts.pop();
+          parts.forEach(function (line) {
+            if (line.indexOf('data: ') !== 0) return;
+            var f;
+            try { f = JSON.parse(line.slice(6)); } catch (e) { return; }
+            handle(f);
+          });
+          return pump();
+        });
+      }
+      function handle(f) {
+        if (f.thinking) {
+          thinking += f.thinking;
+          if (!thinkBox) {
+            thinkBox = el('details', 'think');
+            thinkBox.appendChild(el('summary', null, 'Reasoning'));
+            thinkBody = el('div', 'body');
+            thinkBox.appendChild(thinkBody);
+            view.turn.insertBefore(thinkBox, view.bubble);
+          }
+          thinkBody.textContent = thinking;
+        }
+        if (f.token) { answer += f.token; view.bubble.innerHTML = render(answer); }
+        if (f.replace) { answer = f.replace; view.bubble.innerHTML = render(answer); }
+        if (f.progress || f.phase) {
+          var label = (f.tool || f.skill || f.phase || '') + (f.path ? ' · ' + f.path : '');
+          if (label) {
+            var s = el('div', 'step' + (f.ok === false ? ' fail' : ''));
+            s.appendChild(el('span', 'dot'));
+            s.appendChild(el('span', null, label));
+            view.turn.insertBefore(s, view.bubble);
+          }
+        }
+        if (f.error) notice(String(f.error), 'error');
+        if (f.image || f.imageUrl) {
+          var img = document.createElement('img');
+          img.src = f.imageUrl || f.image;
+          view.bubble.appendChild(img);
+        }
+        if (stickBottom) toBottom();
+      }
+      function finish() {
+        state.history.push({ role: 'assistant', content: answer });
+        if (answer) addCopy(view.turn, function () { return answer; });
+        setGenerating(false);
+        state.abort = null;
+      }
+      return pump();
+    }).catch(function (e) {
+      if (e && e.name === 'AbortError') { setGenerating(false); return; }
+      notice((e && e.message) || 'The request failed.', 'error');
+      setGenerating(false);
+      state.abort = null;
+    });
   }
 
-  // ---- resume ----------------------------------------------------------------------
-  function renderThinking(assistDiv, thinking) {
-    if (!thinking) return;
-    const bubble = assistDiv.querySelector('.bubble');
-    const text = bubble.querySelector('.bubble-text');
-    const block = document.createElement('div');
-    block.className = 'thinking-block';
-    const header = document.createElement('div');
-    header.className = 'thinking-header';
-    header.innerHTML = '<span class="arrow">&#9654;</span> Reasoning';
-    header.onclick = () => toggleThinking(header);
-    const content = document.createElement('div');
-    content.className = 'thinking-content';
-    content.textContent = thinking;
-    block.append(header, content);
-    const on = document.getElementById('reasoning-toggle');
-    if (!(on && on.checked)) header.style.display = 'none';
-    bubble.insertBefore(block, text);
-  }
-
-  function renderAssistant(msg, idx) {
-    const assistDiv = addAssistantBubble();
-    assistDiv.dataset.idx = idx;
-    const bubble = assistDiv.querySelector('.bubble');
-    const text = bubble.querySelector('.bubble-text');
-    text.textContent = msg.content || '';
-    renderThinking(assistDiv, msg.thinking);
-    const typing = assistDiv.querySelector('.typing-indicator');
-    if (typing) typing.remove();
-    if (msg.imageUrl) {
-      const img = document.createElement('img');
-      img.src = msg.imageUrl;
-      img.style.cssText = 'max-width:100%;max-height:512px;border-radius:10px;display:block;margin-top:8px';
-      bubble.insertBefore(img, assistDiv.querySelector('.stats'));
-    }
-    if (msg.artifacts && msg.artifacts.length && typeof appendArtifactFiles === 'function') {
-      try { appendArtifactFiles(assistDiv, msg.artifacts); } catch (e) { console.warn(e); }
-    }
-    if (typeof renderArtifactLinks === 'function') {
-      try { renderArtifactLinks(text); } catch (e) { /* older page */ }
-    }
-    if (msg.stats) assistDiv.querySelector('.stats').textContent = msg.stats;
-    const actions = document.createElement('div');
-    actions.className = 'msg-actions';
-    actions.innerHTML = '<button class="danger" onclick="revertFrom(' + idx + ')" title="Remove this response">&#x21A9; Revert</button>';
-    bubble.appendChild(actions);
-  }
-
-  function loadConversation(conv) {
-    if (!conv || !Array.isArray(conv.messages)) return;
-    chatHistory = [];
-    chatContainer.innerHTML = '';
-    if (typeof pendingAttachments !== 'undefined') { pendingAttachments = []; attachmentsDiv.innerHTML = ''; }
-    conv.messages.forEach((m, idx) => {
-      const entry = { role: m.role, content: m.content };
-      ['imagePaths', 'stillImagePaths', 'videoFilePaths', 'audioPaths', 'textFilePaths', 'textFileNames'].forEach(k => {
-        if (Array.isArray(m[k]) && m[k].length) entry[k] = m[k].slice();
-      });
-      if (m.isVideo) entry.isVideo = true;
-      if (m.role === 'assistant' && m.thinking) entry.thinking = m.thinking;
-      chatHistory.push(entry);
-      if (m.role === 'user') {
-        addUserBubble(m.display || m.content, m.attachments || [], idx);
+  // ---- attachments ---------------------------------------------------------
+  function paintChips() {
+    var box = $('chips');
+    box.innerHTML = '';
+    state.attachments.forEach(function (a, i) {
+      var c = el('div', 'chip');
+      if (a.mediaType === 'image') {
+        var img = document.createElement('img'); img.src = a.url; c.appendChild(img);
       } else {
-        renderAssistant(m, idx);
+        c.appendChild(el('span', 'ic', a.mediaType === 'video' ? '🎬' : a.mediaType === 'audio' ? '🎧' : '📄'));
       }
-    });
-    const toggle = document.getElementById('reasoning-toggle');
-    if (toggle && typeof conv.think === 'boolean') toggle.checked = conv.think;
-    if (Array.isArray(conv.skills) && typeof setSelectedSkills === 'function') {
-      try { setSelectedSkills(conv.skills); } catch (e) { console.warn(e); }
-    }
-    // A resumed conversation always starts from a fresh engine session: nothing is in
-    // the KV cache yet, so the first turn re-prefills (the flag keeps the page honest).
-    needsCacheReset = true;
-    if (chatHistory.length === 0 && typeof renderEmptyState === 'function') renderEmptyState();
-    scrollChatToBottom();
-  }
-
-  async function resume() {
-    if (!state.conversationId) return;
-    try {
-      const res = await fetch('/api/agent/conversations/' + encodeURIComponent(state.conversationId));
-      if (!res.ok) return;
-      loadConversation(await res.json());
-    } catch (e) {
-      console.error('resume failed', e);
-    }
-  }
-
-  // fetchServerState() ran at the end of the page script and is creating the session
-  // right now; wait for it, then hydrate.
-  async function whenReady() {
-    for (let i = 0; i < 200 && !currentSessionId; i++) await new Promise(r => setTimeout(r, 25));
-    await applyDefaults();
-    await resume();
-    state.ready = true;
-    postNative({ type: 'ready', conversation: state.conversationId });
-    watchGeneration();
-  }
-
-  // ---- copy that only makes sense on a server --------------------------------------
-  // The page is served byte-for-byte from TensorSharp.Server, and its empty state
-  // tells the reader to restart the server with --model. On a phone there is no
-  // command line and no server to restart: the model is chosen in the app's own
-  // Models list. Rewriting the sentence here keeps index.html unforked.
-  function retitleEmptyState() {
-    const replacement = 'No model yet. Open Models in the menu above, pick one that fits this '
-      + 'device, and download it; the chat starts working as soon as it is ready.';
-    document.querySelectorAll('p').forEach(p => {
-      if (/Start TensorSharp\.Server with/.test(p.textContent || '')) {
-        p.textContent = replacement;
-      }
+      c.appendChild(el('span', 'nm', a.fileName || a.file));
+      var x = el('button', 'x', '✕');
+      x.addEventListener('click', function () { state.attachments.splice(i, 1); paintChips(); });
+      c.appendChild(x);
+      box.appendChild(c);
     });
   }
 
-  // The page rebuilds its empty state whenever the model state is refetched, so the
-  // rewrite has to survive that rather than run once at load.
-  const observer = new MutationObserver(retitleEmptyState);
-  observer.observe(document.body, { childList: true, subtree: true });
-  retitleEmptyState();
+  function upload(file) {
+    var fd = new FormData();
+    fd.append('file', file, file.name);
+    return fetch('/api/upload', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (a) {
+        if (!a || !a.ok) { notice((a && a.error) || 'Upload failed', 'error'); return; }
+        state.attachments.push(a); paintChips();
+      });
+  }
 
-  // ---- the settings that are about the page ----------------------------------------
-  // Reasoning-on and the pre-selected skills live in the app's settings but are
-  // properties of this page's controls, so they are applied here rather than being
-  // pushed in from native code. A resumed conversation overrides them afterwards
-  // with whatever it was saved with, which is the right precedence: what the user
-  // last did in THIS chat beats what they chose as a default.
-  async function applyDefaults() {
-    try {
-      const res = await fetch('/api/agent/settings');
-      if (!res.ok) return;
-      const s = await res.json();
-      const toggle = document.getElementById('reasoning-toggle');
-      if (toggle && typeof s.thinkByDefault === 'boolean') toggle.checked = s.thinkByDefault;
-      if (Array.isArray(s.defaultSkills) && s.defaultSkills.length && typeof setSelectedSkills === 'function') {
-        setSelectedSkills(s.defaultSkills);
+  $('file-input').addEventListener('change', function (e) {
+    Array.prototype.forEach.call(e.target.files || [], upload);
+    e.target.value = '';
+  });
+
+  // ---- sheets --------------------------------------------------------------
+  function openSheet(id) { $('sheet-bg').classList.add('on'); $(id).classList.add('on'); }
+  function closeSheets() {
+    $('sheet-bg').classList.remove('on');
+    ['attach-sheet', 'skills-sheet', 'model-sheet'].forEach(function (s) { $(s).classList.remove('on'); });
+  }
+  $('sheet-bg').addEventListener('click', closeSheets);
+
+  // Requirement 6: one "+" opens a list, instead of four buttons on a row.
+  $('plus').addEventListener('click', function () { openSheet('attach-sheet'); });
+  document.querySelectorAll('#attach-sheet .opt').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var kind = b.getAttribute('data-pick');
+      closeSheets();
+      // The native side owns the camera, the library and the document picker;
+      // the file input is the fallback when the page is open in a browser.
+      if (window.TensorAgentNative && window.TensorAgentNative.pick) {
+        window.TensorAgentNative.pick(kind);
+        return;
       }
-    } catch (e) { /* the page works without them */ }
+      var input = $('file-input');
+      input.setAttribute('accept',
+        kind === 'photo' ? 'image/*' : kind === 'video' ? 'video/*' : kind === 'camera' ? 'image/*' : '*/*');
+      if (kind === 'camera') input.setAttribute('capture', 'environment'); else input.removeAttribute('capture');
+      input.click();
+    });
+  });
+
+  modelBtn.addEventListener('click', function () {
+    var info = $('model-info');
+    info.innerHTML = '';
+    info.appendChild(el('div', 'skillrow',
+      state.model ? (pretty(state.model) + ' · ' + (state.arch || '?') + ' · ' + (state.backend || '')) : 'No model loaded yet.'));
+    openSheet('model-sheet');
+  });
+  $('open-models').addEventListener('click', function () {
+    closeSheets();
+    post('/api/agent/events', { type: 'open-models' });
+  });
+  var cta = $('empty-cta');
+  if (cta) cta.addEventListener('click', function () { post('/api/agent/events', { type: 'open-models' }); });
+
+  // ---- skills --------------------------------------------------------------
+  $('skills-btn').addEventListener('click', function () {
+    fetch('/api/skills').then(function (r) { return r.json(); }).then(function (d) {
+      state.catalogSkills = (d && d.skills) || [];
+      var list = $('skills-list');
+      list.innerHTML = '';
+      if (!state.catalogSkills.length) list.appendChild(el('div', 'notice', 'No skills are installed.'));
+      state.catalogSkills.forEach(function (s) {
+        var row = el('div', 'skillrow');
+        var meta = el('div', 'meta');
+        meta.appendChild(el('div', 'nm', s.name));
+        meta.appendChild(el('div', 'ds', (s.description || '').slice(0, 120)));
+        row.appendChild(meta);
+        var lab = el('label', 'switch');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = state.skills.indexOf(s.name) >= 0;
+        cb.addEventListener('change', function () {
+          var i = state.skills.indexOf(s.name);
+          if (cb.checked && i < 0) state.skills.push(s.name);
+          if (!cb.checked && i >= 0) state.skills.splice(i, 1);
+          paintSkillChips();
+        });
+        lab.appendChild(cb); lab.appendChild(el('span', 'track'));
+        row.appendChild(lab);
+        list.appendChild(row);
+      });
+      openSheet('skills-sheet');
+    });
+  });
+  function paintSkillChips() {
+    var box = $('skillchips');
+    box.innerHTML = '';
+    state.skills.forEach(function (n) { box.appendChild(el('span', 'skillchip', '🧩 ' + n)); });
   }
 
-  // ---- telling the app when the model is working -----------------------------------
-  // The app keeps the screen awake while a reply is being generated, which it can
-  // only do if it knows. There is no event for that in the page, so the composer's
-  // send is wrapped and the end is detected by polling the page's own flag, which is
-  // cheap and needs no change to index.html.
-  function watchGeneration() {
-    if (typeof sendMessage !== 'function') return;
-    const original = sendMessage;
-    sendMessage = function () {
-      const result = original.apply(this, arguments);
-      postNative({ type: 'generating', value: true });
-      const poll = setInterval(() => {
-        if (typeof isGenerating !== 'undefined' && isGenerating) return;
-        clearInterval(poll);
-        postNative({ type: 'generating', value: false });
-      }, 500);
-      return result;
-    };
+  // ---- composer ------------------------------------------------------------
+  function autoGrow() {
+    text.style.height = 'auto';
+    text.style.height = Math.min(text.scrollHeight, window.innerHeight * 0.26) + 'px';
+  }
+  text.addEventListener('input', autoGrow);
+  send.addEventListener('click', sendMessage);
+  $('new').addEventListener('click', function () {
+    state.history = []; state.attachments = []; paintChips();
+    chat.innerHTML = '';
+    var e = el('div', null, '');
+    e.id = 'empty';
+    e.innerHTML = '<h1>TensorAgent</h1><p>New chat.</p>';
+    chat.appendChild(e);
+    newSession(null);
+  });
+
+  // Requirement 5: a voice mode you hold, not a button you hunt for.
+  voice.addEventListener('change', function () {
+    document.body.classList.toggle('voice', voice.checked);
+    if (!voice.checked) text.focus();
+  });
+  function startRec() {
+    if (!window.TensorAgentNative || !window.TensorAgentNative.startDictation) {
+      notice('Voice input needs the app’s microphone permission.', 'error');
+      return;
+    }
+    hold.classList.add('rec');
+    $('holdlabel').textContent = 'Listening… release to stop';
+    window.TensorAgentNative.startDictation();
+  }
+  function stopRec() {
+    if (!hold.classList.contains('rec')) return;
+    hold.classList.remove('rec');
+    $('holdlabel').textContent = 'Hold to talk';
+    if (window.TensorAgentNative && window.TensorAgentNative.stopDictation) {
+      window.TensorAgentNative.stopDictation();
+    }
+  }
+  ['pointerdown'].forEach(function (e) { hold.addEventListener(e, function (ev) { ev.preventDefault(); startRec(); }); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (e) { hold.addEventListener(e, stopRec); });
+
+  // ---- settings ------------------------------------------------------------
+  // Requirement 8: "Show reasoning by default" is a setting the composer must
+  // actually start from. It used to be read into a control the page then reset.
+  function applySettings() {
+    return fetch('/api/agent/settings').then(function (r) { return r.json(); }).then(function (s) {
+      if (s && typeof s.thinkByDefault === 'boolean') think.checked = s.thinkByDefault;
+      if (s && Array.isArray(s.defaultSkills)) { state.skills = s.defaultSkills.slice(); paintSkillChips(); }
+      return s;
+    }).catch(function () { return null; });
   }
 
-  // ---- native bridge ---------------------------------------------------------------
-  function postNative(message) {
-    try {
-      // The app polls /api/agent/events; the WebView route below is the cheap path.
-      fetch('/api/agent/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(message) }).catch(() => {});
-    } catch (e) { /* ignore */ }
-  }
-
+  // ---- the bridge the native side uses ------------------------------------
   window.TensorAgent = {
-    get conversationId() { return state.conversationId; },
-    get ready() { return state.ready; },
-    loadConversation,
-    notice,
-    /** Add an /api/upload response object to the composer's pending attachments. */
-    addAttachment(att) {
-      if (!att || !att.ok) { notice((att && att.error) || 'Upload failed', 'error'); return; }
-      pendingAttachments.push(att);
-      renderAttachments();
+    notice: notice,
+    addAttachment: function (a) {
+      if (!a || !a.ok) { notice((a && a.error) || 'Upload failed', 'error'); return; }
+      state.attachments.push(a); paintChips();
     },
-    /** Append dictated text to the composer. */
-    insertText(text) {
-      if (!text) return;
-      const cur = messageInput.value;
-      messageInput.value = cur && !/\s$/.test(cur) ? cur + ' ' + text : cur + text;
-      messageInput.dispatchEvent(new Event('input'));
-      messageInput.focus();
+    insertText: function (t) {
+      if (!t) return;
+      text.value = text.value && !/\s$/.test(text.value) ? text.value + ' ' + t : text.value + t;
+      autoGrow();
+      if (!voice.checked) text.focus();
     },
-    send() { return sendMessage(); },
-    stop() { if (typeof abortGeneration === 'function') abortGeneration(); },
-    isGenerating() { return isGenerating; },
-    setThink(on) { const t = document.getElementById('reasoning-toggle'); if (t) t.checked = !!on; },
-    setSkills(names) { if (typeof setSelectedSkills === 'function') setSelectedSkills(names || []); },
-    history() { return chatHistory; },
-    /**
-     * Re-read which model is loaded.
-     *
-     * The page learns the model ONCE, at load, into the top-level `currentLoadedModel`
-     * (fetchServerState -> updateStatusBadge). That is right for a server, where the
-     * model cannot change without a restart, and wrong here: the app can now switch
-     * models while the page is alive. Without this the header kept saying "No model
-     * configured" after a model had been chosen and loaded, and sendMessage's own
-     * guard -- `if (!currentLoadedModel) alert('No model is configured...')` -- refused
-     * to send, so the request never reached the server that was, by then, perfectly
-     * able to answer it. The native side calls this whenever the chat is shown.
-     *
-     * fetchServerState is the page's own function and does the rest correctly:
-     * renderEmptyState() returns early while chatHistory is non-empty, so a running
-     * conversation is not cleared, and createSession() gives the NEW model a session
-     * of its own rather than reusing one bound to the model that was replaced.
-     */
-    refreshModel() {
-      // Deliberately NOT async. WKWebView's evaluateJavaScript -- which is what
-      // MAUI's EvaluateJavaScriptAsync calls -- does not await a promise: an async
-      // function hands back a Promise object, which stringifies to something that is
-      // not "true", so a caller polling this can never see it succeed no matter what
-      // the page does. Start the refresh, and let hasModel() report the outcome.
-      if (typeof fetchServerState === 'function') {
-        try { fetchServerState(); } catch (e) { /* reported by hasModel staying false */ }
-      }
-      return true;
-    },
-    /** Whether the page currently believes a model is loaded. Synchronous on purpose. */
-    hasModel() {
-      return typeof currentLoadedModel !== 'undefined' && !!currentLoadedModel;
-    },
+    send: sendMessage,
+    stop: stop,
+    isGenerating: function () { return state.generating; },
+    setThink: function (on) { think.checked = !!on; },
+    setSkills: function (n) { state.skills = (n || []).slice(); paintSkillChips(); },
+    history: function () { return state.history; },
+    // Synchronous on purpose: WKWebView's evaluateJavaScript does not await a
+    // promise, so an async function here can never report success to native code.
+    refreshModel: function () { refreshModel(); return true; },
+    hasModel: function () { return !!state.model; },
   };
 
-  // ================================================================================
-  // the phone layout
-  // ================================================================================
-  //
-  // index.html is TensorSharp.Server's desktop page and is served byte-for-byte, so
-  // everything that makes it a phone app is done from here. Three things were wrong on
-  // a real iPhone:
-  //
-  //   1. the header spent a whole row on a "TensorSharp.ai" link, which is worth one
-  //      read and then never again; it now lives on the About page;
-  //   2. focusing the composer made the transcript disappear. The page is laid out
-  //      against `height: 100vh`, and 100vh on iOS is the height WITHOUT the keyboard.
-  //      When the keyboard opens the visual viewport shrinks but the layout does not,
-  //      so the composer sits below the fold and WebKit scrolls the whole document to
-  //      reveal it -- taking the messages off the top of the screen. Nothing was
-  //      deleted; it was pushed out of view, which is worse, because it looks like data
-  //      loss. The fix is to lay out against visualViewport.height instead;
-  //   3. the desktop paddings and font sizes waste a narrow screen.
-  //
-  // All of it is scoped to narrow/touch viewports so the same file still renders the
-  // desktop page correctly in a browser.
-  function installPhoneLayout() {
-    if (document.getElementById('tensoragent-phone-css')) return;
-
-    const css = document.createElement('style');
-    css.id = 'tensoragent-phone-css';
-    css.textContent = [
-      // The brand banner is gone on every size: the app has an About page for it.
-      '.brand-site-link { display: none !important; }',
-      'header h1 { margin: 0; }',
-
-      '@media (max-width: 820px) {',
-      // Lay out against the VISIBLE viewport. --tt-vh is kept up to date below; the
-      // dvh fallback covers the first paint before any resize has fired.
-      '  html, body { height: 100dvh; height: var(--tt-vh, 100dvh); overflow: hidden; }',
-      '  body { -webkit-text-size-adjust: 100%; }',
-      // A compact header: status and New Chat, one row, no wrap.
-      '  header { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }',
-      '  header h1 { font-size: 0; flex: 0 0 auto; }',
-      '  .header-controls { gap: 6px; margin-left: auto; align-items: center; }',
-      '  .status-badge { font-size: 11px; padding: 3px 8px; max-width: 46vw;',
-      '                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-      '  #btn-clear { font-size: 12px; padding: 6px 10px; white-space: nowrap; }',
-      // The transcript is the part that must keep its height when the keyboard opens.
-      '  .main-area { min-height: 0; }',
-      '  #chat-container { padding: 10px 10px 4px; min-height: 0; }',
-      '  .message { max-width: 94%; }',
-      '  .bubble-text { font-size: 15px; line-height: 1.45; }',
-      // The composer sits above the home indicator and never grows past a third of
-      // the screen, so there is always transcript behind it.
-      '  #input-area { padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); flex-shrink: 0; }',
-      '  #message-input { font-size: 16px; max-height: 28dvh; }',  // 16px: iOS zooms below it
-      '  .model-switcher { gap: 6px; flex-wrap: wrap; }',
-      '  .empty-state { padding: 24px 16px; }',
-      '  .big-wordmark { font-size: 34px; }',
-      '  .modal, .modal-content { max-width: 96vw; }',
-      '}',
-    ].join('\n');
-    document.head.appendChild(css);
-
-    // ---- keep the layout inside the visible viewport --------------------------------
-    const vv = window.visualViewport;
-    let pending = 0;
-    function applyViewport() {
-      const h = vv ? vv.height : window.innerHeight;
-      document.documentElement.style.setProperty('--tt-vh', h + 'px');
-      // WebKit sometimes leaves the document scrolled after the keyboard animates; the
-      // layout is the full visible height, so any document scroll is wrong by definition.
-      if (window.scrollY !== 0) window.scrollTo(0, 0);
-    }
-    function schedule() {
-      if (pending) return;
-      pending = requestAnimationFrame(() => { pending = 0; applyViewport(); });
-    }
-    if (vv) {
-      vv.addEventListener('resize', schedule);
-      vv.addEventListener('scroll', schedule);
-    }
-    window.addEventListener('orientationchange', () => setTimeout(applyViewport, 200));
-    applyViewport();
-
-    // ---- keep the newest messages visible across a keyboard open --------------------
-    // Shrinking the transcript keeps its scrollTop, which after the keyboard opens is
-    // no longer the bottom -- so the last thing said scrolls out of sight exactly when
-    // the user starts replying to it. Re-pin only when we were already at the bottom,
-    // so someone reading back through history is not yanked forward.
-    const chat = document.getElementById('chat-container');
-    const input = document.getElementById('message-input');
-    if (chat && input) {
-      let wasAtBottom = true;
-      const NEAR = 80;
-      chat.addEventListener('scroll', () => {
-        wasAtBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < NEAR;
-      });
-      const pin = () => {
-        if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
-      };
-      input.addEventListener('focus', () => { setTimeout(pin, 60); setTimeout(pin, 350); });
-      if (vv) vv.addEventListener('resize', () => setTimeout(pin, 60));
-    }
-  }
-
-  installPhoneLayout();
-
-  whenReady();
+  // ---- start ---------------------------------------------------------------
+  applySettings()
+    .then(refreshModel)
+    .then(resumeLatest)
+    .then(function () { post('/api/agent/events', { type: 'ready', conversation: state.conversation }); })
+    .catch(function (e) { notice('Could not start: ' + ((e && e.message) || e), 'error'); });
 })();

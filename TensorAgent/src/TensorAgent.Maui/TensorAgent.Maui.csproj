@@ -68,10 +68,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The Web UI is TensorSharp.Server's wwwroot, byte for byte. It is linked
+    <!-- The Web UI is TensorAgent's OWN page, not TensorSharp.Server's. The desktop
+         page is laid out for a mouse, a wide window and an operator who started a
+         server with arguments; this one is laid out for a thumb. Both talk to the
+         same loopback API, so no capability is lost by not sharing a page. It is
+         linked
          from the Server project rather than copied so the two never fork; at
          runtime LoopbackWebHost serves it from <bundle>/webui/. -->
-    <BundleResource Include="../../../TensorSharp.Server/wwwroot/**/*"
+    <BundleResource Include="wwwroot/**/*"
                     Link="webui/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
