@@ -433,7 +433,7 @@
   function openSheet(id) { $('sheet-bg').classList.add('on'); $(id).classList.add('on'); }
   function closeSheets() {
     $('sheet-bg').classList.remove('on');
-    ['attach-sheet', 'skills-sheet', 'model-sheet'].forEach(function (s) { $(s).classList.remove('on'); });
+    ['attach-sheet', 'skills-sheet', 'model-sheet', 'nav-sheet'].forEach(function (s) { $(s).classList.remove('on'); });
   }
   $('sheet-bg').addEventListener('click', closeSheets);
 
@@ -457,6 +457,14 @@
     });
   });
 
+  $('menu').addEventListener('click', function () { openSheet('nav-sheet'); });
+  document.querySelectorAll('#nav-sheet .opt').forEach(function (b) {
+    b.addEventListener('click', function () {
+      closeSheets();
+      post('/api/agent/events', { type: 'open-route', route: b.getAttribute('data-route') });
+    });
+  });
+
   modelBtn.addEventListener('click', function () {
     var info = $('model-info');
     info.innerHTML = '';
@@ -466,7 +474,7 @@
   });
   $('open-models').addEventListener('click', function () {
     closeSheets();
-    post('/api/agent/events', { type: 'open-models' });
+    post('/api/agent/events', { type: 'open-route', route: 'models' });
   });
   var cta = $('empty-cta');
   if (cta) cta.addEventListener('click', function () { post('/api/agent/events', { type: 'open-models' }); });
@@ -616,6 +624,13 @@
     refreshModel: function () { refreshModel(); return true; },
     hasModel: function () { return !!state.model; },
     dictationEnded: dictationEnded,
+    /** A refusal only the user can lift, with a button that opens iOS Settings. */
+    noticeWithSettings: function (msg) {
+      noticeWithAction(msg, 'Open Settings', function () {
+        post('/api/agent/events', { type: 'open-settings' });
+        return true;
+      });
+    },
     /** The app calls this once at startup so the page knows native pickers exist. */
     nativeReady: function () { state.native = true; return true; },
   };

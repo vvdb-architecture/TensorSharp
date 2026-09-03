@@ -49,16 +49,55 @@ internal sealed class Dictation : IDisposable
     public static bool IsSupported => new SFSpeechRecognizer(NSLocale.CurrentLocale) is { Available: true };
 
     /// <summary>Ask for the two permissions this needs, and say which one was refused.</summary>
+    /// <summary>
+    /// Marker the caller can look for to know the refusal is permanent and only the
+    /// user can lift it, so it can offer Settings instead of repeating itself.
+    /// </summary>
+    public const string DeniedMarker = "[denied]";
+
+    /// <summary>
+    /// Ask for the two permissions dictation needs, or say why it cannot have them.
+    ///
+    /// <para>
+    /// Two, not one: speech recognition and the microphone are separate grants, and a
+    /// build that asks for only the first fails later inside the audio session with an
+    /// error that says nothing about permissions.
+    /// </para>
+    /// <para>
+    /// A permission already DENIED is reported differently from one not yet asked for.
+    /// iOS shows its prompt once; after that RequestAuthorization returns the stored
+    /// answer without showing anything, so a user who said no by reflex sees the
+    /// button fail forever with no way back. That case names Settings, and carries
+    /// <see cref="DeniedMarker"/> so the caller can offer to open it.
+    /// </para>
+    /// </summary>
     public static async Task<string?> RequestPermissionsAsync()
     {
-        var speech = new TaskCompletionSource<SFSpeechRecognizerAuthorizationStatus>();
+        // RunContinuationsAsynchronously on both: iOS delivers these callbacks on its
+        // own threads, and without it everything after the await -- including starting
+        // the AVAudioSession -- continues on that thread instead of the main one.
+        if (SFSpeechRecognizer.AuthorizationStatus is SFSpeechRecognizerAuthorizationStatus.Denied
+            or SFSpeechRecognizerAuthorizationStatus.Restricted)
+        {
+            return "Speech recognition is turned off for TensorAgent. Turn it on in "
+                + "Settings › TensorAgent › Speech Recognition. " + DeniedMarker;
+        }
+
+        var speech = new TaskCompletionSource<SFSpeechRecognizerAuthorizationStatus>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         SFSpeechRecognizer.RequestAuthorization(speech.SetResult);
         if (await speech.Task != SFSpeechRecognizerAuthorizationStatus.Authorized)
-            return "Dictation needs permission to use speech recognition.";
+            return "Dictation needs permission to use speech recognition. " + DeniedMarker;
 
-        var microphone = new TaskCompletionSource<bool>();
+        if (AVAudioApplication.SharedInstance.RecordPermission == AVAudioApplicationRecordPermission.Denied)
+        {
+            return "The microphone is turned off for TensorAgent. Turn it on in "
+                + "Settings › TensorAgent › Microphone. " + DeniedMarker;
+        }
+
+        var microphone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         AVAudioApplication.RequestRecordPermission(microphone.SetResult);
-        return await microphone.Task ? null : "Dictation needs permission to use the microphone.";
+        return await microphone.Task ? null : "Dictation needs permission to use the microphone. " + DeniedMarker;
     }
 
     /// <summary>

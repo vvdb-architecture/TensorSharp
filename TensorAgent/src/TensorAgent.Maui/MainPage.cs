@@ -67,7 +67,11 @@ public sealed class MainPage : ContentPage
                 new RowDefinition(GridLength.Auto),
             },
         };
-        grid.Add(BuildTopBar(), 0, 0);
+        // No native row above the page. It used to carry the status and chips for
+        // Chats / Models / Settings, which is a second row of chrome stacked on the
+        // page's own -- the one thing a small screen cannot afford. The page has a
+        // menu that asks for the same routes through OnPageEvent.
+        grid.Add(new ContentView { IsVisible = false, HeightRequest = 0 }, 0, 0);
         grid.Add(_webView, 0, 1);
         grid.Add(BuildAttachmentBar(), 0, 2);
         Content = grid;
@@ -335,7 +339,15 @@ public sealed class MainPage : ContentPage
         }
         if (await Platforms.iOS.Dictation.RequestPermissionsAsync() is { } refused)
         {
-            await Notice(refused);
+            // A permission iOS has already stored a "no" for cannot be asked for
+            // again, so telling the user to try harder is useless: the only way back
+            // is Settings, and the app can open it for them.
+            bool permanent = refused.Contains(Platforms.iOS.Dictation.DeniedMarker, StringComparison.Ordinal);
+            string message = refused.Replace(Platforms.iOS.Dictation.DeniedMarker, string.Empty).Trim();
+            if (permanent)
+                await NoticeWithSettings(message);
+            else
+                await Notice(message);
             await _webView.EvaluateJavaScriptAsync("window.TensorAgent.dictationEnded()");
             return;
         }
@@ -375,6 +387,25 @@ public sealed class MainPage : ContentPage
     /// </summary>
     private async Task Notice(string text) => await _webView.EvaluateJavaScriptAsync(
         "window.TensorAgent.notice(" + System.Text.Json.JsonSerializer.Serialize(text) + ", 'error')");
+
+    /// <summary>
+    /// The same notice, with a button that opens this app's page in iOS Settings.
+    /// Used for a permission the user has already refused, where nothing the app does
+    /// can ask again.
+    /// </summary>
+    private async Task NoticeWithSettings(string text) => await _webView.EvaluateJavaScriptAsync(
+        "window.TensorAgent.noticeWithSettings(" + System.Text.Json.JsonSerializer.Serialize(text) + ")");
+
+    /// <summary>Open Settings › TensorAgent, which is the only place these grants live.</summary>
+    private static void OpenAppSettings()
+    {
+        try
+        {
+            var url = new Foundation.NSUrl(UIKit.UIApplication.OpenSettingsUrlString);
+            UIKit.UIApplication.SharedApplication.OpenUrl(url, new UIKit.UIApplicationOpenUrlOptions(), null);
+        }
+        catch (Exception ex) { Console.WriteLine("TensorAgent: open settings failed: " + ex.Message); }
+    }
 
     /// <summary>
     /// Point the page at a saved conversation, or at a brand new one.
@@ -419,10 +450,17 @@ public sealed class MainPage : ContentPage
                 return;
 
             case "open-models":
+            case "open-route":
+                string route = message.TryGetProperty("route", out System.Text.Json.JsonElement r)
+                    ? r.GetString() ?? "models" : "models";
+                // Only the routes this shell actually registers, so a page that asked
+                // for something else cannot navigate the app somewhere it has no page.
+                if (route is not ("sessions" or "models" or "settings" or "about" or "main"))
+                    return;
                 MainThread.BeginInvokeOnMainThread(async () =>
                 {
-                    try { await Shell.Current.GoToAsync("//models"); }
-                    catch (Exception ex) { Console.WriteLine("TensorAgent: open-models failed: " + ex.Message); }
+                    try { await Shell.Current.GoToAsync("//" + route); }
+                    catch (Exception ex) { Console.WriteLine($"TensorAgent: open {route} failed: " + ex.Message); }
                 });
                 return;
 
@@ -447,6 +485,10 @@ public sealed class MainPage : ContentPage
 
             case "dictate-stop":
                 MainThread.BeginInvokeOnMainThread(StopDictation);
+                return;
+
+            case "open-settings":
+                MainThread.BeginInvokeOnMainThread(OpenAppSettings);
                 return;
         }
     }

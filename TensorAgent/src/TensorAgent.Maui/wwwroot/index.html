@@ -68,6 +68,14 @@ body { display: flex; flex-direction: column; }
   flex: 0 0 auto;
   min-height: 0;
 }
+/* The only navigation control on the chat screen. It replaced a whole native row
+   of Chats / Models / Settings chips that sat ABOVE the page and made two rows of
+   chrome where the design calls for one. */
+#menu {
+  flex: 0 0 auto; background: none; border: 0; color: var(--muted);
+  font-size: 19px; padding: 2px 4px 2px 0; line-height: 1;
+}
+#menu:active { color: var(--text); }
 #busy {
   width: 10px; height: 10px; border-radius: 50%;
   background: var(--muted); flex: 0 0 auto; opacity: .35;
@@ -311,6 +319,7 @@ body.voice #lang { display: inline-flex; }
 
 <!-- Requirement 1: busy indicator, model name and New Chat on ONE line. -->
 <div id="bar">
+  <button id="menu" type="button" title="Menu">☰</button>
   <span id="busy" title="Generation activity"></span>
   <button id="model" class="empty" type="button">No model yet<span class="sub"></span></button>
   <button id="new" type="button">New</button>
@@ -356,6 +365,15 @@ body.voice #lang { display: inline-flex; }
   <div class="grab"></div>
   <h2>Skills</h2>
   <div id="skills-list"></div>
+</div>
+
+<div class="sheet" id="nav-sheet">
+  <div class="grab"></div>
+  <h2>TensorAgent</h2>
+  <button class="opt" data-route="sessions"><span class="em">💬</span> Chats<span class="hint">saved conversations</span></button>
+  <button class="opt" data-route="models"><span class="em">📚</span> Models<span class="hint">download, switch</span></button>
+  <button class="opt" data-route="settings"><span class="em">⚙️</span> Settings</button>
+  <button class="opt" data-route="about"><span class="em">ℹ️</span> About</button>
 </div>
 
 <div class="sheet" id="model-sheet">
