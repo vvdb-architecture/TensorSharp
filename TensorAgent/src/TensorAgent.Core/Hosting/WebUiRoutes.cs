@@ -181,6 +181,21 @@ public static class WebUiRoutes
             bool overwrite = string.Equals(form["overwrite"], "true", StringComparison.OrdinalIgnoreCase);
             return Json(GuardedValue(() => skills.Install(zip, file.FileName, file.Length, overwrite)));
         });
+
+        // Install from a URL, which is how a skill is actually shared: someone sends a
+        // link, not a file a phone has nowhere to put. The body may name ONE archive or
+        // a plain-text list of them, one per line, because a collection is the other
+        // way skills travel.
+        server.MapPost("/api/skills/from-url", async (request, ct) =>
+        {
+            EnsureGuarded(skills.EnsureInstallable);
+            JsonElement body = await request.ReadJsonAsync(ct);
+            string url = body.TryGetProperty("url", out JsonElement u) ? (u.GetString() ?? string.Empty).Trim() : string.Empty;
+            if (url.Length == 0)
+                return LoopbackResponse.Json(new { error = "a url is required" }, 400);
+            bool overwrite = body.TryGetProperty("overwrite", out JsonElement o) && o.ValueKind == JsonValueKind.True;
+            return Json(await GuardedValueAsync(() => skills.InstallFromUrlAsync(url, overwrite, ct)));
+        });
     }
 
     /// <summary>
@@ -504,6 +519,12 @@ public static class WebUiRoutes
     private static object GuardedValue(Func<object> call)
     {
         try { return call(); }
+        catch (WebUiRequestRejectedException ex) { throw new LoopbackHttpException(ex.StatusCode, ex.Payload); }
+    }
+
+    private static async Task<object> GuardedValueAsync(Func<Task<object>> call)
+    {
+        try { return await call(); }
         catch (WebUiRequestRejectedException ex) { throw new LoopbackHttpException(ex.StatusCode, ex.Payload); }
     }
 

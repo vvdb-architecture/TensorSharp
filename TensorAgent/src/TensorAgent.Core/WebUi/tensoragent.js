@@ -481,7 +481,7 @@
   function openSheet(id) { $('sheet-bg').classList.add('on'); $(id).classList.add('on'); }
   function closeSheets() {
     $('sheet-bg').classList.remove('on');
-    ['attach-sheet', 'skills-sheet', 'model-sheet', 'nav-sheet'].forEach(function (s) { $(s).classList.remove('on'); });
+    ['attach-sheet', 'skills-sheet', 'model-sheet', 'nav-sheet', 'skill-sheet', 'skill-add-sheet'].forEach(function (s) { $(s).classList.remove('on'); });
   }
   $('sheet-bg').addEventListener('click', closeSheets);
 
@@ -528,35 +528,112 @@
   if (cta) cta.addEventListener('click', function () { post('/api/agent/events', { type: 'open-models' }); });
 
   // ---- skills --------------------------------------------------------------
-  $('skills-btn').addEventListener('click', function () {
-    fetch('/api/skills').then(function (r) { return r.json(); }).then(function (d) {
+  function loadSkills() {
+    return fetch('/api/skills').then(function (r) { return r.json(); }).then(function (d) {
       state.catalogSkills = (d && d.skills) || [];
       var list = $('skills-list');
       list.innerHTML = '';
       if (!state.catalogSkills.length) list.appendChild(el('div', 'notice', 'No skills are installed.'));
       state.catalogSkills.forEach(function (s) {
+        // The whole row opens the skill. A description is almost always longer
+        // than the two lines a list can spare, and truncating it to a tooltip
+        // nobody can hover on a phone is the same as not shipping it.
         var row = el('div', 'skillrow');
         var meta = el('div', 'meta');
-        meta.appendChild(el('div', 'nm', s.name));
-        meta.appendChild(el('div', 'ds', (s.description || '').slice(0, 120)));
+        meta.appendChild(el('div', 'nm', (state.skills.indexOf(s.name) >= 0 ? '● ' : '') + s.name));
+        meta.appendChild(el('div', 'ds', s.description || ''));
         row.appendChild(meta);
-        var lab = el('label', 'switch');
-        var cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = state.skills.indexOf(s.name) >= 0;
-        cb.addEventListener('change', function () {
-          var i = state.skills.indexOf(s.name);
-          if (cb.checked && i < 0) state.skills.push(s.name);
-          if (!cb.checked && i >= 0) state.skills.splice(i, 1);
-          paintSkillChips();
-        });
-        lab.appendChild(cb); lab.appendChild(el('span', 'track'));
-        row.appendChild(lab);
+        row.appendChild(el('span', 'chev', '›'));
+        row.addEventListener('click', function () { openSkill(s); });
         list.appendChild(row);
       });
-      openSheet('skills-sheet');
+      return state.catalogSkills;
     });
+  }
+
+  $('skills-btn').addEventListener('click', function () {
+    loadSkills().then(function () { openSheet('skills-sheet'); });
   });
+
+  // One skill, in full: the name, everything the description says, whether it is
+  // on for this chat, and the way to remove it.
+  function openSkill(s) {
+    closeSheets();
+    $('skill-name').textContent = s.name;
+    var body = $('skill-body');
+    body.innerHTML = '';
+    var bits = [];
+    if (s.scripts) bits.push(s.scripts + (s.scripts === 1 ? ' script' : ' scripts'));
+    if (s.origin) bits.push(String(s.origin));
+    if (bits.length) body.appendChild(el('div', 'meta', bits.join(' · ')));
+    body.appendChild(document.createTextNode(s.description || 'This skill has no description.'));
+
+    var on = $('skill-on');
+    on.checked = state.skills.indexOf(s.name) >= 0;
+    on.onchange = function () {
+      var i = state.skills.indexOf(s.name);
+      if (on.checked && i < 0) state.skills.push(s.name);
+      if (!on.checked && i >= 0) state.skills.splice(i, 1);
+      paintSkillChips();
+    };
+
+    $('skill-remove').onclick = function () {
+      fetch('/api/skills/' + encodeURIComponent(s.name), { method: 'DELETE' })
+        .then(function (r) { return r.json(); })
+        .then(function () {
+          var i = state.skills.indexOf(s.name);
+          if (i >= 0) { state.skills.splice(i, 1); paintSkillChips(); }
+          closeSheets();
+          notice(s.name + ' was removed.');
+        })
+        .catch(function (e) { notice('Could not remove it: ' + e, 'error'); });
+    };
+    openSheet('skill-sheet');
+  }
+
+  // ---- adding a skill ------------------------------------------------------
+  $('skill-add').addEventListener('click', function () { closeSheets(); openSheet('skill-add-sheet'); });
+  $('skill-zip').addEventListener('click', function () {
+    var input = $('skill-zip-input');
+    input.value = '';
+    input.click();
+  });
+  $('skill-zip-input').addEventListener('change', function (e) {
+    var file = (e.target.files || [])[0];
+    if (!file) return;
+    var fd = new FormData();
+    fd.append('file', file, file.name);
+    fetch('/api/skills', { method: 'POST', body: fd })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (res) { afterInstall(res); })
+      .catch(function (err) { notice('That skill could not be installed: ' + err, 'error'); });
+  });
+  $('skill-fetch').addEventListener('click', function () {
+    var url = ($('skill-url').value || '').trim();
+    if (!url) return;
+    $('skill-fetch').disabled = true;
+    post('/api/skills/from-url', { url: url })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (res) { $('skill-fetch').disabled = false; $('skill-url').value = ''; afterInstall(res); })
+      .catch(function (err) { $('skill-fetch').disabled = false; notice('That link did not work: ' + err, 'error'); });
+  });
+  function afterInstall(res) {
+    if (!res.ok) {
+      var msg = (res.body && (res.body.error || res.body.message)) || 'The skill was refused.';
+      notice(typeof msg === 'string' ? msg : JSON.stringify(msg), 'error');
+      return;
+    }
+    closeSheets();
+    // A list install reports both halves; say how many landed and how many did not.
+    if (res.body && typeof res.body.count === 'number') {
+      var failed = (res.body.failed || []).length;
+      notice('Installed ' + res.body.count + (res.body.count === 1 ? ' skill' : ' skills')
+        + (failed ? ', ' + failed + ' could not be installed' : '') + '.');
+    } else {
+      notice('Installed ' + ((res.body && res.body.name) || 'the skill') + '.');
+    }
+    loadSkills().then(function () { openSheet('skills-sheet'); });
+  }
   function paintSkillChips() {
     var box = $('skillchips');
     box.innerHTML = '';

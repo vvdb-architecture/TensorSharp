@@ -8,6 +8,9 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -171,6 +174,131 @@ namespace TensorSharp.Chat
         /// <param name="length">The archive's byte length, reserved against the upload budget before extraction.</param>
         /// <param name="overwrite">Replace an installed skill of the same id.</param>
         /// <returns>The installed skill's description (the transport answers 201 with it).</returns>
+        /// <summary>
+        /// <c>POST /api/skills/from-url</c> — install from a link, or from a list of them.
+        ///
+        /// <para>
+        /// A link is how a skill is actually shared: someone sends a URL, and a phone has
+        /// nowhere convenient to put a downloaded file first. The body may name one
+        /// archive, or a plain-text list of archives one per line -- a collection is the
+        /// other way skills travel. Anything that is not a ZIP and does not read as a
+        /// list of http(s) URLs is refused by NAME, because "that did not work" over a
+        /// download the user cannot see is the least useful answer available.
+        /// </para>
+        /// <para>
+        /// Everything downloaded goes through <see cref="Install"/>, so the archive is
+        /// held to exactly the same limits as an uploaded one: the path guard on every
+        /// entry, the decompressed-size budget and the entry-count cap. A URL is a
+        /// different way to arrive, not a different level of trust.
+        /// </para>
+        /// </summary>
+        public async Task<object> InstallFromUrlAsync(string url, bool overwrite, CancellationToken cancellationToken)
+        {
+            EnsureInstallable();
+
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed)
+                || (parsed.Scheme != Uri.UriSchemeHttp && parsed.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new WebUiRequestRejectedException(400,
+                    new { error = "A skill link must be an http:// or https:// URL." });
+            }
+
+            byte[] payload = await DownloadAsync(parsed, cancellationToken);
+
+            // A ZIP starts "PK\x03\x04". Anything else is treated as a list.
+            bool isZip = payload.Length > 4 && payload[0] == 0x50 && payload[1] == 0x4B
+                && payload[2] == 0x03 && payload[3] == 0x04;
+            if (isZip)
+            {
+                using var single = new MemoryStream(payload, writable: false);
+                return Install(single, NameFor(parsed), payload.Length, overwrite);
+            }
+
+            string[] links;
+            try { links = ParseLinkList(System.Text.Encoding.UTF8.GetString(payload)); }
+            catch (Exception) { links = Array.Empty<string>(); }
+
+            if (links.Length == 0)
+            {
+                throw new WebUiRequestRejectedException(400, new
+                {
+                    error = "That link is neither a .zip skill nor a list of skill links "
+                        + "(one http(s) URL per line).",
+                });
+            }
+
+            var installed = new List<object>();
+            var failed = new List<object>();
+            foreach (string link in links)
+            {
+                try { installed.Add(await InstallFromUrlAsync(link, overwrite, cancellationToken)); }
+                catch (WebUiRequestRejectedException ex) { failed.Add(new { url = link, error = ex.Payload }); }
+                catch (Exception ex) { failed.Add(new { url = link, error = ex.Message }); }
+            }
+
+            // Partial success is reported as such rather than as one verdict: a list of
+            // ten where two are broken should still install eight, and say which two.
+            return new { installed, failed, count = installed.Count };
+        }
+
+        private static string NameFor(Uri url)
+        {
+            string last = url.Segments.Length > 0 ? url.Segments[^1].Trim('/') : string.Empty;
+            return last.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? last : "skill.zip";
+        }
+
+        private static string[] ParseLinkList(string text) => text
+            .Split('\n', '\r')
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                        || line.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(50)
+            .ToArray();
+
+        /// <summary>
+        /// Fetch, with a ceiling. The size is capped while READING rather than trusting
+        /// Content-Length, which a server chooses and can lie about; the limit is the
+        /// same archive budget an upload is held to.
+        /// </summary>
+        private static async Task<byte[]> DownloadAsync(Uri url, CancellationToken cancellationToken)
+        {
+            const int MaxBytes = 64 * 1024 * 1024;
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("TensorAgent");
+            try
+            {
+                using HttpResponseMessage response = await http.GetAsync(
+                    url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new WebUiRequestRejectedException(400,
+                        new { error = $"{url} answered {(int)response.StatusCode}." });
+                }
+
+                await using Stream body = await response.Content.ReadAsStreamAsync(cancellationToken);
+                using var buffer = new MemoryStream();
+                byte[] chunk = new byte[81920];
+                int read;
+                while ((read = await body.ReadAsync(chunk, cancellationToken)) > 0)
+                {
+                    if (buffer.Length + read > MaxBytes)
+                    {
+                        throw new WebUiRequestRejectedException(413,
+                            new { error = "That skill is larger than 64 MB." });
+                    }
+                    buffer.Write(chunk, 0, read);
+                }
+                return buffer.ToArray();
+            }
+            catch (WebUiRequestRejectedException) { throw; }
+            catch (Exception ex)
+            {
+                throw new WebUiRequestRejectedException(400,
+                    new { error = $"{url} could not be downloaded: {ex.Message}" });
+            }
+        }
+
         public object Install(Stream zip, string fileName, long length, bool overwrite)
         {
             ILogger logger = _loggerFactory.CreateLogger("TensorSharp.Server.Skills");
