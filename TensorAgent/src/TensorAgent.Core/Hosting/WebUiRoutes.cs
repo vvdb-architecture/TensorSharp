@@ -296,6 +296,11 @@ public static class WebUiRoutes
         server.MapGet("/api/agent/engine", (_, _) => Ok(new
         {
             engine = describeEngine?.Invoke() ?? "unknown",
+            // The page needs to RECOGNISE a network refusal to offer the switch that
+            // fixes it, and the one thing it must not do is keep its own copy of the
+            // wording: two spellings of the same message drift, and the day they do
+            // the offer silently stops appearing. It is sent from the one definition.
+            networkDisabledMessage = Sandbox.ExecutionPolicy.NetworkDisabledMessage,
             modelRoot = models.Root,
             conversationRoot = conversations.Root,
         }));

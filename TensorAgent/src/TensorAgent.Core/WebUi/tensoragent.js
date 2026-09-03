@@ -27,6 +27,7 @@
     speech: '',            // BCP-47 for dictation; empty follows the device
     settings: null,
     native: false,         // true when the page is inside the app, not a browser
+    netMsg: '',            // the host's own wording for a network refusal
   };
 
   // ---- tiny helpers --------------------------------------------------------
@@ -146,6 +147,50 @@
     chat.appendChild(n);
     if (stickBottom) toBottom();
     return n;
+  }
+
+  // A refusal the user can act on, rather than prose about a switch they have to go
+  // and find. The research skill's failure is the case this exists for: it needs the
+  // network, the network is off by default, and "network access is disabled by the
+  // user" told the reader what happened without telling them what to do about it.
+  function noticeWithAction(msg, label, run) {
+    var n = notice(msg, 'error');
+    var b = el('button', 'notice-action', label);
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      Promise.resolve(run()).then(function (ok) {
+        b.textContent = ok === false ? 'Could not change it' : 'Done';
+      });
+    });
+    n.appendChild(document.createElement('br'));
+    n.appendChild(b);
+    return n;
+  }
+
+  function turnNetworkOn() {
+    var next = Object.assign({}, state.settings || {}, { allowNetwork: true });
+    return post('/api/agent/settings', next)
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        state.settings = s;
+        notice('Network is on. Ask again and the assistant can reach the web.');
+        return true;
+      })
+      .catch(function () { return false; });
+  }
+
+  // Offered at most once a turn: a skill that retries three times must not stack
+  // three identical buttons.
+  function offerNetworkIfRefused(textSeen, offered) {
+    if (offered || !state.netMsg) return offered;
+    if (String(textSeen).indexOf(state.netMsg) < 0) return offered;
+    if (state.settings && state.settings.allowNetwork) return offered;
+    noticeWithAction(
+      'That needed the internet, and network access is off. Everything else runs on '
+      + 'this device; only this step needs to go out.',
+      'Turn on Network', turnNetworkOn);
+    return true;
   }
 
   // ---- model state ---------------------------------------------------------
@@ -268,6 +313,7 @@
     setGenerating(true);
     var view = addTurn('assistant', '');
     var answer = '', thinking = '', thinkBox = null, thinkBody = null;
+    var steps = '', offered = false;
     var ctrl = new AbortController();
     state.abort = ctrl;
 
@@ -319,7 +365,12 @@
             view.turn.insertBefore(s, view.bubble);
           }
         }
-        if (f.error) notice(String(f.error), 'error');
+        if (f.detail || f.output) steps += ' ' + (f.detail || '') + ' ' + (f.output || '');
+        if (f.error) {
+          steps += ' ' + f.error;
+          offered = offerNetworkIfRefused(String(f.error), offered);
+          if (!offered) notice(String(f.error), 'error');
+        }
         if (f.image || f.imageUrl) {
           var img = document.createElement('img');
           img.src = f.imageUrl || f.image;
@@ -328,6 +379,7 @@
         if (stickBottom) toBottom();
       }
       function finish() {
+        offered = offerNetworkIfRefused(answer + ' ' + steps, offered);
         state.history.push({ role: 'assistant', content: answer });
         if (answer) addCopy(view.turn, function () { return answer; });
         setGenerating(false);
@@ -523,6 +575,12 @@
   // ---- settings ------------------------------------------------------------
   // Requirement 8: "Show reasoning by default" is a setting the composer must
   // actually start from. It used to be read into a control the page then reset.
+  function learnHostWording() {
+    return fetch('/api/agent/engine').then(function (r) { return r.json(); }).then(function (e) {
+      if (e && typeof e.networkDisabledMessage === 'string') state.netMsg = e.networkDisabledMessage;
+    }).catch(function () {});
+  }
+
   function applySettings() {
     return fetch('/api/agent/settings').then(function (r) { return r.json(); }).then(function (s) {
       state.settings = s || null;
@@ -563,7 +621,8 @@
   };
 
   // ---- start ---------------------------------------------------------------
-  applySettings()
+  learnHostWording()
+    .then(applySettings)
     .then(refreshModel)
     .then(resumeLatest)
     .then(function () { post('/api/agent/events', { type: 'ready', conversation: state.conversation }); })

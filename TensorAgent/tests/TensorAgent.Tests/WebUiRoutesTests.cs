@@ -402,4 +402,35 @@ public sealed class WebUiRoutesTests : IDisposable
         JsonElement body = await BodyOf(response);
         Assert.True(body.TryGetProperty("error", out _));
     }
+    /// <summary>
+    /// The page is told the host's own wording for a network refusal.
+    ///
+    /// <para>
+    /// It needs to recognise one in order to offer the switch that fixes it, and the
+    /// one thing it must not do is keep a second copy of the sentence: two spellings
+    /// drift, and the day they do the offer silently stops appearing and nobody finds
+    /// out, because a missing button looks exactly like a refusal that did not happen.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task TheEngineRouteTellsThePageHowANetworkRefusalIsWorded()
+    {
+        JsonElement engine = await _client!.GetFromJsonAsync<JsonElement>("/api/agent/engine");
+
+        Assert.True(engine.TryGetProperty("networkDisabledMessage", out JsonElement wording),
+            "the page cannot recognise a refusal it was never told the wording of");
+        Assert.Equal(
+            TensorAgent.Core.Sandbox.ExecutionPolicy.NetworkDisabledMessage,
+            wording.GetString());
+
+        // And the client really looks for it, rather than carrying its own sentence.
+        // The companion is only served once a static root exists, as it is in the app.
+        _server.StaticRoot = Path.Combine(_root, "webui");
+        Directory.CreateDirectory(_server.StaticRoot);
+        string script = await _client.GetStringAsync("/tensoragent.js");
+        Assert.Contains("networkDisabledMessage", script, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            TensorAgent.Core.Sandbox.ExecutionPolicy.NetworkDisabledMessage, script, StringComparison.Ordinal);
+    }
+
 }

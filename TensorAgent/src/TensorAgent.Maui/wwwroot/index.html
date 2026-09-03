@@ -163,6 +163,12 @@ body { display: flex; flex-direction: column; }
   max-width: 92%;
 }
 .notice.error { border-color: var(--danger); color: #fca5a5; }
+.notice-action {
+  margin-top: 8px; font-size: 13px; font-weight: 600;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--accent); color: #fff; border: 0;
+}
+.notice-action[disabled] { opacity: .6; }
 
 /* ---- the empty state ---------------------------------------------------- */
 #empty { margin: auto; text-align: center; padding: 20px; color: var(--muted); }
