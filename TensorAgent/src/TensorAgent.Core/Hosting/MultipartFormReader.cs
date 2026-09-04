@@ -164,14 +164,37 @@ public static class MultipartFormReader
             return true;
         }
 
+        /// <summary>
+        /// Advance past the next occurrence of <paramref name="marker"/>, reading as much
+        /// as it takes. False means end of stream with no match.
+        ///
+        /// <para>
+        /// Search, THEN discard what was searched, THEN refill — in that order, which is
+        /// the same shape <see cref="CopyUntilAsync"/> uses and which this did not. It
+        /// discarded after filling and only when the buffer came back completely full,
+        /// so a read that returned exactly 65536 bytes — a whole buffer — had those bytes
+        /// thrown away before anything looked at them. The very first read of a request
+        /// is the one that matters: the opening <c>--boundary</c> sits at offset 0, and
+        /// losing it means the parse runs to end of stream and reports a form with no
+        /// files. The route above answers that with "no file was uploaded", which is what
+        /// every photo attached on the phone was told.
+        /// </para>
+        /// <para>
+        /// The tail kept back is a possible SPLIT marker — one whose first bytes are at
+        /// the end of this buffer and whose rest has not been read yet — so it is
+        /// <c>marker.Length - 1</c> bytes, never the whole marker: keeping the whole of
+        /// it would re-search bytes already rejected, and keeping none of it would miss a
+        /// boundary that straddles two reads.
+        /// </para>
+        /// </summary>
         public async Task<bool> SkipPastAsync(byte[] marker, CancellationToken ct)
         {
             while (true)
             {
                 int idx = IndexOf(marker);
                 if (idx >= 0) { _start = idx + marker.Length; return true; }
+                _start = _end - Math.Min(marker.Length - 1, _end - _start);
                 if (!await FillAsync(ct).ConfigureAwait(false)) return false;
-                if (_end - _start == _buf.Length) _start = _end - marker.Length;   // keep a tail for a split marker
             }
         }
 

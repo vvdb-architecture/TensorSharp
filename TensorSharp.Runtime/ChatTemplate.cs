@@ -45,6 +45,28 @@ namespace TensorSharp.Runtime
         /// </summary>
         public List<string>? TextFileNames { get; set; }
         /// <summary>
+        /// Every file the user attached to this message, by the stored upload name — the
+        /// images and the audio as well as the documents, and only the files the user
+        /// actually attached (never a frame extracted from one).
+        ///
+        /// <para>
+        /// <see cref="TextFilePaths"/> answers a narrower question: which uploads had
+        /// their text folded into <see cref="Content"/>. That made it the wrong list to
+        /// stage into a program's working directory, and the gap was not academic — asked
+        /// to turn a photo into a PDF, a model was handed a picture it could see and no
+        /// file it could open, and spent the turn inventing paths. This list is what a
+        /// tool stages, so "the file you were shown is in your working directory" is true
+        /// of every attachment rather than only of the text ones.
+        /// </para>
+        /// </summary>
+        public List<string>? AttachmentPaths { get; set; }
+        /// <summary>
+        /// The names the user knows <see cref="AttachmentPaths"/> by, in the same order.
+        /// Uploads are stored under generated names, and a model told to open
+        /// "3f2c…d1.png" has been told nothing.
+        /// </summary>
+        public List<string>? AttachmentNames { get; set; }
+        /// <summary>
         /// True if ImagePaths represent video frames (inserts &lt;|video&gt; before frame &lt;|image&gt; tokens).
         /// </summary>
         public bool IsVideo { get; set; }

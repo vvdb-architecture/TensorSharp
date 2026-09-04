@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Text;
 using TensorAgent.Core.Sandbox;
 
@@ -987,21 +988,132 @@ internal static partial class ShellBuiltins
 
     private static int Date(ShellExec exec, string[] argv, ShellStreams io)
     {
-        var opts = new Opts(argv, "dr");
-        DateTimeOffset now = DateTimeOffset.Now;
-        if (opts.Has("u")) now = now.ToUniversalTime();
+        var opts = new Opts(argv, "dr", longValueOptions: "date");
+        DateTimeOffset when = DateTimeOffset.Now;
+
+        // -d/--date is the whole reason a model reaches for `date`: it is how you ask
+        // about a day that is not today. It used to be PARSED AND DISCARDED — the flag
+        // was declared as taking a value and the value was never read — so
+        // `date -d 1969-07-20 +%s` printed the epoch seconds of right now, and a model
+        // computing a difference between two dates got a confident, wrong number with
+        // nothing anywhere saying why. Observed on a phone: 20699 days between
+        // 1969-07-20 and 2026-09-02, which is 164 short.
+        string? spelled = opts.Value("d") ?? opts.Value("date");
         string? reference = opts.Value("r");
+        if (spelled is not null && reference is not null)
+            throw new ShellUsageException("date: -d and -r cannot both be given", 2);
+
         if (reference is not null)
-            now = new DateTimeOffset(File.GetLastWriteTimeUtc(exec.ResolveRead(reference)), TimeSpan.Zero);
+        {
+            when = new DateTimeOffset(File.GetLastWriteTimeUtc(exec.ResolveRead(reference)), TimeSpan.Zero);
+        }
+        else if (spelled is not null)
+        {
+            if (!TryParseDateSpec(spelled, DateTimeOffset.Now, out when))
+            {
+                // Loudly, and naming what was refused. The alternative — falling back to
+                // now — is the bug this replaced.
+                io.Error("date", $"invalid date '{spelled}'");
+                return 1;
+            }
+        }
+
+        if (opts.Has("u"))
+            when = when.ToUniversalTime();
 
         string? format = opts.Operands.FirstOrDefault(o => o.StartsWith('+'));
         if (format is null)
         {
-            io.Out.WriteLine(now.ToString("ddd MMM d HH:mm:ss zzz yyyy", CultureInfo.InvariantCulture));
+            io.Out.WriteLine(when.ToString("ddd MMM d HH:mm:ss zzz yyyy", CultureInfo.InvariantCulture));
             return 0;
         }
-        io.Out.WriteLine(Strftime(format[1..], now));
+        io.Out.WriteLine(Strftime(format[1..], when));
         return 0;
+    }
+
+    /// <summary>
+    /// The date spellings <c>-d</c> is actually given, and no more.
+    ///
+    /// <para>
+    /// GNU's parser accepts a small language; this accepts what a model writes and
+    /// refuses the rest by saying so. Supported: an ISO-ish absolute date or date-time
+    /// (<c>2026-09-02</c>, <c>2026-09-02 13:45</c>, <c>2026-09-02T13:45:00Z</c>,
+    /// <c>2026/09/02</c>), <c>@&lt;epoch seconds&gt;</c>, <c>now</c>, <c>today</c>,
+    /// <c>yesterday</c>, <c>tomorrow</c>, and a relative offset such as
+    /// <c>3 days ago</c>, <c>-2 weeks</c> or <c>+1 hour</c>. Anything else is refused,
+    /// which is the point: a date this cannot read must not silently become today.
+    /// </para>
+    /// </summary>
+    internal static bool TryParseDateSpec(string spec, DateTimeOffset now, out DateTimeOffset when)
+    {
+        when = now;
+        string text = (spec ?? string.Empty).Trim();
+        if (text.Length == 0)
+            return false;
+
+        switch (text.ToLowerInvariant())
+        {
+            case "now": when = now; return true;
+            case "today": when = new DateTimeOffset(now.Date, now.Offset); return true;
+            case "yesterday": when = new DateTimeOffset(now.Date, now.Offset).AddDays(-1); return true;
+            case "tomorrow": when = new DateTimeOffset(now.Date, now.Offset).AddDays(1); return true;
+        }
+
+        // @<seconds since the epoch>, which is how a script hands one date to another.
+        if (text.StartsWith('@')
+            && long.TryParse(text[1..], NumberStyles.Integer, CultureInfo.InvariantCulture, out long epoch))
+        {
+            when = DateTimeOffset.FromUnixTimeSeconds(epoch).ToOffset(now.Offset);
+            return true;
+        }
+
+        // A relative offset: "3 days ago", "-2 weeks", "+1 hour", "5 minutes".
+        Match relative = Regex.Match(
+            text,
+            @"^(?<sign>[+-])?\s*(?<count>\d+)\s*(?<unit>second|sec|minute|min|hour|day|week|month|year)s?(?<ago>\s+ago)?$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (relative.Success)
+        {
+            double count = double.Parse(relative.Groups["count"].Value, CultureInfo.InvariantCulture);
+            if (relative.Groups["sign"].Value == "-" || relative.Groups["ago"].Success)
+                count = -count;
+            when = relative.Groups["unit"].Value.ToLowerInvariant() switch
+            {
+                "second" or "sec" => now.AddSeconds(count),
+                "minute" or "min" => now.AddMinutes(count),
+                "hour" => now.AddHours(count),
+                "day" => now.AddDays(count),
+                "week" => now.AddDays(count * 7),
+                "month" => now.AddMonths((int)count),
+                _ => now.AddYears((int)count),
+            };
+            return true;
+        }
+
+        // An absolute date or date-time. Round-trip and universal formats first so a
+        // trailing Z keeps its meaning, then the ordinary spellings, all invariant:
+        // the shell's output has to be the same on every device the app runs on.
+        string[] formats =
+        {
+            "yyyy-MM-dd", "yyyy/MM/dd", "yyyyMMdd",
+            "yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss",
+            "yyyy/MM/dd HH:mm", "yyyy/MM/dd HH:mm:ss",
+        };
+        if (DateTimeOffset.TryParseExact(
+                text, "yyyy-MM-ddTHH:mm:ssK", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset iso))
+        {
+            when = iso;
+            return true;
+        }
+        if (DateTime.TryParseExact(
+                text, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime exact))
+        {
+            when = new DateTimeOffset(exact, now.Offset);
+            return true;
+        }
+        return false;
     }
 
     private static string Strftime(string format, DateTimeOffset when)

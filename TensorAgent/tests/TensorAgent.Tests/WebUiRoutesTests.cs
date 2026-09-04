@@ -210,6 +210,47 @@ public sealed class WebUiRoutesTests : IDisposable
     }
 
     [Fact]
+    public async Task TheFileATurnProducedIsWrittenDownWithTheAnswerThatMentionsIt()
+    {
+        // The PDF is usually the point of the turn, and it does not arrive in the
+        // answer: a small model repeats the link erratically, so the page renders it
+        // from the frames instead. That makes the frames the only record of it, and a
+        // record only the page holds is gone the moment the user opens another chat.
+        var recorder = new ConversationRecorder(_conversations);
+        using var server = new LoopbackServer(NullLogger.Instance) { RequireToken = false };
+        server.MapWebUi(_chat, _root, skills: null, recorder: recorder, chatFrames: (body, _) => Answer(body));
+        server.Start();
+        using var client = new HttpClient { BaseAddress = new Uri(server.BaseUrl) };
+
+        JsonElement created = await BodyOf(await client.PostAsync("/api/sessions?conversation=new", null));
+        string sessionId = created.GetProperty("sessionId").GetString()!;
+        string conversationId = created.GetProperty("conversationId").GetString()!;
+
+        await client.PostAsync("/api/chat", new StringContent(
+            $$"""{"sessionId":"{{sessionId}}","messages":[{"role":"user","content":"make a pdf of this"}]}""",
+            Encoding.UTF8, "application/json"));
+
+        Conversation saved = new ConversationStore(_conversations.Root).Load(conversationId)!;
+        StoredMessage answer = Assert.Single(saved.Messages);
+        StoredArtifact file = Assert.Single(answer.Artifacts!);
+        Assert.Equal("photo.pdf", file.Name);
+        Assert.Equal(40960, file.Bytes);
+        Assert.Equal("/api/code/artifacts/r/photo.pdf", file.Url);
+
+        // The same file announced twice in one turn is still one file.
+        static async IAsyncEnumerable<object> Answer(JsonElement body)
+        {
+            string sessionId = body.GetProperty("sessionId").GetString()!;
+            object files = new[] { new { name = "photo.pdf", bytes = 40960, url = "/api/code/artifacts/r/photo.pdf" } };
+            yield return new { skill_step = "shell", skill = "documents", ok = true, files };
+            await Task.Yield();
+            yield return new { skill_step = "shell", skill = "documents", ok = true, files };
+            yield return new { token = "Here is your PDF." };
+            yield return new { done = true, tokenCount = 4, aborted = false, error = (string?)null, sessionId };
+        }
+    }
+
+    [Fact]
     public async Task WithNoSkillRegistryTheSkillsRouteStillAnswersThePage()
     {
         HttpResponseMessage response = await _client.GetAsync("/api/skills");
@@ -362,7 +403,8 @@ public sealed class WebUiRoutesTests : IDisposable
         Assert.Contains("insertText", script, StringComparison.Ordinal);
         Assert.Contains("/api/sessions?conversation=", script, StringComparison.Ordinal);
         // The routes it calls must be the ones this server actually maps.
-        Assert.Contains("/api/agent/conversations/", script, StringComparison.Ordinal);
+        Assert.Contains("/api/agent/conversations", script, StringComparison.Ordinal);
+        Assert.Contains("/api/agent/turns", script, StringComparison.Ordinal);
         Assert.DoesNotContain("/api/tensoragent/", script, StringComparison.Ordinal);
     }
 
@@ -389,9 +431,89 @@ public sealed class WebUiRoutesTests : IDisposable
 
         // Every route it fetches must be one this server maps, or the feature it
         // belongs to fails at run time with a 404 nobody sees.
-        foreach (string route in new[] { "/api/sessions", "/api/agent/conversations/", "/api/agent/events" })
+        foreach (string route in new[] { "/api/sessions", "/api/agent/conversations", "/api/agent/events" })
             Assert.Contains(route, script, StringComparison.Ordinal);
         Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync("/api/agent/events", new { type = "ready" })).StatusCode);
+    }
+
+    /// <summary>
+    /// The two things the composer must say about itself, checked where they can be
+    /// checked from a terminal: in the script and the page as they are actually served.
+    ///
+    /// <para>
+    /// The behaviour behind them is JavaScript in a WebView and is verified on a real
+    /// engine by <c>MainPage</c>'s <c>uicheck</c>, which synthesises the gestures and
+    /// prints one line per assertion for <c>scripts/verify-sim.sh</c>. What is worth
+    /// pinning here is the contract those checks are written against, so a rename
+    /// breaks a fast test rather than a simulator run nobody is about to do.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task TheComposerOffersVoiceByGestureAndSaysWhatTheModelIsDoing()
+    {
+        _server.StaticRoot = Path.Combine(_root, "webui");
+        Directory.CreateDirectory(_server.StaticRoot);
+        string script = await _client!.GetStringAsync("/tensoragent.js");
+
+        // Voice is a long press on the message box, not a switch that spends a slot on
+        // the only row of chrome this design has.
+        Assert.DoesNotContain("$('voice')", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("voice.checked", script, StringComparison.Ordinal);
+        Assert.Contains("pointerdown", script, StringComparison.Ordinal);
+        Assert.Contains("setVoice", script, StringComparison.Ordinal);
+        // And a way back to typing, or the gesture is a trap.
+        Assert.Contains("$('abc')", script, StringComparison.Ordinal);
+
+        // Reasoning is a Settings choice, not a permanent control under the composer,
+        // and Skills is a menu item rather than a button on the same row. Both were
+        // spending the only row of chrome this page has.
+        Assert.DoesNotContain("$('think')", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("$('skills-btn')", script, StringComparison.Ordinal);
+        Assert.Contains("state.think", script, StringComparison.Ordinal);
+        Assert.Contains("refreshSettings", script, StringComparison.Ordinal);
+        Assert.Contains("data-sheet", script, StringComparison.Ordinal);
+
+        // The live panel: what it is doing, and the tail of what it is producing —
+        // pinned under the message box, not inside the turn, because by the time a
+        // program has been run the top of the turn is several screens away.
+        Assert.Contains("$('activity')", script, StringComparison.Ordinal);
+        Assert.Contains("tailOf", script, StringComparison.Ordinal);
+        Assert.Contains("Thinking…", script, StringComparison.Ordinal);
+
+        // And the kept trace: the host's own record of each skill lookup and each
+        // command, which is what the frame carries and the desktop page deliberately
+        // throws away. Without it a phone user watching a minute of silence has no way
+        // to tell working from stuck.
+        Assert.Contains("skill_step", script, StringComparison.Ordinal);
+        Assert.Contains("fileLine", script, StringComparison.Ordinal);
+
+        // The page's half of the same contract. It is the app's own file rather than
+        // the Server's, so it is checked in the repository where it lives.
+        string page = await File.ReadAllTextAsync(Path.Combine(
+            RepoRoot, "TensorAgent", "src", "TensorAgent.Maui", "wwwroot", "index.html"));
+        Assert.DoesNotContain("id=\"voice\"", page, StringComparison.Ordinal);
+        Assert.Contains("id=\"abc\"", page, StringComparison.Ordinal);
+        Assert.Contains("hold to talk", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"think\"", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("id=\"skills-btn\"", page, StringComparison.Ordinal);
+        Assert.Contains("data-sheet=\"skills-sheet\"", page, StringComparison.Ordinal);
+        Assert.Contains("#activity", page, StringComparison.Ordinal);
+        Assert.Contains("id=\"activity\"", page, StringComparison.Ordinal);
+        // Three lines: enough to follow, too few to bury the answer underneath.
+        Assert.Contains("-webkit-line-clamp: 3", page, StringComparison.Ordinal);
+    }
+
+    /// <summary>The repository this test assembly was built from.</summary>
+    private static string RepoRoot
+    {
+        get
+        {
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "TensorSharp.slnx")))
+                directory = directory.Parent;
+            return directory?.FullName
+                ?? throw new InvalidOperationException($"no TensorSharp.slnx above {AppContext.BaseDirectory}");
+        }
     }
 
     [Fact]

@@ -45,8 +45,85 @@ internal sealed class Dictation : IDisposable
     private SFSpeechRecognitionTask? _task;
     private TaskCompletionSource<string>? _completion;
 
-    /// <summary>Whether this device has a recogniser for the current language at all.</summary>
-    public static bool IsSupported => new SFSpeechRecognizer(NSLocale.CurrentLocale) is { Available: true };
+    /// <summary>Whether this device has a recogniser for the language dictation would use.</summary>
+    public static bool IsSupported => new SFSpeechRecognizer(ResolveLocale(string.Empty)) is { Available: true };
+
+    /// <summary>
+    /// The locale to recognise in: the caller's explicit choice, or — for "Auto" — the
+    /// language the USER chose, not the region their phone formats dates in.
+    ///
+    /// <para>
+    /// This used to be <c>NSLocale.CurrentLocale</c>, and that is a different thing
+    /// from what anyone means by "Auto". CurrentLocale is the region and formatting
+    /// locale; a phone set to the United States reports en_US however many languages
+    /// its owner has added. Speaking Chinese into an English recogniser does not fail —
+    /// it succeeds, and hands back the sounds romanised. Reported from a phone as
+    /// "Auto gives me Pinyin instead of Chinese characters", which is exactly what an
+    /// English recogniser does with Mandarin.
+    /// </para>
+    /// <para>
+    /// <c>PreferredLanguages</c> is the ordered list the user actually set in
+    /// Settings › General › Language &amp; Region, so a bilingual user's first language
+    /// wins. It is intersected with what this device can actually recognise, because a
+    /// preferred language with no recogniser has to fall through to the next one rather
+    /// than fail. iOS still recognises ONE language per session and cannot detect which
+    /// is being spoken — that is why the chips beside the button exist — but Auto now
+    /// means something true.
+    /// </para>
+    /// </summary>
+    internal static NSLocale ResolveLocale(string? language)
+    {
+        if (!string.IsNullOrWhiteSpace(language))
+            return new NSLocale(language);
+
+        try
+        {
+            NSLocale[] supported = SFSpeechRecognizer.SupportedLocales?.ToArray() ?? Array.Empty<NSLocale>();
+            if (supported.Length == 0)
+                return NSLocale.CurrentLocale;
+
+            foreach (string preferred in NSLocale.PreferredLanguages ?? Array.Empty<string>())
+            {
+                if (Match(supported, preferred) is { } exact)
+                    return exact;
+            }
+            // Nothing the user listed can be recognised here; the region locale is the
+            // next most likely thing to be right, and after that anything at all beats
+            // refusing to listen.
+            return Match(supported, NSLocale.CurrentLocale.Identifier) ?? NSLocale.CurrentLocale;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TensorAgent: could not resolve a dictation locale: " + ex.Message);
+            return NSLocale.CurrentLocale;
+        }
+    }
+
+    /// <summary>
+    /// The supported locale that best answers <paramref name="wanted"/>: the same tag,
+    /// or failing that the same language. "zh-Hans-CN" has to find "zh-CN", and
+    /// identifiers arrive in both ICU ("zh_CN") and BCP-47 ("zh-CN") spellings.
+    /// </summary>
+    private static NSLocale? Match(IReadOnlyList<NSLocale> supported, string wanted)
+    {
+        string want = Normalize(wanted);
+        foreach (NSLocale locale in supported)
+        {
+            if (string.Equals(Normalize(locale.Identifier), want, StringComparison.OrdinalIgnoreCase))
+                return locale;
+        }
+
+        string language = want.Split('-')[0];
+        foreach (NSLocale locale in supported)
+        {
+            if (string.Equals(Normalize(locale.Identifier).Split('-')[0], language, StringComparison.OrdinalIgnoreCase))
+                return locale;
+        }
+        return null;
+    }
+
+    private static string Normalize(string identifier) =>
+        (identifier ?? string.Empty).Replace('_', '-');
 
     /// <summary>Ask for the two permissions this needs, and say which one was refused.</summary>
     /// <summary>
@@ -108,14 +185,14 @@ internal sealed class Dictation : IDisposable
     public async Task<string> ListenAsync()
     {
         // One locale per session: iOS does not detect the spoken language, so the
-        // caller's choice decides. Empty follows the device, which is right until the
-        // user speaks the other language they use.
-        NSLocale locale = string.IsNullOrWhiteSpace(_language)
-            ? NSLocale.CurrentLocale
-            : new NSLocale(_language);
+        // caller's choice decides. Empty means Auto, which resolves to the user's own
+        // preferred language rather than to their region -- see ResolveLocale.
+        NSLocale locale = ResolveLocale(_language);
+        Console.WriteLine($"TensorAgent: dictating in {locale.Identifier}"
+            + (_language.Length == 0 ? " (auto)" : string.Empty));
         _recognizer = new SFSpeechRecognizer(locale)
             ?? throw new InvalidOperationException(
-                $"This device has no speech recogniser for {(_language.Length > 0 ? _language : "the current language")}.");
+                $"This device has no speech recogniser for {locale.Identifier}.");
         if (!_recognizer.Available)
             throw new InvalidOperationException("The speech recogniser is not available right now.");
 

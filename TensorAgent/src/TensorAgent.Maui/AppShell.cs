@@ -11,32 +11,50 @@
 namespace TensorAgent.Maui;
 
 /// <summary>
-/// The four places the app has: the chat itself, the saved chats, the model list
-/// and the settings.
+/// One place, and four screens that sit on top of it.
 ///
 /// <para>
-/// Chat is a page rather than a tab item so that everything else navigates back to
-/// it by route: opening a saved conversation, and finishing a download that selects
-/// a model, both end with the user looking at the chat again.
+/// The chat is the shell's ONLY content. The saved chats, the model list, the settings
+/// and the about page are pushed over it and popped off again, rather than being
+/// sibling items the shell switches between — and that is not a matter of taste.
+/// Switching top-level items tears the page down: the shell renderer disposes the
+/// outgoing item's renderer, which disconnects the page's handler and removes its view
+/// controller. Pushing does none of that; the chat stays in the stack with its handler
+/// intact, so it comes back instantly and with its state.
+/// </para>
+/// <para>
+/// What pushing does NOT buy, and no navigation shape here can, is keeping the WebView
+/// running. UIKit takes a covered view controller's view out of the window, WebKit drops
+/// the foreground assertion for a WKWebView whose window is nil, and the content process
+/// is suspended — mid-answer. That is why the generation cannot belong to the page at
+/// all: it belongs to <see cref="Core.Sessions.ChatTurnManager"/>, and the page attaches
+/// to it again on the way back. This class only makes sure there is a page to come back
+/// to.
+/// </para>
+/// <para>
+/// The flyout is gone with it. The page has its own menu now — a drawer from the left
+/// edge that also lists the saved chats — and two menus for the same five destinations
+/// is one more than a phone screen can justify.
 /// </para>
 /// </summary>
 public sealed class AppShell : Shell
 {
+    private readonly Dictionary<string, Page> _pages;
+
     public AppShell(MainPage chat, Pages.SessionsPage sessions, Pages.ModelsPage models, Pages.SettingsPage settings, Pages.AboutPage about)
     {
         Title = "TensorAgent";
-        FlyoutBehavior = FlyoutBehavior.Flyout;
+        FlyoutBehavior = FlyoutBehavior.Disabled;
         BackgroundColor = Pages.Theme.Background;
-        FlyoutBackgroundColor = Pages.Theme.Background;
 
         Items.Add(new ShellContent { Title = "Chat", Route = "main", Content = chat });
-        Items.Add(new ShellContent { Title = "Chats", Route = "sessions", Content = sessions });
-        Items.Add(new ShellContent { Title = "Models", Route = "models", Content = models });
-        Items.Add(new ShellContent { Title = "Settings", Route = "settings", Content = settings });
-        // Last, because it is the one item nobody needs twice -- and it is where the
-        // "TensorSharp.ai" banner went when it was taken out of the chat header, which
-        // on a phone was a whole row spent on a link read once.
-        Items.Add(new ShellContent { Title = "About", Route = "about", Content = about });
+        _pages = new Dictionary<string, Page>(StringComparer.Ordinal)
+        {
+            ["sessions"] = sessions,
+            ["models"] = models,
+            ["settings"] = settings,
+            ["about"] = about,
+        };
 
 #if DEBUG
         // The simulator harness cannot tap: simctl has no way to touch the screen, so
@@ -66,7 +84,7 @@ public sealed class AppShell : Shell
                     }
                     string backend = await Task.Run(() => models.Host.UseModel(picked));
                     Console.WriteLine($"TensorAgent: debug hook loaded {picked.Id} on {backend}");
-                    await GoToAsync("//main");
+                    await OpenAsync("main");
                 }
                 catch (Exception ex) { Console.WriteLine("TensorAgent: debug model use failed: " + ex.Message); }
             });
@@ -74,13 +92,52 @@ public sealed class AppShell : Shell
 
         string? start = Environment.GetEnvironmentVariable("TENSORAGENT_START_PAGE");
         if (!string.IsNullOrWhiteSpace(start))
-        {
-            Dispatcher.Dispatch(async () =>
-            {
-                try { await GoToAsync("//" + start.Trim()); }
-                catch (Exception ex) { Console.WriteLine("TensorAgent: start page failed: " + ex.Message); }
-            });
-        }
+            Dispatcher.Dispatch(async () => await OpenAsync(start.Trim()));
 #endif
     }
+
+    /// <summary>
+    /// Show one of the app's other screens over the chat, or come back to the chat.
+    ///
+    /// <para>
+    /// The stack is never deeper than one: whatever is already on top comes off first,
+    /// so "Models" from a page reached through "Settings" leaves one page over the chat
+    /// rather than three, and the back arrow always means "back to the chat". A route
+    /// this shell does not have is ignored rather than guessed at, which is what stops a
+    /// page from navigating the app somewhere it has no screen.
+    /// </para>
+    /// </summary>
+    public static async Task OpenAsync(string? route)
+    {
+        if (Current is not AppShell shell)
+            return;
+        // Decided BEFORE anything is popped, so a route this shell does not have leaves
+        // the app exactly where it was rather than quietly closing the page the user is
+        // looking at.
+        Page? page = null;
+        bool chat = route is null or "main";
+        if (!chat && !shell._pages.TryGetValue(route!, out page))
+            return;
+
+        try
+        {
+            INavigation navigation = shell.Navigation;
+            // Shell's stack carries a null placeholder for the shell content itself, so
+            // anything past the first entry is a page pushed over the chat. Bounded
+            // rather than `while`: a pop that does not shorten the stack would otherwise
+            // spin forever on the UI thread, and the stack is never deeper than one.
+            for (int i = 0; i < 8 && navigation.NavigationStack.Count > 1; i++)
+                await navigation.PopAsync(false);
+
+            if (!chat)
+                await navigation.PushAsync(page!);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TensorAgent: open {route} failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>Come back to the chat, from a page that is done.</summary>
+    public static Task BackToChatAsync() => OpenAsync("main");
 }

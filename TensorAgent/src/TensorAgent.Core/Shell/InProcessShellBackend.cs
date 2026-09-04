@@ -54,18 +54,6 @@ public sealed class InProcessShellBackend : IShellBackend
     private readonly IJavaScriptRuntime? _javaScript;
     private readonly IInstallHook? _installer;
 
-    /// <summary>
-    /// The hosts a run may reach when the network is on, or empty for any host.
-    ///
-    /// <para>
-    /// It belongs to the backend rather than to the launch because the agent host's
-    /// <c>ShellLaunch</c> has no field for it: the desktop expresses the same idea
-    /// with an OS sandbox rule, and there is no sandbox here to express it in. Without
-    /// somewhere for it to come from, every runtime's allow-list check reduced to
-    /// "any host", which is a check that reads as enforcement and is not.
-    /// </para>
-    /// </summary>
-    private readonly IReadOnlyList<string> _networkHosts;
     private readonly ISkillSandbox _sandbox;
 
     /// <param name="python">The embedded Python, or null when this build has none.</param>
@@ -80,7 +68,7 @@ public sealed class InProcessShellBackend : IShellBackend
         _python = python;
         _javaScript = javaScript;
         _installer = installer;
-        _networkHosts = networkHosts ?? Array.Empty<string>();
+        NetworkHosts = networkHosts ?? Array.Empty<string>();
         _shell = new InProcessShell();
 
         // Every one of these is enforced by ConfinedPaths and ExecutionPolicy inside
@@ -97,6 +85,24 @@ public sealed class InProcessShellBackend : IShellBackend
             + "the network is refused unless the user allows it, and nothing can spawn a "
             + "process because this platform has none to spawn");
     }
+
+    /// <summary>
+    /// The hosts a run may reach when the network is on, or empty for any host.
+    ///
+    /// <para>
+    /// It belongs to the backend rather than to the launch because the agent host's
+    /// <c>ShellLaunch</c> has no field for it: the desktop expresses the same idea
+    /// with an OS sandbox rule, and there is no sandbox here to express it in. Without
+    /// somewhere for it to come from, every runtime's allow-list check reduced to
+    /// "any host", which is a check that reads as enforcement and is not.
+    /// </para>
+    /// <para>
+    /// Settable because the user owns it: it is read from the settings file at startup
+    /// and again whenever the settings change, so a change takes effect on the next
+    /// command rather than on the next launch.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string> NetworkHosts { get; set; }
 
     /// <inheritdoc />
     public string Name => "in-process";
@@ -185,7 +191,7 @@ public sealed class InProcessShellBackend : IShellBackend
             TempRoot: Path.Combine(launch.WriteDirectory, ".tmp"))
         {
             WritablePaths = launch.WritablePaths,
-            NetworkHosts = _networkHosts,
+            NetworkHosts = NetworkHosts,
             MaxOutputBytes = launch.MaxOutputBytes,
             DefaultTimeout = launch.Timeout,
             AllowLoopbackPort = launch.AllowLoopbackPort,

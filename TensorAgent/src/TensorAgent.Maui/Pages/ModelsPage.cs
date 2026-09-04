@@ -11,6 +11,7 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using TensorAgent.Core.Catalog;
+using TensorAgent.Core.Downloads;
 using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Settings;
 using TensorAgent.Maui.Hosting;
@@ -36,7 +37,18 @@ public sealed class ModelsPage : ContentPage
     /// <summary>The running app, so the debug reproduction hook can drive the same path a tap does.</summary>
     internal AgentAppHost Host => _app;
     private readonly ObservableCollection<ModelRow> _rows = new();
-    private readonly Dictionary<string, CancellationTokenSource> _running = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// True only while this page is on screen.
+    ///
+    /// <para>
+    /// A download now outlives the page, so a job that finishes while the user is in
+    /// the chat must not drag them back here to load a model they may no longer want.
+    /// The automatic "downloaded, so use it" step happens only when they are still
+    /// looking at the list they started it from.
+    /// </para>
+    /// </summary>
+    private bool _visible;
 
     public ModelsPage(LoopbackWebHost host)
     {
@@ -83,7 +95,58 @@ public sealed class ModelsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        _visible = true;
+        // Re-attached rather than re-started: the transfer has been running the whole
+        // time this page was gone, and the rows have to pick up where it is now.
+        // Detached first, because Shell can appear a cached page again without having
+        // disappeared it, and a handler added twice repaints every row twice.
+        _app.Downloads.Changed -= OnDownloadChanged;
+        _app.Downloads.Changed += OnDownloadChanged;
         Refresh();
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _visible = false;
+        _app.Downloads.Changed -= OnDownloadChanged;
+    }
+
+    /// <summary>
+    /// One report from a running download, from whatever thread the transfer is on.
+    ///
+    /// <para>
+    /// The row is found by id rather than held, because <see cref="Refresh"/> rebuilds
+    /// the collection and a captured row would then be updating an object no longer in
+    /// the list.
+    /// </para>
+    /// </summary>
+    private void OnDownloadChanged(ModelDownloadStatus status)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            ModelRow? row = _rows.FirstOrDefault(r => string.Equals(r.Model.Id, status.ModelId, StringComparison.Ordinal));
+            if (row is null)
+                return;
+
+            switch (status.State)
+            {
+                case DownloadState.Running:
+                    row.Report(status.Progress);
+                    return;
+                case DownloadState.Completed:
+                    row.Finish(_app.Models);
+                    if (_visible)
+                        Select(row);
+                    return;
+                case DownloadState.Cancelled:
+                    row.Cancelled(_app.Models);
+                    return;
+                default:
+                    row.Failed(status.Error ?? "the download failed");
+                    return;
+            }
+        });
     }
 
     /// <summary>
@@ -108,7 +171,7 @@ public sealed class ModelsPage : ContentPage
                      .ThenBy(m => m.MinDeviceMemoryGB)
                      .ThenBy(m => m.TotalBytes))
         {
-            _rows.Add(new ModelRow(model, _app.Models, selected, deviceGB));
+            _rows.Add(new ModelRow(model, _app.Models, selected, deviceGB, _app.Downloads.StatusOf(model.Id)));
         }
     }
 
@@ -174,9 +237,9 @@ public sealed class ModelsPage : ContentPage
         if (row is null)
             return;
 
-        if (_running.TryGetValue(row.Model.Id, out CancellationTokenSource? running))
+        if (_app.Downloads.StatusOf(row.Model.Id) is { IsRunning: true })
         {
-            running.Cancel();
+            _app.Downloads.Cancel(row.Model.Id);
             return;
         }
 
@@ -197,7 +260,7 @@ public sealed class ModelsPage : ContentPage
             return;
         }
 
-        await DownloadAsync(row);
+        Download(row);
     }
 
     /// <summary>
@@ -224,7 +287,7 @@ public sealed class ModelsPage : ContentPage
         {
             string backend = await Task.Run(() => _app.UseModel(row.Model));
             Refresh();
-            await Shell.Current.GoToAsync("//main");
+            await AppShell.BackToChatAsync();
             Console.WriteLine($"TensorAgent: now using {row.Model.Id} on {backend}");
         }
         catch (Exception ex)
@@ -235,36 +298,24 @@ public sealed class ModelsPage : ContentPage
         }
     }
 
-    private async Task DownloadAsync(ModelRow row)
+    /// <summary>
+    /// Hand the transfer to the download manager and let the row follow it.
+    ///
+    /// <para>
+    /// Nothing is awaited here, and that is the change. This method used to hold the
+    /// download for its whole length — the cancellation source lived in this page's
+    /// dictionary and the progress went straight into a row — so a user who tapped
+    /// Download and went back to the chat took the only owner of a multi-gigabyte
+    /// transfer with them. The job is the app's now; this only starts it, and
+    /// <see cref="OnDownloadChanged"/> paints whatever it goes on to do.
+    /// </para>
+    /// </summary>
+    private void Download(ModelRow row)
     {
-        var cancel = new CancellationTokenSource();
-        _running[row.Model.Id] = cancel;
         row.BeginDownload();
-
-        var progress = new Progress<ModelDownloadProgress>(p => MainThread.BeginInvokeOnMainThread(() => row.Report(p)));
-        try
-        {
-            IReadOnlyCollection<CatalogFileRole>? optional = _app.Settings.Load().DownloadOptionalFiles
-                ? new[] { CatalogFileRole.Projector, CatalogFileRole.Lora, CatalogFileRole.TextEncoder, CatalogFileRole.Vae, CatalogFileRole.VisionProjector }
-                : null;
-            await _app.Models.DownloadAsync(row.Model, progress, cancel.Token, optional);
-            row.Finish(_app.Models);
-            Select(row);
-        }
-        catch (OperationCanceledException)
-        {
-            // The part file is kept on purpose: the next attempt resumes from it.
-            row.Cancelled(_app.Models);
-        }
-        catch (Exception ex)
-        {
-            row.Failed(ex.Message);
-            await DisplayAlert("Download failed", ex.Message, "OK");
-        }
-        finally
-        {
-            _running.Remove(row.Model.Id);
-        }
+        _app.Downloads.Start(
+            row.Model,
+            ModelDownloadManager.OptionalRolesFor(_app.Settings.Load().DownloadOptionalFiles));
     }
 
     private async void OnDelete(ModelRow? row)
@@ -289,7 +340,16 @@ public sealed class ModelRow : BindableObject
     private bool _busy;
     private string _actionLabel;
 
-    public ModelRow(CatalogModel model, ModelStore store, string? selectedId, int deviceMemoryGB)
+    /// <param name="download">
+    /// What this launch's download manager is doing with the entry, or null when it has
+    /// never touched it. It is a constructor parameter because the page is rebuilt every
+    /// time it appears, and a row built without it shows "Partly downloaded · 3.1 GB
+    /// still to fetch" beside a Download button for a transfer that is running right
+    /// now — the one state the user must not be invited to start again.
+    /// </param>
+    public ModelRow(
+        CatalogModel model, ModelStore store, string? selectedId, int deviceMemoryGB,
+        ModelDownloadStatus? download = null)
     {
         Model = model;
         Runnable = model.MinDeviceMemoryGB <= deviceMemoryGB;
@@ -298,6 +358,20 @@ public sealed class ModelRow : BindableObject
         IsSelected = string.Equals(model.Id, selectedId, StringComparison.Ordinal);
         _status = DescribeState(store);
         _actionLabel = !Runnable ? "Too big" : IsInstalled ? (IsSelected ? "Selected" : "Use") : "Download";
+
+        if (download is { IsRunning: true } running)
+        {
+            BeginDownload();
+            Report(running.Progress);
+        }
+        else if (download is { State: DownloadState.Failed } failed)
+        {
+            Failed(failed.Error ?? "the download failed");
+        }
+        else if (download is { State: DownloadState.Cancelled } && !IsInstalled)
+        {
+            Cancelled(store);
+        }
     }
 
     public CatalogModel Model { get; }

@@ -12,6 +12,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorAgent.Core.Catalog;
+using TensorAgent.Core.Downloads;
 using TensorAgent.Core.JavaScript;
 using TensorAgent.Core.Python;
 using TensorAgent.Core.Sessions;
@@ -82,6 +83,10 @@ public sealed class AgentAppHost : IDisposable
         AppSettings settings = Settings.Load();
 
         Models = new ModelStore(paths.ModelsDirectory);
+        // The downloads belong to the APP, not to the model list: a five-gigabyte
+        // transfer must not end because the user went back to the chat. See
+        // ModelDownloadManager.
+        Downloads = new ModelDownloadManager(Models, _loggerFactory.CreateLogger("TensorAgent.Downloads"));
         Conversations = new ConversationStore(paths.ConversationsDirectory);
         Catalog = ModelCatalog.ForDevice(paths.DeviceMemoryGB);
 
@@ -123,7 +128,14 @@ public sealed class AgentAppHost : IDisposable
             _loggerFactory.CreateLogger("TensorAgent.CodeExec"),
             Artifacts,
             backend: Backend);
-        CodeRunner = settings.AllowCodeExecution ? new CodeRunnerAdapter(runner, CodeExec) : null;
+        // Always built, never conditional on the switch. ShellRunner.CanRun reads
+        // CodeExec.Enabled every time it is asked, and the request planner offers the
+        // code tools only for a runner that says it can run -- so a runner that exists
+        // and answers "no" is the same refusal as no runner at all, and it is one the
+        // user can lift from the Settings screen without relaunching the app. Building
+        // it conditionally is what made both sandbox switches take effect "next time
+        // TensorAgent starts", which on a phone reads as a switch that does nothing.
+        CodeRunner = new CodeRunnerAdapter(runner, CodeExec);
 
         Skills = new SkillRegistry(new SkillRegistryOptions
         {
@@ -171,20 +183,32 @@ public sealed class AgentAppHost : IDisposable
         Recorder = new ConversationRecorder(Conversations);
         Chat.OnChatRequest = Recorder.Record;
 
+        // A generation belongs to the app, not to the HTTP request that asked for it.
+        // See ChatTurnManager: on a phone the reader goes away constantly -- another
+        // screen, another app, a display that dimmed -- and every one of those used to
+        // be an answer thrown away halfway through.
+        Turns = new ChatTurnManager(Recorder);
+
         SkillsService = new SkillsService(Skills, Options, Uploads, _loggerFactory);
 
         Server = new LoopbackServer(_loggerFactory.CreateLogger("TensorAgent.Loopback"), port)
         {
             StaticRoot = webRoot,
         };
-        Server.MapWebUi(Chat, Options.UploadDirectory, SkillsService, Recorder);
-        Server.MapAgent(Catalog, Models, Conversations, Settings, DescribeEngine, RaisePageEvent);
-
+        Server.MapWebUi(Chat, Options.UploadDirectory, SkillsService, Recorder, chatFrames: null, turns: Turns);
+        // Without this the model's "here is your PDF" link 404s: the runner emits
+        // /api/code/artifacts/... and nothing served it. See MapCodeArtifacts.
+        Server.MapCodeArtifacts(Artifacts);
+        Server.MapAgent(
+            Catalog, Models, Conversations, Settings, DescribeEngine, RaisePageEvent, Downloads,
+            onSettingsChanged: ApplySettings, describeModel: DescribeModelState);
     }
 
     public AgentPaths Paths { get; }
     public SettingsStore Settings { get; }
     public ModelStore Models { get; }
+    /// <summary>Every model download this launch started, independent of any screen.</summary>
+    public ModelDownloadManager Downloads { get; }
     public ConversationStore Conversations { get; }
     public IReadOnlyList<CatalogModel> Catalog { get; }
     public CodeExecOptions CodeExec { get; }
@@ -202,6 +226,8 @@ public sealed class AgentAppHost : IDisposable
     public ServerHostingOptions Options { get; }
     public WebUiChatService Chat { get; }
     public ConversationRecorder Recorder { get; }
+    /// <summary>Every generation this launch started, independent of any page or request.</summary>
+    public ChatTurnManager Turns { get; }
     public SkillsService SkillsService { get; }
     public LoopbackServer Server { get; }
 
@@ -218,7 +244,160 @@ public sealed class AgentAppHost : IDisposable
     /// <summary>The URL the WebView opens: the page plus the launch token that sets its cookie.</summary>
     public string EntryUrl => Server.EntryUrl;
 
-    public void Start() => Server.Start();
+    public void Start()
+    {
+        Server.Start();
+        LoadSelectedModelInBackground();
+    }
+
+    // ---- the model the user last used --------------------------------------------
+
+    /// <summary>Where the automatic startup load has got to.</summary>
+    public enum ModelLoadState
+    {
+        /// <summary>No model has ever been chosen, or its files are not on the device.</summary>
+        None,
+        /// <summary>The weights are being read right now.</summary>
+        Loading,
+        /// <summary>A model is loaded and the chat can be used.</summary>
+        Loaded,
+        /// <summary>The load was tried and refused; <see cref="ModelLoadError"/> says why.</summary>
+        Failed,
+    }
+
+    private int _autoLoadStarted;
+
+    /// <summary>Where the model this app is meant to be using has got to.</summary>
+    public ModelLoadState ModelLoad { get; private set; } = ModelLoadState.None;
+
+    /// <summary>Why <see cref="ModelLoad"/> is <see cref="ModelLoadState.Failed"/>, or null.</summary>
+    public string? ModelLoadError { get; private set; }
+
+    /// <summary>Raised whenever <see cref="ModelLoad"/> moves, for native chrome that shows it.</summary>
+    public event Action<ModelLoadState>? ModelLoadChanged;
+
+    /// <summary>
+    /// Load the model the user last used, without being asked.
+    ///
+    /// <para>
+    /// The app remembers the choice — it has always written <c>selectedModelId</c> — and
+    /// then did nothing with it until the user went back to the Models list and tapped
+    /// "Use" again. Every launch therefore started at "No model yet" with a send button
+    /// that refuses, which is the app apparently forgetting a setting it can see. There
+    /// is exactly one model the app should be holding, and this is it.
+    /// </para>
+    /// <para>
+    /// On a background thread, because reading four gigabytes of weights off flash and
+    /// handing them to Metal takes seconds and the page has to be able to paint while it
+    /// happens. It runs at most once per launch, and it does nothing at all when the
+    /// selected model's files are not on the device — a purged cache is "download it
+    /// again", never an error at startup.
+    /// </para>
+    /// </summary>
+    public void LoadSelectedModelInBackground()
+    {
+        if (Interlocked.Exchange(ref _autoLoadStarted, 1) != 0)
+            return;
+
+        AppSettings settings = Settings.Load();
+        if (settings.SelectedModelId is not { Length: > 0 } id || ModelCatalog.Find(id) is not { } model)
+            return;
+        if (!File.Exists(Paths.SelectedModelPath(settings)))
+        {
+            _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                "the last used model {Model} is not on this device; nothing to load", id);
+            return;
+        }
+
+        SetModelLoad(ModelLoadState.Loading, null);
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                Console.WriteLine($"TensorAgent: loaded the last used model {model.Id} on {UseModel(model)}");
+            }
+            catch (Exception ex)
+            {
+                _loggerFactory.CreateLogger("TensorAgent.Host")
+                    .LogWarning(ex, "the last used model {Model} could not be loaded", model.Id);
+            }
+        });
+    }
+
+    private void SetModelLoad(ModelLoadState state, string? error)
+    {
+        ModelLoad = state;
+        ModelLoadError = error;
+        try { ModelLoadChanged?.Invoke(state); }
+        catch (Exception) { /* a listener must not break the load */ }
+    }
+
+    /// <summary>
+    /// What the page shows while the weights are still being read: which model, and how
+    /// far it has got. Without it the chat says "No model yet" for the whole of a load
+    /// that is going perfectly well, and the send button refuses for reasons the user
+    /// cannot see.
+    /// </summary>
+    private object DescribeModelState()
+    {
+        AppSettings settings = Settings.Load();
+        CatalogModel? model = settings.SelectedModelId is { Length: > 0 } id ? ModelCatalog.Find(id) : null;
+        return new
+        {
+            id = model?.Id,
+            name = model?.DisplayName,
+            state = ModelLoad.ToString(),
+            loading = ModelLoad == ModelLoadState.Loading,
+            error = ModelLoadError,
+        };
+    }
+
+    /// <summary>
+    /// Take a settings change now rather than at the next launch.
+    ///
+    /// <para>
+    /// "Allow network access" is the one that made this necessary. It is a switch on a
+    /// settings screen, and the page under it said the change would apply the next time
+    /// the app started — but an iPhone app is not restarted by leaving it, so the honest
+    /// instruction was "force-quit TensorAgent from the app switcher", which nobody
+    /// does. The reported symptom is exactly what that produces: network turned on,
+    /// <c>curl</c> still answering "network access is disabled by the user".
+    /// </para>
+    /// <para>
+    /// Everything a run's permissions are read from is moved here, in one place, so the
+    /// four holders cannot drift apart: the code runner's options, the installer's
+    /// standing policy, the shell's host allow-list, and the terms a skill's scripts are
+    /// planned against. A command already running keeps the terms it started with.
+    /// </para>
+    /// </summary>
+    public void ApplySettings(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        CodeExec.Enabled = settings.AllowCodeExecution;
+        CodeExec.AllowNetwork = settings.AllowNetwork;
+        CodeExec.AllowInstall = settings.AllowNetwork;
+        CodeExec.Timeout = TimeSpan.FromSeconds(Math.Clamp(settings.ToolTimeoutSeconds, 5, 600));
+        // The reply length limit is read by /api/models, which the page re-reads every
+        // time it comes back to the front, so moving it here is all it takes for the
+        // stepper to mean something before the next launch.
+        Options.RepointGenerationDefaults(settings.MaxTokens);
+
+        Backend.NetworkHosts = settings.NetworkHosts;
+        if (Installer is WheelInstaller wheels)
+        {
+            wheels.Policy = wheels.Policy with
+            {
+                AllowScripts = settings.AllowCodeExecution,
+                AllowNetwork = settings.AllowNetwork,
+                NetworkHosts = settings.NetworkHosts,
+            };
+        }
+
+        Options.RepointSandboxPermissions(settings.AllowCodeExecution, settings.AllowNetwork);
+        Options.RepointSkills(settings.SkillsEnabled);
+        _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation("settings applied: {Engine}", DescribeEngine());
+    }
 
     /// <summary>
     /// One line naming what will actually run a command and what will run a script,
@@ -229,7 +408,10 @@ public sealed class AgentAppHost : IDisposable
     public string DescribeEngine()
     {
         var parts = new List<string> { Backend.Describe() };
-        parts.Add(CodeRunner is null ? "code execution off" : "code execution on");
+        // Asked of the runner rather than of the field, because the runner is always
+        // there now and it is its answer -- read live from CodeExec.Enabled -- that
+        // decides whether the model is offered the tools at all.
+        parts.Add(CodeRunner is { CanRun: true } ? "code execution on" : "code execution off");
         parts.Add(CodeExec.AllowNetwork ? "network on" : "network off");
         parts.Add($"{Skills.Skills.Count} skills");
         return string.Join(" · ", parts);
@@ -373,7 +555,7 @@ public sealed class AgentAppHost : IDisposable
         // A skill that cannot run its own scripts is a document, not a skill: the
         // bundled ones are chosen precisely because they do work end to end. What
         // gates them is the user's own switch, read here, not a build-time default.
-        skillsEnabled: true,
+        skillsEnabled: settings.SkillsEnabled,
         skillsDiscovery: true,
         skillsAllowScripts: settings.AllowCodeExecution,
         skillsAllowNetwork: settings.AllowNetwork);
@@ -414,39 +596,66 @@ public sealed class AgentAppHost : IDisposable
     {
         ArgumentNullException.ThrowIfNull(model);
 
-        AppSettings settings = Settings.Load();
-        settings.SelectedModelId = model.Id;
-        Settings.Save(settings);
-
-        string weights = Paths.SelectedModelPath(settings);
-        string? projector = Paths.SelectedProjectorPath(settings);
-        if (!File.Exists(weights))
-            throw new FileNotFoundException($"{model.DisplayName} is not downloaded yet.", weights);
-        if (projector is not null && !File.Exists(projector))
-            projector = null;
-
-        Options.RepointHostedModel(weights, projector);
-
-        var refusals = new List<string>();
-        foreach (BackendOption backend in Options.SupportedBackends)
+        // One load at a time, whoever asked. There are three callers now — the startup
+        // load, the Models list, and the device hook — and the startup one takes twenty
+        // seconds on real weights, which is exactly the window in which a user who sees
+        // "No model yet" goes to the list and taps Use. Two threads inside the engine's
+        // load at once free and remap the same buffers; the failure is a segmentation
+        // fault in a kernel with nothing to do with either of them.
+        lock (_modelGate)
         {
-            try
-            {
-                ModelService.LoadModel(weights, projector, backend.Value);
-                _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
-                    "using {Model} on {Backend}", model.Id, backend.Value);
-                return backend.Value;
-            }
-            catch (Exception ex)
-            {
-                refusals.Add($"{backend.Value}: {ex.Message}");
-            }
-        }
+            SetModelLoad(ModelLoadState.Loading, null);
+            AppSettings settings = Settings.Load();
+            settings.SelectedModelId = model.Id;
+            Settings.Save(settings);
 
-        throw new InvalidOperationException(
-            $"{model.DisplayName} could not be loaded on any backend this build offers:"
-            + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
+            string weights = Paths.SelectedModelPath(settings);
+            string? projector = Paths.SelectedProjectorPath(settings);
+            if (!File.Exists(weights))
+            {
+                var missing = new FileNotFoundException($"{model.DisplayName} is not downloaded yet.", weights);
+                SetModelLoad(ModelLoadState.Failed, missing.Message);
+                throw missing;
+            }
+            if (projector is not null && !File.Exists(projector))
+                projector = null;
+
+            // Before the load, not after: the engine reads its context length and KV
+            // dtype when the model is constructed. This is the only funnel for a load
+            // (startup, the Models list, the device hook all arrive here), which is why
+            // it is the right place for the budget. See EngineMemoryPolicy for the
+            // measurements -- this is what stops a pasted document from growing the KV
+            // cache until jetsam kills the app.
+            EngineMemoryPolicy.Apply(model, settings);
+
+            Options.RepointHostedModel(weights, projector);
+
+            var refusals = new List<string>();
+            foreach (BackendOption backend in Options.SupportedBackends)
+            {
+                try
+                {
+                    ModelService.LoadModel(weights, projector, backend.Value);
+                    _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                        "using {Model} on {Backend}", model.Id, backend.Value);
+                    SetModelLoad(ModelLoadState.Loaded, null);
+                    return backend.Value;
+                }
+                catch (Exception ex)
+                {
+                    refusals.Add($"{backend.Value}: {ex.Message}");
+                }
+            }
+
+            var refused = new InvalidOperationException(
+                $"{model.DisplayName} could not be loaded on any backend this build offers:"
+                + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
+            SetModelLoad(ModelLoadState.Failed, refused.Message);
+            throw refused;
+        }
     }
+
+    private readonly object _modelGate = new();
 
     /// <summary>
     /// What <see cref="WaitForTheEngineToStop"/> polls, and the only thing that decides
@@ -558,8 +767,19 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     public void Dispose()
     {
+        // First of all, and this is now load-bearing: a turn no longer stops when its
+        // reader goes away, so closing the server is not enough to end one. Asking the
+        // turns to stop is what lets WaitForTheEngineToStop below ever return -- and
+        // that wait is the only thing between a generation on the engine's threads and
+        // the weights being unmapped underneath it.
+        Turns.StopAll();
         Close(Server);
+        // Before the engine wait, because a download holds a socket and a file handle
+        // and has nothing to do with the model: making a five-second transfer teardown
+        // wait behind a generation would be for no reason.
+        Close(Downloads);
         WaitForTheEngineToStop();
+        Close(Turns);
         Close(ModelService);
         foreach (IDisposable owned in _owned)
             Close(owned);

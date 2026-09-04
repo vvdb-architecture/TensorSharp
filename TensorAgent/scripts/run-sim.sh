@@ -7,6 +7,10 @@
 #   CONFIGURATION   Debug (default) | Release - must match build-sim.sh
 #   SIM_UDID        simulator to use (default: iPhone 17 Pro, iOS 26.5 on this Mac)
 #   SIM_NAME        used to look the UDID up when SIM_UDID is unset
+#   TENSORAGENT_USE_MODEL     Debug builds only: catalog id to load at launch, as
+#                   tapping "Use" on the model list would.
+#   TENSORAGENT_UI_CHECK=1    Debug builds only: run the composer's gesture checks in
+#                   the WebView and log one 'uicheck' line per assertion.
 #   TENSORAGENT_DEMO_PROMPT   Debug builds only: once the Web UI has loaded the app
 #                   types this prompt into the composer and sends it, so the
 #                   canned /api/chat stream renders on screen without anyone
@@ -52,4 +56,23 @@ fi
 if [[ -n "${TENSORAGENT_START_PAGE:-}" ]]; then
     export SIMCTL_CHILD_TENSORAGENT_START_PAGE="${TENSORAGENT_START_PAGE}"
 fi
+# Debug builds only: load a catalog entry at launch, as tapping "Use" would. Choosing
+# a model is a native tap and simctl cannot tap, so without this every scripted run is
+# a run with no model -- which is every path except the one the app exists for.
+if [[ -n "${TENSORAGENT_USE_MODEL:-}" ]]; then
+    export SIMCTL_CHILD_TENSORAGENT_USE_MODEL="${TENSORAGENT_USE_MODEL}"
+fi
+# Debug builds only: drive the composer's own gestures in the real WebView and print
+# one 'uicheck' line per assertion. verify-sim.sh asserts on them.
+if [[ -n "${TENSORAGENT_UI_CHECK:-}" ]]; then
+    export SIMCTL_CHILD_TENSORAGENT_UI_CHECK="${TENSORAGENT_UI_CHECK}"
+fi
+# Debug builds only: start a catalog download and log what it does, stopping after
+# TENSORAGENT_DOWNLOAD_SECONDS. Mostly for a physical device, where leaving the app is
+# the only way to exercise the background-task assertion.
+for VAR in TENSORAGENT_DOWNLOAD TENSORAGENT_DOWNLOAD_SECONDS; do
+    if [[ -n "${!VAR:-}" ]]; then
+        export "SIMCTL_CHILD_${VAR}=${!VAR}"
+    fi
+done
 exec xcrun simctl launch --console --terminate-running-process "${SIM_UDID}" "${BUNDLE_ID}"

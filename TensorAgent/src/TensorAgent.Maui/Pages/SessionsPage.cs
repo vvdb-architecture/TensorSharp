@@ -16,8 +16,15 @@ using TensorAgent.Maui.Hosting;
 namespace TensorAgent.Maui.Pages;
 
 /// <summary>
-/// Saved chats: every conversation the app has kept, newest first, and the way
-/// back into any of them.
+/// Saved chats: every conversation the app has kept, newest first, the way back into
+/// any of them, and the way to remove one.
+///
+/// <para>
+/// It is the only chat item in the flyout. "Chat" and "Chats" as two menu entries
+/// asked the user to tell two words apart to discover that one of them was the page
+/// they were already on; this list is what a chat menu is for — pick one to open it,
+/// swipe it away to delete it, or start a new one from the top.
+/// </para>
 ///
 /// <para>
 /// Picking one does not reconstruct the model's state — the KV cache did not
@@ -92,50 +99,61 @@ public sealed class SessionsPage : ContentPage
                 await OpenAsync(summary.Id);
         };
 
-        var remove = new Button
+        // Swipe left to delete, which is what a phone list means by "remove". The row
+        // used to carry a Delete button and a confirmation dialog: a permanent target
+        // for a rare action, sitting on the width the chat's own title needed, on every
+        // row. A swipe reveals it, and revealing then tapping is already the two
+        // deliberate acts the dialog was standing in for.
+        var remove = new SwipeItem
         {
             Text = "Delete",
-            FontSize = 13,
-            BackgroundColor = Theme.Surface,
-            TextColor = Theme.Danger,
-            CornerRadius = 8,
-            Padding = new Thickness(12, 4),
-            HorizontalOptions = LayoutOptions.End,
+            BackgroundColor = Theme.Danger,
+            // Through the command and a bound parameter rather than off the item's own
+            // BindingContext: a swipe item is not in the visual tree of the cell it
+            // belongs to, and which row it ends up bound to has never been something to
+            // rely on. The parameter says which chat, explicitly.
+            Command = new Command(parameter =>
+            {
+                if (parameter is not ConversationSummary summary)
+                    return;
+                _app.Conversations.Delete(summary.Id);
+                _rows.Remove(summary);
+            }),
         };
-        remove.Clicked += async (s, _) =>
-        {
-            if ((s as Button)?.BindingContext is not ConversationSummary summary)
-                return;
-            if (!await DisplayAlert("Delete chat", $"Delete “{summary.Title}”?", "Delete", "Cancel"))
-                return;
-            _app.Conversations.Delete(summary.Id);
-            _rows.Remove(summary);
-        };
+        remove.SetBinding(MenuItem.CommandParameterProperty, ".");
 
-        var body = new Grid
-        {
-            ColumnDefinitions = { new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto) },
-        };
+        var body = new Grid();
         body.Add(new VerticalStackLayout { Spacing = 2, Children = { title, meta } }, 0, 0);
-        body.Add(remove, 1, 0);
         body.GestureRecognizers.Add(open);
 
-        return new Border
+        var card = new Border
         {
-            Margin = new Thickness(12, 4),
             Padding = new Thickness(14, 12),
             BackgroundColor = Theme.Surface,
             StrokeThickness = 0,
             StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
             Content = body,
         };
+
+        return new SwipeView
+        {
+            Margin = new Thickness(12, 4),
+            // RightItems is what a LEFT swipe reveals: the finger travels left and the
+            // item comes in from the right edge, as it does in Mail.
+            RightItems = new SwipeItems(new[] { remove }) { Mode = SwipeMode.Reveal },
+            Content = card,
+        };
     }
 
     /// <summary>Open the chat page on a conversation, or on a brand new one.</summary>
     private async Task OpenAsync(string? conversationId)
     {
+        // Back to the chat FIRST, and only then tell it which conversation. The other
+        // order looks tidier and does not work: iOS suspends a WKWebView's content
+        // process while its view is off the window, so the script asking the page to
+        // switch would be handed to a page that is not running.
+        await AppShell.BackToChatAsync();
         _chat.OpenConversation(conversationId);
-        await Shell.Current.GoToAsync("//main");
     }
 
     private sealed class SummaryLine : IValueConverter

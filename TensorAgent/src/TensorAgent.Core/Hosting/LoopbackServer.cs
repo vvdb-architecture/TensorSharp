@@ -91,11 +91,17 @@ public abstract class LoopbackResponse
     /// test that spends five seconds per assertion waiting for a heartbeat, which is a
     /// test nobody runs; nothing in the app passes one.
     /// </param>
+    /// <param name="headers">
+    /// Extra response headers, written with the rest. It exists so a stream can name
+    /// the thing it is a view of — the turn id, which a page needs in order to stop or
+    /// re-attach to a generation it no longer owns.
+    /// </param>
     public static LoopbackResponse Sse(
         IAsyncEnumerable<object> frames,
         CancellationTokenSource? clientGone = null,
-        TimeSpan? keepAlive = null)
-        => new SseResponse(frames, clientGone, keepAlive ?? DefaultKeepAlive);
+        TimeSpan? keepAlive = null,
+        IReadOnlyDictionary<string, string>? headers = null)
+        => new SseResponse(frames, clientGone, keepAlive ?? DefaultKeepAlive, headers);
 
     /// <summary>
     /// How long a stream may say nothing before it writes a comment instead. Cheap
@@ -157,7 +163,11 @@ public abstract class LoopbackResponse
         }
     }
 
-    private sealed class SseResponse(IAsyncEnumerable<object> frames, CancellationTokenSource? clientGone, TimeSpan keepAlive) : LoopbackResponse
+    private sealed class SseResponse(
+        IAsyncEnumerable<object> frames,
+        CancellationTokenSource? clientGone,
+        TimeSpan keepAlive,
+        IReadOnlyDictionary<string, string>? headers) : LoopbackResponse
     {
         public override async Task WriteAsync(HttpListenerResponse response, CancellationToken ct)
         {
@@ -171,12 +181,12 @@ public abstract class LoopbackResponse
             await using IAsyncEnumerator<object> enumerator = frames.GetAsyncEnumerator(ct);
             if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
             {
-                SseFraming.ApplyHeaders(response);
+                Headers(response);
                 response.SendChunked = true;
                 return;
             }
 
-            SseFraming.ApplyHeaders(response);
+            Headers(response);
             response.SendChunked = true;
             while (true)
             {
@@ -218,6 +228,15 @@ public abstract class LoopbackResponse
                 if (!await next.ConfigureAwait(false))
                     return;
             }
+        }
+
+        private void Headers(HttpListenerResponse response)
+        {
+            SseFraming.ApplyHeaders(response);
+            if (headers is null)
+                return;
+            foreach (KeyValuePair<string, string> header in headers)
+                response.Headers[header.Key] = header.Value;
         }
 
         /// <summary>

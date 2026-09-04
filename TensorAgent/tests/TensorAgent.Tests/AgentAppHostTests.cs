@@ -6,6 +6,7 @@ using TensorAgent.Core.Hosting;
 using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Settings;
+using TensorAgent.Core.Shell;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.Server;
 
@@ -71,6 +72,28 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.DoesNotContain(host.Paths.DataRoot, host.Paths.ModelsDirectory, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A skill's own script runs on the same thing the model's own programs run on.
+    ///
+    /// <para>
+    /// It did not. The request planner built its script runner with no backend, which
+    /// falls back to launching a child process — so on a desktop <c>skills_run</c>
+    /// quietly used the SYSTEM python3, without the packages this app staged, and
+    /// answered "No module named 'reportlab'" for a script the shell tool could run
+    /// perfectly; and on iOS, where no process can be started at all, no skill script
+    /// could ever have run. The symptom was "the documents skill does not work",
+    /// which points at the skill and not at the wiring.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ASkillsScriptRunsOnTheSameInterpreterTheModelsOwnProgramsDo()
+    {
+        AgentAppHost host = Start();
+        Assert.NotNull(host.CodeRunner);
+        Assert.Same(host.Backend, host.CodeRunner!.Backend);
+        Assert.Equal("in-process", host.CodeRunner.Backend!.Name);
+    }
+
     [Fact]
     public void TheCodeRunnerRunsInProcessBecauseNothingCanBeSpawned()
     {
@@ -81,8 +104,20 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.Equal("sh", host.Backend.Shell!.Name);
     }
 
+    /// <summary>
+    /// With code execution off the runner exists and refuses, rather than not existing.
+    ///
+    /// <para>
+    /// The difference is invisible to the model — the request planner offers the code
+    /// tools only for a runner that says <c>CanRun</c>, so a refusing runner and no
+    /// runner declare exactly the same thing — and it is the whole of why the switch can
+    /// now be flipped without relaunching. Built conditionally, both sandbox switches
+    /// took effect "next time TensorAgent starts", which on a phone means never: leaving
+    /// an app does not restart it.
+    /// </para>
+    /// </summary>
     [Fact]
-    public void TurningCodeExecutionOffLeavesNoRunnerAtAll()
+    public void TurningCodeExecutionOffLeavesARunnerThatRefuses()
     {
         AgentAppHost host = Start(settings =>
         {
@@ -91,9 +126,119 @@ public sealed class AgentAppHostTests : IDisposable
             settings.Save(off);
         });
 
-        Assert.Null(host.CodeRunner);
+        Assert.NotNull(host.CodeRunner);
+        Assert.False(host.CodeRunner!.CanRun);
         Assert.False(host.CodeExec.Enabled);
         Assert.Contains("code execution off", host.DescribeEngine(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Both sandbox switches reach the running app, not merely the settings file.
+    ///
+    /// <para>
+    /// This is the reported bug: "Allow network access" was turned on and <c>curl</c>
+    /// went on answering "network access is disabled by the user". Everything a run's
+    /// permissions are read from has to move together — the code runner's options, the
+    /// installer's standing policy, the shell's host list, and the terms a skill's
+    /// scripts are planned against — because a model that finds any one of them stale
+    /// reports the switch as broken.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ChangingTheSandboxSwitchesTakesEffectWithoutARestart()
+    {
+        AgentAppHost host = Start();
+        Assert.False(host.CodeExec.AllowNetwork);
+        Assert.False(host.Options.SkillsAllowNetwork);
+        Assert.False(host.Installer!.CanInstall);
+        Assert.Contains("network off", host.DescribeEngine(), StringComparison.Ordinal);
+
+        AppSettings on = host.Settings.Load();
+        on.AllowNetwork = true;
+        host.Settings.Save(on);
+        host.ApplySettings(on);
+
+        Assert.True(host.CodeExec.AllowNetwork);
+        Assert.True(host.CodeExec.AllowInstall);
+        Assert.True(host.Options.SkillsAllowNetwork);
+        Assert.True(host.Installer.CanInstall);
+        Assert.Contains("network on", host.DescribeEngine(), StringComparison.Ordinal);
+
+        // And back off again, because a switch that can only be turned on is half a
+        // switch: a user who changes their mind has to be able to.
+        AppSettings off = host.Settings.Load();
+        off.AllowNetwork = false;
+        off.AllowCodeExecution = false;
+        host.Settings.Save(off);
+        host.ApplySettings(off);
+
+        Assert.False(host.CodeExec.AllowNetwork);
+        Assert.False(host.Options.SkillsAllowNetwork);
+        Assert.False(host.Installer.CanInstall);
+        Assert.False(host.CodeRunner!.CanRun);
+        Assert.Contains("code execution off", host.DescribeEngine(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The skills switch is a switch, not a filter over a list.
+    ///
+    /// <para>
+    /// Off has to mean the request planner builds no plan at all — no skill declared,
+    /// none reachable — because the cost the user is turning off is the declaration
+    /// itself: twelve skills announce themselves in every prompt, which on a phone is
+    /// thousands of tokens per turn of every chat. A page that merely stopped ticking
+    /// them would still pay for all of it.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TurningSkillsOffStopsThemBeingDeclaredAtAllAndTakesEffectAtOnce()
+    {
+        AgentAppHost host = Start();
+        Assert.True(host.Options.SkillsEnabled);
+
+        AppSettings off = host.Settings.Load();
+        off.SkillsEnabled = false;
+        host.Settings.Save(off);
+        host.ApplySettings(off);
+        Assert.False(host.Options.SkillsEnabled);
+
+        // And back: a switch that only turns off is half a switch.
+        AppSettings on = host.Settings.Load();
+        on.SkillsEnabled = true;
+        host.Settings.Save(on);
+        host.ApplySettings(on);
+        Assert.True(host.Options.SkillsEnabled);
+    }
+
+    /// <summary>
+    /// A host started with the switch already off starts with it off, and says so on
+    /// the route the page reads before it paints the list.
+    /// </summary>
+    [Fact]
+    public async Task AHostStartedWithSkillsOffReportsThemOffToThePage()
+    {
+        Start(settings =>
+        {
+            AppSettings s = settings.Load();
+            s.SkillsEnabled = false;
+            settings.Save(s);
+        });
+
+        Assert.False(_host!.Options.SkillsEnabled);
+        JsonElement skills = await Get("/api/skills");
+        Assert.False(skills.GetProperty("enabled").GetBoolean());
+
+        // Saving it back through the route the switch uses applies it live.
+        HttpResponseMessage saved = await _client!.PostAsJsonAsync("/api/agent/settings", new
+        {
+            skillsEnabled = true,
+            allowCodeExecution = true,
+            allowNetwork = false,
+            maxTokens = 2048,
+        });
+        Assert.True(saved.IsSuccessStatusCode);
+        Assert.True(_host.Options.SkillsEnabled);
+        Assert.True((await Get("/api/skills")).GetProperty("enabled").GetBoolean());
     }
 
     [Fact]

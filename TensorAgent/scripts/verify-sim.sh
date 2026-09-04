@@ -9,9 +9,11 @@
 #
 # Checks: GET / is TensorAgent's own index.html byte for byte, GET /api/engine shows
 # the static GgmlOps link is alive (no DllNotFoundException), /api without the
-# token is refused, POST /api/chat streams the demo SSE frames and ends with a
-# done frame, and the media probe line shows ImageIO/AVFoundation decoded a HEIC,
-# applied a stored EXIF orientation, round-tripped an MP4 and read a WAV.
+# token is refused, the app's own routes answer the shapes the page reads, the
+# startup self-test ran every interpreter, the media probe line shows
+# ImageIO/AVFoundation decoded a HEIC, applied a stored EXIF orientation,
+# round-tripped an MP4 and read a WAV -- and, when the app was launched with
+# TENSORAGENT_UI_CHECK=1, that the composer's own gestures behave in real WebKit.
 set -euo pipefail
 
 LOG="${1:?usage: verify-sim.sh <app stdout log>}"
@@ -29,10 +31,23 @@ TOKEN="${ENTRY##*token=}"
 # entry URL sets. The server takes no bearer header, and adding one purely for this
 # script would widen the surface for a convenience.
 AUTH=(-H "Cookie: tensoragent_token=${TOKEN}")
-echo "==> ${BASE} (token ${TOKEN:0:6}…)"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
+# A PHONE's 127.0.0.1 is the phone's, so none of the API checks can run against a
+# device log -- but everything the app printed about itself still can, and that is most
+# of what is worth checking. Rather than a second script that would drift, the HTTP half
+# is skipped when the server cannot be reached and the log half runs regardless.
+API=1
+if ! curl -fsS --max-time 3 "${AUTH[@]}" "${BASE}/api/agent/engine" >/dev/null 2>&1; then
+    API=0
+    echo "==> ${BASE} is not reachable from here; checking what the app logged (a device run)"
+else
+    echo "==> ${BASE} (token ${TOKEN:0:6}…)"
+fi
+skip_api() { echo "--  ${1}: skipped, the app's loopback is not reachable from this machine"; }
+
+if (( API )); then
 # 1. index.html is TENSORAGENT's own page, plus exactly one appended script tag.
 #    It used to be TensorSharp.Server's, served byte-for-byte with a phone layout
 #    injected over it. The app now ships its own phone-first page: the desktop page
@@ -62,11 +77,21 @@ if served.replace(tag, b'', 1) != source:
 PYCHECK
 echo "ok  GET / is TensorAgent's own index.html (${SOURCE_BYTES} bytes) plus the companion tag (${SERVED_BYTES} served)"
 
+else
+    skip_api "the served page"
+fi
+
+if (( API )); then
 # 2. Token gate.
 CODE="$(curl -s -o /dev/null -w '%{http_code}' "${BASE}api/models")"
 [[ "${CODE}" == "403" ]] || fail "GET /api/models without the token returned ${CODE}, expected 403"
 echo "ok  /api without the token -> 403"
 
+else
+    skip_api "the token gate"
+fi
+
+if (( API )); then
 # 3. Engine probe: the static link works and no P/Invoke threw.
 ENGINE="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/engine")"
 grep -q '"engine"' <<<"${ENGINE}" || fail "/api/agent/engine returned no engine line: ${ENGINE}"
@@ -74,6 +99,11 @@ grep -q 'sh (in-process)' <<<"${ENGINE}" || fail "the shell backend is not the i
 echo "    ${ENGINE}"
 echo "ok  GET /api/agent/engine"
 
+else
+    skip_api "the engine probe route"
+fi
+
+if (( API )); then
 # 4. The surface the Web UI calls at load, with the shapes the page reads.
 MODELS="$(curl -fsS "${AUTH[@]}" "${BASE}api/models")"
 grep -q '"supportedBackends"' <<<"${MODELS}" || fail "/api/models has no supportedBackends: ${MODELS}"
@@ -109,6 +139,11 @@ CODE="$(curl -s -o /dev/null -w '%{http_code}' "${AUTH[@]}" "${BASE}uploads/x.pn
 [[ "${CODE}" == "404" ]] || fail "GET /uploads/x.png returned ${CODE}, expected 404"
 echo "ok  /api/models offers only runnable backends, /api/queue/status, /api/sessions binds a conversation"
 
+else
+    skip_api "the Web UI routes"
+fi
+
+if (( API )); then
 # 5. The app's own surface: the catalog, the saved chats, the sandbox switches.
 CATALOG="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/catalog")"
 for FAMILY in Gemma4 Qwen38 QwenImage; do
@@ -117,19 +152,62 @@ done
 for KIND in Dense MixtureOfExperts Diffusion; do
     grep -q "\"kind\":\"${KIND}\"" <<<"${CATALOG}" || fail "the catalog is missing a ${KIND} entry"
 done
+# The two sandbox switches must be PRESENT and readable; their values are the user's,
+# not a default. This container is reused between runs and the settings file survives,
+# so asserting "network is off" here failed the day someone turned it on in the app —
+# a check that reports a preference as a regression. The DEFAULTS are pinned where a
+# default belongs, in TensorAgent.Tests (AppSettings and the settings route).
 SETTINGS="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/settings")"
-grep -q '"allowNetwork":false' <<<"${SETTINGS}" || fail "the network is not off by default: ${SETTINGS}"
-grep -q '"allowCodeExecution":true' <<<"${SETTINGS}" || fail "code execution is not on by default: ${SETTINGS}"
+grep -q '"allowNetwork":' <<<"${SETTINGS}" || fail "the settings carry no network switch: ${SETTINGS}"
+grep -q '"allowCodeExecution":' <<<"${SETTINGS}" || fail "the settings carry no code-execution switch: ${SETTINGS}"
+echo "    switches on this container: $(grep -o '"allowCodeExecution":[a-z]*' <<<"${SETTINGS}") $(grep -o '"allowNetwork":[a-z]*' <<<"${SETTINGS}")"
+# Downloads belong to the app rather than to a page or a request, so there is a route
+# that says what is transferring however the model list was left.
+DOWNLOADS="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/downloads")"
+grep -q '"downloads"' <<<"${DOWNLOADS}" || fail "/api/agent/downloads shape: ${DOWNLOADS}"
 SKILLS="$(curl -fsS "${AUTH[@]}" "${BASE}api/skills")"
 grep -q '"skills"' <<<"${SKILLS}" || fail "/api/skills shape: ${SKILLS}"
-echo "ok  catalog covers both families and all three architectures; sandbox defaults are safe"
+echo "ok  catalog covers both families and all three architectures; the switches and the download list answer"
 
+else
+    skip_api "the app's own routes"
+fi
+
+if (( API )); then
 # 6. The companion script itself is served and carries the app's additions.
 SCRIPT="$(curl -fsS "${AUTH[@]}" "${BASE}tensoragent.js")"
-for SYMBOL in window.TensorAgent addAttachment insertText loadConversation; do
+for SYMBOL in window.TensorAgent addAttachment insertText dictationEnded nativeReady setVoice skill_step "\$('activity')" \
+             resumeTurn attachTurn openConversation paintNavChats; do
     grep -q "${SYMBOL}" <<<"${SCRIPT}" || fail "the companion script is missing ${SYMBOL}"
 done
 echo "ok  GET /tensoragent.js serves the companion script"
+
+else
+    skip_api "the companion script"
+fi
+
+# 6c. The upload probe: the app posted a body bigger than the parser's own buffer to its
+#     own /api/upload, with the real HTTP client, and got a file back. That is the shape
+#     that used to answer "no file was uploaded" for every photo picked on a phone.
+UPLOAD="$(grep -o 'uploadcheck .*' "${LOG}" | tail -1 || true)"
+[[ -n "${UPLOAD}" ]] || fail "the upload probe did not run"
+grep -q '^uploadcheck ok' <<<"${UPLOAD}" || fail "the upload probe failed: ${UPLOAD}"
+echo "ok  ${UPLOAD}"
+
+if (( API )); then
+# 6b. A generation belongs to the app, so the page must be able to ask about one and
+#     the engine must say what it is doing about the model the user last used. Both are
+#     routes a page that came back from another screen depends on; a 404 here is an
+#     answer silently lost and a send button that never enables.
+TURNS="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/turns?conversation=none")"
+grep -q '"turn"' <<<"${TURNS}" || fail "/api/agent/turns shape: ${TURNS}"
+grep -q '"model"' <<<"${ENGINE}" || fail "/api/agent/engine does not report the model state: ${ENGINE}"
+grep -q '"activeTurn"' <<<"${SESSION}" || fail "POST /api/sessions does not report a running turn: ${SESSION}"
+echo "ok  the turn routes answer and the engine reports the model state"
+
+else
+    skip_api "the turn routes"
+fi
 
 # 7. The startup self-test: the interpreters that linked can actually run, and the
 #    sandbox refuses what it must. This is the only place the embedded CPython and
@@ -158,4 +236,58 @@ for CHECK in providers png-roundtrip png-straight-alpha heic-decode exif-orienta
 done
 echo "ok  media probe: HEIC decode, EXIF orientation, MP4 round trip and AVAudioFile all passed"
 
-echo "All simulator checks passed."
+# 9. The composer's own gestures, driven inside the real WebView. This is the only
+#    place the page's JavaScript runs on the engine that will actually run it, and
+#    layout questions -- is the hold-to-talk button visible, is the message box gone --
+#    have no answer anywhere else. Opt-in, because it costs a couple of seconds of the
+#    launch: run-sim.sh with TENSORAGENT_UI_CHECK=1.
+UICHECKS="$(grep -o 'uicheck .*' "${LOG}" || true)"
+if [[ -z "${UICHECKS}" ]]; then
+    echo "--  the composer gesture checks did not run; relaunch with TENSORAGENT_UI_CHECK=1 to include them"
+else
+    sed 's/^/    /' <<<"${UICHECKS}"
+    grep -q 'FAIL' <<<"${UICHECKS}" && fail "a composer gesture check failed"
+    for CHECK in voice-switch-gone reasoning-is-a-setting skills-moved-to-the-menu \
+                 activity-above-the-box a-tap-still-types \
+                 holding-the-box-gives-hold-to-talk the-keyboard-button-returns \
+                 the-menu-comes-from-the-left the-menu-lists-the-saved-chats \
+                 a-turn-can-be-taken-back-up skills-have-a-master-switch; do
+        grep -q "uicheck ${CHECK} ok" <<<"${UICHECKS}" || fail "gesture check '${CHECK}' is missing or did not pass"
+    done
+    echo "ok  composer gestures, and the menu is a left drawer that lists the saved chats"
+fi
+
+# 10. The one claim no unit test can make: a generation that keeps going while the chat
+#     is not on screen, and a page that finds its way back to it. Opt-in and it needs a
+#     loaded model: run-sim.sh with TENSORAGENT_DEMO_PROMPT, TENSORAGENT_NAV_CHECK=1.
+NAVCHECKS="$(grep -o 'navcheck .*' "${LOG}" || true)"
+if [[ -z "${NAVCHECKS}" ]]; then
+    echo "--  the navigation check did not run; relaunch with TENSORAGENT_NAV_CHECK=1 and a prompt to include it"
+else
+    sed 's/^/    /' <<<"${NAVCHECKS}"
+    grep -q 'FAIL' <<<"${NAVCHECKS}" && fail "the generation did not survive leaving the chat"
+    grep -q 'navcheck ok away for' <<<"${NAVCHECKS}" || fail "the navigation check never left the chat"
+    grep -q 'navcheck ok back in the chat' <<<"${NAVCHECKS}" || fail "the page did not pick the answer back up"
+    echo "ok  the answer kept being written while the chat was off screen, and the page took it back up"
+fi
+
+# 11. The network switch, both ways, in one running process: refused when it is off,
+#      and reaching the internet the moment it is turned on -- without a relaunch, which
+#      is the whole of the bug. Opt-in, because it goes out to the network:
+#      run-sim.sh with TENSORAGENT_NETWORK_CHECK=1.
+NETCHECKS="$(grep -o 'netcheck .*' "${LOG}" || true)"
+if [[ -z "${NETCHECKS}" ]]; then
+    echo "--  the network switch check did not run; relaunch with TENSORAGENT_NETWORK_CHECK=1 to include it"
+else
+    sed 's/^/    /' <<<"${NETCHECKS}"
+    grep -q 'FAIL' <<<"${NETCHECKS}" && fail "the network switch did not take effect"
+    grep -q 'netcheck off · ok' <<<"${NETCHECKS}" || fail "with the network off, curl was not refused"
+    grep -q 'netcheck on · ok' <<<"${NETCHECKS}" || fail "with the network on, curl still could not reach the internet"
+    echo "ok  the network switch takes effect on the next command, in both directions"
+fi
+
+if (( API )); then
+    echo "All simulator checks passed."
+else
+    echo "All the checks a device log can answer passed (the API half needs the app's own loopback)."
+fi

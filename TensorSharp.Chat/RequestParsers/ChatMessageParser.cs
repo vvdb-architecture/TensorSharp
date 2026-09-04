@@ -69,14 +69,66 @@ namespace TensorSharp.Server.RequestParsers
                 if (msgEl.TryGetProperty("isVideo", out var iv))
                     msg.IsVideo = iv.GetBoolean();
 
+                ReadAttachments(msgEl, msg);
+
                 messages.Add(msg);
             }
             return messages;
         }
 
         /// <summary>
+        /// The files the user attached to one message, as (stored name, display name)
+        /// pairs, out of the client's <c>attachments</c> array.
+        ///
+        /// <para>
+        /// A client that does not send one — the desktop page, and any older build —
+        /// still has its text uploads staged, because <c>textFilePaths</c> is read as the
+        /// fallback. What such a client cannot have is an image staged as a file, which
+        /// is the whole reason the array exists: the paths are already in the body twice
+        /// over, but only this one says which of them the USER attached (rather than a
+        /// frame the server extracted) and what they call it.
+        /// </para>
+        /// </summary>
+        private static void ReadAttachments(JsonElement msgEl, ChatMessage msg)
+        {
+            if (msgEl.TryGetProperty("attachments", out var attachments)
+                && attachments.ValueKind == JsonValueKind.Array
+                && attachments.GetArrayLength() > 0)
+            {
+                var paths = new List<string>();
+                var names = new List<string>();
+                foreach (var attachment in attachments.EnumerateArray())
+                {
+                    if (attachment.ValueKind != JsonValueKind.Object)
+                        continue;
+                    string file = attachment.TryGetProperty("file", out var f) ? f.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(file))
+                        continue;
+                    string name = attachment.TryGetProperty("fileName", out var n) ? n.GetString() : null;
+                    paths.Add(file);
+                    names.Add(string.IsNullOrWhiteSpace(name) ? file : name);
+                }
+
+                if (paths.Count > 0)
+                {
+                    msg.AttachmentPaths = paths;
+                    msg.AttachmentNames = names;
+                    return;
+                }
+            }
+
+            if (msg.TextFilePaths is { Count: > 0 })
+            {
+                msg.AttachmentPaths = new List<string>(msg.TextFilePaths);
+                msg.AttachmentNames = msg.TextFileNames != null
+                    ? new List<string>(msg.TextFileNames)
+                    : new List<string>(msg.TextFilePaths);
+            }
+        }
+
+        /// <summary>
         /// Resolve every client-supplied attachment reference (imagePaths /
-        /// audioPaths / textFilePaths) to a full path inside the upload
+        /// audioPaths / textFilePaths / attachments) to a full path inside the upload
         /// directory, rewriting the lists in place. The Web UI sends the bare
         /// server filenames returned by <c>/api/upload</c>; absolute paths from
         /// older clients are still accepted when they resolve inside the upload
@@ -92,7 +144,8 @@ namespace TensorSharp.Server.RequestParsers
             {
                 string error = ResolvePathList(msg?.ImagePaths, uploadRoot)
                     ?? ResolvePathList(msg?.AudioPaths, uploadRoot)
-                    ?? ResolvePathList(msg?.TextFilePaths, uploadRoot);
+                    ?? ResolvePathList(msg?.TextFilePaths, uploadRoot)
+                    ?? ResolvePathList(msg?.AttachmentPaths, uploadRoot);
                 if (error != null)
                     return error;
             }

@@ -150,6 +150,56 @@ public sealed class MediaRoutesTests : IDisposable
         Assert.Equal(jpeg, await File.ReadAllBytesAsync(saved));
     }
 
+    /// <summary>
+    /// The bug behind "Upload failed (400)", through the route that produced it.
+    ///
+    /// <para>
+    /// iOS's photo picker names an asset with <c>NSItemProvider.SuggestedName</c> —
+    /// the file name with the extension STRIPPED — and MAUI derives a part's content
+    /// type from the extension it does not have, so a photo from the library reached
+    /// this route as an unnamed, untyped blob and was refused before its bytes were
+    /// looked at. The camera and the document picker carry an extension, which is why
+    /// it looked like "images are broken" rather than "uploads are broken".
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task AnIPhonePhotoWithNoExtensionInItsNameStillUploads()
+    {
+        byte[] png = MediaFixtures.RedCircleOnWhitePng(64);
+        HttpResponseMessage response = await UploadAsync(png, "IMG_0004");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        JsonElement body = await BodyOf(response);
+        Assert.Equal("image", body.GetProperty("mediaType").GetString());
+
+        // Saved with an extension /uploads can serve, and byte-identical: what the
+        // vision pipeline reads is the file the user picked.
+        string saved = body.GetProperty("file").GetString()!;
+        Assert.EndsWith(".png", saved, StringComparison.Ordinal);
+        Assert.Equal(png, await File.ReadAllBytesAsync(Path.Combine(_uploads, saved)));
+
+        // And it comes back out of the route the bubble renders it from.
+        HttpResponseMessage served = await _client.GetAsync("/uploads/" + saved);
+        Assert.Equal(HttpStatusCode.OK, served.StatusCode);
+        Assert.Equal("image/png", served.Content.Headers.ContentType?.MediaType);
+    }
+
+    /// <summary>
+    /// The strictness that naming must not have loosened: an upload whose type nobody
+    /// can work out is still refused, with the sentence the user should read.
+    /// </summary>
+    [Fact]
+    public async Task AnUploadNothingCanIdentifyIsStillRefusedAndSaysWhy()
+    {
+        HttpResponseMessage response = await UploadAsync(new byte[512], "mystery");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        JsonElement body = await BodyOf(response);
+        string error = body.GetProperty("error").GetString()!;
+        Assert.Contains("not supported", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.GetFiles(_uploads));
+    }
+
     [Fact]
     public async Task ASoundUploadsAsAudio()
     {

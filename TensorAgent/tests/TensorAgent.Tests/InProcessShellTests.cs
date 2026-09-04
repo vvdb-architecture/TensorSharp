@@ -50,6 +50,117 @@ public sealed class InProcessShellTests : IDisposable
         return result.Stdout;
     }
 
+    // ---- a command that is not here ---------------------------------------------------
+
+    /// <summary>
+    /// A missing command has to leave the model a move to make.
+    ///
+    /// <para>
+    /// "bc: command not found" is true and useless, and useless is where a model stops
+    /// using the shell. Observed on a phone: asked for the days between two dates it
+    /// reached for the shell correctly, got one date's epoch seconds out of it, reached
+    /// for <c>bc</c> to subtract, was told 127 — and finished the arithmetic in its own
+    /// head, answering 164 days where the answer is 20,863, with a formula underneath to
+    /// make it look checked. Nothing in the output suggested a next step, so it invented
+    /// one.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AMissingCommandSaysWhatToUseInstead()
+    {
+        ExecutionResult result = Run("bc <<< '1+1'");
+        Assert.Equal(ExecutionResult.CommandNotFoundExitCode, result.ExitCode);
+        Assert.Contains("bc: command not found", result.Stderr, StringComparison.Ordinal);
+        // The two things that actually work here, named.
+        Assert.Contains("$(( ", result.Stderr, StringComparison.Ordinal);
+        Assert.Contains("python3", result.Stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMissingPackageManagerSaysWhatCanAndCannotBeInstalled()
+    {
+        // The model is in the middle of trying to fix a missing tool; "not found" is
+        // the least useful sentence available at that moment.
+        string stderr = Run("apt-get install bc").Stderr;
+        Assert.Contains("no system package manager", stderr, StringComparison.Ordinal);
+        Assert.Contains("no native program can be installed", stderr, StringComparison.Ordinal);
+        // ...and the half that DOES work, which is the whole point of saying anything.
+        Assert.Contains("python3 -m pip install", stderr, StringComparison.Ordinal);
+        Assert.Contains("npm install", stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMistypedCommandIsRecognisedAsOne()
+    {
+        Assert.Contains("Did you mean `echo`?", Run("ehco hi").Stderr, StringComparison.Ordinal);
+        Assert.Contains("Did you mean `grep`?", Run("gerp x f").Stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACommandWithNoSpecificAdviceStillGetsTheGeneralFact()
+    {
+        string stderr = Run("some-tool-nobody-has --version").Stderr;
+        Assert.Contains("command not found", stderr, StringComparison.Ordinal);
+        // Nothing is invented as a near miss for a name unlike anything here.
+        Assert.DoesNotContain("Did you mean", stderr, StringComparison.Ordinal);
+    }
+
+    // ---- date ------------------------------------------------------------------------
+
+    /// <summary>
+    /// <c>date -d</c> has to mean the date it was given.
+    ///
+    /// <para>
+    /// It used to be declared as an option that takes a value, and the value was then
+    /// never read: <c>date -d 1969-07-20 +%s</c> printed the epoch seconds of right now.
+    /// A model asking for the days between two dates therefore subtracted two copies of
+    /// today and reported the difference with confidence — 20699 days between
+    /// 1969-07-20 and 2026-09-02, observed on a phone, where the answer is 20863. There
+    /// was nothing in the output to suggest anything had gone wrong, which is the worst
+    /// property a shell builtin can have.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void DateHonoursTheDateItWasGiven()
+    {
+        Assert.Equal("1969-07-20\n", Out("date -d 1969-07-20 +%F"));
+        Assert.Equal("2026-09-02\n", Out("date --date=2026-09-02 +%F"));
+        Assert.Equal("2026-09-02 13:45\n", Out("date -d '2026-09-02 13:45' '+%F %H:%M'"));
+
+        // The arithmetic the model was actually doing, end to end through the shell.
+        Assert.Equal("20863\n", Out(
+            "echo $(( ( $(date -u -d 2026-09-02 +%s) - $(date -u -d 1969-07-20 +%s) ) / 86400 ))"));
+    }
+
+    [Fact]
+    public void DateReadsEpochsWordsAndOffsets()
+    {
+        Assert.Equal("1970-01-01\n", Out("date -u -d @0 +%F"));
+        Assert.Equal("2001-09-09\n", Out("date -u -d @1000000000 +%F"));
+
+        string today = Out("date +%F").Trim();
+        Assert.Equal(today, Out("date -d today +%F").Trim());
+        Assert.Equal(DateTime.Parse(today).AddDays(-1).ToString("yyyy-MM-dd"), Out("date -d yesterday +%F").Trim());
+        Assert.Equal(DateTime.Parse(today).AddDays(1).ToString("yyyy-MM-dd"), Out("date -d tomorrow +%F").Trim());
+        Assert.Equal(DateTime.Parse(today).AddDays(-3).ToString("yyyy-MM-dd"), Out("date -d '3 days ago' +%F").Trim());
+        Assert.Equal(DateTime.Parse(today).AddDays(14).ToString("yyyy-MM-dd"), Out("date -d '+2 weeks' +%F").Trim());
+    }
+
+    /// <summary>
+    /// A date it cannot read is an error, not today. Falling back to now is precisely
+    /// the failure this whole builtin was fixed for: a wrong answer nothing marks as
+    /// wrong.
+    /// </summary>
+    [Fact]
+    public void DateRefusesASpellingItCannotRead()
+    {
+        ExecutionResult result = Run("date -d 'next tuesday afternoon' +%F");
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("invalid date", result.Stderr, StringComparison.Ordinal);
+        Assert.Contains("next tuesday afternoon", result.Stderr, StringComparison.Ordinal);
+        Assert.Equal(string.Empty, result.Stdout);
+    }
+
     // ---- parsing and expansion -------------------------------------------------------
 
     [Fact]

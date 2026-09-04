@@ -628,7 +628,14 @@ internal sealed class ShellExec
             return RunScriptFile(name, argv, io);
         }
 
-        io.Error("sh", $"{name}: command not found");
+        // Not just "not found": what to use instead. A dead end here is where a model
+        // stops using the shell and starts inventing the answer -- see
+        // ShellMissingCommand for the case this was written from.
+        io.Error("sh", ShellMissingCommand.Describe(
+            name,
+            ShellBuiltins.Table.Keys,
+            Context.Python is { IsAvailable: true },
+            Context.JavaScript is { IsAvailable: true }));
         return ExecutionResult.CommandNotFoundExitCode;
     }
 

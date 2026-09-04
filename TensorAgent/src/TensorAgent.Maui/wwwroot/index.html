@@ -126,6 +126,10 @@ body { display: flex; flex-direction: column; }
 .me .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
 .bot .bubble { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
 .bubble p { margin: 0 0 8px; } .bubble p:last-child { margin-bottom: 0; }
+/* An assistant turn exists before its first token does, and an empty rounded
+   rectangle under the live-progress line reads as a broken reply rather than as
+   one that has not started. */
+.bubble:empty { display: none; }
 .bubble pre {
   background: #0a0f1c; border: 1px solid var(--border); border-radius: 10px;
   padding: 10px; overflow-x: auto; font-size: 13px; margin: 8px 0;
@@ -135,6 +139,20 @@ body { display: flex; flex-direction: column; }
 .bubble :not(pre) > code { background: #0a0f1c; padding: 1px 5px; border-radius: 5px; }
 .bubble a { color: #93c5fd; }
 .bubble img { max-width: 100%; border-radius: 10px; display: block; margin: 6px 0; }
+/* A recording and a clip come back with a saved chat, so they need the same
+   treatment a picture already had: never wider than the bubble. A <video> with
+   no width rule is laid out at its intrinsic size and pushes the whole
+   conversation sideways. */
+.bubble audio, .bubble video { max-width: 100%; width: 100%; display: block; margin: 6px 0; border-radius: 10px; }
+.bubble audio { height: 36px; }
+/* A document the user attached: a link that opens it, not a label saying it was
+   once there. */
+.bubble .filechip {
+  display: inline-block; margin: 5px 0; padding: 6px 10px;
+  background: rgba(255, 255, 255, .12); border-radius: 9px;
+  text-decoration: none; font-size: 13.5px; color: inherit;
+}
+.bot .bubble .filechip { background: var(--surface-2); color: var(--text); }
 .bubble table { border-collapse: collapse; width: 100%; font-size: 13px; display: block; overflow-x: auto; }
 .bubble th, .bubble td { border: 1px solid var(--border); padding: 5px 7px; text-align: left; }
 
@@ -157,16 +175,91 @@ body { display: flex; flex-direction: column; }
   border-left: 2px solid var(--border); padding: 4px 0 4px 9px; margin-bottom: 6px;
 }
 
-/* Tool / skill activity, shown as a quiet line rather than a wall of JSON. */
-.step {
+/* ---- what it is doing RIGHT NOW, pinned to the composer -------------------
+   It lives BELOW the message box rather than in the turn, and that placement is
+   the whole point. A turn's activity starts at the top of the turn; by the time
+   a program has been written and run, the answer is streaming and the top of the
+   turn is several screens up. A phone user then has to scroll away from the text
+   arriving in order to find out what the app is doing — which is the question
+   they had in the first place. Here it is always under their thumb, above the
+   keyboard, whatever the transcript is doing. */
+/* ABOVE the message box, not below it. Below, every appearance of the strip pushed
+   the whole input row up by its height and every disappearance dropped it back — the
+   one control the thumb aims at, moving, at the exact moment the user is watching
+   something else. The composer is anchored to the bottom of the screen, so growing it
+   upwards leaves the box exactly where it was. */
+#activity {
+  display: none;
+  border-bottom: 1px solid var(--border);
+  margin: -8px -10px 8px; padding: 7px 12px;
+  background: var(--surface-2);
+}
+#activity.on { display: block; }
+#activity .what {
+  display: flex; align-items: center; gap: 6px;
   font-size: 12px; color: var(--muted);
+}
+#activity .what .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  flex: 0 0 auto; animation: pulse 1.1s ease-in-out infinite;
+}
+#activity.done .what .dot { background: var(--ok); animation: none; }
+#activity.fail .what .dot { background: var(--danger); animation: none; }
+#activity .tail {
+  margin-top: 3px; font-size: 12px; line-height: 1.4; color: #7f8ea8;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+#activity .tail:empty { display: none; }
+
+/* ---- what it is doing RIGHT NOW ------------------------------------------
+   The one thing a phone screen has to say while a turn runs. Reasoning stays
+   collapsed after the fact -- on a small screen it buries the answer -- but
+   while the answer does not exist yet there is nothing else on the screen, and
+   a blank bubble for forty seconds is indistinguishable from an app that has
+   stopped. So the current step and the last few lines of the model's own
+   reasoning are shown live, and folded away into the box above when the turn
+   ends. Three lines: enough to follow, too few to bury the reply that follows. */
+.live-progress {
+  width: 88%; margin-bottom: 2px;
+  border-left: 2px solid var(--border); padding: 2px 0 2px 9px;
+}
+.live-progress .what {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted);
+}
+.live-progress .what .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  flex: 0 0 auto; animation: pulse 1.1s ease-in-out infinite;
+}
+.live-progress .tail {
+  margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: #7f8ea8;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.live-progress .tail:empty { display: none; }
+
+/* Tool / skill activity, shown as a quiet line rather than a wall of JSON.
+   One line per finished step, kept: which skill was read, which file was edited,
+   which command was run and how long it took. It is the trace a user who looked
+   away needs in order to believe the minute was spent on their question. */
+.step {
+  font-size: 12px; color: var(--muted); max-width: 88%;
   display: flex; align-items: center; gap: 6px; padding: 2px 0;
 }
 .step .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
+/* One line each: a command can be a whole heredoc, and a trace that wraps to five
+   lines per step pushes the answer off the screen it was meant to explain. */
+.step .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .step.fail .dot { background: var(--danger); }
+.step.fail { color: #fca5a5; }
 .step.live .dot { animation: pulse 1.1s ease-in-out infinite; }
 .step.done { color: #7f8ea8; }
 .step.done .dot { background: var(--ok); animation: none; }
+/* A file a skill or a command produced, rendered from the frame that reports it
+   rather than from the model remembering to mention it. */
+.step.file a { color: #93c5fd; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step.file .dot { background: #93c5fd; }
 
 .notice {
   align-self: center; font-size: 13px; padding: 8px 12px; border-radius: 10px;
@@ -241,9 +334,14 @@ body { display: flex; flex-direction: column; }
 #text:focus { outline: none; border-color: var(--accent); }
 
 /* ---- hold-to-talk -------------------------------------------------------
-   Requirement: hold the button to record, release to stop. It replaces the
-   text field entirely while in voice mode, so the thumb has one large target
-   instead of a small icon beside a keyboard. */
+   Hold the button to record, release to stop. It replaces the text field
+   entirely while in voice mode, so the thumb has one large target instead of a
+   small icon beside a keyboard.
+
+   There is no switch to get here any more: holding the message box for half a
+   second is the gesture, which is the one every phone messenger already taught
+   its users. A switch spent a permanent slot on the only row of chrome this
+   design has, to say something the composer itself can say by changing. */
 #hold {
   flex: 1 1 auto; height: 44px; border-radius: 22px;
   background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
@@ -258,7 +356,18 @@ body.voice #plus { display: none; }
 #hold .lvl { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 #hold.rec .lvl { animation: pulse .8s ease-in-out infinite; }
 
-#toggles { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+/* Back to typing. It takes the "+" slot, which is not useful with no text box
+   to attach anything to, so voice mode costs the row no width. */
+#abc { display: none; font-size: 17px; }
+body.voice #abc { display: grid; }
+
+/* The row under the composer used to carry a Reasoning switch and a Skills button.
+   Both moved: reasoning is a Settings choice ("Show reasoning by default"), and
+   Skills is an item in the ☰ menu beside Chats and Models. What is left is the
+   dictation language, which only means anything in voice mode — so in normal use the
+   composer is now ONE row, which is the whole design rule of this page. */
+#toggles { display: none; align-items: center; gap: 10px; margin-top: 7px; }
+body.voice #toggles { display: flex; }
 .switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .switch input { position: absolute; opacity: 0; pointer-events: none; }
 .track {
@@ -271,16 +380,15 @@ body.voice #plus { display: none; }
 }
 .switch input:checked + .track { background: var(--accent); }
 .switch input:checked + .track::after { transform: translateX(14px); }
-/* The dictation language sits beside the Voice switch, and only appears with it:
-   iOS listens in one language per session and cannot detect which is spoken. */
-#lang { display: none; gap: 4px; }
-body.voice #lang { display: inline-flex; }
+/* The dictation language appears only in voice mode, next to the button that is
+   about to be held: iOS listens in one language per session and cannot detect
+   which is being spoken, so a bilingual user has to be able to say which. */
+#lang { display: inline-flex; gap: 4px; }
 .langbtn {
   font-size: 11px; padding: 3px 8px; border-radius: 999px;
   background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
 }
 .langbtn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-#skills-btn { margin-left: auto; font-size: 12px; color: var(--muted); background: none; border: 0; padding: 4px; }
 
 /* ---- sheets -------------------------------------------------------------
    One pattern for every secondary surface: a bottom sheet. It is where a
@@ -300,6 +408,55 @@ body.voice #lang { display: inline-flex; }
 }
 .sheet.on { transform: translateY(0); }
 .grab { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px auto 12px; }
+
+/* ---- the main menu, as a drawer from the LEFT ----------------------------
+   Every other secondary surface here is a bottom sheet, and this one is not, for
+   two reasons that are really one. It is the app's main menu rather than a choice
+   about the message being written, so it wants the edge gesture people already
+   reach for; and it carries the saved chats themselves, which a sheet sized to
+   the bottom of a phone cannot show more than three of. Full height is what makes
+   the list worth putting here at all. */
+.sheet.drawer {
+  top: 0; bottom: 0; right: auto;
+  width: min(86vw, 340px);
+  max-height: none;
+  border-radius: 0 18px 18px 0;
+  border-top: 0; border-right: 1px solid var(--border);
+  padding: calc(var(--safe-top) + 10px) 0 calc(10px + var(--safe-bottom));
+  transform: translateX(-100%);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sheet.drawer.on { transform: translateX(0); }
+.drawer .grab { display: none; }
+.drawer .drawerhead { display: flex; align-items: center; gap: 8px; padding: 0 14px 10px; }
+/* Two classes deep on purpose: `.sheet h2` is declared further down and is equally
+   specific, so a single-class rule here would lose to it on source order and the
+   drawer's title would sit off-centre beside the New button. */
+.drawer .drawerhead h2 { flex: 1 1 auto; margin: 0; padding: 0; font-size: 17px; }
+.drawer #nav-new {
+  flex: 0 0 auto; font-size: 13px; font-weight: 600;
+  padding: 7px 12px; border-radius: 999px;
+  background: var(--accent); color: #fff; border: 0;
+}
+/* The list is the flexible part: the routes below it stay reachable however many
+   chats there are, and the chats scroll between the two. */
+.navchats { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 8px; }
+.navchat {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 10px; margin-bottom: 4px; border-radius: 10px;
+  background: none; border: 1px solid transparent; color: var(--text);
+}
+.navchat.on { background: var(--surface-2); border-color: var(--border); }
+.navchat:active { background: var(--accent-soft); }
+.navchat .nm {
+  display: block; font-size: 14.5px; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.navchat .ds { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.navempty { padding: 12px 10px; font-size: 13px; color: var(--muted); }
+.drawerfoot { flex: 0 0 auto; padding: 8px 12px 0; border-top: 1px solid var(--border); }
+.drawerfoot .opt { padding: 11px 10px; margin-bottom: 6px; }
 .sheet h2 { font-size: 15px; margin: 0 0 10px; }
 .opt {
   display: flex; align-items: center; gap: 12px; width: 100%;
@@ -325,6 +482,11 @@ body.voice #lang { display: inline-flex; }
 .skillrow .chev { color: var(--muted); font-size: 15px; padding-left: 6px; }
 .opt.danger { color: #fca5a5; }
 .skill-toggle { padding: 12px 4px; }
+.skills-master { padding: 4px 4px 12px; font-size: 14px; color: var(--text); border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+/* Off, the roster is still readable -- a user deciding whether to turn it back on
+   is looking at exactly this list -- but it is plainly not in play. */
+#skills-list.off { opacity: .45; }
+#skills-list.off .skillrow { pointer-events: none; }
 #skill-body { font-size: 14px; color: var(--muted); line-height: 1.55; white-space: pre-wrap; margin-bottom: 6px; }
 #skill-body .meta { font-size: 12px; color: #7f8ea8; margin-bottom: 8px; }
 .urlrow { display: flex; gap: 8px; margin: 4px 0 8px; }
@@ -360,17 +522,21 @@ body.voice #lang { display: inline-flex; }
 <div id="composer">
   <div id="skillchips"></div>
   <div id="chips"></div>
+  <!-- Above the message box, so the answer to "is it stuck?" is never off-screen and
+       the box the thumb aims at never moves. -->
+  <div id="activity">
+    <div class="what"><span class="dot"></span><span class="label"></span></div>
+    <div class="tail"></div>
+  </div>
   <div id="row">
     <button class="round" id="plus" type="button" title="Attach">＋</button>
-    <div id="textwrap"><textarea id="text" rows="1" placeholder="Message TensorAgent…"></textarea></div>
+    <button class="round" id="abc" type="button" title="Back to typing">⌨</button>
+    <div id="textwrap"><textarea id="text" rows="1" placeholder="Message… or hold to talk"></textarea></div>
     <button class="round" id="hold" type="button"><span class="lvl"></span><span id="holdlabel">Hold to talk</span></button>
     <button class="round send" id="send" type="button" title="Send">➤</button>
   </div>
   <div id="toggles">
-    <label class="switch"><input type="checkbox" id="think"><span class="track"></span><span>Reasoning</span></label>
-    <label class="switch"><input type="checkbox" id="voice"><span class="track"></span><span>Voice</span></label>
     <span id="lang"></span>
-    <button id="skills-btn" type="button">🧩 Skills</button>
   </div>
 </div>
 
@@ -388,6 +554,11 @@ body.voice #lang { display: inline-flex; }
 <div class="sheet" id="skills-sheet">
   <div class="grab"></div>
   <h2>Skills</h2>
+  <!-- The master switch, above the list rather than inside it: it is not a
+       thirteenth skill, it decides whether there are any. Off means no skill is
+       declared to the model at all, which is thousands of prompt tokens a chat
+       that does not want them should not be paying on every turn. -->
+  <label class="switch skills-master"><input type="checkbox" id="skills-master" checked><span class="track"></span><span id="skills-master-label">Use skills</span></label>
   <div id="skills-list"></div>
   <button class="opt" id="skill-add"><span class="em">＋</span> Add a skill<span class="hint">.zip or a link</span></button>
 </div>
@@ -416,13 +587,25 @@ body.voice #lang { display: inline-flex; }
   links — one per line — to install several at once.</p>
 </div>
 
-<div class="sheet" id="nav-sheet">
-  <div class="grab"></div>
-  <h2>TensorAgent</h2>
-  <button class="opt" data-route="sessions"><span class="em">💬</span> Chats<span class="hint">saved conversations</span></button>
-  <button class="opt" data-route="models"><span class="em">📚</span> Models<span class="hint">download, switch</span></button>
-  <button class="opt" data-route="settings"><span class="em">⚙️</span> Settings</button>
-  <button class="opt" data-route="about"><span class="em">ℹ️</span> About</button>
+<!-- The main menu. It opens from the left edge and it lists the saved chats
+     themselves: a chat the user has already had is the thing this menu is opened
+     for, and making them tap "Chats" to reach a second screen to find it is the
+     one navigation cost worth removing. -->
+<div class="sheet drawer" id="nav-sheet">
+  <div class="drawerhead">
+    <h2>TensorAgent</h2>
+    <button id="nav-new" type="button">＋ New</button>
+  </div>
+  <div class="navchats" id="nav-chats"></div>
+  <div class="drawerfoot">
+    <button class="opt" data-route="sessions"><span class="em">💬</span> All chats<span class="hint">rename, delete</span></button>
+    <button class="opt" data-route="models"><span class="em">📚</span> Models<span class="hint">download, switch</span></button>
+    <!-- Skills is the app's own sheet rather than a native route, so it is marked by
+         the sheet it opens instead of by a route the shell would have to register. -->
+    <button class="opt" data-sheet="skills-sheet"><span class="em">🧩</span> Skills<span class="hint">add, choose</span></button>
+    <button class="opt" data-route="settings"><span class="em">⚙️</span> Settings</button>
+    <button class="opt" data-route="about"><span class="em">ℹ️</span> About</button>
+  </div>
 </div>
 
 <div class="sheet" id="model-sheet">

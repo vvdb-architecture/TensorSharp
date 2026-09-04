@@ -82,9 +82,12 @@ public sealed class ConversationRecorder
     /// <param name="sessionId">The session the answer belongs to.</param>
     /// <param name="content">The assistant's text, as the page assembled it.</param>
     /// <param name="thinking">Its reasoning, when the model produced any.</param>
-    public void Complete(string sessionId, string content, string? thinking = null)
+    /// <param name="artifacts">Files the turn's tools produced, as the page's chips name them.</param>
+    public void Complete(
+        string sessionId, string content, string? thinking = null,
+        IReadOnlyList<StoredArtifact>? artifacts = null)
     {
-        if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(thinking))
+        if (string.IsNullOrEmpty(content) && string.IsNullOrEmpty(thinking) && artifacts is not { Count: > 0 })
             return;
         try
         {
@@ -102,6 +105,11 @@ public sealed class ConversationRecorder
                 Role = "assistant",
                 Content = content,
                 Thinking = string.IsNullOrEmpty(thinking) ? null : thinking,
+                // The file a turn produced is usually the whole point of the turn — the
+                // PDF, the spreadsheet, the clip. It arrives on the frames rather than in
+                // the answer (a small model repeats a link erratically), so it is written
+                // down here or it is lost the moment the user opens another chat.
+                Artifacts = artifacts is { Count: > 0 } ? new List<StoredArtifact>(artifacts) : null,
             });
             _store.Save(conversation);
         }
