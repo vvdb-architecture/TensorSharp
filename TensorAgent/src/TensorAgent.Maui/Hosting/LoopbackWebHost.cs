@@ -35,6 +35,8 @@ namespace TensorAgent.Maui.Hosting;
 public sealed class LoopbackWebHost : IDisposable
 {
     private readonly AgentAppHost _host;
+    private readonly Platforms.iOS.BackgroundDownloads _backgroundDownloads;
+    private readonly Platforms.iOS.BackgroundGeneration _backgroundGeneration;
 
     /// <param name="webRoot">The bundled copy of TensorSharp.Server/wwwroot.</param>
     /// <param name="loggerFactory">Where the engine logs; console output is what <c>simctl launch --console</c> shows.</param>
@@ -69,6 +71,13 @@ public sealed class LoopbackWebHost : IDisposable
         _host = new AgentAppHost(
             DevicePaths(), WebRoot, loggerFactory, python, javaScript,
             backends: BackendsFor(Compute.Selection));
+
+        // The one part of a download that needs iOS: staying alive for a while after
+        // the user leaves the app, and picking itself up when they come back.
+        _backgroundDownloads = new Platforms.iOS.BackgroundDownloads(_host.Downloads, _host.Settings);
+        // And the same for a generation, which needs it more: a turn takes a minute and
+        // the display sleeps in less than that.
+        _backgroundGeneration = new Platforms.iOS.BackgroundGeneration(_host.Turns, _host.Settings);
     }
 
     /// <summary>
@@ -95,7 +104,12 @@ public sealed class LoopbackWebHost : IDisposable
 
     public void Start() => _host.Start();
 
-    public void Dispose() => _host.Dispose();
+    public void Dispose()
+    {
+        _backgroundGeneration.Dispose();
+        _backgroundDownloads.Dispose();
+        _host.Dispose();
+    }
 
     /// <summary>
     /// The two directories iOS gives an app, used for what each is actually for.
@@ -147,7 +161,13 @@ public sealed class LoopbackWebHost : IDisposable
         // came back empty. The helper does the same job in decimal with the tolerance
         // that under-reporting needs, and is what the tests are written against.
         int tier = ModelCatalog.DeviceMemoryTier((long)bytes);
-        Console.WriteLine($"TensorAgent: physical memory {bytes / 1_000_000_000.0:0.00} GB -> catalog tier {tier} GB");
+        // The tier decides what is OFFERED; the per-process headroom is what decides
+        // whether a load survives, and they are different numbers. Both are logged
+        // because a jetsam kill leaves no message of its own -- see
+        // DeviceState.DescribeMemory and EngineMemoryPolicy.
+        Console.WriteLine(
+            $"TensorAgent: physical memory {bytes / 1_000_000_000.0:0.00} GB -> catalog tier {tier} GB " +
+            $"({Platforms.iOS.DeviceState.DescribeMemory()})");
         return tier;
     }
 }

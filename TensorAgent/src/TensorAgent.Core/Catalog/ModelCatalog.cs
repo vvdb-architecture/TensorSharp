@@ -60,6 +60,11 @@ public static class ModelCatalog
             Modalities = CatalogModalities.Image | CatalogModalities.Audio | CatalogModalities.Video,
             MinDeviceMemoryGB = 12,
             ContextLength = 8192,
+            // f16, not q8_0: Gemma 4 declines a block-quantized cache
+            // (Gemma4Model.SupportsBlockQuantizedKvCache). Its sliding-window layers
+            // use a circular cache whose managed helpers are float-only, and the 26B
+            // MoE reaches them on an ordinary prompt: setting q8_0 here crashed with
+            // "Requires a Float32 tensor, but found Q8_0" out of CopyToCacheCircular.
             KvCacheDtype = "f16",
             Sampling = new CatalogSampling(1.0f, 64, 0.95f, 0.0f),
             SupportsThinking = true,
@@ -123,6 +128,42 @@ public static class ModelCatalog
         },
         new CatalogModel
         {
+            Id = "gemma-4-12b-q4kxl",
+            DisplayName = "Gemma 4 12B",
+            Family = CatalogFamily.Gemma4,
+            Kind = CatalogArchitectureKind.Dense,
+            Parameters = "12B",
+            Quantization = "UD-Q4_K_XL",
+            Files = new[]
+            {
+                new CatalogFile(CatalogFileRole.Weights, "gemma-4-12b-it-UD-Q4_K_XL.gguf",
+                    Hf("unsloth/gemma-4-12b-it-GGUF", "gemma-4-12b-it-UD-Q4_K_XL.gguf"),
+                    7_366_423_360, "90fd944d227e9d9b68e7e2c7d5b57b79d4c66ed521b0919fbbd932cf834f6f8e"),
+                new CatalogFile(CatalogFileRole.Projector, "mmproj-F16.gguf",
+                    Hf("unsloth/gemma-4-12b-it-GGUF", "mmproj-F16.gguf"),
+                    175_115_840, "91f086971e56d7a7d8d39e271873fccdb49541bd259d6e02c401a4f1cb7a219e", Optional: true),
+                // The per-token assistant head, the same shape gemma-4-e4b-q4kxl carries.
+                new CatalogFile(CatalogFileRole.Draft, "mtp-gemma-4-12b-it.gguf",
+                    Hf("unsloth/gemma-4-12b-it-GGUF", "mtp-gemma-4-12b-it.gguf"),
+                    465_109_248, "145db9094bc0f85f1701e255a2ed216dcc9800fc8bc8631ad00905b456bd451b", Optional: true),
+            },
+            Modalities = CatalogModalities.Image | CatalogModalities.Video,
+            MinDeviceMemoryGB = 12,
+            ContextLength = 8192,
+            // f16, like every Gemma entry: Gemma 4 refuses a block-quantized cache
+            // (Gemma4Model.SupportsBlockQuantizedKvCache) because its sliding-window
+            // layers use a circular cache whose managed helpers are float-only.
+            KvCacheDtype = "f16",
+            Sampling = new CatalogSampling(1.0f, 64, 0.95f, 0.0f),
+            SupportsThinking = true,
+            License = GemmaLicense,
+            Notes = "The dense Gemma between E4B and the 26B mixture of experts. 7.4 GB of weights, "
+                + "which is 82% of the ~8.6 GB Metal working set a 12 GB phone reports, so it fits "
+                + "but leaves less room than the E-series. Vision and a speculative draft head are "
+                + "optional downloads.",
+        },
+        new CatalogModel
+        {
             Id = "qwen3.5-9b-q4kxl",
             DisplayName = "Qwen3.5 9B",
             Family = CatalogFamily.Qwen35,
@@ -140,8 +181,24 @@ public static class ModelCatalog
             },
             Modalities = CatalogModalities.Image | CatalogModalities.Video,
             MinDeviceMemoryGB = 12,
-            ContextLength = 8192,
-            KvCacheDtype = "f16",
+            // 32768, not 8192: the reply-length setting is bounded by the CONTEXT
+            // (ChatGenerationPipeline.ClampGenerationReserve trims the generation
+            // reserve to what the window leaves after the prompt, and the thinking
+            // budget is 75% of THAT), so an 8192 window capped a reply at ~7.7k
+            // tokens however high the user set the limit -- and a reasoning model
+            // that spent it produced no answer at all. A quantized cache pays for
+            // the bigger window: MEASURED on Qwen3.5-9B UD-Q4_K_XL, ggml_metal,
+            // peak physical footprint is 1697 MB at q8_0/32768 against the 1118 MB
+            // that f16/8192 already cost, and q8_0/16384 (1152 MB) is a wash.
+            ContextLength = 32768,
+            // q8_0, not f16: the KV cache is the only thing that grows with the
+            // conversation, and on Metal it is charged twice. MEASURED on ggml_metal
+            // after the fused graphs learned block-quantized K/V: 22.4 KiB/token
+            // against f16's 41.8, at decode parity (Qwen3.6-35B-A3B 75.5 vs 76.0
+            // tok/s, within noise), with a two-needle recall test at 7,490 tokens
+            // returning both planted values. Qwen3.5/3.6 take the fused graph, whose
+            // native side is dtype-generic; Gemma 4 does not and stays on f16.
+            KvCacheDtype = "q8_0",
             Sampling = new CatalogSampling(0.7f, 20, 0.8f, 0.0f),
             SupportsThinking = true,
             License = ApacheLicense,
@@ -166,8 +223,22 @@ public static class ModelCatalog
             },
             Modalities = CatalogModalities.Image | CatalogModalities.Video,
             MinDeviceMemoryGB = 12,
-            ContextLength = 4096,
-            KvCacheDtype = "f16",
+            // 32768, not 8192: the reply-length setting is bounded by the CONTEXT
+            // (ChatGenerationPipeline.ClampGenerationReserve trims the generation
+            // reserve to what the window leaves after the prompt, and the thinking
+            // budget is 75% of THAT), so an 8192 window capped a reply at ~7.7k
+            // tokens however high the user set the limit -- and a reasoning model
+            // that spent it produced no answer at all. A quantized cache pays for
+            // the bigger window: MEASURED on Qwen3.5-9B UD-Q4_K_XL, ggml_metal,
+            // peak physical footprint is 1697 MB at q8_0/32768 against the 1118 MB
+            // that f16/8192 already cost, and q8_0/16384 (1152 MB) is a wash.
+            // 16384 and not 32768 like the hybrids: this one is DENSE, so all 64 layers
+            // hold a KV cache and a token costs 68 KiB even at q8_0. MEASURED on
+            // ggml_metal: 1820 MB at 8192, 3455 MB at 32768 -- over half the ~6.4 GB a
+            // 12 GB phone grants, on top of weights already at 81% of the Metal
+            // working-set ceiling. 16384 buys double the window for a third of that.
+            ContextLength = 16384,
+            KvCacheDtype = "q8_0",
             Sampling = new CatalogSampling(0.7f, 20, 0.8f, 0.0f),
             SupportsThinking = true,
             Experimental = true,
@@ -192,14 +263,21 @@ public static class ModelCatalog
                     1_193_058_784, "418a6d8723067cd712235facbbc5cba6c8fbbd413fc1292d2aace5a027d5a42f", Optional: true),
             },
             Modalities = CatalogModalities.Image | CatalogModalities.Video,
-            MinDeviceMemoryGB = 16,
+            MinDeviceMemoryGB = 12,
             ContextLength = 4096,
             KvCacheDtype = "f16",
             Sampling = new CatalogSampling(1.0f, 64, 0.95f, 0.0f),
             SupportsThinking = true,
             Experimental = true,
             License = GemmaLicense,
-            Notes = "Mixture of experts; 9.9 GB of weights, so 16 GB iPads only.",
+            Notes = "Mixture of experts, 9.9 GB of weights. Offered to a 12 GB phone because the "
+                + "weights are a FILE MAPPING and Darwin charges mapped clean pages almost nothing: "
+                + "measured on Metal, a same-family 11.3 GB MoE peaked at 1.21 GB resident / 1.09 GB "
+                + "physical footprint against the ~8.5 GB a 12 GB phone grants; this entry itself "
+                + "measured 1,691 MB at 4096 tokens and decoded at 70 tok/s on an M5 Pro. What a phone this size "
+                + "cannot do is hold 9.9 GB in the page cache, so expect every token to fault expert "
+                + "weights from flash and decode far below a desktop's. Only 8 of 128 experts run per "
+                + "token, which is what makes that survivable at all.",
         },
         new CatalogModel
         {
@@ -219,14 +297,28 @@ public static class ModelCatalog
                     899_283_680, "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f", Optional: true),
             },
             Modalities = CatalogModalities.Image | CatalogModalities.Video,
-            MinDeviceMemoryGB = 16,
-            ContextLength = 4096,
-            KvCacheDtype = "f16",
+            MinDeviceMemoryGB = 12,
+            // 32768, not 8192: the reply-length setting is bounded by the CONTEXT
+            // (ChatGenerationPipeline.ClampGenerationReserve trims the generation
+            // reserve to what the window leaves after the prompt, and the thinking
+            // budget is 75% of THAT), so an 8192 window capped a reply at ~7.7k
+            // tokens however high the user set the limit -- and a reasoning model
+            // that spent it produced no answer at all. A quantized cache pays for
+            // the bigger window: MEASURED on Qwen3.5-9B UD-Q4_K_XL, ggml_metal,
+            // peak physical footprint is 1697 MB at q8_0/32768 against the 1118 MB
+            // that f16/8192 already cost, and q8_0/16384 (1152 MB) is a wash.
+            ContextLength = 32768,
+            KvCacheDtype = "q8_0",
             Sampling = new CatalogSampling(0.7f, 20, 0.8f, 0.0f),
             SupportsThinking = true,
             Experimental = true,
             License = ApacheLicense,
-            Notes = "The nearest Qwen mixture of experts that fits any Apple device (Qwen 3.8's MoE checkpoints start at 72 GB). 16 GB iPads only.",
+            Notes = "The nearest Qwen mixture of experts that fits any Apple device (Qwen 3.8's MoE "
+                + "checkpoints start at 72 GB). 10.0 GB of weights, offered to a 12 GB phone for the "
+                + "same measured reason as the Gemma MoE: mapped weights cost almost no physical "
+                + "footprint (11.3 GB of this family measured at 1.09 GB), and only 3B of 35B "
+                + "parameters are active per token. At IQ1_M this is a one-bit quantization -- try it "
+                + "against the 9B at Q4 before keeping it, and expect flash paging to dominate decode.",
         },
         new CatalogModel
         {

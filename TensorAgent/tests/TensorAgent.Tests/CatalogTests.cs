@@ -51,12 +51,44 @@ public sealed class CatalogTests
     private static double JetsamBudget(int deviceGB) => deviceGB * 1e9 * (8.5 / 12.0);
 
     /// <summary>
-    /// Metal wires the mmap'd weights, so resident memory is roughly the GGUF plus the
-    /// F32 projector (about twice its file), the KV cache and half a gigabyte of
-    /// compute buffers.
+    /// The memory that is actually charged against the jetsam limit: ANONYMOUS memory
+    /// only.
+    ///
+    /// <para>
+    /// This used to be <c>Weights.Bytes + 0.5e9 + 2*projector</c>, on the stated premise
+    /// that "Metal wires the mmap'd weights, so resident memory is roughly the GGUF".
+    /// That premise is wrong, and measurably so. Weights are a file mapping, and Darwin
+    /// charges mapped clean pages essentially nothing; ggml-metal wraps them with
+    /// newBufferWithBytesNoCopy and the residency set does not fault them in. MEASURED on
+    /// this repo, ggml_metal, Qwen3.6-35B-A3B UD-IQ2_XXS -- an 11,272 MB model at
+    /// ctx=8192: peak RSS 1,211 MB, peak phys_footprint 1,090 MB. The old model
+    /// overstated that entry by roughly ten times, and gated two MoE entries to 16 GB
+    /// that a 12 GB phone holds with ~7 GB to spare.
+    /// </para>
+    ///
+    /// <para>
+    /// What IS anonymous: the KV cache (charged TWICE on Metal -- once for the host
+    /// tensor and once for the Metal-side buffer, since the zero-copy wrap is refused for
+    /// read-write tensors), the projector's dequantized copies (about twice its file),
+    /// and the runtime plus graph scratch. 64 KiB/token is the per-token KV rate measured
+    /// for Qwen3.5 9B and is used here as an upper bound; the 35B-A3B hybrids are cheaper
+    /// still, at 40 KiB/token, because only 10 of their 40 layers hold a KV cache.
+    /// </para>
     /// </summary>
-    private static double EstimatedResident(CatalogModel model) =>
-        model.Weights.Bytes + 0.5e9 + (model.Projector is { Optional: false } p ? 2.0 * p.Bytes : 0);
+    private static double EstimatedAnonymous(CatalogModel model) =>
+        0.5e9
+        + model.ContextLength * 64.0 * 1024.0
+        + (model.Projector is { Optional: false } p ? 2.0 * p.Bytes : 0);
+
+    /// <summary>
+    /// The other half, and the one the weights really answer to: they are not charged to
+    /// jetsam, but they still have to be READABLE at a usable speed, which means the file
+    /// has to fit the DEVICE's RAM alongside iOS rather than the app's jetsam budget.
+    /// Past this line every token faults expert weights from flash. It is a performance
+    /// bound, not a kill bound, which is why it is a separate number from
+    /// <see cref="JetsamBudget"/> instead of folded into it.
+    /// </summary>
+    private static double WeightsResidencyCeiling(int deviceGB) => deviceGB * 1e9 * 0.87;
 
     [Fact]
     public void EveryTierStaysUnderTheJetsamBudgetOfTheSmallestDeviceItIsOfferedOn()
@@ -68,11 +100,17 @@ public sealed class CatalogTests
         // catalog can produce, because the user pays for it twice.
         foreach (CatalogModel m in ModelCatalog.BuiltIn.Where(m => !m.IsImageGenerator))
         {
-            double resident = EstimatedResident(m);
+            double anonymous = EstimatedAnonymous(m);
             double budget = JetsamBudget(m.MinDeviceMemoryGB);
-            Assert.True(resident < budget,
+            Assert.True(anonymous < budget,
                 $"{m.Id} is offered at {m.MinDeviceMemoryGB} GB, which grants about "
-                + $"{budget / 1e9:F1} GB, but needs about {resident / 1e9:F1} GB resident");
+                + $"{budget / 1e9:F1} GB, but charges about {anonymous / 1e9:F1} GB of anonymous memory");
+
+            double ceiling = WeightsResidencyCeiling(m.MinDeviceMemoryGB);
+            Assert.True(m.Weights.Bytes < ceiling,
+                $"{m.Id} is offered at {m.MinDeviceMemoryGB} GB but its weights are "
+                + $"{m.Weights.Bytes / 1e9:F1} GB, past the {ceiling / 1e9:F1} GB that device can "
+                + "hold; it would fault every token from flash");
         }
     }
 
@@ -85,9 +123,12 @@ public sealed class CatalogTests
         {
             foreach (CatalogModel m in ModelCatalog.ForDevice(deviceGB).Where(m => !m.IsImageGenerator))
             {
-                Assert.True(EstimatedResident(m) < JetsamBudget(deviceGB),
-                    $"a {deviceGB} GB device is offered {m.Id}, which needs about "
-                    + $"{EstimatedResident(m) / 1e9:F1} GB against a {JetsamBudget(deviceGB) / 1e9:F1} GB budget");
+                Assert.True(EstimatedAnonymous(m) < JetsamBudget(deviceGB),
+                    $"a {deviceGB} GB device is offered {m.Id}, which charges about "
+                    + $"{EstimatedAnonymous(m) / 1e9:F1} GB against a {JetsamBudget(deviceGB) / 1e9:F1} GB budget");
+                Assert.True(m.Weights.Bytes < WeightsResidencyCeiling(deviceGB),
+                    $"a {deviceGB} GB device is offered {m.Id}, whose {m.Weights.Bytes / 1e9:F1} GB of "
+                    + $"weights exceed the {WeightsResidencyCeiling(deviceGB) / 1e9:F1} GB it can hold");
             }
         }
     }
@@ -97,7 +138,12 @@ public sealed class CatalogTests
     {
         Assert.Empty(ModelCatalog.ForDevice(8));
         Assert.Contains(ModelCatalog.ForDevice(12), m => m.Id == "qwen3.8-27b-iq2xxs");
-        Assert.DoesNotContain(ModelCatalog.ForDevice(12), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);
+        // A 12 GB phone IS now offered the mixture-of-experts entries. It was not, on the
+        // premise that Metal wires the mapped weights; measurement says otherwise (see
+        // EstimatedAnonymous), and both MoE entries charge about 0.8 GB of anonymous
+        // memory against the ~8.5 GB such a phone grants. They stay Experimental and
+        // their Notes say plainly that the weights will page from flash.
+        Assert.Contains(ModelCatalog.ForDevice(12), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);
         Assert.Contains(ModelCatalog.ForDevice(16), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);
         Assert.Contains(ModelCatalog.BuiltIn, m => m.Family == CatalogFamily.Gemma4 && m.Kind == CatalogArchitectureKind.Dense);
         Assert.Contains(ModelCatalog.BuiltIn, m => m.Family == CatalogFamily.Qwen38 && m.Kind == CatalogArchitectureKind.Dense);

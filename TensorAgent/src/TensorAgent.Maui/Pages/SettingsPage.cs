@@ -29,16 +29,20 @@ namespace TensorAgent.Maui.Pages;
 /// ever changed except from here.
 /// </para>
 /// <para>
-/// A change takes effect when the app next starts, because the code runner and its
-/// policy are built once at startup. That is stated on the page: a switch that
-/// silently does nothing until an invisible event is worse than one that says when
-/// it will apply.
+/// A change takes effect on the next command the model runs. It used to take effect at
+/// the next launch — the code runner and its policy were built once, at startup — and
+/// the page said so, which was honest and useless: an iPhone app is not restarted by
+/// leaving it, so the real instruction was "force-quit TensorAgent from the app
+/// switcher" and nobody does that. The reported symptom was precisely what that
+/// produces: network turned on, and <c>curl</c> still answering "network access is
+/// disabled by the user". See <see cref="AgentAppHost.ApplySettings"/>.
 /// </para>
 /// </summary>
 public sealed class SettingsPage : ContentPage
 {
     private readonly AgentAppHost _app;
     private readonly VerticalStackLayout _body;
+    private Label? _engine;
 
     public SettingsPage(LoopbackWebHost host)
     {
@@ -56,6 +60,29 @@ public sealed class SettingsPage : ContentPage
         Build();
     }
 
+    /// <summary>
+    /// Save a change and hand it to the running app in the same breath.
+    ///
+    /// <para>
+    /// Saving alone is what made "Allow network access" a switch with no effect: the
+    /// code runner, the installer and the skill planner all read the file once, at
+    /// startup, so the model went on being told "network access is disabled by the
+    /// user" until the app was force-quit from the app switcher. The engine line under
+    /// the switches is repainted from the host's own answer, so it is evidence rather
+    /// than a promise.
+    /// </para>
+    /// </summary>
+    private void Apply(Action<AppSettings> change)
+    {
+        AppSettings settings = _app.Settings.Load();
+        change(settings);
+        _app.Settings.Save(settings);
+        _app.ApplySettings(settings);
+        if (_engine is not null)
+            _engine.Text = "Now: " + _app.DescribeEngine();
+    }
+
+
     private void Build()
     {
         AppSettings settings = _app.Settings.Load();
@@ -67,25 +94,37 @@ public sealed class SettingsPage : ContentPage
             "Let the model run shell commands and scripts. Everything runs inside the app, "
             + "confined to this chat's own folder; it can never write elsewhere on the device.",
             settings.AllowCodeExecution,
-            on => { AppSettings s = _app.Settings.Load(); s.AllowCodeExecution = on; _app.Settings.Save(s); }));
+            on => Apply(s => s.AllowCodeExecution = on)));
 
         _body.Add(Switch(
             "Allow network access",
             "Let code the model runs reach the internet, and let it install packages. "
             + "Off by default: with it off, every attempt is refused and the model is told why.",
             settings.AllowNetwork,
-            on => { AppSettings s = _app.Settings.Load(); s.AllowNetwork = on; _app.Settings.Save(s); }));
+            on => Apply(s => s.AllowNetwork = on)));
 
-        _body.Add(Note("Sandbox changes apply the next time TensorAgent starts."));
-        _body.Add(Note("Now: " + _app.DescribeEngine()));
+        // It used to say "the next time TensorAgent starts", which on a phone is not an
+        // instruction anybody follows -- leaving an app does not restart it -- so the
+        // switch read as one that did nothing. Both now take effect on the next command.
+        _body.Add(Note("Sandbox changes take effect straight away, on the next command the model runs."));
+        _engine = new Label
+        {
+            Text = "Now: " + _app.DescribeEngine(),
+            FontSize = 12,
+            TextColor = Theme.Muted,
+            Padding = new Thickness(16, 2),
+        };
+        _body.Add(_engine);
 
         _body.Add(Section("Generation"));
-        _body.Add(Stepper("Reply length limit", "Maximum tokens in one reply.",
-            settings.MaxTokens, 256, 8192, 256,
-            v => { AppSettings s = _app.Settings.Load(); s.MaxTokens = v; _app.Settings.Save(s); }));
+        _body.Add(Ladder("Reply length limit",
+            "Maximum tokens in one reply. The model's context window is the real ceiling: "
+            + "a reply cannot exceed what the window leaves after the prompt.",
+            settings.MaxTokens, ReplyLengthRungs,
+            v => Apply(s => s.MaxTokens = v)));
         _body.Add(Stepper("Tool timeout", "Seconds before a command is stopped.",
             settings.ToolTimeoutSeconds, 10, 600, 10,
-            v => { AppSettings s = _app.Settings.Load(); s.ToolTimeoutSeconds = v; _app.Settings.Save(s); }));
+            v => Apply(s => s.ToolTimeoutSeconds = v)));
         _body.Add(Switch("Show reasoning by default",
             "Start each chat with the model's thinking visible.",
             settings.ThinkByDefault,
@@ -101,6 +140,12 @@ public sealed class SettingsPage : ContentPage
             + "without them a model cannot see pictures and image generation is many times slower.",
             settings.DownloadOptionalFiles,
             on => { AppSettings s = _app.Settings.Load(); s.DownloadOptionalFiles = on; _app.Settings.Save(s); }));
+        // Said here because it is the thing people worry about while a download runs,
+        // and the model list can only say it while they are looking at the model list.
+        _body.Add(Note(
+            "A download keeps going while you use the rest of the app, and for a while "
+            + "after you leave it. If the system stops it, it resumes from where it got to "
+            + "the next time TensorAgent is open — nothing is fetched twice."));
 
         _body.Add(Section("Storage"));
         _body.Add(Note($"Models: {Gb(DirectorySize(_app.Paths.ModelsDirectory))} GB"));
@@ -167,6 +212,79 @@ public sealed class SettingsPage : ContentPage
         grid.Add(toggle, 1, 0);
         return grid;
     }
+
+    /// <summary>
+    /// The reply-length rungs, up to 256K tokens.
+    ///
+    /// <para>
+    /// A plain Stepper cannot express this range: 256 to 262,144 in steps of 256 is a
+    /// thousand taps. The rungs double instead, so the whole range is eleven taps and
+    /// the useful small values keep their resolution.
+    /// </para>
+    ///
+    /// <para>
+    /// The ceiling that actually applies is the CONTEXT, not this number:
+    /// ChatGenerationPipeline.ClampGenerationReserve trims the reserve to what the
+    /// window leaves after the prompt, so asking for 256K inside an 8,192-token context
+    /// yields at most 8,192 minus the prompt. Raising this is what lets a long context
+    /// be spent on one reply; it does not create context.
+    /// </para>
+    /// </summary>
+    private static readonly int[] ReplyLengthRungs =
+        { 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144 };
+
+    private static View Ladder(string title, string detail, int value, int[] rungs, Action<int> onChanged)
+    {
+        int index = 0;
+        for (int i = 0; i < rungs.Length; i++)
+        {
+            if (rungs[i] <= value) index = i;
+        }
+
+        var current = new Label
+        {
+            Text = Describe(rungs[index]),
+            FontSize = 15,
+            TextColor = Theme.Accent,
+            VerticalOptions = LayoutOptions.Center,
+        };
+        var stepper = new Stepper(0, rungs.Length - 1, index, 1) { VerticalOptions = LayoutOptions.Center };
+        stepper.ValueChanged += (_, e) =>
+        {
+            int chosen = rungs[Math.Clamp((int)e.NewValue, 0, rungs.Length - 1)];
+            current.Text = Describe(chosen);
+            onChanged(chosen);
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
+            },
+            Padding = new Thickness(16, 10),
+            ColumnSpacing = 10,
+        };
+        grid.Add(new VerticalStackLayout
+        {
+            Spacing = 2,
+            Children =
+            {
+                new Label { Text = title, FontSize = 16, TextColor = Theme.Text },
+                new Label { Text = detail, FontSize = 12, TextColor = Theme.Muted },
+            },
+        });
+        grid.Add(current, 1, 0);
+        grid.Add(stepper, 2, 0);
+        return grid;
+    }
+
+    /// <summary>"1024" is harder to read at a glance than "1K"; the rungs are all
+    /// powers of two, so the short form is exact rather than rounded.</summary>
+    private static string Describe(int tokens) =>
+        tokens >= 1024 && tokens % 1024 == 0 ? (tokens / 1024) + "K" : tokens.ToString();
 
     private static View Stepper(string title, string detail, int value, int min, int max, int step, Action<int> onChanged)
     {

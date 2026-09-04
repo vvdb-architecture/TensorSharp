@@ -8,6 +8,8 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using Foundation;
+using System.Runtime.InteropServices;
 using UIKit;
 
 namespace TensorAgent.Maui.Platforms.iOS;
@@ -18,6 +20,57 @@ namespace TensorAgent.Maui.Platforms.iOS;
 /// </summary>
 internal static class DeviceState
 {
+    /// <summary>
+    /// How much memory iOS will still let this process take, in bytes.
+    ///
+    /// <para>
+    /// This is the number that actually kills the app, and until now nothing asked for
+    /// it. NSProcessInfo.PhysicalMemory reports the DEVICE's RAM -- 12 GB -- while the
+    /// per-process jetsam budget is roughly two thirds of that, and it is against the
+    /// budget that a KV cache is charged. os_proc_available_memory() is the supported
+    /// way to ask, and it accounts for the increased-memory-limit entitlement the app
+    /// already carries.
+    /// </para>
+    ///
+    /// <para>
+    /// Returns 0 where the call is unavailable (the simulator returns 0, and so does any
+    /// process without the entitlement on older systems), which every caller must read
+    /// as "unknown" rather than "none left".
+    /// </para>
+    /// </summary>
+    [DllImport("__Internal", EntryPoint = "os_proc_available_memory")]
+    private static extern nint OsProcAvailableMemory();
+
+    public static long AvailableMemoryBytes()
+    {
+        try
+        {
+            return (long)OsProcAvailableMemory();
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return 0;
+        }
+        catch (DllNotFoundException)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// One line naming the headroom, for the log that a jetsam kill leaves behind.
+    /// A kill writes no stack and no message of its own, so the last thing the app
+    /// said about its own budget is the only evidence there is.
+    /// </summary>
+    public static string DescribeMemory()
+    {
+        long available = AvailableMemoryBytes();
+        double physical = NSProcessInfo.ProcessInfo.PhysicalMemory / 1_000_000_000.0;
+        return available > 0
+            ? $"device {physical:0.0} GB, this process may still take {available / 1_000_000_000.0:0.00} GB"
+            : $"device {physical:0.0} GB, per-process headroom unavailable";
+    }
+
     /// <summary>
     /// Whether the only route to the internet right now is the cellular radio.
     ///
