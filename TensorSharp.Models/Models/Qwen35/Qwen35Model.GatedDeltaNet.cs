@@ -1263,7 +1263,30 @@ namespace TensorSharp.Models
         /// </summary>
         private bool IsFusedGraphKvCacheDType(DType dt) =>
             dt == DType.Float32 || dt == DType.Float16
-            || (IsBlockQuantCacheDType(dt) && _backend == BackendType.GgmlCuda);
+            || (IsBlockQuantCacheDType(dt) && FusedGraphSupportsBlockQuantKv);
+
+        /// <summary>
+        /// Backends whose fused whole-model graphs can read a block-quantized K/V
+        /// cache. The graph itself is already dtype-generic: it builds the cache with
+        /// static_cast&lt;ggml_type&gt;(kv_cache_type), sizes it with kv_cache_bytes() and
+        /// strides it with ggml_row_size(), and flash_attn_ext reads quantized K/V
+        /// directly. What decides the answer is whether the BACKEND has the kernels.
+        /// <para>
+        /// Metal does, for every head dim in play: fa.metal instantiates
+        /// flash_attn_ext_q8_0 and _q4_0 for exactly the same dk/dv set as f16
+        /// (dk256_dv256 for Qwen3.5/3.6, dk512_dv512 for Gemma 4, and thirteen more),
+        /// and the cache write has kernel_cpy_f32_q8_0 / _q4_0 plus the quantized
+        /// set_rows variants. It was excluded here because it had never been tried,
+        /// not because anything was missing.
+        /// </para>
+        /// <para>
+        /// Vulkan stays out: it already takes the non-flash path on the persist
+        /// window (see use_non_flash_attn in ggml_ops_qwen35_decode.cpp), which
+        /// materializes K/V as F32 and would undo the saving.
+        /// </para>
+        /// </summary>
+        private bool FusedGraphSupportsBlockQuantKv =>
+            _backend == BackendType.GgmlCuda || _backend == BackendType.GgmlMetal;
 
         /// <summary>ggml_type id passed as the native kernels' kv_cache_type
         /// argument (must match ggml.h: F32=0, F16=1, Q4_0=2, Q8_0=8).</summary>

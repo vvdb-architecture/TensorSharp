@@ -581,6 +581,48 @@ namespace TensorSharp.Models
             => !_stackedExpertMemberNames.Contains(weightName)
                && base.ShouldPreloadCudaQuantWeightToDevice(weightName);
 
+        /// <summary>
+        /// Whether the fused whole-model graphs may run with a block-quantized K/V
+        /// cache. The native Gemma 4 graphs are already dtype-generic
+        /// (ggml_ops_gemma4_decode.cpp builds the cache with
+        /// static_cast&lt;ggml_type&gt;(kv_cache_type), views it with
+        /// view_kv_cache_window(..., kv_cache_type) and sizes it with kv_cache_bytes),
+        /// and on Metal the KV write already takes the ggml_cpy path rather than
+        /// set_rows, for which kernel_cpy_f32_q8_0 / _q4_0 exist. Metal instantiates
+        /// flash_attn_ext_q8_0 and _q4_0 for both of Gemma 4's head dims (dk256 SWA,
+        /// dk512 global). Vulkan stays out: it takes the non-flash path, which
+        /// materializes K/V as F32 and would undo the saving.
+        /// </summary>
+        /// <summary>
+        /// Gemma 4 declines a block-quantized K/V cache, so ModelBase refuses it at LOAD
+        /// and uses f16 with a message instead of failing later.
+        ///
+        /// <para>
+        /// The FUSED graphs handle it (the native side is dtype-generic and Metal has the
+        /// kernels for both head dims). What cannot is the managed fallback, and Gemma 4
+        /// reaches it in ordinary use -- the 26B-A4B MoE takes it for a plain prompt.
+        /// Gemma 4's sliding-window layers use a CIRCULAR cache whose three managed
+        /// helpers all assume a float buffer: CopyToCacheCircular (the write, which threw
+        /// "Requires a Float32 tensor, but found Q8_0" out of GetFloatPtr),
+        /// AttentionDecodeCircular (the decode read) and the prefill gather near
+        /// TryGatherCircularHeadFirst. ModelBase's block-quant helpers cover the LINEAR
+        /// cache only, so none of them applies.
+        /// </para>
+        ///
+        /// <para>
+        /// Enabling this needs those three written for Q8_0/Q4_0. Each row is headDim
+        /// elements (256 SWA / 512 global), both multiples of the 32-element block, so a
+        /// row quantizes independently and the wrap-around is expressible -- it is real
+        /// work, not a blocked design. Until then Qwen3.5/3.6 get the memory win and
+        /// Gemma 4 stays on f16.
+        /// </para>
+        /// </summary>
+        protected override bool SupportsBlockQuantizedKvCache => false;
+
+        private bool FusedGraphRejectsKvDtype =>
+            _kvCacheDtype.IsBlockQuantized()
+            && !(_backend == BackendType.GgmlMetal || _backend == BackendType.GgmlCuda);
+
         private bool IsLocalLayer(int layer) =>
             _slidingWindowPattern != null && layer < _slidingWindowPattern.Length && _slidingWindowPattern[layer];
 
@@ -3390,7 +3432,7 @@ namespace TensorSharp.Models
             // Later-turn multimodal chunks (startPos>0) keep the per-op path.
             if (exceptPositions != null && (!s_wholeModelMMPrefillEnabled || startPos != 0)) return false;
             if (_decodeArrays == null || !_canUseFusedFullModelDecode) return false; // dense only (no MoE)
-            if (_kvCacheDtype.IsBlockQuantized()) return false;
+            if (FusedGraphRejectsKvDtype) return false;
 
             long totalSeqLen = (long)startPos + seqLen;
             // The kernel's SWA paths attend the whole chunk's K/V with a sliding-window
@@ -3448,7 +3490,7 @@ namespace TensorSharp.Models
             // dense gate).
             if (exceptPositions != null && (!s_wholeModelMMPrefillEnabled || startPos != 0)) return false;
             if (_moeModelVerifyDisabled || !s_MoeModelDecodeEnabled) return false;
-            if (_kvCacheDtype.IsBlockQuantized()) return false;
+            if (FusedGraphRejectsKvDtype) return false;
 
             // Mirror the fused MoE decode eligibility (all-MoE, no PLE, no KV donor,
             // F32/F16 cache). Primes the lazy flag the verify/decode paths reuse.
@@ -3519,7 +3561,7 @@ namespace TensorSharp.Models
 
             // Block-quantized KV cache is written via ggml_cpy(F32->cacheType)
             // by the kernel; only F32/F16 caches are wired here.
-            if (_kvCacheDtype.IsBlockQuantized()) return false;
+            if (FusedGraphRejectsKvDtype) return false;
 
             var a = _decodeArrays;
             // Attention weights must be present in the precomputed arrays.
@@ -4295,18 +4337,15 @@ namespace TensorSharp.Models
         private Tensor TransformerBlock(Tensor hidden, int layer, int seqLen, int startPos,
             bool isShared, Tensor perLayerInput, HashSet<int> exceptPositions = null)
         {
-            // The C# managed prefill / decode path reads and writes the cache as a
-            // flat F32 (or F16) buffer. Block-quantized layouts (Q8_0) cannot be
-            // walked with raw pointer arithmetic, so we surface a clear error
-            // here rather than letting downstream pointer math silently corrupt
-            // the cache. Users should pick --kv-cache-dtype f16 for multimodal
-            // prompts or any setup that disables the native fused kernels.
-            if (_kvCacheDtype.IsBlockQuantized())
-                throw new InvalidOperationException(
-                    $"Q8_0 KV cache requires the fused native attention kernels. " +
-                    $"This call path (multimodal injection / fused-prefill bailout / non-fused decode) " +
-                    $"falls back to the C# managed attention helpers which only support F32/F16. " +
-                    $"Use --kv-cache-dtype f16 for this configuration.");
+            // The managed path CAN read and write a block-quantized cache: ModelBase
+            // dequantizes the active window on read (ExpandKVHeadsBlockQuant,
+            // ModelBase.KvCache.cs:139, and the decode analogue at
+            // ModelBase.CpuAttention.cs:104) and quantizes on write
+            // (CopyToCacheBlockQuant, ModelBase.KvCache.cs:48). This used to throw
+            // "Q8_0 KV cache requires the fused native attention kernels" on the
+            // premise that the helpers were F32/F16 only, which stopped being true
+            // when those helpers were added; the guard outlived its reason and turned
+            // a supported configuration into an exit-134 crash at warmup.
 
             string prefix = $"blk.{layer}";
 

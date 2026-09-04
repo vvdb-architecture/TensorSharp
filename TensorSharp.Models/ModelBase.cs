@@ -1179,6 +1179,56 @@ namespace TensorSharp.Models
         /// host pointer is needed once at preload time so the device copy is performed via
         /// <see cref="PrepareCudaQuantizedWeightsForInference"/> from the file-backed view.
         /// </summary>
+        /// <summary>
+        /// Whether load-time fusion may allocate a NEW buffer when the sources it
+        /// wants to join are not already adjacent in the mapping.
+        ///
+        /// Every quantized tensor is normally a zero-cost view into the GGUF mmap, and
+        /// mapped file pages cost a Darwin process no physical footprint at all. A fused
+        /// tensor that has to be COPIED is the opposite: fresh anonymous memory, charged
+        /// in full against the iOS jetsam limit, duplicating bytes that are already
+        /// mapped. GGUF writers emit tensors in alphabetical order within a block, so
+        /// the pairs worth fusing are almost never adjacent -- attn_output sits between
+        /// attn_norm and attn_q, attn_q_norm between attn_q and attn_v, ffn_norm between
+        /// ffn_gate and ffn_up -- and the copy is taken nearly every time.
+        ///
+        /// Measured at load, all weights otherwise 100% file-backed:
+        ///   Qwen3.5-9B  Q8_0    356 MB QKV + 1290 MB recurrent packs = 1.53 GiB
+        ///   gemma-4-E4B Q8_0    409 MB QKV +  2339 MB gate/up        = 2.56 GiB
+        ///   gpt-oss-20b Q8_0    376 MB QKV +  6768 MB expert gate/up = 6.65 GiB
+        /// llama.cpp's figure for all three is zero: it never synthesizes a weight
+        /// tensor the file does not already contain, issuing separate matmuls instead
+        /// and recovering most of the difference at the scheduler level, where ggml's
+        /// Metal backend reorders independent nodes into one concurrent encoder.
+        ///
+        /// So the copy is a speed-for-memory trade, and the right answer differs by
+        /// platform. A desktop with tens of gigabytes should keep taking it. A phone
+        /// should not: TensorAgent running Qwen3.5 9B on a 12 GB iPhone was killed by
+        /// jetsam, and 1.53 GiB of this is duplicate. Every fusion site already has a
+        /// separate-weights path (SeparateQkv in the fused decode kernels,
+        /// SupportsSplitGateUpFfn for the FFN, the four source weights for the
+        /// recurrent pack), so declining costs correctness nothing.
+        ///
+        /// TS_WEIGHT_FUSION_COPIES=1 forces the copies back on, =0 forces them off.
+        /// </summary>
+        protected static bool AllowWeightFusionCopies { get; } = ResolveAllowWeightFusionCopies();
+
+        private static bool ResolveAllowWeightFusionCopies()
+        {
+            string env = Environment.GetEnvironmentVariable("TS_WEIGHT_FUSION_COPIES");
+            if (!string.IsNullOrWhiteSpace(env))
+            {
+                if (env == "0" || env.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    return false;
+                if (env == "1" || env.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            // iOS/iPadOS only. Mac Catalyst and the simulator run on a desktop-sized
+            // memory budget, and macOS is not jetsam-limited the way a phone is.
+            return !OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst();
+        }
+
         protected bool CanUseFileMappedQuantizedWeights
             => _backend == BackendType.GgmlCuda
             || _backend == BackendType.GgmlVulkan

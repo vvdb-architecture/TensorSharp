@@ -407,11 +407,14 @@ namespace TensorSharp.Models
                         _quantWeights.TryGetValue(upName, out var uw) &&
                         gw.GgmlType == uw.GgmlType && gw.Ne0 == uw.Ne0)
                     {
-                        // ExpertFFN expects a fused gate_up tensor at fusedName. If
-                        // MLX view-fusion fails (gate/up not contiguous in GGUF),
-                        // fall back to copy — same rationale as FuseGateUpWeights.
-                        if (!TryCreateFusedQuantizedWeight(out QuantizedWeight fusedWeight, gw, uw))
-                            fusedWeight = QuantizedWeight.ConcatOrCreateCopy(gw, uw);
+                        // ExpertFFN and the fused decode arrays index
+                        // ffn_gate_up_exps.{e}.weight BY NAME and gpt-oss has no
+                        // split-expert path, so unlike every other fusion site this one
+                        // cannot decline the copy when the sources are not adjacent --
+                        // there is nothing to fall back to. It is the reason
+                        // gpt-oss-20b's load costs ~6.7 GiB of anonymous memory and why
+                        // the catalog does not offer it to a phone.
+                        QuantizedWeight fusedWeight = CreateFusedQuantizedWeightRequired(gw, uw);
 
                         _quantWeights[fusedName] = fusedWeight;
                         _quantWeights.Remove(gateName); gw.Dispose();

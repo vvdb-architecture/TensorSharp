@@ -561,7 +561,9 @@ namespace TensorSharp.Models
             if (fused > 0)
                 Console.WriteLine($"  Fused projections: {fused} Q+K+V");
             if (keptSeparate > 0)
-                Console.WriteLine($"  Separate projections: {keptSeparate} mixed-quant Q/K/V sets preserved");
+                Console.WriteLine(
+                    "  Separate projections: " +
+                    $"{keptSeparate} Q/K/V sets preserved (mixed quant types, or the fused copy was declined)");
         }
 
         private unsafe void FuseRecurrentInputWeights()
@@ -603,6 +605,14 @@ namespace TensorSharp.Models
                 Console.WriteLine($"  Fused projections: {fused} recurrent input packs");
             if (fusedF32 > 0)
                 Console.WriteLine($"  Fused projections: {fusedF32} recurrent input packs (dequantized to F32 for TP; mixed source quant types)");
+            int keptSeparate = Config.NumLayers - fused - fusedF32;
+            for (int layer = 0; layer < Config.NumLayers; layer++)
+                if (!_isRecurrent[layer])
+                    keptSeparate--;
+            if (keptSeparate > 0)
+                Console.WriteLine(
+                    $"  Separate projections: {keptSeparate} recurrent input sets preserved " +
+                    "(GatedDeltaNet runs the four source weights directly)");
         }
 
         /// <summary>
@@ -717,7 +727,14 @@ namespace TensorSharp.Models
                     totalNe1 += qw.Ne1;
                 }
 
-                if (!TryCreateFusedQuantizedWeight(out QuantizedWeight fusedWeight, quantWeights))
+                // Both callers can run without the fused tensor: the attention pack has
+                // the SeparateQkv contract in the managed and native decode paths, and
+                // the recurrent pack keeps its four sources (keepSources: true) which
+                // GatedDeltaNet uses directly when ssm_in_proj is absent. So this is a
+                // site that may decline the anonymous copy -- 1.53 GiB of it on
+                // Qwen3.5 9B Q8_0. See ModelBase.AllowWeightFusionCopies.
+                if (!TryCreateFusedQuantizedWeight(
+                        separatePathAvailable: true, out QuantizedWeight fusedWeight, quantWeights))
                     return false;
 
                 fusedWeight.Scale = quantWeights[0].Scale;
