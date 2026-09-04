@@ -294,6 +294,14 @@ namespace TensorSharp.Server.Skills
                         Workspace = workspace,
                         CaptureProducedFiles = captureProducedFiles,
                         PackageInstaller = codeRunner,
+                        // The SAME thing that runs the model's own programs. Left unset
+                        // this falls back to launching a child process, which is a
+                        // different interpreter from the one the host staged packages
+                        // into — so `skills_run scripts/make_pdf.py` answered
+                        // "No module named 'reportlab'" while the shell tool imported it
+                        // fine, and on iOS, where nothing can be spawned, no skill script
+                        // could run at all. A host that says how it runs code is obeyed.
+                        Backend = codeRunner?.Backend,
                     }, logger)
                     : null,
                 CodeRunner = offerCode && offerTools ? codeRunner : null,
@@ -527,6 +535,14 @@ namespace TensorSharp.Server.Skills
                         " The user's attached files are in the working directory: read "
                         + names + " from there instead of pasting their content into a command.";
                 }
+
+                // And on skills_run, which is the tool a SKILL.md sends the model to and
+                // therefore the one it is usually reading when it needs the name. Told
+                // only via the shell, a model asked to turn an attached photo into a PDF
+                // read the documents skill, picked exactly the right script, and then
+                // said "no name was told to me" and spent a round running `ls` — the
+                // file was named, on a tool it was not using.
+                Announce(declarations, SkillTools.RunToolName, names);
             }
 
             // A caller's own tool of the same name wins: it is theirs, they can service it,
@@ -538,6 +554,28 @@ namespace TensorSharp.Server.Skills
             return Merge(merged, declarations, persists);
         }
 
+        /// <summary>
+        /// Tell one more tool about the conversation's attachments, on the declaration
+        /// and on the argument the model is reading while it writes the call.
+        /// </summary>
+        private static void Announce(IReadOnlyList<ToolFunction> declarations, string tool, string names)
+        {
+            ToolFunction? declaration = declarations.FirstOrDefault(
+                d => string.Equals(d?.Name, tool, StringComparison.Ordinal));
+            if (declaration == null)
+                return;
+
+            declaration.Description +=
+                " The user's attached files are already in the working directory a script runs in - "
+                + "pass these exact names to it: " + names + ".";
+
+            if (declaration.Parameters != null
+                && declaration.Parameters.TryGetValue("args", out ToolParameter args))
+            {
+                args.Description +=
+                    " When a script needs one of the user's attached files, name it here: " + names + ".";
+            }
+        }
         /// <summary>
         /// Add each declaration the caller does not already own.
         ///

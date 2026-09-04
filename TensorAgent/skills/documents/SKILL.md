@@ -1,6 +1,6 @@
 ---
 name: documents
-description: Read and write real documents on the device - PDF, XLSX, DOCX, PPTX and CSV. Generate a PDF report or a slide deck from structured input, build a spreadsheet whose formulas carry computed values, extract text and tables out of a PDF or an Office file, and compute sums, means and groupings over a CSV or XLSX. Use whenever the user asks to analyse a document or a table, or to produce a report, deck, spreadsheet or Word document.
+description: Read and write real documents on the device - PDF, XLSX, DOCX, PPTX and CSV. Turn a photo or picture into a PDF, generate a PDF report or a slide deck from structured input, build a spreadsheet whose formulas carry computed values, extract text and tables out of a PDF or an Office file, and compute sums, means and groupings over a CSV or XLSX. Use whenever the user asks to convert an image to a PDF, to analyse a document or a table, or to produce a report, deck, spreadsheet or Word document.
 ---
 
 # Documents
@@ -17,7 +17,8 @@ should say in your answer.
 
 | The user wants | Run |
 | --- | --- |
-| A report, a memo, anything to print or share as a PDF | `make_pdf.py` |
+| A photo or a picture turned into a PDF | `make_pdf.py --image` |
+| A report, a memo, anything to print or share as a PDF | `make_pdf.py --spec` |
 | A CSV turned into a spreadsheet, as it stands | `make_xlsx.py --csv` |
 | A spreadsheet built from figures you computed | `make_xlsx.py --spec` |
 | A slide deck | `make_pptx.py` |
@@ -47,12 +48,24 @@ picking the wrong one wastes the turn:
   `table` block holds those rows, then run `make_pdf.py` / `make_pptx.py` /
   `make_docx.py`. Put the real rows in the spec; do not summarise them away.
 
-## make_pdf.py — a PDF report
+## make_pdf.py — a PDF report, or a picture
 
 ```
+python3 scripts/make_pdf.py --image photo.jpg --out photo.pdf
+python3 scripts/make_pdf.py --image a.png --image b.png --out album.pdf --title Album
 python3 scripts/make_pdf.py --spec spec.json --out report.pdf
 python3 scripts/make_pdf.py --spec - --out report.pdf     # spec on stdin
 ```
+
+**"Turn this photo into a PDF" is `--image`, and it is one command.** Do not write
+a spec for it. The user's attached files are already in your working directory
+under the names you were told — pass that name straight to `--image`. Each picture
+gets a page of its own, scaled to fit with its proportions kept; `--title` adds a
+title page. Pass either `--image` or `--spec`, never both.
+
+An iPhone photo is HEIC, and the interpreter here has no HEIC decoder. The app
+stages a `.png` beside it for exactly this reason — if you were told about both
+`IMG_0004.heic` and `IMG_0004.png`, the `.png` is the one to pass.
 
 Writes the PDF, reopens it with pypdf, and prints JSON: `file`, `bytes`,
 `pages`, `blocks`, `extractable_characters`. Non-zero exit means it failed.

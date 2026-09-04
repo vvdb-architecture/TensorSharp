@@ -52,6 +52,9 @@ namespace TensorSharp.AgentHost.CodeExec
         public bool CanRun => _runner.CanRun;
 
         /// <inheritdoc/>
+        public IShellBackend? Backend => _runner.Backend;
+
+        /// <inheritdoc/>
         public string? UnavailableReason => _runner.UnavailableReason;
 
         /// <inheritdoc/>

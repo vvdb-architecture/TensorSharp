@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-"""Write a PDF report from a JSON spec, using reportlab.
+"""Write a PDF from a JSON spec -- or straight from a picture -- using reportlab.
 
     make_pdf.py --spec spec.json --out report.pdf
     make_pdf.py --spec - --out report.pdf         # spec on stdin
+    make_pdf.py --image photo.jpg --out photo.pdf
+    make_pdf.py --image a.png --image b.png --out album.pdf --title Album
+
+--image is the whole of "turn this picture into a PDF": one page per image,
+each scaled to fit the page with its aspect ratio kept. It exists because that
+request is common, has one right answer, and was previously reachable only by
+writing a spec by hand -- three chances to get a JSON document wrong in service
+of a task with no choices in it.
 
 The spec is documented in SKILL.md. On success this prints a JSON report to
 stdout, and it reopens the PDF with pypdf before saying it succeeded -- a file
@@ -40,6 +48,10 @@ from reportlab.platypus import (
 import specs
 
 PAGE_SIZES = {"letter": LETTER, "a4": A4}
+
+# SimpleDocTemplate's frame padding, per side. reportlab's own default, restated
+# here because every size computed from the page has to subtract it.
+FRAME_PADDING = 6.0
 
 ACCENT = colors.HexColor("#1F3864")
 HEADER_FILL = colors.HexColor("#DEEAF6")
@@ -134,13 +146,65 @@ def build_table(block: dict, sty: dict, available: float) -> Table:
     return table
 
 
+def image_size(path: str) -> tuple[int, int]:
+    """(width, height) in pixels, or a sentence naming what could not read it.
+
+    Pillow decodes what the app stages; HEIC is the one format it does not, and a
+    raw `UnidentifiedImageError` says nothing about what to do next.
+    """
+    from PIL import Image as PilImage
+
+    try:
+        with PilImage.open(path) as im:
+            return im.size
+    except Exception as failure:
+        raise SystemExit(
+            f"make_pdf: {path!r} could not be read as an image ({type(failure).__name__}: {failure}). "
+            "If it is an iPhone HEIC photo, use the .png the app stages beside it."
+        )
+
+
+def fit(pixel_w: int, pixel_h: int, target_w: float, vertical: float) -> tuple[float, float]:
+    """Scale to `target_w`, then shrink again if that would be taller than the frame."""
+    target_w = max(1.0, target_w)
+    target_h = target_w * (pixel_h / pixel_w) if pixel_w else target_w
+    if vertical > 0 and target_h > vertical:
+        target_w *= vertical / target_h
+        target_h = vertical
+    return target_w, target_h
+
+
+def images_spec(paths: list, title: str) -> dict:
+    """The spec `--image` is shorthand for: one picture per page, nothing else on it."""
+    blocks: list = []
+    for index, path in enumerate(paths):
+        if not os.path.isfile(path):
+            raise SystemExit(f"make_pdf: image {path!r} does not exist")
+        # A title is a page of its own here. Sharing one with the first picture
+        # would shrink that picture by the height of the heading, which is a
+        # strange thing to do to page one of an album and to nothing after it.
+        if index or title:
+            blocks.append({"type": "pagebreak"})
+        blocks.append({"type": "image", "path": path})
+    return {"title": title or "", "margin_in": 0.5, "blocks": blocks}
+
+
 def build(spec: dict, out_path: str) -> dict:
     sty = styles()
     page = PAGE_SIZES.get(str(spec.get("page_size", "letter")).lower(), LETTER)
     if spec.get("landscape"):
         page = landscape(page)
     margin = float(spec.get("margin_in", 0.9)) * inch
-    available = page[0] - 2 * margin
+    # SimpleDocTemplate pads its frame by 6pt on every side, so the space a flowable
+    # actually gets is smaller than the margins suggest. Ignoring that is not a
+    # rounding error: an image sized to page-minus-margins is 12pt too wide and 12pt
+    # too tall for the frame it is about to go in.
+    available = page[0] - 2 * margin - 2 * FRAME_PADDING
+    # A frame has two dimensions, and only one of them used to be respected. A
+    # portrait phone photo scaled to the full text width is taller than the page,
+    # and reportlab answers that with a LayoutError naming a flowable rather than a
+    # picture -- so the height is a bound here, not a surprise later.
+    vertical = page[1] - 2 * margin - 2 * FRAME_PADDING
 
     doc = SimpleDocTemplate(
         out_path,
@@ -187,13 +251,10 @@ def build(spec: dict, out_path: str) -> dict:
                 raise SystemExit("make_pdf: an image block needs a 'path'")
             if not os.path.isfile(path):
                 raise SystemExit(f"make_pdf: image {path!r} does not exist")
-            from PIL import Image as PilImage
 
-            with PilImage.open(path) as im:
-                pixel_w, pixel_h = im.size
+            pixel_w, pixel_h = image_size(path)
             target_w = float(block.get("width_in", 0)) * inch or min(available, pixel_w * inch / 96)
-            target_w = min(target_w, available)
-            target_h = target_w * (pixel_h / pixel_w) if pixel_w else target_w
+            target_w, target_h = fit(pixel_w, pixel_h, target_w, vertical)
             flowables: list = [Image(path, width=target_w, height=target_h, hAlign="CENTER")]
             if block.get("caption"):
                 flowables.append(Spacer(1, 4))
@@ -229,13 +290,24 @@ def build(spec: dict, out_path: str) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Write a PDF report from a JSON spec.")
-    parser.add_argument("--spec", required=True, help="path to the JSON spec, or - for stdin")
+    parser = argparse.ArgumentParser(description="Write a PDF from a JSON spec, or from pictures.")
+    parser.add_argument("--spec", help="path to the JSON spec, or - for stdin")
+    parser.add_argument("--image", action="append", default=[],
+                        help="a picture to put on its own page; repeatable. Use instead of --spec.")
+    parser.add_argument("--title", default="", help="title for the --image form")
     parser.add_argument("--out", required=True, help="path of the .pdf to write")
     args = parser.parse_args()
 
-    spec = specs.load(args.spec, "make_pdf")
-    specs.check_keys(spec, "make_pdf", {"title", "subtitle", "author", "subject", "page_size", "landscape", "margin_in", "blocks"}, "blocks")
+    if bool(args.spec) == bool(args.image):
+        print("make_pdf: pass either --spec (a document) or --image (pictures), not both and not neither",
+              file=sys.stderr)
+        return 2
+
+    if args.image:
+        spec = images_spec(args.image, args.title)
+    else:
+        spec = specs.load(args.spec, "make_pdf")
+        specs.check_keys(spec, "make_pdf", {"title", "subtitle", "author", "subject", "page_size", "landscape", "margin_in", "blocks"}, "blocks")
     result = build(spec, args.out)
     print(json.dumps(result, indent=2))
     if result["pages"] == 0:

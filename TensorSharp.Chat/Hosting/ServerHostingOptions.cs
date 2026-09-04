@@ -151,6 +151,55 @@ namespace TensorSharp.Server.Hosting
             StartupMmProjPath = mmProjPath;
         }
 
+        /// <summary>
+        /// Move the two sandbox permissions a skill's scripts are run under.
+        ///
+        /// <para>
+        /// For the same reason as <see cref="RepointHostedModel"/>, and with the same
+        /// division of labour: an operator sets these once on a command line, but an app
+        /// user sets them from a switch on a settings screen, and "this will apply the
+        /// next time the app starts" is indistinguishable from a switch that does
+        /// nothing. The desktop server never calls this.
+        /// </para>
+        /// <para>
+        /// It moves the DEFAULT the next request is planned against. A skill script
+        /// already running keeps the terms it was launched with, which is the only
+        /// answer that is safe in both directions.
+        /// </para>
+        /// </summary>
+        public void RepointSandboxPermissions(bool allowScripts, bool allowNetwork)
+        {
+            SkillsAllowScripts = allowScripts;
+            SkillsAllowNetwork = allowNetwork;
+        }
+
+        /// <summary>
+        /// Turn the whole skills feature on or off, for the same reason as the two
+        /// above: on a server this is a command-line decision made once, and in an app
+        /// it is a switch a user expects to take effect on the next message rather than
+        /// after a force-quit.
+        ///
+        /// <para>
+        /// Off is the real thing and not a filter over the roster:
+        /// <see cref="Skills.SkillRequestPlan.Create"/> returns no plan at all, so no
+        /// skill is declared to the model, none is reachable, and a request that still
+        /// names one gets a turn with no skills in it.
+        /// </para>
+        /// </summary>
+        public void RepointSkills(bool enabled) => SkillsEnabled = enabled;
+
+        /// <summary>
+        /// Move the default generation budget, for the same reason and with the same
+        /// caveat as the two above: an app user sets it on a settings screen, and a
+        /// number that only applies after a force-quit is a control that does nothing.
+        /// A request that names its own limit is unaffected, as always.
+        /// </summary>
+        public void RepointGenerationDefaults(int defaultMaxTokens)
+        {
+            if (defaultMaxTokens > 0)
+                DefaultMaxTokens = defaultMaxTokens;
+        }
+
         /// <summary>Canonical name of the backend chosen at startup (e.g. <c>ggml_metal</c>).</summary>
         public string DefaultBackend { get; }
 
@@ -166,7 +215,7 @@ namespace TensorSharp.Server.Hosting
         /// limit. Resolved from <c>--max-tokens</c> / <c>MAX_TOKENS</c>, falling
         /// back to 20000.
         /// </summary>
-        public int DefaultMaxTokens { get; }
+        public int DefaultMaxTokens { get; private set; }
 
         /// <summary>
         /// True when <see cref="DefaultMaxTokens"/> came from <c>--max-tokens</c>
@@ -253,7 +302,7 @@ namespace TensorSharp.Server.Hosting
         /// mapped, no directory is scanned, and a <c>skills</c> field on a chat
         /// request is rejected rather than silently ignored.
         /// </summary>
-        public bool SkillsEnabled { get; }
+        public bool SkillsEnabled { get; private set; }
 
         /// <summary>
         /// Whether a chat request that selects no skill still sees the rest of
@@ -274,7 +323,7 @@ namespace TensorSharp.Server.Hosting
         /// chosen by a model reading that same person's Markdown.
         /// </para>
         /// </summary>
-        public bool SkillsAllowScripts { get; }
+        public bool SkillsAllowScripts { get; private set; }
 
         /// <summary>
         /// How many times a model may fetch skill content in one turn before it must
@@ -319,7 +368,7 @@ namespace TensorSharp.Server.Hosting
         /// default: denying it is what stops a script that read something it should not
         /// from sending it anywhere.
         /// </summary>
-        public bool SkillsAllowNetwork { get; }
+        public bool SkillsAllowNetwork { get; private set; }
 
         /// <summary>Resolved log directory (used by the file logger when it is enabled).</summary>
         public string LogDirectory { get; }

@@ -66,7 +66,7 @@ internal static class PythonBootstrap
         # TensorAgent's embedded-CPython bootstrap. Defines the installer only:
         # the host calls it from C because its argument is a native callable.
         def {{InstallFunction}}(_native_write):
-            import builtins, io, json, os, runpy, sys, threading, traceback, types
+            import builtins, io, json, os, runpy, sys, tempfile, threading, traceback, types
 
             # mimetypes builds its table on first use by READING SYSTEM FILES --
             # /etc/mime.types, /etc/apache2/mime.types and four more. Under the hook
@@ -459,6 +459,14 @@ internal static class PythonBootstrap
                         _run_env.setdefault('SSL_CERT_FILE', _tensoragent_ca)
                         _run_env.setdefault('SSL_CERT_DIR', os.path.dirname(_tensoragent_ca))
                     os.environ = _run_env
+                    # tempfile caches the directory it picked the FIRST time anything
+                    # asked, in a module global, and this interpreter outlives every
+                    # run in the app. So the second session to write a spreadsheet had
+                    # openpyxl's NamedTemporaryFile aimed at the FIRST session's
+                    # scratch directory -- outside the sandbox by then -- and failed
+                    # with a PermissionError naming a chat the user had left. The
+                    # cache is per run here, like the environment it is derived from.
+                    tempfile.tempdir = _run_env.get('TMPDIR') or None
                     sys.stdin = io.StringIO(request['stdin'] or '')
                     for entry in back:
                         if entry not in sys.path:
@@ -510,6 +518,7 @@ internal static class PythonBootstrap
                     sys.modules['__main__'] = _boot_main
                     sys.stdin = previous_stdin
                     os.environ = previous_env
+                    tempfile.tempdir = None
                     sys.path[:] = previous_path
                     sys.argv = previous_argv
                     try:

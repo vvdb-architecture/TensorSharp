@@ -50,6 +50,19 @@ public sealed class AppSettings
     /// <summary>Skills selected by default for new chats.</summary>
     [JsonPropertyName("defaultSkills")] public List<string> DefaultSkills { get; set; } = new();
 
+    /// <summary>
+    /// Whether the skills feature is available at all.
+    ///
+    /// <para>
+    /// Off is not "no skill is ticked": no skill is declared to the model, so a turn
+    /// costs nothing for the roster and nothing can decide to read one. That is the
+    /// point — twelve skills announce themselves in every prompt, which is thousands
+    /// of tokens on a phone, and a user who wants a plain chat model should be able to
+    /// have one.
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("skillsEnabled")] public bool SkillsEnabled { get; set; } = true;
+
     /// <summary>Keep the screen awake while generating.</summary>
     /// <summary>
     /// BCP-47 language the speech recogniser listens in, or empty to follow the

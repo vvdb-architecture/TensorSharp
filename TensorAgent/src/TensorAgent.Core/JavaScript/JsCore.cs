@@ -10,6 +10,7 @@
 
 using System.Reflection;
 using System.Runtime.InteropServices;
+using TensorAgent.Core.Interop;
 
 namespace TensorAgent.Core.JavaScript;
 
@@ -100,15 +101,10 @@ internal static unsafe class JsCore
         {
             if (s_initialized)
                 return;
-            try
-            {
-                NativeLibrary.SetDllImportResolver(typeof(JsCore).Assembly, Resolve);
-            }
-            catch (InvalidOperationException)
-            {
-                // Another type in this assembly got there first; its resolver
-                // falls through to the default probe, which finds the framework.
-            }
+            // Shared with CPython's, rather than racing it for the assembly's one
+            // resolver slot. See NativeResolvers: the loser of that race used to
+            // lose its interop for the life of the process.
+            NativeResolvers.Register(Resolve);
             UsePollingTraps();
             s_initialized = true;
         }

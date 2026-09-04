@@ -38,6 +38,7 @@ namespace TensorAgent.Tests;
 /// see the "Limits" section of the skill's own SKILL.md.
 /// </para>
 /// </summary>
+[Collection(LivePythonCollection.Name)]
 public sealed class DocumentSkillTests
 {
     private static readonly string Repo = FindRepoRoot();
@@ -324,7 +325,7 @@ public sealed class DocumentSkillTests
     /// problems with different fixes.
     /// </para>
     /// </summary>
-    [LivePythonFact]
+    [LiveStagedPythonFact]
     public async Task TheStagedRuntimeCanImportEveryModuleTheScriptsNeed()
     {
         var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
@@ -406,7 +407,7 @@ public sealed class DocumentSkillTests
     /// nothing else's, and it takes a second.
     /// </para>
     /// </summary>
-    [LivePythonFact]
+    [LiveStagedPythonFact]
     public void TheSkillsOwnScriptsProduceRealDocumentsThroughTheAppsShell()
     {
         string root = Path.Combine(Path.GetTempPath(), "tensoragent-docs-" + Guid.NewGuid().ToString("N"));
@@ -486,7 +487,7 @@ public sealed class DocumentSkillTests
     /// "the model could not do it".
     /// </para>
     /// </summary>
-    [LivePythonFact]
+    [LiveStagedPythonFact]
     public void TheSkillsOwnScriptsProduceRealDocumentsThroughSkillsRun()
     {
         string root = Path.Combine(Path.GetTempPath(), "tensoragent-run-" + Guid.NewGuid().ToString("N"));
@@ -593,14 +594,21 @@ public sealed class DocumentSkillTests
                     research!, "scripts/fetch_page.py", new[] { "https://example.com" });
                 string body = result.Content ?? string.Empty;
 
-                // The search is the half a user actually starts with ("find me X"),
-                // and it fails differently from a fetch: it resolves a second host,
-                // follows a redirect and parses HTML. Run it in the same sandbox.
+                // Discovery is the half a user actually starts with ("find me X"),
+                // and it fails differently from a fetch: it resolves several hosts,
+                // follows redirects, decompresses and parses both HTML and JSON. Run
+                // it in the same sandbox, and require a URL rather than merely a
+                // heading -- an index that answered with a challenge page produces a
+                // heading and no sources at all.
                 if (allow)
                 {
-                    SkillToolResult found = runner.Run(research!, "scripts/search.py", new[] { "financial news" });
-                    Assert.True((found.Content ?? string.Empty).Contains("results for", StringComparison.OrdinalIgnoreCase),
-                        "the search returned nothing usable through the sandbox: " + found.Content);
+                    SkillToolResult found = runner.Run(
+                        research!, "scripts/discover.py", new[] { "financial news", "--count", "5" });
+                    string sources = found.Content ?? string.Empty;
+                    Assert.True(sources.Contains("sources for", StringComparison.OrdinalIgnoreCase),
+                        "discovery returned nothing usable through the sandbox: " + sources);
+                    Assert.True(sources.Contains("https://", StringComparison.Ordinal),
+                        "discovery named no URL, so every index it asked was refused: " + sources);
                 }
 
                 if (!allow)
@@ -638,7 +646,7 @@ public sealed class DocumentSkillTests
     /// test of it passed. This asserts the bundle is found and actually used.
     /// </para>
     /// </summary>
-    [LivePythonFact]
+    [LiveStagedPythonFact]
     public async Task TheInterpreterHasACertificateStoreAndCanVerifyTls()
     {
         var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));

@@ -11,6 +11,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using TensorAgent.Core.Interop;
 
 namespace TensorAgent.Core.Python;
 
@@ -29,10 +30,9 @@ namespace TensorAgent.Core.Python;
 /// </para>
 /// <para>
 /// Only one import resolver may be registered per assembly and
-/// <see cref="TensorAgent.Core.JavaScript"/> registers one too. Whoever loses
-/// that race says so rather than failing mysteriously later: see
-/// <see cref="ResolverConflict"/>, which <c>EmbeddedPython</c> folds into its
-/// unavailability reason.
+/// <see cref="TensorAgent.Core.JavaScript"/> wants one too, so neither registers
+/// its own: both hand theirs to <see cref="NativeResolvers"/>, which registers
+/// once and asks each in turn. Order no longer decides who works.
 /// </para>
 /// </summary>
 internal static unsafe class PythonNative
@@ -56,13 +56,11 @@ internal static unsafe class PythonNative
     private static bool s_registered;
 
     /// <summary>
-    /// Non-null when another type in this assembly registered the import
-    /// resolver first, so the <c>__Internal</c> spelling is not ours to route.
-    /// It is only fatal when the symbols cannot be reached anyway; the reason
-    /// is reported verbatim so the fix (construct the Python runtime before the
-    /// JavaScript one) is readable rather than guessable.
+    /// Non-null when the shared resolver could not be registered at all — which
+    /// now takes something outside this assembly's own interops claiming the slot.
+    /// Reported verbatim, because the symptom names nothing that would find it.
     /// </summary>
-    internal static string? ResolverConflict { get; private set; }
+    internal static string? ResolverConflict => NativeResolvers.Conflict;
 
     /// <summary>
     /// Point the loader at a specific <c>libpython</c> before anything is
@@ -92,15 +90,7 @@ internal static unsafe class PythonNative
             if (!s_registered)
             {
                 s_registered = true;
-                try
-                {
-                    NativeLibrary.SetDllImportResolver(typeof(PythonNative).Assembly, Resolve);
-                }
-                catch (InvalidOperationException ex)
-                {
-                    ResolverConflict = "another DllImport resolver in TensorAgent.Core was registered first "
-                        + $"({ex.Message.Trim()}); build the Python runtime before the JavaScript one";
-                }
+                NativeResolvers.Register(Resolve);
             }
 
             if (s_handle != IntPtr.Zero)

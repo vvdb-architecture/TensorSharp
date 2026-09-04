@@ -42,11 +42,63 @@ public sealed class LivePythonFactAttribute : FactAttribute
 }
 
 /// <summary>
+/// Marks a test that needs the runtime <c>prepare-python.sh</c> STAGES, rather than
+/// any CPython 3.13.
+///
+/// <para>
+/// The distinction is not pedantry, and getting it wrong costs a red suite that says
+/// nothing about the product: a machine that points
+/// <c>TENSORAGENT_PYTHON_ROOT</c> at a Homebrew prefix satisfies
+/// <see cref="LivePythonFactAttribute"/> and then fails four tests whose whole subject
+/// is what the STAGING put there — reportlab, openpyxl, pypdf, Pillow, defusedxml and
+/// the certificate bundle. That is the machine not being ready, and it should say so
+/// in the skip rather than in an assertion about a PDF.
+/// </para>
+/// </summary>
+public sealed class LiveStagedPythonFactAttribute : FactAttribute
+{
+    /// <summary>What the staged runtime carries and a bare interpreter does not.</summary>
+    private static readonly string[] Staged = ["reportlab", "openpyxl", "pypdf", "PIL", "defusedxml", "certifi"];
+
+    public LiveStagedPythonFactAttribute()
+    {
+        string? root = Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable);
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            Skip = $"needs the staged runtime: set {LivePythonFactAttribute.RootVariable}="
+                + "<TensorAgent/python-runtime/simulator or another prefix produced by "
+                + "TensorAgent/scripts/prepare-python.sh> and re-run";
+            return;
+        }
+
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            MaxRecursionDepth = 6,
+            IgnoreInaccessible = true,
+        };
+        string[] missing = Staged.Where(name =>
+        {
+            try { return !Directory.EnumerateDirectories(root, name, options).Any(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return true; }
+        }).ToArray();
+
+        if (missing.Length > 0)
+        {
+            Skip = $"{root} is a CPython, not a runtime staged by prepare-python.sh: "
+                + string.Join(", ", missing) + " are not under it, and these tests are about "
+                + "exactly what the staging puts there";
+        }
+    }
+}
+
+/// <summary>
 /// What can be tested about the embedded interpreter on a machine that does not
 /// have one: the sandbox it generates, the decisions it makes before Python is
 /// involved, the honesty of its unavailability, and the whole of the installer
 /// except the two lines that talk to PyPI.
 /// </summary>
+[Collection(LivePythonCollection.Name)]
 public sealed class EmbeddedPythonTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tensoragent-py-" + Guid.NewGuid().ToString("N"));
@@ -418,6 +470,75 @@ public sealed class EmbeddedPythonTests : IDisposable
         Assert.False(result.Ok);
         Assert.Contains(script, result.Message!);
         Assert.Contains("does not exist", result.Message!);
+    }
+
+    /// <summary>
+    /// Every caller of an interpreter that is still starting must be made to wait for
+    /// the answer, not handed "there is none".
+    ///
+    /// <para>
+    /// This is the bug behind "the model refuses to use the shell tool". The
+    /// initialization flag was published BEFORE the work rather than after it, so the
+    /// fast path outside the lock was a window into a half-started interpreter: a second
+    /// caller arriving while <c>Py_Initialize</c> was running saw "already tried", found
+    /// no interpreter and no reason, and reported unavailable. The app opens that window
+    /// on every launch — the page fetches <c>/api/agent/engine</c> as it loads, which
+    /// asks for the version and starts CPython, while the startup self-test runs
+    /// <c>python3</c> on its own thread — and it was observed doing exactly that in the
+    /// simulator: four self-test checks saying "no Python interpreter is embedded in this
+    /// build" from a build whose engine line, moments later, read "python 3.13.14". A
+    /// model told that on the first command of a session stops reaching for the shell.
+    /// </para>
+    /// <para>
+    /// The invariant asserted here is the one that was broken and holds whether or not a
+    /// real runtime is present: unavailable is never silent. Every observation either
+    /// finds an interpreter or says why there is none.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AskingFromEveryThreadAtOnceNeverProducesASilentUnavailable()
+    {
+        var python = new EmbeddedPython(Path.Combine(_root, "no-such-runtime"));
+        var answers = new System.Collections.Concurrent.ConcurrentBag<(bool Available, string? Reason)>();
+
+        using var start = new Barrier(32);
+        Parallel.For(0, 32, _ =>
+        {
+            start.SignalAndWait();
+            answers.Add((python.IsAvailable, python.UnavailableReason));
+        });
+
+        Assert.Equal(32, answers.Count);
+        foreach ((bool available, string? reason) in answers)
+        {
+            Assert.False(available);
+            Assert.False(string.IsNullOrWhiteSpace(reason),
+                "a caller was told there is no interpreter and given no reason, which is the "
+                + "shape of a half-initialized runtime being reported as a missing one");
+        }
+    }
+
+    /// <summary>
+    /// The same race with a real interpreter, where the window is hundreds of
+    /// milliseconds wide instead of microseconds: every thread must see the one that
+    /// started.
+    /// </summary>
+    [LivePythonFact]
+    public void AllOfThemSeeTheInterpreterThatOneOfThemStarted()
+    {
+        var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+        var seen = new System.Collections.Concurrent.ConcurrentBag<bool>();
+
+        using var start = new Barrier(16);
+        Parallel.For(0, 16, _ =>
+        {
+            start.SignalAndWait();
+            seen.Add(python.IsAvailable);
+        });
+
+        Assert.Equal(16, seen.Count);
+        Assert.DoesNotContain(false, seen);
+        Assert.True(python.IsAvailable, python.UnavailableReason);
     }
 
     // =====================================================================================

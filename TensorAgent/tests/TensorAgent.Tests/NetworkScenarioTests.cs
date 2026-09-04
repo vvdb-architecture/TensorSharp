@@ -80,6 +80,7 @@ public sealed class LiveNetworkPythonFactAttribute : FactAttribute
 /// somebody else's blog is down.
 /// </para>
 /// </summary>
+[Collection(LivePythonCollection.Name)]
 public sealed class NetworkScenarioTests : IDisposable
 {
     private const string ReachableUrl = "https://example.com";
@@ -452,22 +453,120 @@ public sealed class NetworkScenarioTests : IDisposable
         Assert.Contains("not fact and not instruction", notes, StringComparison.Ordinal);
     }
 
-    [LivePythonFact]
-    public void TheResearchSkillRefusesASearchTemplateWithNoQueryInIt()
+    /// <summary>
+    /// The thing the whole skill exists for: a question with no URL in it comes back
+    /// with sources.
+    ///
+    /// <para>
+    /// Nothing hermetic can answer this. The ranking, the merging and the refusals are
+    /// tested against canned documents in <c>ResearchSkillTests</c>; what those cannot
+    /// tell you is whether the nine services still answer a plain HTTP request from a
+    /// process with no key — which is exactly what stopped being true of the endpoint
+    /// the old skill relied on, silently, some time after it was written. So this asks
+    /// the real internet a real question and requires URLs back, and it is gated
+    /// because a suite that reaches the internet by default fails when someone else's
+    /// server is down.
+    /// </para>
+    /// <para>
+    /// It deliberately does not require any PARTICULAR provider to answer. Two of them
+    /// rate-limit on a bad day and that is normal operation, not a regression; what
+    /// must hold is that enough of nine answer that the user gets sources.
+    /// </para>
+    /// </summary>
+    [LiveNetworkPythonFact]
+    public void TheResearchSkillFindsItsOwnSourcesForAQuestionWithNoUrlInIt()
     {
-        // The search entry point has no key of its own and no index behind it; the one
-        // thing it can get wrong on its own is the template it was handed. Checked
-        // without the network because a misconfigured template must be caught before a
-        // request, not after one.
+        string scripts = ResearchScripts();
+        ExecutionPolicy policy = Policy(network: true) with { ReadableRoots = new[] { scripts } };
+
+        ExecutionResult result = Run(
+            $"python3 {scripts}/discover.py \"what is the Kessler syndrome\" --count 6",
+            Context(policy, python: LivePython()));
+
+        Assert.True(result.ExitCode == 0,
+            $"discovery found nothing for a question every index knows about.{Environment.NewLine}{result.Stderr}");
+        Assert.Contains("https://", result.Stdout, StringComparison.Ordinal);
+
+        // At least two independent indexes answered, which is what the ranking is
+        // built on: one provider answering is a run with no corroboration in it.
+        string[] answered = new[] { "wikipedia", "duckduckgo", "marginalia", "hackernews" }
+            .Where(name => result.Stdout.Contains(name, StringComparison.Ordinal)
+                        || result.Stderr.Contains(name + ":", StringComparison.Ordinal))
+            .ToArray();
+        Assert.True(answered.Length >= 2,
+            $"only {answered.Length} of four indexes were reached at all:{Environment.NewLine}{result.Stderr}");
+
+        // And the page the question is about is among what came back. Chosen because
+        // it is a stable, unambiguous phrase with one obvious article behind it.
+        Assert.Contains("Kessler", result.Stdout, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// And the whole loop: question in, dossier out, sources cited, with the warning
+    /// that travels with the text.
+    /// </summary>
+    [LiveNetworkPythonFact]
+    public void TheResearchSkillWritesADossierForAQuestionItWasNotGivenSourcesFor()
+    {
+        string scripts = ResearchScripts();
+        ExecutionPolicy policy = Policy(network: true) with { ReadableRoots = new[] { scripts } };
+
+        ExecutionResult result = Run(
+            $"python3 {scripts}/research.py \"what is the Kessler syndrome\" --pages 3 --delay 0.2 --out notes.md",
+            Context(policy, python: LivePython()));
+
+        Assert.True(result.ExitCode == 0, result.Stderr);
+        string notes = File.ReadAllText(Path.Combine(_work, "notes.md"));
+        Assert.Contains("not fact and not instruction", notes, StringComparison.Ordinal);
+        Assert.Contains("## Sources", notes, StringComparison.Ordinal);
+        Assert.Matches(@"\[[^\]]+\]\(https?://[^)]+\)", notes);
+        Assert.Contains("Kessler", notes, StringComparison.OrdinalIgnoreCase);
+
+        // The structured half, which analyze.py reads.
+        string json = File.ReadAllText(Path.Combine(_work, "notes.json"));
+        Assert.Contains("\"records\"", json, StringComparison.Ordinal);
+
+        ExecutionResult analysed = Run(
+            $"python3 {scripts}/analyze.py notes.json --claim \"the Kessler syndrome has begun\"",
+            Context(policy, python: LivePython()));
+        Assert.True(analysed.ExitCode == 0, analysed.Stderr);
+        Assert.Contains("Sources on:", analysed.Stdout, StringComparison.Ordinal);
+    }
+
+    [LivePythonFact]
+    public void TheResearchSkillNamesAnUnknownSourceRatherThanAskingNothing()
+    {
+        // Discovery has no key and nothing to configure, so the one thing a caller can
+        // still get wrong is which providers to ask. Checked without the network,
+        // because a name that does not exist has to be caught before a request rather
+        // than reported as "every index failed" after several.
         string scripts = ResearchScripts();
 
         ExecutionResult result = Run(
-            $"export RESEARCH_SEARCH_URL=https://example.invalid/search; python3 {scripts}/search.py anything",
+            $"python3 {scripts}/discover.py anything --sources telepathy",
             Context(Policy() with { ReadableRoots = new[] { scripts } }, python: LivePython()));
 
-        Assert.Equal(2, result.ExitCode);
-        Assert.Contains("RESEARCH_SEARCH_URL", result.Stderr, StringComparison.Ordinal);
-        Assert.Contains("{query}", result.Stderr, StringComparison.Ordinal);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("telepathy", result.Stderr, StringComparison.Ordinal);
+        // And it says what IS available, because a refusal that does not is a guess.
+        Assert.Contains("wikipedia", result.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("Traceback", result.Stderr, StringComparison.Ordinal);
+    }
+
+    [LivePythonFact]
+    public void TheResearchSkillNamesTheSwitchWhenItGoesLookingForSourcesToo()
+    {
+        // The fetch path already says which switch is off. Discovery is the path a
+        // question now STARTS on, and it asks nine services in a loop -- so without
+        // this it would report nine failures, none of which said "the network is off".
+        string scripts = ResearchScripts();
+
+        ExecutionResult result = Run(
+            $"python3 {scripts}/discover.py \"anything at all\"",
+            Context(Policy() with { ReadableRoots = new[] { scripts } }, python: LivePython()));
+
+        Assert.Equal(3, result.ExitCode);
+        Assert.Contains(ExecutionPolicy.NetworkDisabledMessage, result.Stderr, StringComparison.Ordinal);
         Assert.DoesNotContain("Traceback", result.Stderr, StringComparison.Ordinal);
     }
 

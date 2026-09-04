@@ -315,48 +315,76 @@ public sealed class EmbeddedPython : IPythonRuntime
     /// started when it could not. There is no third answer: this never reports
     /// availability it has not established, because a shell that believes it has
     /// Python and does not is worse than one that says it has none.
+    ///
+    /// <para>
+    /// The flag is published AFTER the work, not before it, and that ordering is the
+    /// whole point. Setting it first made the fast path outside the lock a window into
+    /// a half-started interpreter: a second caller arriving while <c>Py_Initialize</c>
+    /// was still running saw "already tried" with no interpreter and no reason, and
+    /// answered <see cref="IsAvailable"/> with false. On this app that window opens on
+    /// EVERY launch — the page fetches <c>/api/agent/engine</c> as it loads, which asks
+    /// for the version and starts CPython, while the startup self-test runs `python3` on
+    /// its own thread — and it is not academic: it is a model being told
+    /// "no Python interpreter is embedded in this build" by a build that has one, on the
+    /// first command of a session, after which it stops reaching for the shell at all.
+    /// Late callers now block on the lock and see the finished answer.
+    /// </para>
     /// </summary>
     private void EnsureInitialized()
     {
-        if (_tried)
+        if (Volatile.Read(ref _tried))
             return;
         lock (_initGate)
         {
             if (_tried)
                 return;
-            _tried = true;
-
-            string? root = _root;
-            IReadOnlyList<string> extra;
-            lock (s_gate)
+            try
             {
-                root ??= s_configuredRoot;
-                extra = s_configuredPaths;
+                Initialize();
             }
-
-            if (string.IsNullOrWhiteSpace(root))
+            finally
             {
-                _reason = "no embedded Python: EmbeddedPython.Configure(<staged runtime root>) was never called, "
-                    + "and this build ships no default";
-                return;
+                // In a finally so a throwing initialization is still only attempted
+                // once: an interpreter that failed to start does not start later, and
+                // retrying it per command would spend seconds of a phone's battery
+                // re-reaching the same answer.
+                Volatile.Write(ref _tried, true);
             }
-
-            if (!PythonRuntimeLayout.TryDiscover(root, out PythonRuntimeLayout? layout, out string? error) || layout is null)
-            {
-                _reason = error ?? $"no embedded Python under {root}";
-                return;
-            }
-
-            PythonInterpreter? interpreter = PythonInterpreter.Acquire(layout, extra, out string? failure);
-            if (interpreter is null)
-            {
-                _reason = failure ?? $"CPython under {layout.Root} could not be initialized";
-                return;
-            }
-
-            _layout = layout;
-            _interpreter = interpreter;
-            _reason = null;
         }
+    }
+
+    private void Initialize()
+    {
+        string? root = _root;
+        IReadOnlyList<string> extra;
+        lock (s_gate)
+        {
+            root ??= s_configuredRoot;
+            extra = s_configuredPaths;
+        }
+
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            _reason = "no embedded Python: EmbeddedPython.Configure(<staged runtime root>) was never called, "
+                + "and this build ships no default";
+            return;
+        }
+
+        if (!PythonRuntimeLayout.TryDiscover(root, out PythonRuntimeLayout? layout, out string? error) || layout is null)
+        {
+            _reason = error ?? $"no embedded Python under {root}";
+            return;
+        }
+
+        PythonInterpreter? interpreter = PythonInterpreter.Acquire(layout, extra, out string? failure);
+        if (interpreter is null)
+        {
+            _reason = failure ?? $"CPython under {layout.Root} could not be initialized";
+            return;
+        }
+
+        _layout = layout;
+        _interpreter = interpreter;
+        _reason = null;
     }
 }

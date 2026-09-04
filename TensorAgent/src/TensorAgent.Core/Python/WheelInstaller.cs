@@ -58,7 +58,6 @@ public sealed class WheelInstaller : IInstallHook
         Timeout = TimeSpan.FromMinutes(2),
     };
 
-    private readonly ExecutionPolicy _policy;
     private readonly HttpClient _http;
 
     /// <summary>
@@ -68,21 +67,34 @@ public sealed class WheelInstaller : IInstallHook
     /// </summary>
     public WheelInstaller(ExecutionPolicy policy, HttpClient? http = null)
     {
-        _policy = policy ?? throw new ArgumentNullException(nameof(policy));
+        Policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _http = http ?? SharedHttp;
     }
 
+    /// <summary>
+    /// The standing policy this installer answers <see cref="CanInstall"/> from.
+    ///
+    /// <para>
+    /// Settable because on a phone the user owns it. "Allow network access" is a switch
+    /// on a settings screen, and an installer built once at startup answers "the network
+    /// is off" for the rest of the launch however many times the switch is flipped --
+    /// which is a switch that does nothing, reported as one. An install already running
+    /// keeps the policy it was launched with; only the standing answer moves.
+    /// </para>
+    /// </summary>
+    public ExecutionPolicy Policy { get; set; }
+
     /// <inheritdoc />
-    public bool CanInstall => _policy.AllowNetwork && _policy.IsHostAllowed(IndexHost);
+    public bool CanInstall => Policy.AllowNetwork && Policy.IsHostAllowed(IndexHost);
 
     /// <inheritdoc />
     public string? UnavailableReason
     {
         get
         {
-            if (!_policy.AllowNetwork)
+            if (!Policy.AllowNetwork)
                 return ExecutionPolicy.NetworkDisabledMessage;
-            if (!_policy.IsHostAllowed(IndexHost))
+            if (!Policy.IsHostAllowed(IndexHost))
                 return $"{IndexHost} {ExecutionPolicy.HostNotAllowedSuffix}";
             return null;
         }
