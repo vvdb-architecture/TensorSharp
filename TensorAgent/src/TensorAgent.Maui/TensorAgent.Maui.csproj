@@ -52,6 +52,20 @@
          TensorSharp.Core get real vector code; ignored for the simulator. -->
     <MtouchUseLlvm Condition="'$(Configuration)' == 'Release'">true</MtouchUseLlvm>
 
+    <!-- NOT MtouchNoSymbolStrip. The engine is reached by dlsym through
+         NativeLibrary.GetMainProgramHandle(), and Release strips the symbols back out
+         after the link exports them:
+             xcrun clang++ ... -Wl,-exported_symbol,_TSGgml_*      (exports them)
+             xcrun strip -i -s <obj>/mtouch-symbols.list <exe>     (keeps ONLY that list)
+         Turning the strip off with MtouchNoSymbolStrip=true DOES restore the exports
+         (339/0 to 1730/248) and the engine comes up, but the executable grows from
+         78 MB to 190 MB and the app then dies at startup: SIGABRT inside load_aot_module
+         during mono_jit_init, before any managed code runs. MEASURED on device. So that
+         is not the fix; the symbols have to be kept individually instead (the
+         ReferenceNativeSymbol item group the iOS SDK exposes), which is still to do.
+         Until then a Release device build has no engine and Debug is the working
+         device configuration. -->
+
     <!-- Simulator bundles are ad-hoc signed ("-"); device builds need a real
          identity + profile passed on the command line (-p:CodesignKey=...). -->
     <CodesignKey Condition="$(RuntimeIdentifier.Contains('simulator'))">-</CodesignKey>
@@ -200,5 +214,7 @@
          console shows and a device log capture picks up. -->
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
   </ItemGroup>
+
+  <Import Project="GgmlExportedSymbols.targets" />
 
 </Project>
