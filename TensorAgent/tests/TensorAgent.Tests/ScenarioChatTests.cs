@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -431,6 +432,81 @@ public sealed class ScenarioChatTests : LiveModelHarness
     /// the right name.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The deck the model promises has to be REACHABLE, not merely written.
+    ///
+    /// <para>
+    /// "Search the news and make me a pptx" was reported as never working. The deck was
+    /// in fact being produced; what failed was the last step -- the link. The runner
+    /// hands the page /api/code/artifacts/{runId}/{name} and the app mapped no such
+    /// route, so every generated document answered "error: not found" when tapped.
+    /// This walks the whole path: ask for a deck, take the URL out of the frames the
+    /// page would render, and fetch it.
+    /// </para>
+    /// </summary>
+    [LiveDocumentsFact]
+    public async Task TheDeckTheModelAnnouncesCanActuallyBeDownloaded()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, skills: true, interpreter: true);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId,
+            skills = new[] { DocumentsSkillId },
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = $"Use the {DocumentsSkillId} skill to make a PowerPoint deck saved as news.pptx in my "
+                        + "working directory. Give it a title slide reading 'Top 10 Hot News' and one bullets slide "
+                        + "listing three headlines you invent. Tell me when the file is there.",
+                },
+            },
+            maxTokens = 1024,
+            think = false,
+        });
+
+        List<string> urls = ArtifactUrlsOf(frames);
+        Console.WriteLine($"scenario pptx link: {(urls.Count == 0 ? "(none)" : string.Join(", ", urls))}");
+        Assert.True(urls.Count > 0, "the run produced no downloadable file at all: " + Describe(StepsOf(frames)));
+
+        string deck = Assert.Single(urls, u => u.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase));
+        HttpResponseMessage response = await Client.GetAsync(deck);
+        Assert.True(response.IsSuccessStatusCode,
+            $"the link the model showed ({deck}) answered {(int)response.StatusCode} {response.StatusCode}");
+
+        byte[] bytes = await response.Content.ReadAsByteArrayAsync();
+        // A .pptx is a zip; "PK\x03\x04" is the only cheap proof it is not an error page.
+        Assert.True(bytes.Length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B,
+            $"the download was {bytes.Length} bytes and did not start with a zip header");
+    }
+
+    /// <summary>Every downloadable file URL the streamed frames advertise.</summary>
+    private static List<string> ArtifactUrlsOf(List<JsonElement> frames)
+    {
+        var urls = new List<string>();
+        foreach (JsonElement frame in frames)
+        {
+            if (!frame.TryGetProperty("files", out JsonElement files) || files.ValueKind != JsonValueKind.Array)
+                continue;
+            foreach (JsonElement file in files.EnumerateArray())
+            {
+                if (file.TryGetProperty("url", out JsonElement url) && url.GetString() is { Length: > 0 } text
+                    && !urls.Contains(text))
+                {
+                    urls.Add(text);
+                }
+            }
+        }
+        return urls;
+    }
+
     [LiveDocumentsFact]
     public async Task ASkillsOwnScriptRunsAndTheSpreadsheetItWritesIsARealWorkbook()
     {
@@ -598,6 +674,119 @@ public sealed class ScenarioChatTests : LiveModelHarness
         Assert.True(StartsWith(report, PdfMagic),
             $"{report} does not begin with %PDF-, so whatever was written is not a PDF. "
             + $"It starts: {Preview(report)}");
+    }
+
+    // =====================================================================================
+    // 8. a photo the user attached, turned into a document
+    // =====================================================================================
+
+    /// <summary>
+    /// "Here is a photo, make it a PDF." Reported as failing, and it did.
+    ///
+    /// <para>
+    /// Two things were wrong and only the second is about documents. The app staged
+    /// only TEXT uploads into the working directory a program runs in, so a photo was
+    /// something the model could see and not something it could open: it was told,
+    /// truthfully, that it could run programs, and then spent the turn guessing at a
+    /// filename that never existed. And the PDF writer had no one-step way to put a
+    /// picture on a page, so even with the file present the model had to compose a
+    /// JSON document by hand for a task with no choices in it.
+    /// </para>
+    /// <para>
+    /// The assertion is on bytes, as with the report scenario: a PDF that pypdf would
+    /// refuse and a sentence claiming success look identical from the outside. What is
+    /// additionally checked is that the picture is IN it — a one-page PDF of nothing
+    /// would satisfy the magic-number test.
+    /// </para>
+    /// </summary>
+    [LiveDocumentsFact]
+    public async Task APhotoTheUserAttachedIsTurnedIntoARealPdf()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, skills: true, interpreter: true);
+        await LoadAsync(model);
+
+        // Uploaded through the same route the paperclip uses, so what is under test is
+        // the path a photo really takes: /api/upload, then the stored name in the body.
+        JsonElement upload = await UploadAsync(MediaFixtures.RedCircleOnWhitePng(512), "IMG_0004.png");
+        Assert.Equal("image", upload.GetProperty("mediaType").GetString());
+        string stored = upload.GetProperty("file").GetString()!;
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+        string workspace = WorkspaceOf(sessionId);
+
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId,
+            skills = new[] { DocumentsSkillId },
+            messages = new[]
+            {
+                new
+                {
+                    role = "user",
+                    content = "Convert the attached picture into a PDF file called photo.pdf. "
+                        + "Use the documents skill.",
+                    imagePaths = new[] { stored },
+                    stillImagePaths = new[] { stored },
+                    // The array the page now sends, and the one that makes the file
+                    // exist on disk where a program can open it.
+                    attachments = new[]
+                    {
+                        new { file = stored, fileName = "IMG_0004.png", mediaType = "image" },
+                    },
+                },
+            },
+            maxTokens = 1024,
+            think = false,
+        });
+
+        string answer = TextOf(frames);
+        Console.WriteLine($"scenario photo->pdf: {Describe(StepsOf(frames))} | {Describe(ProgressOf(frames))}");
+
+        // The staging half, checked separately from the document half: "the model did
+        // not make a PDF" and "the model never had the photo" are different failures
+        // with different owners, and one red line for both is how an afternoon goes.
+        string staged = Path.Combine(workspace, "IMG_0004.png");
+        Assert.True(File.Exists(staged),
+            "the attached photo was never staged into the working directory, so nothing the model "
+            + $"ran could open it.\n  {Listing(workspace)}\n\nanswer: {answer}");
+
+        string[] made = Directory.GetFiles(workspace, "*.pdf", SearchOption.AllDirectories);
+        Assert.True(made.Length > 0,
+            $"the turn ended with no PDF in the session workspace.\n  {Listing(workspace)}\n\nanswer: {answer}");
+
+        string pdf = made[0];
+        Assert.True(StartsWith(pdf, PdfMagic),
+            $"{pdf} does not begin with %PDF-, so whatever was written is not a PDF. "
+            + $"It starts: {Preview(pdf)}");
+
+        // And the picture is IN it. Not asserted by size: a flat disc on white
+        // compresses to a few kilobytes, so a threshold either passes on an empty page
+        // or fails on a real one. What settles it is the image XObject reportlab writes
+        // — an uncompressed dictionary in the file — carrying the source's own
+        // dimensions. A one-page PDF of nothing has no such object at all.
+        string raw = File.ReadAllText(pdf, System.Text.Encoding.Latin1);
+        Assert.True(raw.Contains("/Subtype /Image", StringComparison.Ordinal),
+            $"{pdf} carries no image object, so it is a page with nothing on it — which is "
+            + $"not what converting a photo means.\n\nanswer: {answer}");
+        Assert.True(raw.Contains("/Width 512", StringComparison.Ordinal)
+                    && raw.Contains("/Height 512", StringComparison.Ordinal),
+            $"the image in {pdf} is not the 512x512 picture that was attached.\n\nanswer: {answer}");
+    }
+
+    /// <summary>Upload through the app's own route, as the page's paperclip does.</summary>
+    private async Task<JsonElement> UploadAsync(byte[] content, string fileName)
+    {
+        using var form = new MultipartFormDataContent();
+        var part = new ByteArrayContent(content);
+        part.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        form.Add(part, "file", fileName);
+
+        using HttpResponseMessage response = await Client.PostAsync("/api/upload", form);
+        string payload = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, $"uploading {fileName} failed: {(int)response.StatusCode} {payload}");
+        return JsonSerializer.Deserialize<JsonElement>(payload);
     }
 
     // =====================================================================================

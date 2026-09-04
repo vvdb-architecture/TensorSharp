@@ -11,8 +11,10 @@
 using System.Text;
 using System.Text.Json;
 using TensorAgent.Core.Catalog;
+using TensorAgent.Core.Downloads;
 using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Settings;
+using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.Chat;
 using TensorSharp.Server.Hosting;
 
@@ -64,13 +66,27 @@ public static class WebUiRoutes
     /// nothing, and losing it costs the user exactly the answer they are reading.
     /// </para>
     /// </param>
+    /// <param name="turns">
+    /// Who owns a generation once it starts, or null to keep the desktop's arrangement
+    /// where the request owns it.
+    ///
+    /// <para>
+    /// This is the difference between a browser tab and a phone. With a manager, a
+    /// <c>POST /api/chat</c> STARTS a turn and then reads it like anyone else, so the
+    /// user opening the model list — or the screen dimming — costs the answer nothing
+    /// and the page can attach to it again when it comes back. Without one the stream is
+    /// the turn, which is what the desktop server does and what the tests that predate
+    /// this exercise.
+    /// </para>
+    /// </param>
     public static void MapWebUi(
         this LoopbackServer server,
         WebUiChatService chat,
         string uploadDirectory,
         SkillsService? skills = null,
         ConversationRecorder? recorder = null,
-        Func<JsonElement, CancellationToken, IAsyncEnumerable<object>>? chatFrames = null)
+        Func<JsonElement, CancellationToken, IAsyncEnumerable<object>>? chatFrames = null,
+        ChatTurnManager? turns = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(chat);
@@ -86,9 +102,53 @@ public static class WebUiRoutes
             return Json(await Guarded(() => chat.LoadModelAsync(body, ct)));
         });
         server.MapPost("/api/chat", async (request, ct) =>
-            LoopbackResponse.Sse(
-                Recording(Guarded(chatFrames(await request.ReadJsonAsync(ct), ct)), recorder),
-                request.Cancellation));
+        {
+            JsonElement body = await request.ReadJsonAsync(ct);
+            if (turns is null)
+            {
+                return LoopbackResponse.Sse(
+                    Recording(Guarded(chatFrames(body, ct)), recorder), request.Cancellation);
+            }
+
+            // The request STARTS the turn and then reads it exactly as a later reader
+            // would. Its own token is deliberately not handed to the generation: the
+            // whole point is that this connection going away is not the turn ending.
+            string id = turns.Start(
+                TurnKeyFor(body, recorder), token => Guarded(chatFrames(body, token)));
+            return LoopbackResponse.Sse(
+                turns.WatchAsync(id, 0, CancellationToken.None),
+                request.Cancellation,
+                headers: new Dictionary<string, string>(StringComparer.Ordinal) { [TurnHeader] = id });
+        });
+
+        // ---- a turn the page has to find again ----------------------------------
+        //
+        // Registered here rather than in MapAgent because the manager is here, and it is
+        // here because /api/sessions has to report the same turn: a page that reloaded
+        // learns about the generation still running for its conversation from the very
+        // request that binds it, without a second round trip.
+        if (turns is not null)
+        {
+            server.MapGet("/api/agent/turns", (request, _) =>
+                Ok(new { turn = Describe(turns.StatusOfKey(request.Query("conversation"))) }));
+
+            server.MapGet("/api/agent/turns/{id}", (request, _) =>
+            {
+                string id = request.RouteValues["id"];
+                if (turns.StatusOfId(id) is null)
+                    return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { error = "no such turn" }, 404));
+                int from = int.TryParse(request.Query("from"), out int parsed) ? parsed : 0;
+                return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(
+                    turns.WatchAsync(id, from, CancellationToken.None),
+                    request.Cancellation,
+                    headers: new Dictionary<string, string>(StringComparer.Ordinal) { [TurnHeader] = id }));
+            });
+
+            // Stopping is something a caller ASKS for now. It used to be what dropping
+            // the connection meant, which is why leaving the page ended the answer.
+            server.MapPost("/api/agent/turns/{id}/stop", (request, _) =>
+                Ok(new { stopped = turns.StopId(request.RouteValues["id"]), id = request.RouteValues["id"] }));
+        }
 
         // ---- sessions -----------------------------------------------------------
         //
@@ -113,6 +173,11 @@ public static class WebUiRoutes
                 think = conversation.Think,
                 skills = conversation.Skills,
                 modelId = conversation.ModelId,
+                // The answer a previous page left running here, if there is one. Sent
+                // with the binding rather than fetched afterwards, so a page that was
+                // torn down mid-turn learns about it in the same breath as it learns
+                // which conversation it is in.
+                activeTurn = Describe(turns?.StatusOfKey(conversation.Id)),
             }));
         });
         server.MapDelete("/api/sessions/{id}", async (request, ct) =>
@@ -131,7 +196,11 @@ public static class WebUiRoutes
             if (file is null)
                 return LoopbackResponse.Json(new { error = "no file was uploaded" }, 400);
             await using FileStream content = File.OpenRead(file.TempPath);
-            return Json(await Guarded(() => chat.UploadAsync(content, file.FileName, file.Length, ct)));
+            // The name is resolved before the service sees it, because the service
+            // classifies an upload by its extension alone and iOS's photo picker sends
+            // a name that has none. See UploadNaming.
+            return Json(await Guarded(() => chat.UploadAsync(
+                content, UploadNaming.ResolveFileName(file), file.Length, ct)));
         });
         // The desktop server mounts the upload directory as static files; here it is a
         // route, and it has to exist for the same reason: the page renders an
@@ -209,6 +278,62 @@ public static class WebUiRoutes
     /// sit under their own prefix to keep that obvious.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Serve the files a model's own code produced.
+    ///
+    /// <para>
+    /// The runner hands the page a link of the form
+    /// <c>/api/code/artifacts/{runId}/{path}</c> (WebUiChatService.DefaultArtifactUriPrefix),
+    /// and until this existed the app mapped no such route: the model correctly
+    /// announced "here is your PDF", the link rendered, and tapping it produced
+    /// "error: not found". TensorSharp.Server has had the endpoint all along
+    /// (CodeArtifactEndpoints); only the app was missing it, so every generated
+    /// document -- PDF, PPTX, XLSX, chart -- was unreachable on a phone.
+    /// </para>
+    ///
+    /// <para>
+    /// Everything here was written by a program a model wrote, so it is served the
+    /// same defensive way the server serves it: confinement is re-checked by
+    /// <see cref="CodeArtifactStore.TryResolve"/> rather than trusted from the route,
+    /// the response is always an attachment, and the content type is never guessed
+    /// into something a WebView would execute.
+    /// </para>
+    /// </summary>
+    public static void MapCodeArtifacts(this LoopbackServer server, CodeArtifactStore artifacts)
+    {
+        ArgumentNullException.ThrowIfNull(server);
+        ArgumentNullException.ThrowIfNull(artifacts);
+
+        const string prefix = WebUiChatService.DefaultArtifactUriPrefix;
+
+        // What one run left behind, for a page that wants to list them.
+        server.MapGet(prefix + "/{runId}", (request, _) =>
+        {
+            string runId = request.RouteValues["runId"] ?? string.Empty;
+            IReadOnlyList<CodeArtifact> files = artifacts.List(runId, (id, rel, _) => $"{prefix}/{id}/{rel}");
+            return Task.FromResult<LoopbackResponse?>(files.Count == 0
+                ? LoopbackResponse.Json(new { error = "no files are held for that run" }, 404)
+                : LoopbackResponse.Json(new
+                {
+                    runId,
+                    files = files.Select(a => new { path = a.Path, bytes = a.Bytes, url = a.Pointer }).ToArray(),
+                }));
+        });
+
+        // Catch-all so a nested path such as out/report.pdf binds whole.
+        server.MapGet(prefix + "/{runId}/{*path}", (request, _) =>
+        {
+            string runId = request.RouteValues["runId"] ?? string.Empty;
+            string path = request.RouteValues["path"] ?? string.Empty;
+            if (!artifacts.TryResolve(runId, path, out string? full, out string? error))
+                return Task.FromResult<LoopbackResponse?>(
+                    LoopbackResponse.Json(new { error = error ?? "not found" }, 404));
+
+            return Task.FromResult<LoopbackResponse?>(LoopbackResponse.File(
+                full!, ContentTypes.For(full!), attachment: true, downloadName: Path.GetFileName(path)));
+        });
+    }
+
     public static void MapAgent(
         this LoopbackServer server,
         IReadOnlyList<CatalogModel> catalog,
@@ -216,7 +341,10 @@ public static class WebUiRoutes
         ConversationStore conversations,
         SettingsStore settings,
         Func<string>? describeEngine = null,
-        Action<string, JsonElement>? onPageEvent = null)
+        Action<string, JsonElement>? onPageEvent = null,
+        ModelDownloadManager? downloads = null,
+        Action<AppSettings>? onSettingsChanged = null,
+        Func<object>? describeModel = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -227,7 +355,7 @@ public static class WebUiRoutes
 
         server.MapGet("/api/agent/catalog", (_, _) => Ok(new
         {
-            models = catalog.Select(m => Describe(m, models)).ToArray(),
+            models = catalog.Select(m => Describe(m, models, downloads)).ToArray(),
         }));
 
         server.MapGet("/api/agent/catalog/{id}", (request, _) =>
@@ -235,24 +363,53 @@ public static class WebUiRoutes
             CatalogModel? model = Find(request.RouteValues["id"]);
             return model is null
                 ? Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { error = "no such model" }, 404))
-                : Ok(Describe(model, models));
+                : Ok(Describe(model, models, downloads));
         });
+
+        // What is transferring right now, whoever started it. A page that was closed
+        // while a model was downloading needs this to find the job again when it
+        // reopens; without it the only evidence a download existed was the stream the
+        // page had already dropped.
+        server.MapGet("/api/agent/downloads", (_, _) => Ok(new
+        {
+            downloads = (downloads?.All ?? Array.Empty<ModelDownloadStatus>()).Select(Describe).ToArray(),
+        }));
 
         // Downloads are long and resumable, so this is a stream rather than a request
         // that blocks for gigabytes: the page shows progress from these frames and a
         // dropped connection leaves the .part file to be resumed, not restarted.
+        //
+        // The stream is a WINDOW on the transfer, never its owner. It used to be the
+        // owner — the download ran on the request's cancellation token, so closing the
+        // page, or opening any other one, killed a five-gigabyte transfer partway. The
+        // job now lives in the download manager and outlives every reader; this route
+        // starts it if it is not already running and reports what it is doing.
         server.MapPost("/api/agent/catalog/{id}/download", (request, ct) =>
         {
             CatalogModel? model = Find(request.RouteValues["id"]);
             if (model is null)
                 return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { error = "no such model" }, 404));
-            // The optional files are the multimodal projector and the step-distilled
-            // LoRA: worth their bytes on a phone, but the user pays for them, so the
-            // setting decides rather than the catalog.
-            IReadOnlyCollection<CatalogFileRole>? optional = settings.Load().DownloadOptionalFiles
-                ? new[] { CatalogFileRole.Projector, CatalogFileRole.Lora, CatalogFileRole.TextEncoder, CatalogFileRole.Vae }
-                : null;
-            return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(DownloadFrames(models, model, optional, ct), request.Cancellation));
+
+            IReadOnlyCollection<CatalogFileRole>? optional = OptionalRoles(settings);
+            if (downloads is null)
+            {
+                // No manager (a host built for a test that does not need one): the old
+                // request-scoped behaviour, so the route still answers.
+                return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(
+                    DownloadFrames(models, model, optional, ct), request.Cancellation));
+            }
+
+            downloads.Start(model, optional);
+            return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(
+                WatchFrames(downloads, model.Id, ct), request.Cancellation));
+        });
+
+        // Stopping is now something a caller has to ASK for, which is the other half of
+        // a download that survives its reader.
+        server.MapPost("/api/agent/catalog/{id}/download/cancel", (request, _) =>
+        {
+            string id = request.RouteValues["id"];
+            return Ok(new { cancelled = downloads?.Cancel(id) ?? false, id });
         });
 
         server.MapDelete("/api/agent/catalog/{id}", (request, _) =>
@@ -260,8 +417,12 @@ public static class WebUiRoutes
             CatalogModel? model = Find(request.RouteValues["id"]);
             if (model is null)
                 return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { error = "no such model" }, 404));
+            // Stopped first: deleting the directory under a running transfer leaves the
+            // downloader writing into a path that no longer has a parent, and the error
+            // it raises describes the symptom rather than the delete that caused it.
+            downloads?.Cancel(model.Id);
             models.Delete(model);
-            return Ok(Describe(model, models));
+            return Ok(Describe(model, models, downloads));
         });
 
         server.MapGet("/api/agent/conversations", (_, _) => Ok(new { conversations = conversations.List() }));
@@ -292,7 +453,11 @@ public static class WebUiRoutes
             AppSettings updated = JsonSerializer.Deserialize<AppSettings>(
                 (await request.ReadJsonAsync(ct)).GetRawText(), SseFraming.JsonOptions) ?? new AppSettings();
             settings.Save(updated);
-            return LoopbackResponse.Json(settings.Load());
+            AppSettings saved = settings.Load();
+            // Applied, not merely stored. Saving alone is what made "Allow network
+            // access" a switch that did nothing until the app was force-quit.
+            onSettingsChanged?.Invoke(saved);
+            return LoopbackResponse.Json(saved);
         });
 
         // The page tells the app what it just did — which conversation it bound, when
@@ -318,6 +483,11 @@ public static class WebUiRoutes
             networkDisabledMessage = Sandbox.ExecutionPolicy.NetworkDisabledMessage,
             modelRoot = models.Root,
             conversationRoot = conversations.Root,
+            // What the app is doing about the model the user last used. The page needs
+            // it to tell "no model has ever been chosen" — which asks the user to go and
+            // choose one — apart from "the weights are being read right now", which asks
+            // them to wait a few seconds.
+            model = describeModel?.Invoke(),
         }));
     }
 
@@ -348,6 +518,66 @@ public static class WebUiRoutes
             ? LoopbackResponse.File(full, contentType)
             : LoopbackResponse.Json(new { error = "not found" }, 404);
     }
+
+    /// <summary>
+    /// The optional files a download includes. Worth their bytes on a phone, but the
+    /// user pays for them, so the setting decides rather than the catalog — and the
+    /// LIST is the manager's, so this route and the model list cannot disagree about
+    /// which companions a model ends up with.
+    /// </summary>
+    private static IReadOnlyCollection<CatalogFileRole>? OptionalRoles(SettingsStore settings) =>
+        ModelDownloadManager.OptionalRolesFor(settings.Load().DownloadOptionalFiles);
+
+    /// <summary>
+    /// One running download, framed exactly as <see cref="DownloadFrames"/> framed it.
+    ///
+    /// <para>
+    /// Byte-compatible on purpose: the shape is what the model list reads, and changing
+    /// it at the same time as changing who owns the transfer would have made a UI that
+    /// stopped updating impossible to attribute to either half.
+    /// </para>
+    /// </summary>
+    private static async IAsyncEnumerable<object> WatchFrames(
+        ModelDownloadManager downloads, string modelId,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        await foreach (ModelDownloadStatus status in downloads.WatchAsync(modelId, ct).ConfigureAwait(false))
+        {
+            if (status.IsRunning)
+            {
+                yield return Frame(status.Progress);
+                continue;
+            }
+            yield return status.State switch
+            {
+                DownloadState.Completed => new { done = true, id = modelId },
+                DownloadState.Cancelled => (object)new { cancelled = true, id = modelId },
+                _ => new { error = status.Error ?? "the download failed", id = modelId },
+            };
+        }
+    }
+
+    private static object Frame(ModelDownloadProgress value) => new
+    {
+        file = value.FileName,
+        fileIndex = value.FileIndex,
+        fileCount = value.FileCount,
+        phase = value.Phase,
+        received = value.BytesReceived,
+        total = value.TotalBytes,
+        fraction = value.Fraction,
+        bytesPerSecond = value.BytesPerSecond,
+        etaSeconds = value.Eta?.TotalSeconds,
+    };
+
+    private static object Describe(ModelDownloadStatus status) => new
+    {
+        id = status.ModelId,
+        state = status.State.ToString(),
+        running = status.IsRunning,
+        error = status.Error,
+        progress = Frame(status.Progress),
+    };
 
     private static async IAsyncEnumerable<object> DownloadFrames(
         ModelStore store, CatalogModel model, IReadOnlyCollection<CatalogFileRole>? optionalRoles,
@@ -388,21 +618,10 @@ public static class WebUiRoutes
     private sealed class ChannelProgress(System.Threading.Channels.ChannelWriter<object> writer)
         : IProgress<ModelDownloadProgress>
     {
-        public void Report(ModelDownloadProgress value) => writer.TryWrite(new
-        {
-            file = value.FileName,
-            fileIndex = value.FileIndex,
-            fileCount = value.FileCount,
-            phase = value.Phase,
-            received = value.BytesReceived,
-            total = value.TotalBytes,
-            fraction = value.Fraction,
-            bytesPerSecond = value.BytesPerSecond,
-            etaSeconds = value.Eta?.TotalSeconds,
-        });
+        public void Report(ModelDownloadProgress value) => writer.TryWrite(Frame(value));
     }
 
-    private static object Describe(CatalogModel model, ModelStore store) => new
+    private static object Describe(CatalogModel model, ModelStore store, ModelDownloadManager? downloads = null) => new
     {
         id = model.Id,
         name = model.DisplayName,
@@ -421,6 +640,10 @@ public static class WebUiRoutes
         installedBytes = store.InstalledBytes(model),
         remainingBytes = store.RemainingBytes(model),
         path = store.WeightsPath(model),
+        // Null unless this launch has a download for it. "Partly downloaded" and
+        // "downloading right now" look identical on disk, and only one of them means
+        // the user should wait rather than tap.
+        download = downloads?.StatusOf(model.Id) is { } status ? Describe(status) : null,
     };
 
     /// <summary>
@@ -446,6 +669,8 @@ public static class WebUiRoutes
 
         var content = new StringBuilder();
         var thinking = new StringBuilder();
+        var artifacts = new List<StoredArtifact>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         string? sessionId = null;
 
         await foreach (object frame in frames.ConfigureAwait(false))
@@ -465,11 +690,70 @@ public static class WebUiRoutes
                 thinking.Append(reasoning);
             if (root.TryGetProperty("sessionId", out JsonElement id) && id.GetString() is { Length: > 0 } value)
                 sessionId = value;
+            CollectArtifacts(root, artifacts, seen);
         }
 
         if (sessionId is not null)
-            recorder.Complete(sessionId, content.ToString(), thinking.ToString());
+            recorder.Complete(sessionId, content.ToString(), thinking.ToString(), artifacts);
     }
+
+    /// <summary>
+    /// The files a turn's tools produced, off the <c>skill_step</c> frames that carry
+    /// them. Collected here rather than trusted to the page, for the same reason the
+    /// answer is: the page may be gone by the time the turn ends.
+    /// </summary>
+    private static void CollectArtifacts(JsonElement frame, List<StoredArtifact> into, HashSet<string> seen)
+    {
+        if (!frame.TryGetProperty("files", out JsonElement files) || files.ValueKind != JsonValueKind.Array)
+            return;
+        foreach (JsonElement file in files.EnumerateArray())
+        {
+            if (file.ValueKind != JsonValueKind.Object)
+                continue;
+            string? url = file.TryGetProperty("url", out JsonElement u) ? u.GetString() : null;
+            if (string.IsNullOrEmpty(url) || !seen.Add(url))
+                continue;
+            into.Add(new StoredArtifact
+            {
+                Name = (file.TryGetProperty("name", out JsonElement n) ? n.GetString() : null) ?? url,
+                Bytes = file.TryGetProperty("bytes", out JsonElement b) && b.TryGetInt64(out long bytes) ? bytes : 0,
+                Url = url,
+            });
+        }
+    }
+
+    /// <summary>
+    /// The response header that names the turn a stream is a view of. A page that has
+    /// this can stop the generation, and can tell whether the stream it is reading is
+    /// still the one it started.
+    /// </summary>
+    public const string TurnHeader = "X-TensorAgent-Turn";
+
+    /// <summary>
+    /// Which turn a chat request belongs to: its conversation, so that the SAME
+    /// conversation reached through a new engine session — which is what a reloaded page
+    /// gets — finds the answer that is still being written for it. Only a request with
+    /// no conversation at all falls back to its session.
+    /// </summary>
+    private static string TurnKeyFor(JsonElement body, ConversationRecorder? recorder)
+    {
+        string session = body.ValueKind == JsonValueKind.Object
+            && body.TryGetProperty("sessionId", out JsonElement id)
+                ? id.GetString() ?? string.Empty
+                : string.Empty;
+        if (session.Length > 0 && recorder?.ConversationFor(session) is { Length: > 0 } conversation)
+            return conversation;
+        return session.Length > 0 ? "session:" + session : "chat";
+    }
+
+    /// <summary>One turn, as the page reads it. Null stays null: "there is nothing running".</summary>
+    private static object? Describe(ChatTurnStatus? turn) => turn is null ? null : new
+    {
+        id = turn.Id,
+        state = turn.State.ToString(),
+        running = turn.IsRunning,
+        frames = turn.FrameCount,
+    };
 
     /// <summary>
     /// Read the session id out of whatever shape the chat service returned. It is an

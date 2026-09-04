@@ -1462,7 +1462,7 @@ namespace TensorSharp.Chat
             var skillPlan = SkillRequestPlan.Create(
                 _skills, requestedSkills, SkillSelectionParser.ParseDiscovery(body), uiTools,
                 _svc.Architecture, _svc.ContextTokens, _options, out var unknownSkills, codeRunner: _codeRunner,
-                codeInputFiles: CollectCodeInputFiles(messages),
+                codeInputFiles: ReadableCodeInputFiles(CollectCodeInputFiles(messages)),
                 workspace: WorkspaceFor(chatSession),
                 captureProducedFiles: ScriptFileCapture(),
                 logger: webUiLogger);
@@ -1520,6 +1520,11 @@ namespace TensorSharp.Chat
             // as a "response was truncated" hint, so a user staring at a sentence that
             // stops mid-word knows to raise max tokens rather than blame the model.
             bool turnTruncated = false;
+            // Whether the turn ever produced ANSWER text, as opposed to thinking or a
+            // tool call. tokenCount cannot answer that: it counts every streamed piece,
+            // so a turn that ran a skill and then stopped without writing anything has a
+            // healthy tokenCount and nothing a user can read.
+            bool sawContent = false;
             // Set when the skills loop hands over already-separated pieces. uiParser is
             // bypassed for those, so it must not be flushed at the end either — it holds
             // no state, and the loop's own parser already did its final flush.
@@ -1607,7 +1612,10 @@ namespace TensorSharp.Chat
                         if (!string.IsNullOrEmpty(parsed.Thinking))
                             yield return WebUiSseEvents.Thinking(parsed.Thinking);
                         if (!string.IsNullOrEmpty(parsed.Content))
+                        {
+                            sawContent = true;
                             yield return WebUiSseEvents.Token(parsed.Content);
+                        }
                         if (parsed.ToolCalls != null)
                             yield return WebUiSseEvents.ToolCalls(parsed.ToolCalls);
                     }
@@ -1700,7 +1708,7 @@ namespace TensorSharp.Chat
             }
 
             foreach (object frame in FinalFrames(sawParsedUpdate ? null : uiParser, aborted, inferenceError, chatSession, sw, tokenCount,
-                turnPromptTokens, turnKvReusedTokens, turnTruncated))
+                turnPromptTokens, turnKvReusedTokens, turnTruncated, sawContent))
             {
                 yield return frame;
             }
@@ -1769,15 +1777,24 @@ namespace TensorSharp.Chat
         }
 
         /// <summary>
-        /// The conversation's uploaded text documents, as files a <c>shell</c> command
-        /// may open by name.
+        /// Everything the user attached to this conversation, as files a <c>shell</c>
+        /// command may open by name.
         ///
         /// <para>
-        /// The upload's CONTENT is already inlined into the message text, but content in
+        /// A text upload's CONTENT is already inlined into the message, but content in
         /// the prompt is not a file on disk: asked to "convert this md file", a model with
         /// only the inline copy re-types it into its program, abridged. Staging the actual
-        /// file under the name the user knows it by lets the code read all of it. The
-        /// paths were resolved (and confined to the upload root) by
+        /// file under the name the user knows it by lets the code read all of it.
+        /// </para>
+        /// <para>
+        /// It is every attachment and not only the text ones, which is the fix for the
+        /// failure that reads as the model being stupid: "turn this photo into a PDF" put
+        /// a picture in front of a vision model and NO file in front of its interpreter,
+        /// so the turn was spent guessing at paths that were never going to exist. An
+        /// image, a sound and a clip are files the same way a document is.
+        /// </para>
+        /// <para>
+        /// The paths were resolved (and confined to the upload root) by
         /// <see cref="ChatMessageParser.ResolveAttachmentPaths"/> before this runs.
         /// </para>
         /// </summary>
@@ -1788,22 +1805,25 @@ namespace TensorSharp.Chat
 
             foreach (ChatMessage message in messages ?? new List<ChatMessage>())
             {
-                if (message?.TextFilePaths == null)
+                List<string> paths = message?.AttachmentPaths ?? message?.TextFilePaths;
+                if (paths == null)
                     continue;
+                List<string> names = message.AttachmentPaths != null
+                    ? message.AttachmentNames
+                    : message.TextFileNames;
 
-                for (int i = 0; i < message.TextFilePaths.Count; i++)
+                for (int i = 0; i < paths.Count; i++)
                 {
-                    string path = message.TextFilePaths[i];
+                    string path = paths[i];
                     if (string.IsNullOrEmpty(path))
                         continue;
 
-                    // Same order as textFilePaths; the stored name stands in when the
-                    // client did not send display names. A repeated name keeps its first
-                    // file — re-attaching the same document must not flip which copy the
-                    // code reads mid-conversation.
-                    string name = message.TextFileNames != null && i < message.TextFileNames.Count
-                        && !string.IsNullOrWhiteSpace(message.TextFileNames[i])
-                        ? Path.GetFileName(message.TextFileNames[i])
+                    // Same order as the paths; the stored name stands in when the client
+                    // did not send display names. A repeated name keeps its first file —
+                    // re-attaching the same document must not flip which copy the code
+                    // reads mid-conversation.
+                    string name = names != null && i < names.Count && !string.IsNullOrWhiteSpace(names[i])
+                        ? Path.GetFileName(names[i])
                         : Path.GetFileName(path);
 
                     if (name.Length == 0 || !seen.Add(name))
@@ -1814,6 +1834,80 @@ namespace TensorSharp.Chat
             }
 
             return files ?? (IReadOnlyList<CodeInputFile>)Array.Empty<CodeInputFile>();
+        }
+
+        /// <summary>Image formats the bundled Pillow has no decoder for.</summary>
+        private static readonly HashSet<string> UnreadableByPillow =
+            new(StringComparer.OrdinalIgnoreCase) { ".heic", ".heif" };
+
+        /// <summary>
+        /// The same list, with every attachment the interpreter could not open replaced
+        /// by one it can.
+        ///
+        /// <para>
+        /// This is about one file type and one device: an iPhone photo is HEIC, the app
+        /// decodes it everywhere (Apple's own image codec) and the bundled Pillow decodes
+        /// it nowhere — there is no pure-Python HEIF decoder to stage. So "make a PDF of
+        /// this photo" staged a file, named it to the model, and then failed inside
+        /// Pillow on a format nothing in the message said anything about. The conversion
+        /// is done once per upload, at full resolution (this is the copy a document is
+        /// built from, not the thumbnail in the bubble), and cached beside the original.
+        /// </para>
+        /// <para>
+        /// A conversion that fails leaves the original in place: the model then gets
+        /// Pillow's own error, which is a better outcome than an attachment that silently
+        /// disappears from the working directory.
+        /// </para>
+        /// </summary>
+        private IReadOnlyList<CodeInputFile> ReadableCodeInputFiles(IReadOnlyList<CodeInputFile> files)
+        {
+            if (files.Count == 0)
+                return files;
+
+            List<CodeInputFile> converted = null;
+            for (int i = 0; i < files.Count; i++)
+            {
+                CodeInputFile file = files[i];
+                if (!UnreadableByPillow.Contains(Path.GetExtension(file.SourcePath ?? string.Empty)))
+                {
+                    converted?.Add(file);
+                    continue;
+                }
+
+                converted ??= new List<CodeInputFile>(files.Take(i));
+                if (TryRenderPng(file.SourcePath, out string png))
+                    converted.Add(new CodeInputFile(
+                        Path.GetFileNameWithoutExtension(file.Name) + ".png", png));
+                else
+                    converted.Add(file);
+            }
+
+            return converted ?? files;
+        }
+
+        private bool TryRenderPng(string source, out string png)
+        {
+            png = Path.Combine(
+                _options.UploadDirectory,
+                Path.GetFileNameWithoutExtension(source) + "-decoded.png");
+            try
+            {
+                if (File.Exists(png))
+                    return true;
+                TensorSharp.Models.QwenImage.ImageIO.SavePng(
+                    png, TensorSharp.Models.QwenImage.ImageIO.Load(source));
+                _uploads.RecordFile(png);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _loggerFactory.CreateLogger("TensorSharp.Server.Upload").LogWarning(
+                    LogEventIds.UploadReceived,
+                    "Could not decode {Source} for the interpreter: {Error}; the original is staged instead",
+                    source, ex.Message);
+                try { if (File.Exists(png)) File.Delete(png); } catch { /* best effort */ }
+                return false;
+            }
         }
 
         /// <summary>
@@ -1845,7 +1939,7 @@ namespace TensorSharp.Chat
         private static IEnumerable<object> FinalFrames(
             IOutputParser uiParser, bool aborted, string inferenceError,
             ChatSession chatSession, Stopwatch sw, int tokenCount, int turnPromptTokens, int turnKvReusedTokens,
-            bool truncated)
+            bool truncated, bool sawContent = true)
         {
             if (uiParser != null && !aborted)
             {
@@ -1868,6 +1962,19 @@ namespace TensorSharp.Chat
             //
             // The retry that precedes this is the actual remedy; this message is what
             // is left when even that produced nothing.
+            // The other silence, and the one a user actually hits: the turn ran a skill
+            // or a tool, streamed plenty of tokens doing it, and then ended without writing
+            // an answer. tokenCount is healthy, truncated is false, and the page shows the
+            // step that ran followed by nothing at all -- "I do not know what was
+            // happening". Say that the turn ended, so the absence is legible.
+            if (!aborted && inferenceError == null && !truncated && tokenCount > 0 && !sawContent)
+            {
+                yield return WebUiSseEvents.Token(
+                    "_(The model ended this turn without writing an answer. Any tool or skill"
+                    + " above did run -- its output is in the step detail -- but nothing was"
+                    + " written after it. Ask it to summarise the result, or try again.)_");
+            }
+
             if (truncated && tokenCount == 0)
             {
                 yield return WebUiSseEvents.Token(
