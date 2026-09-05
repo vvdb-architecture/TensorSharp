@@ -152,6 +152,22 @@ public static class WebUiRoutes
 
         // ---- sessions -----------------------------------------------------------
         //
+        // Which chat the page should open as it comes up. The page asks because it
+        // cannot answer for itself: its first load and its fourth look identical from
+        // inside, and they want opposite things -- a launch wants a clean composer,
+        // a reload wants the chat it was torn out of. Only the app knows which this is.
+        if (recorder is not null)
+        {
+            server.MapGet("/api/agent/launch", (_, _) => Ok(new
+            {
+                cold = recorder.IsColdLaunch,
+                // Which chat to come back to when it is NOT a launch. The page cannot
+                // work this out from the conversation list: the empty chat a launch
+                // just opened is not in it at all.
+                conversation = recorder.CurrentConversationId,
+            }));
+        }
+
         // The desktop's route creates an engine session and says so. The app's page
         // also asks, in the query string, which saved conversation that session is
         // for, and needs the answer back so it can render the transcript it is
@@ -310,7 +326,8 @@ public static class WebUiRoutes
         server.MapGet(prefix + "/{runId}", (request, _) =>
         {
             string runId = request.RouteValues["runId"] ?? string.Empty;
-            IReadOnlyList<CodeArtifact> files = artifacts.List(runId, (id, rel, _) => $"{prefix}/{id}/{rel}");
+            IReadOnlyList<CodeArtifact> files = artifacts.List(
+                runId, (id, rel, _) => CodeArtifactStore.UrlFor(prefix, id, rel));
             return Task.FromResult<LoopbackResponse?>(files.Count == 0
                 ? LoopbackResponse.Json(new { error = "no files are held for that run" }, 404)
                 : LoopbackResponse.Json(new

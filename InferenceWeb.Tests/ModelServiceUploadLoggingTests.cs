@@ -256,6 +256,37 @@ public class ModelServiceUploadLoggingTests
     }
 
     [Fact]
+    public void ChatMessageParser_ParseWebUi_RecognizesMetadataOnlyCsvAttachment()
+    {
+        const string body = """
+            [
+              {
+                "role": "user",
+                "content": "Please analyze this form.",
+                "textFilePaths": ["stored.csv"],
+                "textFileNames": ["responses.csv"],
+                "attachments": [
+                  {
+                    "file": "stored.csv",
+                    "fileName": "responses.csv",
+                    "mediaType": "text",
+                    "fileBacked": true
+                  }
+                ]
+              }
+            ]
+            """;
+
+        using var doc = JsonDocument.Parse(body);
+        ChatMessage message = Assert.Single(ChatMessageParser.ParseWebUi(doc.RootElement));
+
+        Assert.True(message.HasFileBackedTextAttachments);
+        Assert.Equal(new[] { "stored.csv" }, message.TextFilePaths);
+        Assert.Equal(new[] { "stored.csv" }, message.AttachmentPaths);
+        Assert.Equal(new[] { "responses.csv" }, message.AttachmentNames);
+    }
+
+    [Fact]
     public void PrepareHistoryForInference_PreservesTextFilePathsOnVideoDownsample()
     {
         string? prior = Environment.GetEnvironmentVariable("VIDEO_MAX_FRAMES");

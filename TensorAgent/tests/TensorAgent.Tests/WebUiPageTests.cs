@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using System.Text;
 using System.Text.Json;
 using TensorAgent.Core.JavaScript;
 using TensorAgent.Core.Sandbox;
@@ -98,9 +99,14 @@ public sealed class WebUiPageTests : IDisposable
         var R = __page.routes;
         R['/api/agent/engine'] = { model: { id: 'gemma', name: 'Gemma', state: 'ready' }, networkDisabledMessage: 'network access is disabled by the user' };
         R['/api/agent/settings'] = { thinkByDefault: false, defaultSkills: [], skillsEnabled: true, maxTokens: 2048 };
-        R['/api/models'] = { loaded: 'gemma.gguf', architecture: 'gemma3', backend: 'ggml_metal' };
+        R['/api/models'] = { loaded: 'gemma.gguf', architecture: 'gemma3', backend: 'ggml_metal', visionReady: true };
         R['/api/skills'] = { enabled: true, installable: true, skills: [{ name: 'documents', description: 'make documents' }] };
         R['/api/agent/conversations'] = { conversations: [] };
+        // Not a launch: the default is a page coming back inside an app that is
+        // already running, which is the case that resumes the last chat. The tests
+        // below that hand the page a saved conversation are testing THAT path, and a
+        // cold launch would open an empty chat instead and assert nothing.
+        R['/api/agent/launch'] = { cold: false };
         R['/api/agent/events'] = {};
         R['/api/sessions?conversation=new'] = { sessionId: 's1', conversationId: 'c1', messages: [], think: false, skills: [] };
         """ + "\n" + routes;
@@ -170,7 +176,9 @@ public sealed class WebUiPageTests : IDisposable
                                                textContent: 'SECRET-MARKER' });
             __page.byId['text'].value = 'What is in these?';
             __page.byId['send'].dispatch('click');
-            return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            return settle(10).then(function () {
+              return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            });
             """);
 
         JsonElement sent = result.GetProperty("sent");
@@ -202,6 +210,164 @@ public sealed class WebUiPageTests : IDisposable
         // The name that was never read by anything, and must not come back.
         Assert.False(message.TryGetProperty("filePaths", out _),
             "filePaths is not a field any parser on the server reads; anything sent under it is dropped");
+    }
+
+    [Fact]
+    public void AnImageStaysInTheComposerWhenTheLoadedModelHasNoVisionProjector()
+    {
+        JsonElement result = Run("""
+            var modelReads = 0;
+            R['/api/models'] = function () {
+              modelReads++;
+              return modelReads === 1
+                ? { loaded: 'Qwen3.5-9B-IQ4_XS.gguf', architecture: 'qwen35',
+                    loadedBackend: 'ggml_metal', visionReady: true }
+                : { loaded: 'Qwen3.5-9B-IQ4_XS.gguf', architecture: 'qwen35',
+                    loadedBackend: 'ggml_metal', loadedMmProj: 'stale-or-wrong.gguf', visionReady: false };
+            };
+            """, """
+            window.TensorAgent.addAttachment({ ok: true, file: 'a1.png', fileName: 'chart.png',
+                                               mediaType: 'image', url: '/uploads/a1.png' });
+            __page.byId['text'].value = 'What does this chart show?';
+            __page.byId['send'].dispatch('click');
+            return settle(10).then(function () {
+              var action = __page.byId['chat'].querySelector('.notice-action');
+              if (action) action.dispatch('click');
+              return {
+                sent: __page.requests('/api/chat').length,
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                history: window.TensorAgent.history(),
+                notice: __page.byId['chat'].textContent,
+                routes: __page.requests('/api/agent/events').map(function (c) { return c.body; })
+              };
+            });
+            """);
+
+        Assert.Equal(0, result.GetProperty("sent").GetInt32());
+        Assert.Equal("What does this chart show?", result.GetProperty("text").GetString());
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+        Assert.Equal(0, result.GetProperty("history").GetArrayLength());
+        Assert.Contains(result.GetProperty("routes").EnumerateArray(), route =>
+            route.TryGetProperty("type", out JsonElement type) && type.GetString() == "open-route" &&
+            route.TryGetProperty("route", out JsonElement name) && name.GetString() == "models");
+    }
+
+    [Fact]
+    public void ATextOnlyModelCanHandAnImageFileToASelectedHostSkill()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/settings'] = { thinkByDefault: false, defaultSkills: ['documents'],
+                                         skillsEnabled: true, maxTokens: 2048 };
+            R['/api/models'] = { loaded: 'text-only.gguf', architecture: 'llama',
+                                 loadedBackend: 'ggml_metal', visionReady: false,
+                                 acceptsVisionProjector: false };
+            """, """
+            window.TensorAgent.addAttachment({ ok: true, file: 'a1.png', fileName: 'photo.png',
+                                               mediaType: 'image', url: '/uploads/a1.png' });
+            __page.byId['text'].value = 'Put this photo into a PDF.';
+            __page.byId['send'].dispatch('click');
+            return settle(10).then(function () {
+              return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            });
+            """);
+
+        JsonElement request = Assert.Single(result.GetProperty("sent").EnumerateArray());
+        Assert.Equal(new[] { "documents" }, Strings(request, "skills"));
+        Assert.Equal(new[] { "a1.png" }, Strings(request.GetProperty("messages")[0], "imagePaths"));
+    }
+
+    [Fact]
+    public void AServerVisionRefusalRestoresTheExactImageDraft()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/settings'] = { thinkByDefault: false, defaultSkills: ['summarize'],
+                                         skillsEnabled: true, maxTokens: 2048 };
+            R['/api/models'] = { loaded: 'text-only.gguf', architecture: 'llama',
+                                 loadedBackend: 'ggml_metal', visionReady: false,
+                                 acceptsVisionProjector: false };
+            R['/api/chat'] = { __status: 400,
+                body: { code: 'vision_not_ready', error: 'This skill cannot read the image file.' } };
+            """, """
+            window.TensorAgent.addAttachment({ ok: true, file: 'a1.png', fileName: 'photo.png',
+                                               mediaType: 'image', url: '/uploads/a1.png' });
+            __page.byId['text'].value = 'Summarize this image.';
+            __page.byId['send'].dispatch('click');
+            return settle(15).then(function () {
+              return {
+                sent: __page.requests('/api/chat').length,
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                history: window.TensorAgent.history()
+              };
+            });
+            """);
+
+        Assert.Equal(1, result.GetProperty("sent").GetInt32());
+        Assert.Equal("Summarize this image.", result.GetProperty("text").GetString());
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+        Assert.Empty(result.GetProperty("history").EnumerateArray());
+    }
+
+    [Fact]
+    public void AnImageDraftIsNotSentWhenTheModelUnloadsDuringCapabilityRefresh()
+    {
+        JsonElement result = Run("""
+            var modelReads = 0;
+            R['/api/agent/settings'] = { thinkByDefault: false, defaultSkills: ['documents'],
+                                         skillsEnabled: true, maxTokens: 2048 };
+            R['/api/models'] = function () {
+              modelReads++;
+              return modelReads === 1
+                ? { loaded: 'text-only.gguf', architecture: 'llama', visionReady: false,
+                    acceptsVisionProjector: false }
+                : { loaded: null, architecture: null, visionReady: false,
+                    acceptsVisionProjector: false };
+            };
+            """, """
+            window.TensorAgent.addAttachment({ ok: true, file: 'a1.png', fileName: 'photo.png',
+                                               mediaType: 'image', url: '/uploads/a1.png' });
+            __page.byId['text'].value = 'Put this into a PDF.';
+            __page.byId['send'].dispatch('click');
+            return settle(10).then(function () {
+              return {
+                sent: __page.requests('/api/chat').length,
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                history: window.TensorAgent.history()
+              };
+            });
+            """);
+
+        Assert.Equal(0, result.GetProperty("sent").GetInt32());
+        Assert.Equal("Put this into a PDF.", result.GetProperty("text").GetString());
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+        Assert.Empty(result.GetProperty("history").EnumerateArray());
+    }
+
+    [Fact]
+    public void AFileBackedCsvKeepsItsPathAndChipWithoutPuttingRowsInThePrompt()
+    {
+        JsonElement result = Run(string.Empty, """
+            window.TensorAgent.addAttachment({ ok: true, file: 'a5.csv', fileName: 'responses.csv',
+                                               mediaType: 'text', url: '/uploads/a5.csv', fileBacked: true });
+            __page.byId['text'].value = 'Please analyze this form.';
+            __page.byId['send'].dispatch('click');
+            return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            """);
+
+        JsonElement message = result.GetProperty("sent")[0].GetProperty("messages")[0];
+        Assert.Equal("Please analyze this form.", message.GetProperty("content").GetString());
+        Assert.DoesNotContain("[File:", message.GetProperty("content").GetString(), StringComparison.Ordinal);
+        Assert.Equal(new[] { "a5.csv" }, Strings(message, "textFilePaths"));
+        Assert.Equal(new[] { "responses.csv" }, Strings(message, "textFileNames"));
+
+        JsonElement attachment = Assert.Single(message.GetProperty("attachments").EnumerateArray());
+        Assert.Equal("a5.csv", attachment.GetProperty("file").GetString());
+        Assert.Equal("responses.csv", attachment.GetProperty("fileName").GetString());
+        Assert.Equal("text", attachment.GetProperty("mediaType").GetString());
+        Assert.True(attachment.GetProperty("fileBacked").GetBoolean());
+        Assert.False(attachment.TryGetProperty("textContent", out _));
     }
 
     /// <summary>
@@ -291,6 +457,161 @@ public sealed class WebUiPageTests : IDisposable
     /// weaker test and would not be the file coming back.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// A file the app uploads reaches the composer, however many lines it has.
+    ///
+    /// <para>
+    /// The regression this exists for: the app used to build
+    /// <c>window.TensorAgent.addAttachment({…json…})</c> as a JavaScript SOURCE string
+    /// and hand it to MAUI, which wraps every script as
+    /// <c>try{JSON.stringify(eval('&lt;script&gt;'))}catch(e){'null'};</c>. The script
+    /// therefore became the body of a single-quoted literal, and JSON's <c>\n</c> was
+    /// read as that literal's escape — so a text file with two lines produced a real
+    /// newline inside an unterminated string, eval threw, MAUI's own catch returned the
+    /// STRING "null", and the app discarded it. Upload succeeded, nothing attached,
+    /// nothing said. An apostrophe in a file name closed the literal and did the same.
+    /// </para>
+    /// <para>
+    /// So the payload here carries every character that used to break it: newlines, a
+    /// double quote, an apostrophe, a backslash and a non-ASCII character — and it
+    /// arrives base64'd, which is the fix.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AMultiLineFileTheAppUploadsReachesTheComposerIntact()
+    {
+        string json = JsonSerializer.Serialize(new
+        {
+            ok = true,
+            file = "a1.txt",
+            fileName = "Bob's \"notes\".txt",
+            mediaType = "text",
+            url = "/uploads/a1.txt",
+            textContent = "line one\nline two\ttabbed\n\"quoted\" and O'Brien \\ backslash\nnaïve café\n",
+        });
+        string payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+
+        JsonElement result = Run("""
+            R['/api/chat'] = { __sse: [{ token: 'Read it.' }, { done: true, truncated: false }] };
+            """, $$"""
+            var answer = window.TensorAgent.__fromHost('addAttachment', '{{payload}}');
+            __page.byId['text'].value = 'What is in it?';
+            __page.byId['send'].dispatch('click');
+            return settle(20).then(function () {
+              return {
+                answer: answer,
+                sent: __page.requests('/api/chat').map(function (c) { return c.body; })
+              };
+            });
+            """);
+
+        Assert.Equal("ok", result.GetProperty("answer").GetString());
+
+        JsonElement body = result.GetProperty("sent")[0];
+        JsonElement messages = body.GetProperty("messages");
+        string content = messages[messages.GetArrayLength() - 1].GetProperty("content").GetString()!;
+
+        // The file arrived whole: the envelope, every line, and the characters that used
+        // to close the literal early.
+        Assert.Contains("[File: Bob's \"notes\".txt]", content, StringComparison.Ordinal);
+        Assert.Contains("line one\nline two", content, StringComparison.Ordinal);
+        Assert.Contains("O'Brien \\ backslash", content, StringComparison.Ordinal);
+        Assert.Contains("naïve café", content, StringComparison.Ordinal);
+        Assert.Contains("[End of file]", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Coming back returns to the chat the page was in, not to the newest saved one.
+    ///
+    /// <para>
+    /// The pairing that breaks the obvious implementation: <c>fresh</c> is the empty
+    /// chat a launch just opened, and it is not in the conversation list at all — a
+    /// chat with no messages is never listed. <c>yesterday</c> is. So a page that
+    /// resumed "the most recent conversation" would take the user from the clean
+    /// composer they were handed on launch into an old transcript, the first time
+    /// WebKit reclaimed the content process behind a trip to the Models screen. Which
+    /// is the thing this whole change exists to stop.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ComingBackOpensTheChatThePageWasInAndNotTheNewestSavedOne()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/launch'] = { cold: false, conversation: 'fresh' };
+            R['/api/agent/conversations'] = { conversations: [{ id: 'yesterday', title: 'Old', updatedAt: '2026-09-01T10:00:00Z', messageCount: 4 }] };
+            R['/api/sessions?conversation=fresh'] = {
+              sessionId: 's1', conversationId: 'fresh', messages: [], think: false, skills: []
+            };
+            R['/api/sessions?conversation=yesterday'] = {
+              sessionId: 's2', conversationId: 'yesterday', think: false, skills: [],
+              messages: [{ role: 'user', content: 'yesterday' }, { role: 'assistant', content: 'indeed' }]
+            };
+            """, """
+            return {
+              opened: __page.requests('/api/sessions').map(function (c) { return c.url; }),
+              shown: __page.transcript().map(function (t) { return t.text; }).join(' | ')
+            };
+            """);
+
+        var opened = result.GetProperty("opened").EnumerateArray().Select(u => u.GetString()!).ToList();
+        Assert.Contains("/api/sessions?conversation=fresh", opened);
+        Assert.DoesNotContain("/api/sessions?conversation=yesterday", opened);
+        Assert.DoesNotContain("indeed", result.GetProperty("shown").GetString()!, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Launching the app opens a clean chat, not yesterday's.
+    ///
+    /// <para>
+    /// The page used to open the most recent conversation on every load, so the app
+    /// always reopened mid-thought — reasonable on a desktop tab that stays open,
+    /// wrong for something the user launches from a home screen. It now starts empty
+    /// and leaves the previous chat one tap away in the menu.
+    /// </para>
+    /// <para>
+    /// Only on a LAUNCH, which is the half this test exists to pin. The identical page
+    /// load happens when WebKit kills the content process of a WebView whose view left
+    /// the window, and that one must still come back to the chat the user was reading,
+    /// possibly with an answer still being generated for it on the host side. The page
+    /// cannot tell the two apart from inside, so it asks; every other test here runs
+    /// with the <c>cold: false</c> default and exercises that path.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void LaunchingTheAppOpensAnEmptyChatRatherThanTheLastOne()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/launch'] = { cold: true };
+            R['/api/agent/conversations'] = { conversations: [{ id: 'saved', title: 'Old chat', updatedAt: '2026-09-01T10:00:00Z', messageCount: 2 }] };
+            R['/api/sessions?conversation=saved'] = {
+              sessionId: 's9', conversationId: 'saved', think: false, skills: [],
+              messages: [{ role: 'user', content: 'yesterday' }, { role: 'assistant', content: 'indeed' }]
+            };
+            """, """
+            return {
+              shown: __page.transcript().map(function (t) { return t.text; }).join(' | '),
+              history: window.TensorAgent.history(),
+              opened: __page.requests('/api/sessions').map(function (c) { return c.url; })
+            };
+            """);
+
+        // The session that was opened is the whole behaviour: "new" is a fresh chat,
+        // "saved" is yesterday's. Asserted on the request rather than on an empty
+        // transcript, because a fresh chat is not empty on screen — it carries the
+        // "New chat" placeholder, which is exactly what should be there.
+        var opened = result.GetProperty("opened").EnumerateArray().Select(u => u.GetString()!).ToList();
+        Assert.Contains("/api/sessions?conversation=new", opened);
+        Assert.DoesNotContain("/api/sessions?conversation=saved", opened);
+
+        // And nothing of yesterday's chat came with it — not on screen, and not in the
+        // history the next message would be sent with, which is the half that would
+        // quietly carry the old conversation into the new one's context.
+        string shown = result.GetProperty("shown").GetString()!;
+        Assert.DoesNotContain("yesterday", shown, StringComparison.Ordinal);
+        Assert.DoesNotContain("indeed", shown, StringComparison.Ordinal);
+        Assert.Equal(0, result.GetProperty("history").GetArrayLength());
+    }
+
     [Fact]
     public void AReopenedChatShowsItsPicturesSoundsClipsAndDocumentsAgain()
     {
@@ -389,7 +710,9 @@ public sealed class WebUiPageTests : IDisposable
             """, """
             __page.byId['text'].value = 'Anything else?';
             __page.byId['send'].dispatch('click');
-            return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            return settle(10).then(function () {
+              return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            });
             """);
 
         JsonElement messages = result.GetProperty("sent")[0].GetProperty("messages");
@@ -481,6 +804,99 @@ public sealed class WebUiPageTests : IDisposable
         Assert.False(result.GetProperty("sent")[0].TryGetProperty("skills", out _),
             "a saved chat re-selected a skill after the feature was switched off");
         Assert.Equal(0, result.GetProperty("chips").GetInt32());
+    }
+
+    // =====================================================================================
+    // the file the model made
+    // =====================================================================================
+
+    /// <summary>
+    /// Tapping a generated file asks the APP to open it instead of navigating.
+    ///
+    /// <para>
+    /// Navigating is what used to happen, and it is the reported bug: the route serves
+    /// its files as attachments (program-written content must never render in the origin
+    /// holding the launch token) and a WKWebView with no download delegate drops an
+    /// attachment silently -- so what the user saw was the route's own 404 body,
+    /// <c>{"error":"not found"}</c>. Both anchors are covered here, because they are
+    /// built by different code: the file card this page renders, and the markdown link
+    /// the model copies into its answer.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TappingAGeneratedFileAsksTheAppToOpenItRatherThanNavigating()
+    {
+        JsonElement result = Run("""
+            R['/api/sessions?conversation=new'] = { sessionId: 's1', conversationId: 'c1', messages: [], think: false, skills: [] };
+            R['/api/chat'] = { __sse: [
+              { skill_step: 'shell', skill: 'documents', detail: 'make_pdf.py', ok: true,
+                files: [{ name: 'photo.pdf', bytes: 2048, url: '/api/code/artifacts/run1/photo.pdf' }] },
+              { tool_progress: 'finished', tool: 'shell', seconds: 3 },
+              { token: 'Here is your PDF: [photo.pdf](/api/code/artifacts/run1/photo.pdf)' },
+              { done: true, truncated: false }
+            ] };
+            """, """
+            window.TensorAgent.nativeReady();
+            __page.byId['text'].value = 'turn this photo into a pdf';
+            __page.byId['send'].dispatch('click');
+            return settle(30).then(function () {
+              return { links: __page.transcript().reduce(function (all, t) { return all.concat(t.media); }, [])
+                .filter(function (m) { return m.tag === 'A'; })
+                .map(function (m) { return m.src; }) };
+            });
+            """);
+
+        // Both links exist and both point at the route.
+        string[] links = Strings(result, "links");
+        Assert.Contains("/api/code/artifacts/run1/photo.pdf", links);
+    }
+
+    /// <summary>
+    /// The click itself, on the file card the page rendered: claimed by the page and
+    /// handed to the app, with nothing navigated.
+    /// </summary>
+    [Fact]
+    public void TheClickOnAGeneratedFileIsHandedToTheApp()
+    {
+        JsonElement result = Run("""
+            R['/api/sessions?conversation=new'] = { sessionId: 's1', conversationId: 'c1', messages: [], think: false, skills: [] };
+            R['/api/chat'] = { __sse: [
+              { skill_step: 'shell', skill: 'documents', detail: 'make_pdf.py', ok: true,
+                files: [{ name: 'photo.pdf', bytes: 2048, url: '/api/code/artifacts/run1/photo%20one.pdf' }] },
+              { tool_progress: 'finished', tool: 'shell', seconds: 3 },
+              { token: 'Done.' },
+              { done: true, truncated: false }
+            ] };
+            """, """
+            window.TensorAgent.nativeReady();
+            __page.byId['text'].value = 'turn this photo into a pdf';
+            __page.byId['send'].dispatch('click');
+            return settle(30).then(function () {
+              var anchor = null;
+              (function walk(node) {
+                node.children.forEach(function (c) {
+                  if (c.tagName === 'A' && String(c.href || '').indexOf('/api/code/artifacts/') === 0) anchor = c;
+                  walk(c);
+                });
+              })(__page.byId['chat']);
+              var prevented = false;
+              document.dispatch('click', { target: anchor, button: 0, defaultPrevented: false,
+                                           preventDefault: function () { prevented = true; } });
+              return { found: !!anchor, prevented: prevented,
+                       asked: __page.requests('/api/agent/events').map(function (c) { return c.body; }) };
+            });
+            """);
+
+        Assert.True(result.GetProperty("found").GetBoolean(), "the file card rendered no link to tap");
+        Assert.True(result.GetProperty("prevented").GetBoolean(),
+            "the tap navigated instead of being handed to the app");
+        JsonElement[] asked = result.GetProperty("asked").EnumerateArray()
+            .Where(e => e.TryGetProperty("type", out JsonElement t) && t.GetString() == "open-file")
+            .ToArray();
+        JsonElement open = Assert.Single(asked);
+        // The URL is passed through as the page holds it -- percent-encoded -- because
+        // the app decodes it one segment at a time against the artifact store.
+        Assert.Equal("/api/code/artifacts/run1/photo%20one.pdf", open.GetProperty("url").GetString());
     }
 
     private static string[] Strings(JsonElement parent, string name) =>

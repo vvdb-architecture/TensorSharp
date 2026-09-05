@@ -29,10 +29,11 @@ namespace TensorAgent.Core.Shell;
 /// available to anybody: iOS runs no child processes and will not execute a binary that
 /// was not signed into the app bundle, so there is no package manager to reach for and
 /// no <c>bc</c> to fetch. What IS available is a full CPython and a JavaScript engine,
-/// either of which does everything the missing tool would have — and PACKAGES for those
-/// two do install, on demand, when the user has allowed the network. So the message
-/// names the thing that works instead of the thing that does not exist, which is the
-/// difference between a model that recovers in one round and a model that gives up.
+/// either of which does everything the missing tool would have. When the user has
+/// allowed the network, CPython can also add libraries that ship as pure-Python wheels;
+/// JavaScript packages and native dependencies cannot be added. So the message names
+/// the thing that works instead of the thing that does not exist, which is the difference
+/// between a model that recovers in one round and a model that gives up.
 /// </para>
 /// </summary>
 internal static class ShellMissingCommand
@@ -80,6 +81,13 @@ internal static class ShellMissingCommand
         ["apk"] = PackageManagers,
         ["port"] = PackageManagers,
 
+        // Node itself is embedded, but its package manager is not. This needs explicit
+        // advice rather than the generic "node is available": the latter sounds like a
+        // transient missing command that can be repaired, and sends the model straight
+        // back to another npm spelling.
+        ["npm"] = "npm/JavaScript packages cannot be installed on this device; use Node's built-in modules "
+                + "or write it in python3, whose pure-Python `none-any` wheels can be installed",
+
         ["sudo"] = "there is nothing to escalate to; run the command by itself",
         ["su"] = "there is nothing to escalate to; run the command by itself",
         ["systemctl"] = "there are no services on this device",
@@ -91,8 +99,9 @@ internal static class ShellMissingCommand
 
     private const string PackageManagers =
         "there is no system package manager on this device and no native program can be installed. "
-        + "Python and JavaScript packages DO install — `python3 -m pip install <name>` and "
-        + "`npm install <name>` — when network access is on";
+        + "Only Python libraries distributed as pure-Python `none-any` wheels can be installed when "
+        + "network access is on: use `pip install <name>` or `python3 -m pip install <name>`. "
+        + "Dependencies are not resolved automatically, and npm/JavaScript packages cannot be installed";
 
     /// <summary>
     /// The whole message for <paramref name="name"/>: that it is missing, what to use

@@ -66,6 +66,9 @@ public sealed class StoredAttachment
     [JsonPropertyName("file")] public string File { get; set; } = string.Empty;
     [JsonPropertyName("fileName")] public string FileName { get; set; } = string.Empty;
     [JsonPropertyName("mediaType")] public string MediaType { get; set; } = "text";
+    /// <summary>True when the complete text stays in the upload and is read through
+    /// file/code tools instead of being copied into every prompt.</summary>
+    [JsonPropertyName("fileBacked")] public bool? FileBacked { get; set; }
     [JsonPropertyName("previewFile")] public string? PreviewFile { get; set; }
     [JsonPropertyName("frames")] public List<string>? Frames { get; set; }
     [JsonPropertyName("pageCount")] public int? PageCount { get; set; }

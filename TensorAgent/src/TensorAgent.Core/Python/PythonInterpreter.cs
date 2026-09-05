@@ -764,8 +764,29 @@ internal sealed unsafe class PythonInterpreter
         IReadOnlyDictionary<string, string> environment,
         IReadOnlyList<string> pathFront,
         IReadOnlyList<string> pathBack,
+        string runtimePackages,
+        TimeSpan networkTimeout,
         string? standardInput)
     {
+        // These are the import locations that belong to the run rather than the
+        // process-wide runtime. Python canonicalizes them before comparing module
+        // origins. Preserve their search order while removing the common cwd/front
+        // duplicate; the list is scanned once at teardown, not on every import.
+        var moduleRoots = new List<string>();
+        void AddModuleRoot(string? value)
+        {
+            if (!string.IsNullOrEmpty(value)
+                && !moduleRoots.Contains(value, StringComparer.Ordinal))
+            {
+                moduleRoots.Add(value);
+            }
+        }
+        AddModuleRoot(workingDirectory);
+        foreach (string value in pathFront)
+            AddModuleRoot(value);
+        foreach (string value in pathBack)
+            AddModuleRoot(value);
+
         var buffer = new MemoryStream();
         using (var writer = new Utf8JsonWriter(buffer))
         {
@@ -774,6 +795,8 @@ internal sealed unsafe class PythonInterpreter
             writer.WriteString("target", target);
             writer.WriteString("cwd", workingDirectory);
             writer.WriteString("stdin", standardInput ?? string.Empty);
+            writer.WriteString("runtime_packages", runtimePackages);
+            writer.WriteNumber("network_timeout_seconds", Math.Max(0.001, networkTimeout.TotalSeconds));
             writer.WriteStartArray("argv");
             foreach (string value in argv)
                 writer.WriteStringValue(value);
@@ -784,6 +807,10 @@ internal sealed unsafe class PythonInterpreter
             writer.WriteEndArray();
             writer.WriteStartArray("path_back");
             foreach (string value in pathBack)
+                writer.WriteStringValue(value);
+            writer.WriteEndArray();
+            writer.WriteStartArray("module_roots");
+            foreach (string value in moduleRoots)
                 writer.WriteStringValue(value);
             writer.WriteEndArray();
             writer.WriteStartObject("env");

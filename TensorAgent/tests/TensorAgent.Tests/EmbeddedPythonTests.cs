@@ -9,7 +9,10 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.IO.Compression;
+using System.Net;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using TensorAgent.Core.Python;
 using TensorAgent.Core.Sandbox;
 
@@ -181,6 +184,67 @@ public sealed class EmbeddedPythonTests : IDisposable
     }
 
     [Fact]
+    public void PythonPathEntriesAreAppliedInOrderOnlyWhenTheSandboxCanReadThem()
+    {
+        ExecutionPolicy policy = Policy(packages: false) with
+        {
+            ReadableRoots = new[] { _readable, _packages },
+        };
+        string pythonPath = string.Join(
+            Path.PathSeparator, _packages, _outside, _readable, _packages);
+        var context = new InterpreterContext(
+            _work,
+            new Dictionary<string, string> { ["PYTHONPATH"] = pythonPath },
+            policy);
+
+        IReadOnlyList<string> paths = EmbeddedPython.ReadableImportPaths(
+            context, new ConfinedPaths(policy));
+
+        Assert.Equal(new[] { Real(_packages), Real(_readable) }, paths);
+    }
+
+    [Fact]
+    public void PackageRootRemainsTheImportPathFallbackForDirectRuntimeCalls()
+    {
+        ExecutionPolicy policy = Policy();
+        IReadOnlyList<string> paths = EmbeddedPython.ReadableImportPaths(
+            Context(policy), new ConfinedPaths(policy));
+
+        Assert.Equal(new[] { Real(_packages) }, paths);
+    }
+
+    [Fact]
+    public void TheRunPayloadSeparatesSessionModuleRootsFromTheRuntimePath()
+    {
+        string payload = PythonInterpreter.CreatePayload(
+            "code",
+            "pass",
+            ["-c"],
+            _work,
+            new Dictionary<string, string>(),
+            [_work, _readable],
+            [_packages, _readable],
+            Path.Combine(_root, "runtime", "app_packages"),
+            TimeSpan.FromSeconds(7),
+            null);
+
+        using JsonDocument document = JsonDocument.Parse(payload);
+        string[] roots = document.RootElement.GetProperty("module_roots")
+            .EnumerateArray()
+            .Select(element => element.GetString()!)
+            .ToArray();
+
+        Assert.Equal(7, document.RootElement.GetProperty("network_timeout_seconds").GetDouble());
+        Assert.Equal(
+            Path.Combine(_root, "runtime", "app_packages"),
+            document.RootElement.GetProperty("runtime_packages").GetString());
+
+        // cwd/path_front commonly name the same directory, and a skill may occur
+        // in both front and back. Each is scanned once, in first-search order.
+        Assert.Equal(new[] { _work, _readable, _packages }, roots);
+    }
+
+    [Fact]
     public void TheSandboxAddsTheRuntimesOwnTreesToTheReadableRoots()
     {
         string stdlib = Path.Combine(_root, "runtime", "lib", "python3.13");
@@ -318,6 +382,36 @@ public sealed class EmbeddedPythonTests : IDisposable
         Assert.Equal(@"'a\\b'", PythonBootstrap.Literal(@"a\b"));
         Assert.Equal(@"'it\'s'", PythonBootstrap.Literal("it's"));
         Assert.Equal(@"'a\nb'", PythonBootstrap.Literal("a\nb"));
+    }
+
+    [Fact]
+    public void TheBootstrapForgetsOnlyModulesOwnedByTheCompletedRun()
+    {
+        string source = PythonBootstrap.InstallSource;
+        string lifetime = Between(
+            source,
+            "# ---------------------------------------------------- module lifetime",
+            "# ------------------------------------------------------------- run");
+
+        Assert.Contains("request.get('module_roots', ())", lifetime);
+        Assert.Contains("_state['writable']", lifetime);
+        // readable also contains the runtime's stdlib and bundled packages. Using
+        // it here would turn every command into a cold interpreter in disguise.
+        Assert.DoesNotContain("_state['readable']", lifetime);
+        Assert.Contains("namespace.get('__file__')", lifetime);
+        Assert.Contains("getattr(spec, 'origin', None)", lifetime);
+        Assert.Contains("getattr(module, '__path__', None)", lifetime);
+        Assert.Contains("sys.modules.pop(name, None)", lifetime);
+        Assert.Contains("sys.path_importer_cache.pop(entry, None)", lifetime);
+        Assert.Contains("invalidate = getattr(finder, 'invalidate_caches', None)", lifetime);
+        Assert.DoesNotContain("importlib.invalidate_caches()", lifetime);
+        Assert.DoesNotContain("_guard.busy = True", lifetime);
+        Assert.Contains("previous_modules.get(name) is module", lifetime);
+        Assert.Contains("_trusted_modules", lifetime);
+        Assert.Contains("_forget_shadowed_runtime_modules", lifetime);
+        Assert.Contains("_module_belongs_to_run(_module_signature(module), (bundled,))", lifetime);
+        Assert.Contains("_forget_run_modules(module_roots, previous_modules)", source);
+        Assert.Contains("_forget_shadowed_runtime_modules(front + back, runtime_packages)", source);
     }
 
     // =====================================================================================
@@ -562,6 +656,30 @@ public sealed class EmbeddedPythonTests : IDisposable
     }
 
     [Fact]
+    public void TheInstallerDoesNotAdvertiseInstallsWhenPyPisPayloadHostIsBlocked()
+    {
+        var installer = new WheelInstaller(Policy(network: true) with { NetworkHosts = [WheelInstaller.IndexHost] });
+        Assert.False(installer.CanInstall);
+        Assert.Contains(WheelInstaller.PayloadHost, installer.UnavailableReason!);
+    }
+
+    [Fact]
+    public async Task ADirectInstallDoesNotFetchMetadataWhenPyPisPayloadHostIsBlocked()
+    {
+        var handler = new RecordingHttpHandler(_ => TextResponse(HttpStatusCode.OK, "unexpected request"));
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true) with { NetworkHosts = [WheelInstaller.IndexHost] };
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains(WheelInstaller.PayloadHost, result.Stderr);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
     public void TheInstallerCanInstallWhenTheNetworkIsOn()
     {
         var installer = new WheelInstaller(Policy(network: true));
@@ -602,6 +720,279 @@ public sealed class EmbeddedPythonTests : IDisposable
         ExecutionResult result = await installer.InstallAsync(request, CancellationToken.None);
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("pypi.org", result.Stderr);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TheInstallerNeverRequestsADisallowedWheelOrRedirectHost(bool throughRedirect)
+    {
+        const string index = "https://pypi.org/pypi/probe/json";
+        const string allowedPayload = "https://files.pythonhosted.org/packages/probe-1.0-py3-none-any.whl";
+        const string refusedPayload = "https://downloads.example/probe-1.0-py3-none-any.whl";
+        byte[] wheel = WheelBytes(("probe.py", "answer = 42\n"));
+        string digest = Convert.ToHexString(SHA256.HashData(wheel)).ToLowerInvariant();
+
+        var handler = new RecordingHttpHandler(request =>
+        {
+            string uri = request.RequestUri!.AbsoluteUri;
+            if (uri == index)
+            {
+                string payload = throughRedirect ? allowedPayload : refusedPayload;
+                return TextResponse(HttpStatusCode.OK, IndexJson(
+                    IndexFile("probe-1.0-py3-none-any.whl", "bdist_wheel", digest, url: payload)));
+            }
+            if (throughRedirect && uri == allowedPayload)
+            {
+                var redirect = new HttpResponseMessage(HttpStatusCode.Found);
+                redirect.Headers.Location = new Uri(refusedPayload);
+                return redirect;
+            }
+            return TextResponse(HttpStatusCode.InternalServerError, "unexpected request");
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true) with
+        {
+            NetworkHosts = ["pypi.org", "files.pythonhosted.org"],
+        };
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("downloads.example", result.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain(handler.Requests, uri => uri.Host == "downloads.example");
+        Assert.Equal(throughRedirect ? 2 : 1, handler.Requests.Count);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public async Task TheInstallerFollowsRedirectsOnlyAfterEachHostIsAllowed()
+    {
+        const string index = "https://pypi.org/pypi/probe/json";
+        const string origin = "https://files.pythonhosted.org/packages/probe-1.0-py3-none-any.whl";
+        const string mirror = "https://wheel-cdn.example/probe-1.0-py3-none-any.whl";
+        byte[] wheel = WheelBytes(
+            ("probe.py", "answer = 42\n"),
+            ("probe-1.0.dist-info/METADATA", "Name: probe\nVersion: 1.0\n"));
+        string digest = Convert.ToHexString(SHA256.HashData(wheel)).ToLowerInvariant();
+
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            index => TextResponse(HttpStatusCode.OK, IndexJson(
+                IndexFile("probe-1.0-py3-none-any.whl", "bdist_wheel", digest, url: origin))),
+            origin => RedirectResponse(mirror),
+            mirror => BytesResponse(wheel),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true) with
+        {
+            NetworkHosts = ["pypi.org", "files.pythonhosted.org", "wheel-cdn.example"],
+        };
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.True(result.Ok, result.Stderr);
+        Assert.Equal(new[] { new Uri(index), new Uri(origin), new Uri(mirror) }, handler.Requests);
+        Assert.True(File.Exists(Path.Combine(_packages, "probe.py")));
+    }
+
+    [Fact]
+    public async Task PackageMetadataHasABoundedStreamingSize()
+    {
+        const string index = "https://pypi.org/pypi/probe/json";
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri == index
+            ? DeclaredLengthResponse(WheelInstaller.MaxIndexBytes + 1L)
+            : TextResponse(HttpStatusCode.InternalServerError, "unexpected request"));
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("package metadata exceeds the 8 MiB limit", result.Stderr);
+        Assert.Single(handler.Requests);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public async Task ASuccessfulInstallTruthfullyReportsUnresolvedUnconditionalDependencies()
+    {
+        byte[] wheel = WheelBytes(("probe.py", "VALUE = 1\n"));
+        string digest = Convert.ToHexString(SHA256.HashData(wheel)).ToLowerInvariant();
+        const string index = "https://pypi.org/pypi/probe/json";
+        const string payload = "https://files.pythonhosted.org/packages/probe-1.0-py3-none-any.whl";
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            index => TextResponse(HttpStatusCode.OK, IndexJsonWithDependencies(
+                [
+                    "Pillow",
+                    "pikepdf>=8",
+                    "typing-extensions; python_version < '3.11'",
+                    "platformdirs; python_version >= '3.13'",
+                ],
+                IndexFile("probe-1.0-py3-none-any.whl", "bdist_wheel", digest, url: payload))),
+            payload => BytesResponse(wheel),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.True(result.Ok, result.Stderr);
+        Assert.Contains("declares these unconditional dependencies (Pillow, pikepdf)", result.Stdout);
+        Assert.Contains("did not resolve them automatically", result.Stdout);
+        Assert.Contains("Conditional dependency markers were not evaluated or shown", result.Stdout);
+        Assert.DoesNotContain("typing-extensions", result.Stdout);
+        Assert.DoesNotContain("platformdirs", result.Stdout);
+        Assert.True(File.Exists(Path.Combine(_packages, "probe.py")));
+    }
+
+    [Fact]
+    public async Task AWheelDownloadHasABoundedStreamingSizeAndLeavesNoStage()
+    {
+        const string index = "https://pypi.org/pypi/probe/json";
+        const string payload = "https://files.pythonhosted.org/packages/probe-1.0-py3-none-any.whl";
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            index => TextResponse(HttpStatusCode.OK, IndexJson(
+                IndexFile("probe-1.0-py3-none-any.whl", "bdist_wheel", "abcd", url: payload))),
+            payload => DeclaredLengthResponse(WheelInstaller.MaxWheelBytes + 1),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("wheel download exceeds the 64 MiB limit", result.Stderr);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public async Task CancellingAStreamingDownloadPreservesTheExistingEnvironmentAndRemovesTheStage()
+    {
+        string existing = Path.Combine(_packages, "existing.py");
+        File.WriteAllText(existing, "VALUE = 'safe'\n");
+        byte[] wheel = WheelBytes(("probe.py", "VALUE = 'partial'\n"));
+        string digest = Convert.ToHexString(SHA256.HashData(wheel)).ToLowerInvariant();
+        const string index = "https://pypi.org/pypi/probe/json";
+        const string payload = "https://files.pythonhosted.org/packages/probe-1.0-py3-none-any.whl";
+        using var cancellation = new CancellationTokenSource();
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            index => TextResponse(HttpStatusCode.OK, IndexJson(
+                IndexFile("probe-1.0-py3-none-any.whl", "bdist_wheel", digest, url: payload))),
+            payload => StreamResponse(new CancelOnFirstReadStream(wheel, cancellation)),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), cancellation.Token));
+
+        Assert.Equal("VALUE = 'safe'\n", File.ReadAllText(existing));
+        Assert.Equal([existing], Directory.GetFiles(_packages));
+        Assert.Empty(Directory.GetDirectories(_packages));
+    }
+
+    [Fact]
+    public async Task ReplacingAPinnedWheelRemovesItsOldRecordFilesAndMetadataButPreservesNeighbors()
+    {
+        string module = Path.Combine(_packages, "probe");
+        string oldInfo = Path.Combine(_packages, "probe-1.0.dist-info");
+        Directory.CreateDirectory(module);
+        Directory.CreateDirectory(oldInfo);
+        File.WriteAllText(Path.Combine(module, "__init__.py"), "VERSION = '1.0'\n");
+        File.WriteAllText(Path.Combine(module, "obsolete.py"), "OLD = True\n");
+        File.WriteAllText(Path.Combine(module, "neighbor.py"), "KEEP = True\n");
+        File.WriteAllText(Path.Combine(oldInfo, "METADATA"), "Name: probe\nVersion: 1.0\n");
+        File.WriteAllText(Path.Combine(oldInfo, "RECORD"),
+            "probe/__init__.py,,\nprobe/obsolete.py,,\n"
+            + "probe-1.0.dist-info/METADATA,,\nprobe-1.0.dist-info/RECORD,,\n");
+
+        byte[] wheel = WheelBytes(
+            ("probe/__init__.py", "VERSION = '2.0'\n"),
+            ("probe/current.py", "CURRENT = True\n"),
+            ("probe-2.0.dist-info/METADATA", "Name: probe\nVersion: 2.0\n"),
+            ("probe-2.0.dist-info/RECORD", "probe/__init__.py,,\nprobe/current.py,,\n"));
+        const string index = "https://pypi.org/pypi/probe/2.0/json";
+        const string payload = "https://files.pythonhosted.org/packages/probe-2.0-py3-none-any.whl";
+        string digest = Convert.ToHexString(SHA256.HashData(wheel)).ToLowerInvariant();
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            index => TextResponse(HttpStatusCode.OK, IndexJson(
+                IndexFile("probe-2.0-py3-none-any.whl", "bdist_wheel", digest, url: payload))),
+            payload => BytesResponse(wheel),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe==2.0"], _packages, policy), CancellationToken.None);
+
+        Assert.True(result.Ok, result.Stderr);
+        Assert.Equal("VERSION = '2.0'\n", File.ReadAllText(Path.Combine(module, "__init__.py")));
+        Assert.True(File.Exists(Path.Combine(module, "current.py")));
+        Assert.True(File.Exists(Path.Combine(module, "neighbor.py")));
+        Assert.False(File.Exists(Path.Combine(module, "obsolete.py")));
+        Assert.False(Directory.Exists(oldInfo));
+        Assert.True(Directory.Exists(Path.Combine(_packages, "probe-2.0.dist-info")));
+        Assert.DoesNotContain(Directory.GetFileSystemEntries(_packages),
+            path => Path.GetFileName(path).StartsWith(".tensoragent-install-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AFailedLaterPackageDoesNotRollBackAnEarlierPackageOrLeaveItsOwnFiles()
+    {
+        byte[] alpha = WheelBytes(("alpha.py", "VALUE = 1\n"));
+        byte[] bravo = WheelBytes(("bravo.py", "VALUE = 2\n"));
+        string alphaDigest = Convert.ToHexString(SHA256.HashData(alpha)).ToLowerInvariant();
+        const string alphaIndex = "https://pypi.org/pypi/alpha/json";
+        const string bravoIndex = "https://pypi.org/pypi/bravo/json";
+        const string alphaPayload = "https://files.pythonhosted.org/packages/alpha-1.0-py3-none-any.whl";
+        const string bravoPayload = "https://files.pythonhosted.org/packages/bravo-1.0-py3-none-any.whl";
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            alphaIndex => TextResponse(HttpStatusCode.OK, IndexJson(
+                IndexFile("alpha-1.0-py3-none-any.whl", "bdist_wheel", alphaDigest, url: alphaPayload))),
+            bravoIndex => TextResponse(HttpStatusCode.OK, IndexJson(
+                IndexFile("bravo-1.0-py3-none-any.whl", "bdist_wheel", new string('0', 64), url: bravoPayload))),
+            alphaPayload => BytesResponse(alpha),
+            bravoPayload => BytesResponse(bravo),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client);
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["alpha", "bravo"], _packages, policy), CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("installed alpha-1.0-py3-none-any.whl", result.Stdout);
+        Assert.Contains("does not match the sha256", result.Stderr);
+        Assert.True(File.Exists(Path.Combine(_packages, "alpha.py")));
+        Assert.False(File.Exists(Path.Combine(_packages, "bravo.py")));
+        Assert.DoesNotContain(Directory.GetFileSystemEntries(_packages),
+            path => Path.GetFileName(path).StartsWith(".tensoragent-install-", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -662,11 +1053,124 @@ public sealed class EmbeddedPythonTests : IDisposable
     [Theory]
     [InlineData("rich-13.9.4-py3-none-any.whl", true)]
     [InlineData("six-1.16.0-py2.py3-none-any.whl", true)]
+    [InlineData("probe-1.0-cp313-none-any.whl", true)]
+    [InlineData("probe-1.0-py36-none-any.whl", true)]
+    [InlineData("probe-1.0-py310-none-any.whl", true)]
+    [InlineData("probe-1.0-py313-none-any.whl", true)]
+    [InlineData("probe-1.0-py314-none-any.whl", false)]
+    [InlineData("probe-1.0-cp310-none-any.whl", false)]
     [InlineData("numpy-2.5.2-cp313-cp313-macosx_11_0_arm64.whl", false)]
     [InlineData("pillow-10.4.0-cp313-cp313-ios_13_0_arm64_iphoneos.whl", false)]
     [InlineData("pyyaml-6.0.tar.gz", false)]
-    public void PureWheelsAreTheOnesWithNoAbiAndNoPlatform(string fileName, bool pure)
-        => Assert.Equal(pure, WheelInstaller.IsPureWheel(fileName));
+    public void OnlyPureWheelsCompatibleWithEmbeddedPythonAreAccepted(string fileName, bool accepted)
+        => Assert.Equal(accepted, WheelInstaller.IsPureWheel(fileName));
+
+    [Fact]
+    public void APureWheelForAnotherPythonVersionGetsAnInterpreterSpecificRefusal()
+    {
+        Assert.False(WheelInstaller.TrySelectWheel(IndexJson(IndexFile(
+            "probe-1.0-py314-none-any.whl", "bdist_wheel", "aaa")), out _, out string? reason));
+
+        Assert.Contains("pure-Python wheel targets another Python version", reason!);
+        Assert.Contains("CPython 3.13", reason!);
+    }
+
+    [Theory]
+    [InlineData(">=3.5", true)]
+    [InlineData(">=3.10,<4", true)]
+    [InlineData(">=3.14", false)]
+    [InlineData("~=3.8", true)]
+    [InlineData("~=3.13.1", true)]
+    [InlineData("==3.13.*", true)]
+    [InlineData("!=3.13.*", false)]
+    [InlineData("==3.13.14", true)]
+    [InlineData("!=3.13.0", true)]
+    public void RequiresPythonIsEvaluatedForEmbeddedCpython(string expression, bool compatible)
+    {
+        Assert.True(WheelInstaller.TryEvaluateRequiresPython(expression, out bool actual, out string? error), error);
+        Assert.Equal(compatible, actual);
+    }
+
+    [Fact]
+    public void AProjectIncompatibleWithEmbeddedPythonIsRefusedClearly()
+    {
+        Assert.False(WheelInstaller.TrySelectWheel(
+            IndexJsonWithRequiresPython(">=3.14", IndexFile(
+                "probe-1.0-py3-none-any.whl", "bdist_wheel", "aaa")),
+            out _, out string? reason));
+
+        Assert.Contains("requires Python '>=3.14'", reason!);
+        Assert.Contains("CPython 3.13", reason!);
+    }
+
+    [Fact]
+    public async Task InstallerUsesTheSuppliedInterpreterPatchForRequiresPython()
+    {
+        byte[] wheel = WheelBytes(("probe.py", "VALUE = 1\n"));
+        string digest = Convert.ToHexString(SHA256.HashData(wheel)).ToLowerInvariant();
+        const string index = "https://pypi.org/pypi/probe/json";
+        const string payload = "https://files.pythonhosted.org/packages/probe-1.0-py3-none-any.whl";
+        var handler = new RecordingHttpHandler(request => request.RequestUri!.AbsoluteUri switch
+        {
+            index => TextResponse(HttpStatusCode.OK, IndexJsonWithRequiresPython(
+                ">=3.13.10", IndexFile(
+                    "probe-1.0-py3-none-any.whl", "bdist_wheel", digest, url: payload))),
+            payload => BytesResponse(wheel),
+            _ => TextResponse(HttpStatusCode.InternalServerError, "unexpected request"),
+        });
+        using var client = new HttpClient(handler);
+        ExecutionPolicy policy = Policy(network: true);
+        var installer = new WheelInstaller(policy, client, pythonVersion: "3.13.9 (embedded)");
+
+        ExecutionResult result = await installer.InstallAsync(
+            new InstallRequest("python", ["probe"], _packages, policy), CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("requires Python '>=3.13.10'", result.Stderr);
+        Assert.Contains("CPython 3.13.9", result.Stderr);
+        Assert.Equal(new[] { new Uri(index) }, handler.Requests);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public void OversizedRequiresPythonMetadataCannotFloodOrInjectIntoTheDiagnostic()
+    {
+        string untrusted = new string('9', 512) + "\nforged second line";
+
+        Assert.False(WheelInstaller.TrySelectWheel(
+            IndexJsonWithRequiresPython(untrusted, IndexFile(
+                "probe-1.0-py3-none-any.whl", "bdist_wheel", "aaa")),
+            out _, out string? reason));
+
+        Assert.NotNull(reason);
+        Assert.True(reason!.Length < 700, $"remote metadata expanded the diagnostic to {reason.Length} characters");
+        Assert.DoesNotContain('\n', reason);
+        Assert.DoesNotContain("forged second line", reason, StringComparison.Ordinal);
+        Assert.Contains('…', reason);
+    }
+
+    [Fact]
+    public void AnIncompatibleFileIsSkippedForACompatiblePureWheel()
+    {
+        Assert.True(WheelInstaller.TrySelectWheel(IndexJson(
+            IndexFile("probe-1.0-py3-none-any.whl", "bdist_wheel", "aaa", requiresPython: ">=3.14"),
+            IndexFile("probe-1.0-cp313-none-any.whl", "bdist_wheel", "bbb", requiresPython: ">=3.10")),
+            out PyPiFile? wheel, out string? reason), reason);
+
+        Assert.Equal("probe-1.0-cp313-none-any.whl", wheel!.FileName);
+    }
+
+    [Fact]
+    public void UnsupportedRequiresPythonSyntaxIsRefusedInsteadOfGuessed()
+    {
+        Assert.False(WheelInstaller.TrySelectWheel(
+            IndexJsonWithRequiresPython(">=3.10; platform_system == 'iOS'", IndexFile(
+                "probe-1.0-py3-none-any.whl", "bdist_wheel", "aaa")),
+            out _, out string? reason));
+
+        Assert.Contains("cannot safely evaluate", reason!);
+        Assert.Contains("unsupported release component", reason!);
+    }
 
     [Theory]
     [InlineData("rich", "rich", null)]
@@ -724,6 +1228,65 @@ public sealed class EmbeddedPythonTests : IDisposable
     }
 
     [Fact]
+    public async Task AnExpandedWheelIsRejectedBeforeWritingAnyMember()
+    {
+        using var archive = Archive(("probe/one.py", "1234"), ("probe/two.py", "56"));
+
+        (bool ok, int files, string? refusal) = await WheelInstaller.TryExtractAsync(
+            archive, _packages, Confined(_packages), maxExpandedBytes: 5, maxFiles: 10,
+            CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal(0, files);
+        Assert.Contains("expanded wheel exceeds the 5 bytes limit", refusal!);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public async Task AFileHeavyWheelIsRejectedBeforeWritingAnyMember()
+    {
+        using var archive = Archive(("probe/one.py", "1"), ("probe/two.py", "2"), ("probe/three.py", "3"));
+
+        (bool ok, int files, string? refusal) = await WheelInstaller.TryExtractAsync(
+            archive, _packages, Confined(_packages), maxExpandedBytes: 100, maxFiles: 2,
+            CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal(0, files);
+        Assert.Contains("more than 2 archive entries", refusal!);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public async Task DirectoryEntriesCannotBypassTheArchiveCountLimit()
+    {
+        using var archive = Archive(("one/", ""), ("two/", ""), ("three/", ""));
+
+        (bool ok, int files, string? refusal) = await WheelInstaller.TryExtractAsync(
+            archive, _packages, Confined(_packages), maxExpandedBytes: 100, maxFiles: 2,
+            CancellationToken.None);
+
+        Assert.False(ok);
+        Assert.Equal(0, files);
+        Assert.Contains("more than 2 archive entries", refusal!);
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
+    public async Task ExtractionObservesCancellationBeforeWriting()
+    {
+        using var archive = Archive(("probe/__init__.py", "answer = 42\n"));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => WheelInstaller.TryExtractAsync(
+            archive, _packages, Confined(_packages), WheelInstaller.MaxExpandedBytes,
+            WheelInstaller.MaxArchiveFiles, cancellation.Token));
+
+        Assert.Empty(Directory.GetFileSystemEntries(_packages));
+    }
+
+    [Fact]
     public void APureWheelUnpacksIntoTheTargetDirectory()
     {
         using var archive = Archive(
@@ -777,6 +1340,30 @@ public sealed class EmbeddedPythonTests : IDisposable
     }
 
     [LivePythonFact]
+    public async Task EachRunGivesBlockingSocketsItsOwnFiniteStallTimeout()
+    {
+        EmbeddedPython python = Live();
+        ExecutionPolicy quick = Policy(network: true) with
+        {
+            DefaultTimeout = TimeSpan.FromMilliseconds(250),
+        };
+        ExecutionPolicy patient = quick with
+        {
+            DefaultTimeout = TimeSpan.FromSeconds(2),
+        };
+
+        ExecutionResult first = await python.RunCodeAsync(
+            "import socket; print(socket.getdefaulttimeout())", [], Context(quick), CancellationToken.None);
+        ExecutionResult second = await python.RunCodeAsync(
+            "import socket; print(socket.getdefaulttimeout())", [], Context(patient), CancellationToken.None);
+
+        Assert.True(first.Ok, first.Stderr);
+        Assert.Equal("0.25\n", first.Stdout);
+        Assert.True(second.Ok, second.Stderr);
+        Assert.Equal("2.0\n", second.Stdout);
+    }
+
+    [LivePythonFact]
     public async Task ALiveInterpreterRunsAScriptWithItsOwnDirectoryOnThePath()
     {
         EmbeddedPython python = Live();
@@ -788,6 +1375,115 @@ public sealed class EmbeddedPythonTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("42 __main__ main.py\n", result.Stdout);
+    }
+
+    [LivePythonFact]
+    public async Task SessionModulesAndPinnedReplacementsAreIsolatedWhileStdlibStaysWarm()
+    {
+        EmbeddedPython python = Live();
+        string moduleName = "tensoragent_isolation_" + Guid.NewGuid().ToString("N");
+        string cacheMarker = "_tensoragent_cache_" + Guid.NewGuid().ToString("N");
+
+        InterpreterContext Session(string name, string value)
+        {
+            string root = Path.Combine(_root, name);
+            string work = Path.Combine(root, "work");
+            string temp = Path.Combine(root, "tmp");
+            string packages = Path.Combine(root, "packages");
+            Directory.CreateDirectory(work);
+            Directory.CreateDirectory(temp);
+            Directory.CreateDirectory(packages);
+            File.WriteAllText(Path.Combine(packages, moduleName + ".py"), $"VALUE = '{value}'\n");
+            var policy = new ExecutionPolicy(
+                AllowScripts: true,
+                AllowNetwork: false,
+                WorkRoot: work,
+                ReadableRoots: [],
+                TempRoot: temp)
+            {
+                PackageRoot = packages,
+                DefaultTimeout = TimeSpan.FromSeconds(20),
+            };
+            return new InterpreterContext(
+                work,
+                new Dictionary<string, string>
+                {
+                    ["HOME"] = work,
+                    ["TMPDIR"] = temp,
+                    ["PYTHONPATH"] = packages,
+                },
+                policy);
+        }
+
+        InterpreterContext alpha = Session("alpha", "alpha");
+        InterpreterContext bravo = Session("bravo", "bravo");
+        ExecutionResult first = await python.RunCodeAsync(
+            $"import colorsys, {moduleName}\n"
+                + $"setattr(colorsys, '{cacheMarker}', 'warm')\n"
+                + $"print({moduleName}.VALUE)\n",
+            [], alpha, CancellationToken.None);
+        ExecutionResult second = await python.RunCodeAsync(
+            $"import colorsys, {moduleName}\n"
+                + $"print({moduleName}.VALUE, getattr(colorsys, '{cacheMarker}', 'cold'))\n",
+            [], bravo, CancellationToken.None);
+
+        string bravoModule = Path.Combine(bravo.Policy.PackageRoot!, moduleName + ".py");
+        File.WriteAllText(bravoModule, "VALUE = 'bravo-replaced'\n");
+        ExecutionResult replaced = await python.RunCodeAsync(
+            $"import colorsys, {moduleName}\n"
+                + $"print({moduleName}.VALUE, getattr(colorsys, '{cacheMarker}', 'cold'))\n"
+                + $"delattr(colorsys, '{cacheMarker}')\n",
+            [], bravo, CancellationToken.None);
+
+        Assert.True(first.Ok, first.Stderr);
+        Assert.Equal("alpha\n", first.Stdout);
+        Assert.True(second.Ok, second.Stderr);
+        Assert.Equal("bravo warm\n", second.Stdout);
+        Assert.True(replaced.Ok, replaced.Stderr);
+        Assert.Equal("bravo-replaced warm\n", replaced.Stdout);
+    }
+
+    [LiveStagedPythonFact]
+    public async Task SessionAndWorkingDirectoryOverrideAnAlreadyCachedBundledPackage()
+    {
+        EmbeddedPython python = Live();
+
+        // Warm the copy staged with the app before the session has its own. This is
+        // the case sys.path ordering alone cannot fix: CPython normally returns the
+        // existing sys.modules entry without looking at any path.
+        ExecutionResult warmed = await python.RunCodeAsync(
+            "import certifi; print('bundled', certifi.__file__)",
+            [], Context(), CancellationToken.None);
+        Assert.True(warmed.Ok, warmed.Stderr);
+        Assert.StartsWith("bundled ", warmed.Stdout, StringComparison.Ordinal);
+
+        string sessionPackage = Path.Combine(_packages, "certifi");
+        Directory.CreateDirectory(sessionPackage);
+        File.WriteAllText(
+            Path.Combine(sessionPackage, "__init__.py"),
+            "SOURCE = 'session'\n");
+
+        ExecutionResult fromSession = await python.RunCodeAsync(
+            "import certifi; print(certifi.SOURCE, certifi.__file__)",
+            [], Context(), CancellationToken.None);
+        Assert.True(fromSession.Ok, fromSession.Stderr);
+        Assert.Equal(
+            $"session {Real(Path.Combine(sessionPackage, "__init__.py"))}\n",
+            fromSession.Stdout);
+
+        string workingPackage = Path.Combine(_work, "certifi");
+        Directory.CreateDirectory(workingPackage);
+        File.WriteAllText(
+            Path.Combine(workingPackage, "__init__.py"),
+            "SOURCE = 'working'\n");
+
+        ExecutionResult fromWorkingDirectory = await python.RunCodeAsync(
+            "import certifi; print(certifi.SOURCE, certifi.__file__)",
+            [], Context(), CancellationToken.None);
+        Assert.True(fromWorkingDirectory.Ok, fromWorkingDirectory.Stderr);
+        Assert.Equal(
+            $"working {Path.GetFullPath(Path.Combine(workingPackage, "__init__.py"))}\n",
+            fromWorkingDirectory.Stdout);
     }
 
     [LivePythonFact]
@@ -918,17 +1614,106 @@ public sealed class EmbeddedPythonTests : IDisposable
         return new ZipArchive(buffer, ZipArchiveMode.Read);
     }
 
-    private static string IndexFile(string name, string type, string sha256, bool yanked = false)
+    private static byte[] WheelBytes(params (string Name, string Content)[] members)
+    {
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach ((string name, string content) in members)
+            {
+                ZipArchiveEntry entry = archive.CreateEntry(name);
+                using Stream stream = entry.Open();
+                stream.Write(Encoding.UTF8.GetBytes(content));
+            }
+        }
+        return buffer.ToArray();
+    }
+
+    private static string IndexFile(
+        string name,
+        string type,
+        string sha256,
+        bool yanked = false,
+        string? url = null,
+        string? requiresPython = null)
         => $$"""
             {
               "filename": "{{name}}",
-              "url": "https://files.pythonhosted.org/packages/{{name}}",
+              "url": "{{url ?? $"https://files.pythonhosted.org/packages/{name}"}}",
               "packagetype": "{{type}}",
               "digests": { "sha256": "{{sha256}}" },
-              "yanked": {{(yanked ? "true" : "false")}}
+              "yanked": {{(yanked ? "true" : "false")}},
+              "requires_python": {{(requiresPython is null ? "null" : JsonSerializer.Serialize(requiresPython))}}
             }
             """;
 
     private static string IndexJson(params string[] files)
         => $$"""{ "info": { "name": "x" }, "urls": [ {{string.Join(",", files)}} ] }""";
+
+    private static string IndexJsonWithRequiresPython(string requiresPython, params string[] files)
+        => $$"""{ "info": { "name": "x", "requires_python": {{JsonSerializer.Serialize(requiresPython)}} }, "urls": [ {{string.Join(",", files)}} ] }""";
+
+    private static string IndexJsonWithDependencies(string[] dependencies, params string[] files)
+        => $$"""{ "info": { "name": "x", "requires_dist": {{JsonSerializer.Serialize(dependencies)}} }, "urls": [ {{string.Join(",", files)}} ] }""";
+
+    private static HttpResponseMessage TextResponse(HttpStatusCode status, string content) => new(status)
+    {
+        Content = new StringContent(content, Encoding.UTF8, "application/json"),
+    };
+
+    private static HttpResponseMessage BytesResponse(byte[] content) => new(HttpStatusCode.OK)
+    {
+        Content = new ByteArrayContent(content),
+    };
+
+    private static HttpResponseMessage DeclaredLengthResponse(long length)
+    {
+        var response = BytesResponse([]);
+        response.Content.Headers.ContentLength = length;
+        return response;
+    }
+
+    private static HttpResponseMessage StreamResponse(Stream stream) => new(HttpStatusCode.OK)
+    {
+        Content = new StreamContent(stream),
+    };
+
+    private static HttpResponseMessage RedirectResponse(string location)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.Found);
+        response.Headers.Location = new Uri(location);
+        return response;
+    }
+
+    private sealed class RecordingHttpHandler(
+        Func<HttpRequestMessage, HttpResponseMessage> responseFor) : HttpMessageHandler
+    {
+        public List<Uri> Requests { get; } = new();
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Requests.Add(request.RequestUri!);
+            return Task.FromResult(responseFor(request));
+        }
+    }
+
+    private sealed class CancelOnFirstReadStream(
+        byte[] bytes, CancellationTokenSource cancellation) : MemoryStream(bytes, writable: false)
+    {
+        private bool _cancelled;
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int read = Read(buffer.Span);
+            if (!_cancelled)
+            {
+                _cancelled = true;
+                cancellation.Cancel();
+            }
+            return ValueTask.FromResult(read);
+        }
+    }
 }

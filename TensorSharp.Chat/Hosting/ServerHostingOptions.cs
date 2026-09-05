@@ -200,6 +200,22 @@ namespace TensorSharp.Server.Hosting
                 DefaultMaxTokens = defaultMaxTokens;
         }
 
+        /// <summary>
+        /// Move the sampling defaults a request falls back to, for the same reason as
+        /// the four above and one specific to an app: an operator starts a server
+        /// against ONE model and puts its card's numbers on the command line, while an
+        /// app user switches models from a list and expects each to be sampled the way
+        /// its own card says. Gemma 4 asks for temperature 1.0 / top-k 64 / top-p 0.95
+        /// and Qwen for 0.7 / 20 / 0.8; serving both from one built-in default samples
+        /// at least one of them wrongly, which shows up as quality rather than as an
+        /// error. A request that names its own values is unaffected, as always.
+        /// </summary>
+        public void RepointSamplingDefaults(SamplingDefaults defaults)
+        {
+            if (defaults != null)
+                SamplingDefaults = defaults;
+        }
+
         /// <summary>Canonical name of the backend chosen at startup (e.g. <c>ggml_metal</c>).</summary>
         public string DefaultBackend { get; }
 
@@ -383,7 +399,7 @@ namespace TensorSharp.Server.Hosting
         /// from this object so unspecified fields take the operator-configured
         /// defaults instead of the hard-coded library defaults. Never null.
         /// </summary>
-        public SamplingDefaults SamplingDefaults { get; }
+        public SamplingDefaults SamplingDefaults { get; private set; }
 
         /// <summary>The resolved default sampling values (without the pinning metadata).</summary>
         public SamplingConfig DefaultSamplingConfig => SamplingDefaults.Values;

@@ -29,11 +29,12 @@ namespace TensorSharp.Runtime
         /// </summary>
         public List<string>? AudioPaths { get; set; }
         /// <summary>
-        /// Optional list of plain-text file paths whose contents have been inlined into
-        /// <see cref="Content"/> (e.g. uploaded .txt / .md / .csv attachments). The paths
-        /// themselves are not consumed by the model - they exist purely so the per-turn
-        /// audit log can record which uploaded files belong to this message even though
-        /// their contents have been folded into the prompt text.
+        /// Optional list of plain-text file paths. Their contents are normally inlined
+        /// into <see cref="Content"/> (for example .txt and .md); when
+        /// <see cref="HasFileBackedTextAttachments"/> is true, the service first stages
+        /// the complete file for tools or restores that inline representation. The paths
+        /// themselves are not directly consumed by the model and also let the per-turn
+        /// audit log identify the uploads belonging to this message.
         /// </summary>
         public List<string>? TextFilePaths { get; set; }
         /// <summary>
@@ -44,6 +45,14 @@ namespace TensorSharp.Runtime
         /// file name stands in.
         /// </summary>
         public List<string>? TextFileNames { get; set; }
+        /// <summary>
+        /// True when the client deliberately kept an attached text file out of
+        /// <see cref="Content"/> because the complete upload is meant to be staged for
+        /// file/code tools. The Web UI service clears this on its inference clone after
+        /// staging, or restores the complete inline text when no readable workspace is
+        /// available, so the model is never asked to reason about unseen file contents.
+        /// </summary>
+        public bool HasFileBackedTextAttachments { get; set; }
         /// <summary>
         /// Every file the user attached to this message, by the stored upload name — the
         /// images and the audio as well as the documents, and only the files the user
@@ -1431,6 +1440,7 @@ namespace TensorSharp.Runtime
                     AudioPaths = msg.AudioPaths,
                     TextFilePaths = msg.TextFilePaths,
                     TextFileNames = msg.TextFileNames,
+                    HasFileBackedTextAttachments = msg.HasFileBackedTextAttachments,
                     IsVideo = msg.IsVideo,
                     ToolCalls = msg.ToolCalls,
                     ToolCallId = msg.ToolCallId,

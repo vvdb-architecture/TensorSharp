@@ -66,7 +66,7 @@ internal static class PythonBootstrap
         # TensorAgent's embedded-CPython bootstrap. Defines the installer only:
         # the host calls it from C because its argument is a native callable.
         def {{InstallFunction}}(_native_write):
-            import builtins, io, json, os, runpy, sys, tempfile, threading, traceback, types
+            import builtins, io, json, os, runpy, socket, sys, tempfile, threading, traceback, types
 
             # mimetypes builds its table on first use by READING SYSTEM FILES --
             # /etc/mime.types, /etc/apache2/mime.types and four more. Under the hook
@@ -122,6 +122,10 @@ internal static class PythonBootstrap
                       'bundle': '', 'hosts': ()}
             _guard = threading.local()
             _boot_main = sys.modules['__main__']
+            # Keep trusted references: model code may assign names on the socket module,
+            # but restoring process-global interpreter state is host bookkeeping.
+            _socket_getdefaulttimeout = socket.getdefaulttimeout
+            _socket_setdefaulttimeout = socket.setdefaulttimeout
 
             # ---------------------------------------------------------- streams
             class _TextSink(io.TextIOBase):
@@ -425,6 +429,201 @@ internal static class PythonBootstrap
                     _state['bundle'] = ''
                 _state['configured'] = True
 
+            # ---------------------------------------------------- module lifetime
+            # CPython's import cache belongs to the process, while work directories
+            # and packages belong to one run. Without an explicit boundary here, a
+            # later session importing the same name receives the first session's
+            # module object without consulting its own sys.path. The same cache also
+            # keeps an installed package alive after the host replaces its pinned
+            # files.
+            #
+            # Only origins under roots owned by the run are forgotten. Modules from
+            # the bundled standard library and pre-staged runtime stay in sys.modules;
+            # keeping those warm is a substantial part of the value of one embedded
+            # interpreter rather than a new interpreter for every command.
+            def _module_path(value):
+                # Import machinery stores strings (occasionally bytes) here. Do not
+                # invoke an arbitrary object's __fspath__ during host teardown.
+                if not isinstance(value, (str, bytes)):
+                    return None
+                try:
+                    text = os.fsdecode(value)
+                    if text in ('built-in', 'frozen') or (text.startswith('<') and text.endswith('>')):
+                        return None
+                    return os.path.realpath(text)
+                except BaseException:
+                    return None
+
+            def _under_roots(path, roots):
+                if not path:
+                    return False
+                for root in roots:
+                    if path == root or path.startswith(root if root.endswith(os.sep) else root + os.sep):
+                        return True
+                return False
+
+            def _run_module_roots(request):
+                roots = []
+                # module_roots contains cwd, the script directory, PYTHONPATH and
+                # the per-session package directory. Writable roots add the whole
+                # work tree even when cwd is a nested directory. Deliberately do not
+                # use readable roots here: those also contain the bundled runtime.
+                values = tuple(request.get('module_roots', ())) + tuple(_state['writable'])
+                for value in values:
+                    root = _module_path(value)
+                    if root and root not in roots:
+                        roots.append(root)
+                return tuple(roots)
+
+            def _module_signature(module):
+                values = []
+                try:
+                    namespace = getattr(module, '__dict__', None)
+                    if isinstance(namespace, dict):
+                        value = namespace.get('__file__')
+                        if isinstance(value, (str, bytes)):
+                            values.append(value)
+                except BaseException:
+                    pass
+                try:
+                    spec = getattr(module, '__spec__', None)
+                    if spec is not None:
+                        value = getattr(spec, 'origin', None)
+                        if isinstance(value, (str, bytes)):
+                            values.append(value)
+                        locations = getattr(spec, 'submodule_search_locations', None)
+                        if locations is not None:
+                            values.extend(value for value in tuple(locations)
+                                          if isinstance(value, (str, bytes)))
+                except BaseException:
+                    pass
+                # Namespace packages have no __file__ and an origin of None. Their
+                # search path is the only reliable ownership signal.
+                try:
+                    locations = getattr(module, '__path__', None)
+                    if locations is not None:
+                        values.extend(value for value in tuple(locations)
+                                      if isinstance(value, (str, bytes)))
+                except BaseException:
+                    pass
+                return tuple(values)
+
+            def _module_belongs_to_run(signature, roots):
+                for value in signature:
+                    if _under_roots(_module_path(value), roots):
+                        return True
+                return False
+
+            # The trusted set starts with the interpreter/bootstrap imports. A new
+            # stdlib or bundled module is admitted only after its resolved locations
+            # have been checked. A session module is never admitted, so even if one
+            # teardown is interrupted it is reconsidered on the next run instead of
+            # becoming a permanent member of the process-wide cache.
+            _trusted_modules = {
+                name: (module, _module_signature(module))
+                for name, module in tuple(sys.modules.items())
+                if module is not None
+            }
+
+            def _detach_modules(doomed):
+                # Children first, then detach a child that Python placed on a
+                # cached parent package. Otherwise `from parent import child`
+                # could still return the old object after its sys.modules entry
+                # was removed.
+                doomed.sort(
+                    key=lambda item: item[0].count('.') if isinstance(item[0], str) else 0,
+                    reverse=True)
+                for name, module in doomed:
+                    try:
+                        sys.modules.pop(name, None)
+                    except BaseException:
+                        pass
+                    if isinstance(name, str) and '.' in name:
+                        parent_name, child_name = name.rsplit('.', 1)
+                        parent = sys.modules.get(parent_name)
+                        try:
+                            if parent is not None and getattr(parent, child_name, None) is module:
+                                delattr(parent, child_name)
+                        except BaseException:
+                            pass
+
+            def _forget_shadowed_runtime_modules(search_paths, runtime_packages):
+                # A package shipped with the app may already be warm before this
+                # session installs a newer copy. sys.path precedence alone cannot
+                # replace it: CPython consults sys.modules first. Enumerate each
+                # run-owned directory once (rather than statting it once per cached
+                # module), then evict only modules whose current origin is the
+                # bundled third-party tree. Bootstrap/stdlib modules remain warm.
+                bundled = _module_path(runtime_packages)
+                if not bundled:
+                    return
+                provided = set()
+                for entry in search_paths:
+                    try:
+                        names = os.listdir(entry)
+                    except BaseException:
+                        continue
+                    for name in names:
+                        if name.endswith('.py'):
+                            name = name[:-3]
+                        elif name.endswith('.pyc'):
+                            name = name[:-4]
+                        if name.isidentifier():
+                            provided.add(name)
+                if not provided:
+                    return
+
+                doomed = []
+                for name, module in tuple(sys.modules.items()):
+                    if (not isinstance(name, str) or module is None
+                            or name in ('__main__', '{{ModuleName}}')):
+                        continue
+                    if name.split('.', 1)[0] not in provided:
+                        continue
+                    if _module_belongs_to_run(_module_signature(module), (bundled,)):
+                        _trusted_modules.pop(name, None)
+                        doomed.append((name, module))
+                _detach_modules(doomed)
+
+            def _forget_run_modules(roots, previous_modules):
+                if not roots:
+                    return
+                doomed = []
+                for name, module in tuple(sys.modules.items()):
+                    if name in ('__main__', '{{ModuleName}}') or module is None:
+                        continue
+                    signature = _module_signature(module)
+                    trusted = _trusted_modules.get(name)
+                    # The common path performs no realpath calls: the object was
+                    # present before this run and still has the locations that were
+                    # proved to belong to the runtime. The signature comparison also
+                    # catches an in-place reload from a newly-prepended session path.
+                    if (previous_modules.get(name) is module and trusted is not None
+                            and trusted[0] is module and trusted[1] == signature):
+                        continue
+                    if _module_belongs_to_run(signature, roots):
+                        _trusted_modules.pop(name, None)
+                        doomed.append((name, module))
+                    else:
+                        _trusted_modules[name] = (module, signature)
+
+                _detach_modules(doomed)
+
+                # Invalidate a matched finder BEFORE removing it. zipimport uses
+                # that callback to clear its separate archive-directory cache; a
+                # pop alone would leave the old wheel's table of contents alive.
+                # No global invalidate_caches call: it would wake arbitrary runtime
+                # finders and make every run pay for caches it does not own.
+                for entry, finder in tuple(sys.path_importer_cache.items()):
+                    if _under_roots(_module_path(entry), roots):
+                        try:
+                            invalidate = getattr(finder, 'invalidate_caches', None)
+                            if invalidate is not None:
+                                invalidate()
+                        except BaseException:
+                            pass
+                        sys.path_importer_cache.pop(entry, None)
+
             # ------------------------------------------------------------- run
             def _run(payload):
                 request = json.loads(payload)
@@ -434,15 +633,20 @@ internal static class PythonBootstrap
                 cwd = request['cwd']
                 front = [p for p in request['path_front'] if p]
                 back = [p for p in request['path_back'] if p]
+                runtime_packages = request.get('runtime_packages', '')
 
                 previous_cwd = os.getcwd()
                 previous_argv = sys.argv
                 previous_path = list(sys.path)
                 previous_env = os.environ
                 previous_stdin = sys.stdin
+                previous_socket_timeout = _socket_getdefaulttimeout()
+                previous_modules = dict(sys.modules)
+                module_roots = ()
                 code = 0
                 try:
                     os.chdir(cwd)
+                    module_roots = _run_module_roots(request)
                     sys.argv = argv
                     # A plain dict, not the process environment: nothing here can
                     # start a child that would inherit it, and mutating the app's
@@ -459,6 +663,11 @@ internal static class PythonBootstrap
                         _run_env.setdefault('SSL_CERT_FILE', _tensoragent_ca)
                         _run_env.setdefault('SSL_CERT_DIR', os.path.dirname(_tensoragent_ca))
                     os.environ = _run_env
+                    # A managed interrupt cannot pre-empt CPython while it is blocked in
+                    # a socket syscall. Give newly-created sockets a finite stall bound
+                    # no longer than the tool call, so its configured deadline remains real for
+                    # urllib and libraries that do not provide their own timeout.
+                    _socket_setdefaulttimeout(float(request['network_timeout_seconds']))
                     # tempfile caches the directory it picked the FIRST time anything
                     # asked, in a module global, and this interpreter outlives every
                     # run in the app. So the second session to write a spreadsheet had
@@ -468,13 +677,25 @@ internal static class PythonBootstrap
                     # cache is per run here, like the environment it is derived from.
                     tempfile.tempdir = _run_env.get('TMPDIR') or None
                     sys.stdin = io.StringIO(request['stdin'] or '')
+                    # CPython's normal useful ordering is script/cwd, the caller's
+                    # PYTHONPATH, then the installed runtime. Preserve stdlib and
+                    # extension-module priority, but put the session before the
+                    # app's bundled third-party packages so a pinned replacement is
+                    # the copy an import actually receives.
                     for entry in back:
-                        if entry not in sys.path:
-                            sys.path.append(entry)
+                        if entry in sys.path:
+                            sys.path.remove(entry)
+                    try:
+                        backstop = sys.path.index(runtime_packages)
+                    except ValueError:
+                        backstop = len(sys.path)
+                    for entry in reversed(back):
+                        sys.path.insert(backstop, entry)
                     for entry in reversed(front):
                         if entry in sys.path:
                             sys.path.remove(entry)
                         sys.path.insert(0, entry)
+                    _forget_shadowed_runtime_modules(front + back, runtime_packages)
 
                     main = types.ModuleType('__main__')
                     main.__dict__['__builtins__'] = builtins
@@ -516,8 +737,17 @@ internal static class PythonBootstrap
                         code = 130 if isinstance(raised, KeyboardInterrupt) else 1
                 finally:
                     sys.modules['__main__'] = _boot_main
+                    # This is host bookkeeping and must happen even after
+                    # SystemExit, an exception or a managed timeout interrupt.
+                    try:
+                        _forget_run_modules(module_roots, previous_modules)
+                    except BaseException:
+                        # A broken module object must not mask the command's real
+                        # result or prevent the rest of the interpreter restoration.
+                        pass
                     sys.stdin = previous_stdin
                     os.environ = previous_env
+                    _socket_setdefaulttimeout(previous_socket_timeout)
                     tempfile.tempdir = None
                     sys.path[:] = previous_path
                     sys.argv = previous_argv

@@ -191,6 +191,87 @@ public sealed class ModelStore
             Directory.Delete(dir, recursive: true);
     }
 
+    /// <summary>
+    /// Delete model directories no catalog entry claims, and say how much that freed.
+    ///
+    /// <para>
+    /// A directory is named by its entry's id, and an id changes whenever the entry
+    /// changes which FILE it points at -- swapping Gemma 4 12B from UD-IQ3_XXS to
+    /// UD-IQ2_M turns <c>gemma-4-12b-iq3xxs</c> into <c>gemma-4-12b-iq2m</c>. The old
+    /// directory then belongs to no entry, so the Models list cannot show it and the
+    /// user cannot delete it: 4.6 GB of a superseded quantization, invisible,
+    /// on a device where storage is the scarcest thing there is. This is the only place
+    /// that can reclaim it.
+    /// </para>
+    /// <para>
+    /// Checked against the WHOLE catalog rather than what this device is offered
+    /// (<see cref="ModelCatalog.ForDevice"/>), because an entry gated to a larger device
+    /// is still a real entry -- deleting weights for a model an iPad can run, because a
+    /// phone cannot, would be a data-loss bug wearing a tidy-up's clothes.
+    /// </para>
+    /// </summary>
+    /// <returns>Bytes freed.</returns>
+    public long SweepOrphanedModels(IReadOnlyList<CatalogModel>? catalog = null)
+    {
+        var known = new HashSet<string>(
+            (catalog ?? ModelCatalog.BuiltIn).Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
+
+        long freed = 0;
+        IEnumerable<string> directories;
+        try { directories = Directory.EnumerateDirectories(Root); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return 0; }
+
+        foreach (string directory in directories.ToList())
+        {
+            if (known.Contains(Path.GetFileName(directory)))
+                continue;
+            try
+            {
+                long bytes = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                    .Sum(f => new FileInfo(f).Length);
+                Directory.Delete(directory, recursive: true);
+                freed += bytes;
+                Console.WriteLine(
+                    $"TensorAgent: removed {Path.GetFileName(directory)}, which no catalog entry "
+                    + $"claims any more ({bytes / (1024.0 * 1024.0 * 1024.0):0.0} GB freed)");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A sweep that cannot delete is not a reason to fail a launch.
+                Console.WriteLine($"TensorAgent: could not remove {directory}: {ex.Message}");
+            }
+        }
+
+        // And loose FILES, which belong to no entry by construction: this directory
+        // holds one sub-folder per catalog id (see DirectoryFor) and nothing else ever
+        // writes into it. One can still arrive -- a weights file pushed onto the device
+        // by hand, landing beside the per-model folders instead of inside one -- and it
+        // is worse off than an orphaned directory: the Models list is built from entries,
+        // so a stray file has no row, no size against any model, and no delete button,
+        // while being the largest kind of file this app deals in.
+        IEnumerable<string> strays;
+        try { strays = Directory.EnumerateFiles(Root); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return freed; }
+
+        foreach (string file in strays.ToList())
+        {
+            try
+            {
+                long bytes = new FileInfo(file).Length;
+                File.Delete(file);
+                freed += bytes;
+                Console.WriteLine(
+                    $"TensorAgent: removed the stray file {Path.GetFileName(file)} from the models "
+                    + $"directory, which no catalog entry claims ({bytes / (1024.0 * 1024.0 * 1024.0):0.0} GB freed)");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.WriteLine($"TensorAgent: could not remove {file}: {ex.Message}");
+            }
+        }
+        return freed;
+    }
+
     /// <summary>Remove one optional companion (e.g. a projector) to free memory/disk.</summary>
     public void DeleteFile(CatalogModel model, CatalogFile file)
     {

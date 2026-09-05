@@ -133,7 +133,14 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
     // tp_degree > 1 every pointer above is THIS rank's shard, and the call
     // builds and binds the graph instead of running it, handing back a plan cut
     // at the two row-parallel projections per layer.
-    int tp_degree, void** tp_plan_out)
+    int tp_degree, void** tp_plan_out,
+    // Separate gate/up FFN weights — the multi-token sibling of the same option in
+    // TSGgml_Gemma4ModelDecode. Fusing ffn_gate and ffn_up is a copy (a GGUF writes
+    // a block alphabetically, so ffn_norm sits between them), 3.1 GB of it on
+    // gemma-4-12b UD-Q4_K_XL. When gate_arr[l] != nullptr this layer runs two
+    // matmuls over the mapped weights and gu_arr[l] is ignored.
+    void** gate_arr, int* gate_type_arr, std::int64_t* gate_ne0_arr, std::int64_t* gate_ne1_arr, std::int64_t* gate_bytes_arr,
+    void** up_arr, int* up_type_arr, std::int64_t* up_ne0_arr, std::int64_t* up_ne1_arr, std::int64_t* up_bytes_arr)
 {
     try
     {
@@ -287,6 +294,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             ggml_tensor* attn_norm_w; ggml_tensor* qkv_w; ggml_tensor* k_w; ggml_tensor* v_w;
             ggml_tensor* q_norm_w; ggml_tensor* k_norm_w; ggml_tensor* o_w; ggml_tensor* post_attn_norm_w;
             ggml_tensor* ffn_norm_w; ggml_tensor* gu_w; ggml_tensor* down_w; ggml_tensor* post_ffn_norm_w;
+            ggml_tensor* gate_w; ggml_tensor* up_w;   // set instead of gu_w when the FFN was not fused
             ggml_tensor* k_cached_t; ggml_tensor* v_cached_t;
             ggml_tensor* k_cpy; ggml_tensor* v_cpy;     // primary cache write
             ggml_tensor* k_cpy2; ggml_tensor* v_cpy2;   // wrapped tail (circular SWA write past the buffer end)
@@ -315,7 +323,18 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             lt.o_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(o_type_arr[l]), o_ne0_arr[l], o_ne1_arr[l]);
             lt.post_attn_norm_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
             lt.ffn_norm_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
-            lt.gu_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(gu_type_arr[l]), gu_ne0_arr[l], gu_ne1_arr[l]);
+            if (gate_arr != nullptr && gate_arr[l] != nullptr)
+            {
+                lt.gu_w = nullptr;
+                lt.gate_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(gate_type_arr[l]), gate_ne0_arr[l], gate_ne1_arr[l]);
+                lt.up_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(up_type_arr[l]), up_ne0_arr[l], up_ne1_arr[l]);
+            }
+            else
+            {
+                lt.gu_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(gu_type_arr[l]), gu_ne0_arr[l], gu_ne1_arr[l]);
+                lt.gate_w = nullptr;
+                lt.up_w = nullptr;
+            }
             lt.down_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(down_type_arr[l]), down_ne0_arr[l], down_ne1_arr[l]);
             lt.post_ffn_norm_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
             // Shared layers borrow the donor's cache tensors (linked below); they
@@ -530,31 +549,48 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             // project ONLY Q (qkv_w is the Q-only weight) and read the donor's K/V.
             int rope_dims = rope_n_dims_arr[l];
             ggml_tensor* rope_ff = info.isLocal ? nullptr : freq_factors_t;
-            ggml_tensor* q_lin;
-            ggml_tensor* k_lin = nullptr;
-            ggml_tensor* v_lin = nullptr;
+            // Q/K/V for this layer as [head_dim, heads, NQ].
+            //
+            // When the three projections were fused into one weight at load time,
+            // SPLIT THE RESULT WITH STRIDED VIEWS rather than ggml_cont copies of
+            // three 2-D slices. Each token is one row of [qDim + 2*kDim], so within
+            // a row the head axis is already dense and only the token axis strides
+            // — a legal ggml_view_3d, and the shape ggml's rms_norm/rope want
+            // (contiguous ROWS, arbitrary outer stride; Metal and CUDA both gate
+            // exactly on ggml_is_contiguous_rows). This is what llama.cpp does with
+            // its own fused wqkv (see llama.cpp src/models/mimo2.cpp:138-140).
+            //
+            // The three conts they replace were the single largest source of copy
+            // traffic in this graph: on gemma-4-E4B pp512 they wrote ~155 MB per
+            // forward — a full extra round trip through memory for activations that
+            // the very next op could have read in place.
+            ggml_tensor* q_3d = nullptr;
+            ggml_tensor* k_3d = nullptr;
+            ggml_tensor* v_3d = nullptr;
             if (info.isShared)
             {
-                q_lin = ggml_mul_mat(ctx, lt.qkv_w, normed);   // Q-only weight -> [qDim, N]
+                // Q-only weight; K/V come from the donor layer.
+                q_3d = ggml_reshape_3d(ctx, ggml_mul_mat(ctx, lt.qkv_w, normed), info.hd, num_heads, NQ);
             }
             else if (lt.k_w != nullptr)
             {
-                q_lin = ggml_mul_mat(ctx, lt.qkv_w, normed);
-                k_lin = ggml_mul_mat(ctx, lt.k_w, normed);
-                v_lin = ggml_mul_mat(ctx, lt.v_w, normed);
+                q_3d = ggml_reshape_3d(ctx, ggml_mul_mat(ctx, lt.qkv_w, normed), info.hd, num_heads, NQ);
+                k_3d = ggml_reshape_3d(ctx, ggml_mul_mat(ctx, lt.k_w, normed), info.hd, info.kvHeads, NQ);
+                v_3d = ggml_reshape_3d(ctx, ggml_mul_mat(ctx, lt.v_w, normed), info.hd, info.kvHeads, NQ);
             }
             else
             {
                 ggml_tensor* qkv = ggml_mul_mat(ctx, lt.qkv_w, normed);  // [qDim+2kDim, NQ]
-                q_lin = ggml_cont(ctx, ggml_view_2d(ctx, qkv, info.qDim, NQ, qkv->nb[1], 0));
-                k_lin = ggml_cont(ctx, ggml_view_2d(ctx, qkv, info.kDim, NQ, qkv->nb[1],
-                    static_cast<std::size_t>(info.qDim) * sizeof(float)));
-                v_lin = ggml_cont(ctx, ggml_view_2d(ctx, qkv, info.kDim, NQ, qkv->nb[1],
-                    static_cast<std::size_t>(info.qDim + info.kDim) * sizeof(float)));
+                const std::size_t headStride = static_cast<std::size_t>(info.hd) * sizeof(float);
+                q_3d = ggml_view_3d(ctx, qkv, info.hd, num_heads, NQ,
+                    headStride, qkv->nb[1], 0);
+                k_3d = ggml_view_3d(ctx, qkv, info.hd, info.kvHeads, NQ,
+                    headStride, qkv->nb[1], static_cast<std::size_t>(info.qDim) * sizeof(float));
+                v_3d = ggml_view_3d(ctx, qkv, info.hd, info.kvHeads, NQ,
+                    headStride, qkv->nb[1], static_cast<std::size_t>(info.qDim + info.kDim) * sizeof(float));
             }
 
             // per-head Q norm + RoPE (always; Q is this layer's own)
-            ggml_tensor* q_3d = ggml_reshape_3d(ctx, q_lin, info.hd, num_heads, NQ);
             q_3d = ggml_mul(ctx, ggml_rms_norm(ctx, q_3d, eps), lt.q_norm_w);
             ggml_tensor* q_rope = ggml_rope_ext(ctx, q_3d, pos_tensor, rope_ff,
                 rope_dims, 2, 0, rope_base, 1.0f, 0, 1, 0, 0);  // [hd, num_heads, N]
@@ -581,8 +617,6 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             if (!info.isShared)
             {
                 // per-head K norm + V norm (unweighted), then RoPE on K.
-                ggml_tensor* k_3d = ggml_reshape_3d(ctx, k_lin, info.hd, info.kvHeads, NQ);
-                ggml_tensor* v_3d = ggml_reshape_3d(ctx, v_lin, info.hd, info.kvHeads, NQ);
                 k_3d = ggml_mul(ctx, ggml_rms_norm(ctx, k_3d, eps), lt.k_norm_w);
                 v_3d = ggml_rms_norm(ctx, v_3d, eps);
                 ggml_tensor* k_rope = ggml_rope_ext(ctx, k_3d, pos_tensor, rope_ff,
@@ -837,35 +871,62 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             ggml_tensor* o_out = ggml_mul_mat(ctx, lt.o_w, attn_flat);                  // [hidden, N]
             if (tp_mode) tp_partial.push_back(o_out);
             ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), lt.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);
+            // Normed term FIRST, residual second. ggml-metal fuses the triple
+            // rms_norm -> mul -> add into one kernel (ggml_metal_op_norm), but only
+            // when the add's src[0] IS the mul it follows; with the residual in
+            // src[0] the fusion is declined and the add costs a whole extra
+            // [hidden, N] read+write. Addition is commutative elementwise, so the
+            // swap is bit-identical — it is purely which operand ggml sees first.
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);
 
             // FFN: norm -> gate_up -> gelu*up -> down -> post_ffn norm -> residual
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), lt.ffn_norm_w);
-            ggml_tensor* gu = ggml_mul_mat(ctx, lt.gu_w, ffn_normed);                   // [2*ff, N]
+            ggml_tensor* ffn_hidden_split = nullptr;
+            ggml_tensor* gu = nullptr;
+            if (lt.gate_w != nullptr)
+            {
+                // Two matmuls over the mapped weights instead of one over a copy of
+                // them. Bit-identical to the geglu below: the fused weight is only
+                // ever these two concatenated along the output dimension, and
+                // ggml_gelu/ggml_mul is what ggml_geglu computes.
+                ggml_tensor* gate = ggml_mul_mat(ctx, lt.gate_w, ffn_normed);           // [ff, N]
+                ggml_tensor* up = ggml_mul_mat(ctx, lt.up_w, ffn_normed);               // [ff, N]
+                ffn_hidden_split = ggml_mul(ctx, ggml_gelu(ctx, gate), up);
+            }
+            else
+            {
+                gu = ggml_mul_mat(ctx, lt.gu_w, ffn_normed);                            // [2*ff, N]
+            }
             // Fused GeGLU: gelu(gate) * up computed directly on the contiguous
             // [2*ff, N] tensor (gate = first half, up = second half -> non-swapped
             // ggml_geglu). Avoids two full [ff, N] ggml_cont materializations plus
             // the separate gelu/mul ops (cpy_scalar F32->F32 was ~14% of prefill
             // GPU time). Bit-identical: ggml_vec_geglu / op_gelu use the same tanh
             // gelu as the old ggml_gelu. Mirrors llama.cpp build_ffn (LLM_FFN_GELU).
-            ggml_tensor* ffn_hidden = ggml_geglu(ctx, gu);                              // [ff, N]
+            ggml_tensor* ffn_hidden = ffn_hidden_split != nullptr
+                ? ffn_hidden_split
+                : ggml_geglu(ctx, gu);                                                  // [ff, N]
             ggml_tensor* down = ggml_mul_mat(ctx, lt.down_w, ffn_hidden);               // [hidden, N]
             if (tp_mode) tp_partial.push_back(down);
             ggml_tensor* post_ffn = ggml_mul(ctx, ggml_rms_norm(ctx, down, eps), lt.post_ffn_norm_w);
-            ggml_tensor* residual2 = ggml_add(ctx, residual1, post_ffn);
+            ggml_tensor* residual2 = ggml_add(ctx, post_ffn, residual1);   // normed first: fuses
 
             // PLE injection (mirrors Gemma4ModelDecode, batched over the N rows).
             // ple_slice is a strided view of ple_input: column i (row i) at layer l.
             if (lt.ple_gate_w != nullptr && ple_input != nullptr)
             {
-                ggml_tensor* ple_slice = ggml_cont(ctx, ggml_view_2d(ctx, ple_input, ple_dim, NQ,
+                // Strided view, not a cont: ggml_mul only asks that its operands have
+                // contiguous ROWS (ggml.c ggml_is_contiguous_rows -> nb[0] == type
+                // size), which a column slice of ple_input satisfies. The cont was a
+                // full [ple_dim, NQ] copy per layer for nothing.
+                ggml_tensor* ple_slice = ggml_view_2d(ctx, ple_input, ple_dim, NQ,
                     static_cast<std::size_t>(num_layers) * ple_dim * sizeof(float),
-                    static_cast<std::size_t>(l) * ple_dim * sizeof(float)));               // [ple_dim, NQ]
+                    static_cast<std::size_t>(l) * ple_dim * sizeof(float));                // [ple_dim, NQ]
                 ggml_tensor* ple_gate_proj = ggml_mul_mat(ctx, lt.ple_gate_w, residual2);  // [ple_dim, N]
                 ggml_tensor* ple_gated = ggml_mul(ctx, ggml_gelu(ctx, ple_gate_proj), ple_slice);  // [ple_dim, N]
                 ggml_tensor* ple_proj = ggml_mul_mat(ctx, lt.ple_proj_w, ple_gated);       // [hidden, N]
                 ggml_tensor* ple_normed = ggml_mul(ctx, ggml_rms_norm(ctx, ple_proj, eps), lt.ple_post_norm_w);
-                residual2 = ggml_add(ctx, residual2, ple_normed);
+                residual2 = ggml_add(ctx, ple_normed, residual2);   // normed first: fuses
             }
 
             float scalar = layer_scalar_arr[l];
@@ -948,7 +1009,15 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
                 bind_or_mark(lt.v_w, v_arr[l], static_cast<std::size_t>(v_bytes_arr[l]), true);
             }
             bind_or_mark(lt.o_w, o_arr[l], static_cast<std::size_t>(o_bytes_arr[l]), true);
-            bind_or_mark(lt.gu_w, gu_arr[l], static_cast<std::size_t>(gu_bytes_arr[l]), true);
+            if (lt.gate_w != nullptr)
+            {
+                bind_or_mark(lt.gate_w, gate_arr[l], static_cast<std::size_t>(gate_bytes_arr[l]), true);
+                bind_or_mark(lt.up_w, up_arr[l], static_cast<std::size_t>(up_bytes_arr[l]), true);
+            }
+            else
+            {
+                bind_or_mark(lt.gu_w, gu_arr[l], static_cast<std::size_t>(gu_bytes_arr[l]), true);
+            }
             bind_or_mark(lt.down_w, down_arr[l], static_cast<std::size_t>(down_bytes_arr[l]), true);
             bind_or_mark(lt.attn_norm_w, attn_norm_arr[l], static_cast<std::size_t>(hidden_size) * sizeof(float), true);
             bind_or_mark(lt.post_attn_norm_w, post_attn_norm_arr[l], static_cast<std::size_t>(hidden_size) * sizeof(float), true);
@@ -1289,7 +1358,7 @@ TSG_EXPORT int TSGgml_Gemma4DraftStep(
 
             ggml_tensor* o = ggml_reshape_1d(ctx, ggml_mul_mat(ctx, d.wo, attn_flat), draft_hidden);
             o = ggml_mul(ctx, ggml_rms_norm(ctx, o, eps), d.post_attn_norm);
-            ggml_tensor* attn_out = ggml_add(ctx, cur, o);
+            ggml_tensor* attn_out = ggml_add(ctx, o, cur);   // normed first: fuses
 
             ggml_tensor* fn = ggml_mul(ctx, ggml_rms_norm(ctx, attn_out, eps), d.ffn_norm);
             ggml_tensor* fn2 = ggml_reshape_2d(ctx, fn, draft_hidden, 1);
@@ -1298,7 +1367,7 @@ TSG_EXPORT int TSGgml_Gemma4DraftStep(
             ggml_tensor* fh = ggml_mul(ctx, ggml_gelu(ctx, gate), up);
             ggml_tensor* down = ggml_reshape_1d(ctx, ggml_mul_mat(ctx, d.down, ggml_reshape_2d(ctx, fh, gate_ne1[l], 1)), draft_hidden);
             down = ggml_mul(ctx, ggml_rms_norm(ctx, down, eps), d.post_ffw_norm);
-            ggml_tensor* res = ggml_add(ctx, attn_out, down);
+            ggml_tensor* res = ggml_add(ctx, down, attn_out);   // normed first: fuses
 
             float sc = out_scale_arr[l];
             if (std::fabs(sc - 1.0f) > 1e-6f)

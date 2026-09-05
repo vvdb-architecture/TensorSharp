@@ -15,6 +15,7 @@ using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Settings;
 using TensorAgent.Core.Shell;
 using TensorSharp.AgentHost.CodeExec;
+using TensorSharp.AgentHost.Skills;
 using TensorSharp.Runtime;
 
 namespace TensorAgent.Tests;
@@ -412,6 +413,60 @@ public sealed class NetworkScenarioTests : IDisposable
         ExecutionResult imported = Run("python3 -c \"import six; print(six.__file__)\"", context);
         Assert.True(imported.ExitCode == 0, imported.Stderr);
         Assert.Equal(Path.Combine(_packages, "six.py"), imported.Stdout.Trim());
+    }
+
+    [LiveNetworkPythonFact]
+    public void TheAssembledAppInstallsAndImportsAPackageAcrossModelToolCalls()
+    {
+        using var host = new AgentAppHost(Paths(network: true), python: LivePython());
+        var workspace = host.Workspaces.GetOrCreate("live-package-install");
+
+        SkillToolResult installed = host.CodeRunner!.Execute(
+            new ToolCall
+            {
+                Name = "shell",
+                Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["command"] = "python3 -m pip install six -q",
+                },
+            },
+            workspace: workspace);
+
+        Assert.True(installed.Ok, installed.Content);
+        Assert.Contains("Installed: six", installed.Content, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(workspace.EnvDirectory, "six.py")));
+
+        SkillToolResult imported = host.CodeRunner.Execute(
+            new ToolCall
+            {
+                Name = "shell",
+                Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["command"] = "python3 -c \"import six; print(six.__file__)\"",
+                },
+            },
+            workspace: workspace);
+
+        Assert.True(imported.Ok, imported.Content);
+        Assert.Contains("six.py", imported.Content, StringComparison.Ordinal);
+
+        // The concrete package/spelling from the original report. Its current wheel is
+        // pure Python; importing it on-device uses the Pillow copy staged in the app
+        // runtime, while this macOS fixture intentionally supplies only bare CPython.
+        SkillToolResult img2pdf = host.CodeRunner.Execute(
+            new ToolCall
+            {
+                Name = "shell",
+                Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["command"] = "pip install img2pdf -q",
+                },
+            },
+            workspace: workspace);
+
+        Assert.True(img2pdf.Ok, img2pdf.Content);
+        Assert.Contains("Installed: img2pdf", img2pdf.Content, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(workspace.EnvDirectory, "img2pdf.py")));
     }
 
     // =====================================================================================

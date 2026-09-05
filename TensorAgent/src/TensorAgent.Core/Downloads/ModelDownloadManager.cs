@@ -40,6 +40,17 @@ public readonly record struct ModelDownloadStatus(
 {
     /// <summary>True while this download is still moving.</summary>
     public bool IsRunning => State == DownloadState.Running;
+
+    /// <summary>
+    /// The optional companions this job was asked to fetch when it started. Null means
+    /// required files only. This is a snapshot, so changing a setting while a transfer
+    /// is suspended cannot silently change what resumes.
+    /// </summary>
+    public IReadOnlyCollection<CatalogFileRole>? RequestedOptionalRoles { get; init; }
+
+    /// <summary>Whether this job was explicitly started for one optional companion.</summary>
+    public bool RequestsOnly(CatalogFileRole role) =>
+        RequestedOptionalRoles is { Count: 1 } roles && roles.Contains(role);
 }
 
 /// <summary>
@@ -156,7 +167,7 @@ public sealed class ModelDownloadManager : IDisposable
                     continue;   // somebody else replaced it; look again
             }
 
-            var job = new Job(model.Id);
+            var job = new Job(model.Id, optionalRoles);
             if (!_jobs.TryAdd(model.Id, job))
                 continue;
 
@@ -167,7 +178,7 @@ public sealed class ModelDownloadManager : IDisposable
             if (Interlocked.Increment(ref _running) == 1)
                 BusyChanged?.Invoke(true);
 
-            job.Run(RunAsync(model, optionalRoles, job));
+            job.Run(RunAsync(model, job.RequestedOptionalRoles, job));
             return job.Status;
         }
     }
@@ -194,10 +205,8 @@ public sealed class ModelDownloadManager : IDisposable
     /// </para>
     /// </summary>
     /// <param name="find">Resolves a catalog id back to its entry.</param>
-    /// <param name="optionalRoles">The optional files to include, as at the original start.</param>
     /// <returns>The ids that were restarted.</returns>
-    public IReadOnlyList<string> ResumeInterrupted(
-        Func<string, CatalogModel?> find, IReadOnlyCollection<CatalogFileRole>? optionalRoles = null)
+    public IReadOnlyList<string> ResumeInterrupted(Func<string, CatalogModel?> find)
     {
         ArgumentNullException.ThrowIfNull(find);
         if (_disposed)
@@ -211,7 +220,11 @@ public sealed class ModelDownloadManager : IDisposable
             if (find(job.Status.ModelId) is not { } model)
                 continue;
             _log.LogInformation("resuming the interrupted download of {Model}", model.Id);
-            Start(model, optionalRoles);
+            // Preserve the transfer the user actually requested. In particular, an
+            // explicit projector-only download must not turn into a required-files-only
+            // no-op merely because the global optional-download setting is off when
+            // iOS brings the app back to the foreground.
+            Start(model, job.RequestedOptionalRoles);
             resumed.Add(model.Id);
         }
         return resumed;
@@ -305,16 +318,31 @@ public sealed class ModelDownloadManager : IDisposable
     }
 
     /// <summary>One model's transfer: its cancellation, its task, its latest status, its watchers.</summary>
-    private sealed class Job(string modelId) : IDisposable
+    private sealed class Job : IDisposable
     {
         private readonly CancellationTokenSource _cancel = new();
         private readonly List<ChannelWriter<ModelDownloadStatus>> _watchers = new();
         private readonly object _gate = new();
-        private ModelDownloadStatus _status = new(
-            modelId, DownloadState.Running, new ModelDownloadProgress(string.Empty, 0, 0, 0, 0, 0, "downloading"), null);
+        private readonly IReadOnlyCollection<CatalogFileRole>? _requestedOptionalRoles;
+        private ModelDownloadStatus _status;
         private Task _task = Task.CompletedTask;
 
+        public Job(string modelId, IReadOnlyCollection<CatalogFileRole>? requestedOptionalRoles)
+        {
+            CatalogFileRole[]? snapshot = requestedOptionalRoles?.Distinct().ToArray();
+            _requestedOptionalRoles = snapshot is null ? null : Array.AsReadOnly(snapshot);
+            _status = new ModelDownloadStatus(
+                modelId, DownloadState.Running,
+                new ModelDownloadProgress(string.Empty, 0, 0, 0, 0, 0, "downloading"), null)
+            {
+                RequestedOptionalRoles = _requestedOptionalRoles,
+            };
+        }
+
         public CancellationToken Token => _cancel.Token;
+
+        public IReadOnlyCollection<CatalogFileRole>? RequestedOptionalRoles =>
+            _requestedOptionalRoles;
 
         public Task Completion => _task;
 

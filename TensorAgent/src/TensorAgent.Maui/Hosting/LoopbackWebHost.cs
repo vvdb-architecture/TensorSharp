@@ -74,7 +74,7 @@ public sealed class LoopbackWebHost : IDisposable
 
         // The one part of a download that needs iOS: staying alive for a while after
         // the user leaves the app, and picking itself up when they come back.
-        _backgroundDownloads = new Platforms.iOS.BackgroundDownloads(_host.Downloads, _host.Settings);
+        _backgroundDownloads = new Platforms.iOS.BackgroundDownloads(_host.Downloads);
         // And the same for a generation, which needs it more: a turn takes a minute and
         // the display sleeps in less than that.
         _backgroundGeneration = new Platforms.iOS.BackgroundGeneration(_host.Turns, _host.Settings);

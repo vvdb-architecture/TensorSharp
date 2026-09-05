@@ -1952,6 +1952,11 @@ namespace
                 static_cast<std::size_t>(token_embd_bytes), true);
         }
 
+        // The TP driver and the host-MoE seams execute this graph as ordered slices
+        // of its node array; a reorder would move work across a seam whose position
+        // is a node index. Covers the explicit reorder below and the one inside
+        // alloc_graph_reuse_gallocr.
+        SuppressGraphReorder keep_order(tp_mode || !host_moe.empty());
         optimize_graph_for_metal(graph);
 
         BufferHandle buffer(nullptr);

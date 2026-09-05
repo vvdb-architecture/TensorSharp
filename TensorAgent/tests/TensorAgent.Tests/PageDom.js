@@ -116,6 +116,10 @@
       return document.body.querySelectorAll(selector);
     },
     addEventListener: function (name, fn) { (document._handlers[name] = document._handlers[name] || []).push(fn); },
+    /** Fire a document-level event, which is how the page catches a link click. */
+    dispatch: function (name, event) {
+      (document._handlers[name] || []).forEach(function (fn) { fn(event); });
+    },
     _handlers: {},
   };
   document.documentElement.style = { setProperty: function () {} };
@@ -148,13 +152,21 @@
   }
 
   function reply(body, ok, headers) {
+    // Tests may model an HTTP refusal without replacing the fetch shim. Keep the
+    // transport metadata outside the JSON body the page will actually read.
+    var explicitStatus = body && typeof body.__status === 'number' ? body.__status : null;
+    if (explicitStatus !== null) {
+      ok = explicitStatus >= 200 && explicitStatus < 300;
+      headers = body.headers || headers;
+      body = Object.prototype.hasOwnProperty.call(body, 'body') ? body.body : {};
+    }
     // A route may answer with frames instead of a document: { __sse: [...] } is a
     // server-sent-event stream, which is how every generation actually arrives.
     var frames = body && body.__sse;
     var text = typeof body === 'string' ? body : JSON.stringify(body);
     return Promise.resolve({
       ok: ok !== false,
-      status: ok === false ? 500 : 200,
+      status: explicitStatus !== null ? explicitStatus : (ok === false ? 500 : 200),
       headers: { get: function (n) { return (headers || {})[n] || null; } },
       json: function () { return Promise.resolve(JSON.parse(text)); },
       text: function () { return Promise.resolve(text); },
@@ -173,9 +185,24 @@
     return reply(answer === null || answer === undefined ? {} : answer);
   }
 
+  // JavaScriptCore has no atob: it is a Web API, not an ECMAScript one, and the page
+  // needs it to decode what the app sends. Base64 only, which is all __fromHost uses.
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  function atob(input) {
+    var s = String(input).replace(/=+$/, ''), out = '', bits = 0, acc = 0;
+    for (var i = 0; i < s.length; i++) {
+      var v = B64.indexOf(s.charAt(i));
+      if (v < 0) continue;
+      acc = (acc << 6) | v; bits += 6;
+      if (bits >= 8) { bits -= 8; out += String.fromCharCode((acc >> bits) & 0xFF); }
+    }
+    return out;
+  }
+
   var globals = {
     document: document,
     fetch: fetch,
+    atob: atob,
     // The shim's own TextDecoder wants bytes; this stream yields the text a
     // decoded chunk would already be, so decode is the identity here.
     TextDecoder: function () { this.decode = function (value) { return value == null ? '' : String(value); }; },

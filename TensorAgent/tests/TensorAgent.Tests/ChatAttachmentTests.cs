@@ -76,6 +76,41 @@ public sealed class ChatAttachmentTests : IDisposable
     }
 
     /// <summary>
+    /// A message whose optional lists are explicitly null, which is what a reopened
+    /// chat sends back.
+    ///
+    /// <para>
+    /// The whole history goes out with every message, and the history a resumed page
+    /// holds is the one the app handed it -- <c>StoredMessage</c> serialized with its
+    /// nine nullable lists written out as <c>null</c>. Four of the five reads here
+    /// called <see cref="JsonElement.GetArrayLength"/> without checking the kind
+    /// first, which THROWS on a null, so <c>/api/chat</c> answered 500 from inside the
+    /// parser. From the phone that is a chat that works until you reopen it and then
+    /// refuses everything, with nothing on screen to say why.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AMessageWhoseOptionalListsAreNullIsReadRatherThanThrown()
+    {
+        List<ChatMessage> messages = Parse("""
+            [{ "role": "user", "content": "and what colour is the car?",
+               "thinking": null, "imagePaths": null, "stillImagePaths": null,
+               "videoFilePaths": null, "audioPaths": null, "textFilePaths": null,
+               "textFileNames": null, "isVideo": null, "attachments": null,
+               "artifacts": null, "imageUrl": null }]
+            """);
+
+        ChatMessage only = Assert.Single(messages);
+        Assert.Equal("and what colour is the car?", only.Content);
+        Assert.Null(only.ImagePaths);
+        Assert.Null(only.AudioPaths);
+        Assert.Null(only.TextFilePaths);
+        Assert.Null(only.TextFileNames);
+        Assert.Null(Resolve(messages, _uploads));
+        Assert.Empty(Collect(messages));
+    }
+
+    /// <summary>
     /// A photo the user attached is a file the model can open, under the name the
     /// user knows it by.
     /// </summary>
@@ -180,5 +215,72 @@ public sealed class ChatAttachmentTests : IDisposable
 
         CodeInputFile only = Assert.Single(Collect(messages));
         Assert.Equal(Path.Combine(_uploads, "g1.png"), only.SourcePath);
+    }
+
+    /// <summary>
+    /// A text-only checkpoint may transform an image with a host file tool, but it
+    /// must never receive an image placeholder. Both the old image in history and the
+    /// one on the current turn are therefore downgraded only after their exact upload
+    /// paths are known to have been staged; attachment provenance stays intact for the
+    /// tool declaration and conversation recorder.
+    /// </summary>
+    [Fact]
+    public void StagedCurrentAndHistoricalImagesBecomeFilesInsteadOfVisionInputs()
+    {
+        Upload("old.png");
+        Upload("new.png");
+        List<ChatMessage> messages = Parse("""
+            [{ "role": "user", "content": "keep this",
+               "imagePaths": ["old.png"],
+               "attachments": [{ "file": "old.png", "fileName": "before.png", "mediaType": "image" }] },
+             { "role": "assistant", "content": "ready" },
+             { "role": "user", "content": "put both photos in a pdf",
+               "imagePaths": ["new.png"],
+               "attachments": [{ "file": "new.png", "fileName": "after.png", "mediaType": "image" }] }]
+            """);
+        Assert.Null(Resolve(messages, _uploads));
+
+        IReadOnlyDictionary<string, string> staged = Collect(messages)
+            .ToDictionary(file => file.SourcePath, file => file.Name, StringComparer.Ordinal);
+        List<string>[] attachmentPaths = messages
+            .Where(message => message.AttachmentPaths != null)
+            .Select(message => new List<string>(message.AttachmentPaths!))
+            .ToArray();
+
+        Assert.True(TensorSharp.Chat.WebUiChatService.TryUseImagesAsStagedFiles(messages, staged));
+        Assert.All(messages, message => Assert.Null(message.ImagePaths));
+        Assert.Equal(attachmentPaths[0], messages[0].AttachmentPaths);
+        Assert.Equal(attachmentPaths[1], messages[2].AttachmentPaths);
+    }
+
+    /// <summary>
+    /// The downgrade is all-or-nothing. If even a historical image was not an
+    /// explicit attachment, was shadowed away from the host tool, or failed staging,
+    /// no message is mutated and the caller can return the vision_not_ready refusal.
+    /// </summary>
+    [Fact]
+    public void MissingStagedImageKeepsEveryVisionInputForAnHonestRefusal()
+    {
+        Upload("old.png");
+        Upload("new.png");
+        List<ChatMessage> messages = Parse("""
+            [{ "role": "user", "content": "old",
+               "imagePaths": ["old.png"],
+               "attachments": [{ "file": "old.png", "fileName": "old.png", "mediaType": "image" }] },
+             { "role": "assistant", "content": "ready" },
+             { "role": "user", "content": "analyze both",
+               "imagePaths": ["new.png"],
+               "attachments": [{ "file": "new.png", "fileName": "new.png", "mediaType": "image" }] }]
+            """);
+        Assert.Null(Resolve(messages, _uploads));
+
+        var onlyCurrentWasStaged = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [Path.Combine(_uploads, "new.png")] = "new.png",
+        };
+
+        Assert.False(TensorSharp.Chat.WebUiChatService.TryUseImagesAsStagedFiles(messages, onlyCurrentWasStaged));
+        Assert.Equal(Path.Combine(_uploads, "old.png"), Assert.Single(messages[0].ImagePaths!));
+        Assert.Equal(Path.Combine(_uploads, "new.png"), Assert.Single(messages[2].ImagePaths!));
     }
 }

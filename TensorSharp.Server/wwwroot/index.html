@@ -2016,6 +2016,11 @@ async function sendMessage() {
       if (att.frames) att.frames.forEach(f => imagePaths.push(f));
     } else if (att.mediaType === 'audio') {
       audioPaths.push(att.file);
+    } else if (att.mediaType === 'text' && att.fileBacked === true) {
+      // CSV rows stay in the uploaded file. The server uses these two fields to
+      // stage the complete table under the name the user sees; no rows belong in
+      // this message's prompt content.
+      if (att.file) { textFilePaths.push(att.file); textFileNames.push(att.fileName || att.file); }
     } else if (att.mediaType === 'text' && att.textContent) {
       textParts.push(`[File: ${att.fileName}]\n${att.textContent}\n[End of file]`);
       // The display name rides along with the stored name (same order) so
@@ -2048,6 +2053,20 @@ async function sendMessage() {
   if (textFilePaths.length > 0) msg.textFilePaths = textFilePaths;
   if (textFileNames.length > 0) msg.textFileNames = textFileNames;
   if (isVideo) msg.isVideo = true;
+  if (attachmentsCopy.length > 0) {
+    // Only durable attachment metadata belongs in history. In particular, never
+    // smuggle an inline textContent copy back into every follow-up request.
+    msg.attachments = attachmentsCopy.map(att => {
+      const stored = {
+        file: att.file,
+        fileName: att.fileName || att.file,
+        mediaType: att.mediaType || 'text'
+      };
+      if (att.frames && att.frames.length) stored.frames = [...att.frames];
+      if (att.fileBacked === true) stored.fileBacked = true;
+      return stored;
+    });
+  }
 
   chatHistory.push(msg);
   addUserBubble(userContent, attachmentsCopy, chatHistory.length - 1);

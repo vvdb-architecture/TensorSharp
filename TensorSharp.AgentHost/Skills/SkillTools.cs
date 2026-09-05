@@ -436,6 +436,12 @@ namespace TensorSharp.AgentHost.Skills
 
             try
             {
+                // Attachment availability is a property of the whole built-in tool
+                // surface, not just shell. In particular, skills_run launches through
+                // its own runner and would otherwise bypass CodeRunnerAdapter entirely.
+                if (context.Workspace != null && IsBuiltInTool(call.Name))
+                    CodeInputFileStager.Stage(context.CodeInputFiles, context.Workspace);
+
                 return call.Name switch
                 {
                     ListToolName => ExecuteList(context),

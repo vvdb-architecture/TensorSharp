@@ -96,6 +96,17 @@ public class WebUiChatServiceTests : IDisposable
         });
     }
 
+    [Fact]
+    public void APreParsedSkillLoopAnswerCountsAsVisibleContent()
+    {
+        Assert.True(WebUiChatService.HasParsedAnswerContent(
+            ChatStreamUpdate.Parsed("The answer.", null, null)));
+        Assert.False(WebUiChatService.HasParsedAnswerContent(
+            ChatStreamUpdate.Parsed(string.Empty, "thinking", null)));
+        Assert.False(WebUiChatService.HasParsedAnswerContent(
+            ChatStreamUpdate.ToolProgress("running", "shell", "output")));
+    }
+
     // ---- /api/chat preflight -------------------------------------------------
 
     [Fact]
@@ -179,8 +190,11 @@ public class WebUiChatServiceTests : IDisposable
         Assert.Equal("foo.gguf", root.GetProperty("models")[0].GetString());
         Assert.Equal("mmproj-foo.gguf", root.GetProperty("mmProjModels")[0].GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("loaded").ValueKind);
+        Assert.False(root.GetProperty("visionReady").GetBoolean());
+        Assert.False(root.GetProperty("acceptsVisionProjector").GetBoolean());
         Assert.Equal("ggml_cpu", root.GetProperty("defaultBackend").GetString());
         Assert.Equal("ggml_cpu", root.GetProperty("supportedBackends")[0].GetProperty("Value").GetString());
+        Assert.Equal(0, root.GetProperty("contextTokens").GetInt32());
         Assert.Equal(100, root.GetProperty("defaultMaxTokens").GetInt32());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("video").ValueKind);
         Assert.True(root.GetProperty("skills").GetProperty("enabled").GetBoolean());
@@ -268,6 +282,43 @@ public class WebUiChatServiceTests : IDisposable
             new[]
             {
                 "ok", "file", "url", "mediaType", "fileName", "textContent", "truncated",
+                "truncateLimit", "truncateUnit", "modelContextLimit", "originalTokenCount", "returnedTokenCount",
+            },
+            root.EnumerateObject().Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task Upload_Csv_ReturnsAFileBackedContractWithoutCopyingRowsIntoTheReply()
+    {
+        Fixture f = Build();
+        const int reportedUploadBytes = 105 * 1024;
+        const string head = "name,region,score\nalice,west,17\n";
+        const string tail = "\nbob,east,23000\n";
+        byte[] bytes = Encoding.UTF8.GetBytes(
+            head + new string('7', reportedUploadBytes - head.Length - tail.Length) + tail);
+        Assert.Equal(reportedUploadBytes, bytes.Length);
+        using var stream = new MemoryStream(bytes);
+
+        object reply = await f.Service.UploadAsync(stream, "responses.csv", bytes.Length, CancellationToken.None);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(reply));
+        JsonElement root = doc.RootElement;
+        Assert.True(root.GetProperty("ok").GetBoolean());
+        Assert.Equal("text", root.GetProperty("mediaType").GetString());
+        Assert.Equal("responses.csv", root.GetProperty("fileName").GetString());
+        Assert.True(root.GetProperty("fileBacked").GetBoolean());
+        Assert.False(root.TryGetProperty("textContent", out _));
+        Assert.False(root.GetProperty("truncated").GetBoolean());
+
+        string file = root.GetProperty("file").GetString()!;
+        Assert.EndsWith(".csv", file, StringComparison.Ordinal);
+        Assert.Equal("/uploads/" + file, root.GetProperty("url").GetString());
+        Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(_baseDir, file)));
+        Assert.Equal(bytes.Length, f.Uploads.UsedBytes);
+        Assert.Equal(
+            new[]
+            {
+                "ok", "file", "url", "mediaType", "fileName", "fileBacked", "truncated",
                 "truncateLimit", "truncateUnit", "modelContextLimit", "originalTokenCount", "returnedTokenCount",
             },
             root.EnumerateObject().Select(p => p.Name).ToArray());

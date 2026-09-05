@@ -10,11 +10,13 @@
 
 using System.Diagnostics;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using TensorAgent.Core.Catalog;
+using TensorAgent.Core.Settings;
 using TensorSharp.AgentHost.Skills;
 
 namespace TensorAgent.Tests;
@@ -170,6 +172,241 @@ public sealed class ScenarioChatTests : LiveModelHarness
     // =====================================================================================
     // 3. code written, run, and then changed
     // =====================================================================================
+
+    /// <summary>
+    /// The reported Qwen failure, end to end: a time-sensitive request must use the
+    /// network/code tool and return ten current rows. The assertion deliberately does
+    /// not pin symbols, because a correct list changes throughout the trading day.
+    /// </summary>
+    [LiveNetworkCodeFact]
+    public async Task QwenRetrievesTenCurrentStockGainersEndToEnd()
+    {
+        Assert.Null(Unavailable(out _, out _));
+        CatalogModel model = ModelCatalog.BuiltIn.Single(candidate =>
+            candidate.Family == CatalogFamily.Qwen35
+            && string.Equals(candidate.Parameters, "9B", StringComparison.Ordinal));
+        string modelDirectory = Environment.GetEnvironmentVariable(ModelDirVariable)!;
+        string modelFile = Environment.GetEnvironmentVariable(ModelFileVariable)
+            ?? model.Weights.FileName;
+        string weights = Path.Combine(modelDirectory, modelFile);
+        Assert.True(File.Exists(weights),
+            $"the Qwen scenario needs {weights}; set {ModelFileVariable} to the local Qwen3.5 9B GGUF name");
+        Start(model, weights, interpreter: true, maxTokens: 2048);
+
+        AppSettings settings = Host.Settings.Load();
+        bool defaultThink = settings.ThinkByDefault;
+        Assert.False(defaultThink,
+            "the stock-gainers scenario is intended to exercise a new chat with TensorAgent's default reasoning setting");
+        settings.AllowNetwork = true;
+        Host.Settings.Save(settings);
+        Host.ApplySettings(settings);
+        await LoadAsync(model);
+
+        JsonElement loaded = await Client.GetFromJsonAsync<JsonElement>("/api/models");
+        Assert.Equal(modelFile, loaded.GetProperty("loaded").GetString());
+        Assert.Equal("qwen35", loaded.GetProperty("architecture").GetString());
+
+        JsonElement session = await OpenSessionAsync();
+        TimeSpan turnCeiling = TimeSpan.FromMinutes(3);
+        using var turnDeadline = new CancellationTokenSource(turnCeiling);
+        var clock = Stopwatch.StartNew();
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId = session.GetProperty("sessionId").GetString(),
+            messages = new[]
+            {
+                new { role = "user", content = "Retrieve 10 stocks with most gains today" },
+            },
+            maxTokens = 1536,
+            // The page seeds a fresh conversation from ThinkByDefault and sends that
+            // value explicitly. Keep the acceptance scenario on the path an unchanged
+            // installation presents to its user rather than enabling a test-only mode.
+            think = defaultThink,
+        }, turnDeadline.Token);
+        clock.Stop();
+
+        string answer = TextOf(frames);
+        List<Progress> progress = ProgressOf(frames);
+        TurnStats stats = StatsOf(frames);
+        Console.WriteLine($"scenario stock gainers: {stats} on {LoadedBackend}\n{answer}");
+        foreach (Progress item in progress)
+        {
+            if (item.Detail.Length > 0)
+                Console.WriteLine($"  {item.Phase}:{item.Tool} {item.Detail}");
+        }
+
+        // This was an eight-call exploration in the regression transcript. One finished
+        // shell frame pins one execution; the streamed draft pins that execution to one
+        // typed aggregate screener rather than ten serial lookups or a package install.
+        string shellDraft = string.Concat(frames
+            .Where(frame => Text(frame, "tool_progress") == "writing"
+                && Text(frame, "tool") == SkillToolNames.Shell)
+            .Select(frame => Text(frame, "text")));
+
+        string shellOutput = string.Concat(frames
+            .Where(frame => Text(frame, "tool_progress") == "running"
+                && Text(frame, "tool") == SkillToolNames.Shell)
+            .Select(frame => Text(frame, "text")));
+        string shellDiagnostic = $"Frames: {Describe(progress)}\n"
+            + $"Generated shell command(s):\n{shellDraft}\n"
+            + $"Shell output:\n{shellOutput}\n"
+            + $"Final answer:\n{answer}";
+
+        Assert.True(progress.Any(item => item.Phase == "running" && item.Tool == SkillToolNames.Shell),
+            "the model never ran its generated retrieval command. " + shellDiagnostic);
+        Progress[] completedShells = progress.Where(item =>
+                item.Phase == "finished" && item.Tool == SkillToolNames.Shell)
+            .ToArray();
+        Assert.True(completedShells.Length == 1,
+            $"expected exactly one completed shell call, found {completedShells.Length}. {shellDiagnostic}");
+        Progress completedShell = completedShells[0];
+
+        Assert.Contains("scrIds=day_gainers", shellDraft, StringComparison.Ordinal);
+        Assert.Contains("row.get(\"quoteType\") == \"EQUITY\"", shellDraft, StringComparison.Ordinal);
+        Assert.Contains("row.get(\"currency\") == \"USD\"", shellDraft, StringComparison.Ordinal);
+        Assert.Contains("sorted(eligible", shellDraft, StringComparison.Ordinal);
+        Assert.Contains("python3 - <<'PY'", shellDraft, StringComparison.Ordinal);
+        Assert.DoesNotContain("python3 -c", shellDraft, StringComparison.Ordinal);
+        Assert.DoesNotContain("pip install", shellDraft, StringComparison.OrdinalIgnoreCase);
+        int requests = Regex.Matches(
+            shellDraft,
+            @"(?<![A-Za-z0-9_])(?:urllib\.request\.)?urlopen\s*\(",
+            RegexOptions.CultureInvariant).Count;
+        Assert.True(requests == 1,
+            $"expected one aggregate network request, found {requests} urlopen calls in: {shellDraft}");
+
+        const string PercentagePattern = @"(?<![A-Za-z0-9])\+?\d+(?:\.\d+)?%";
+        string[] sourcedRows = shellOutput.Split('\n')
+            .Where(line => Regex.IsMatch(line, PercentagePattern))
+            .ToArray();
+        Assert.True(sourcedRows.Length == 10
+                && sourcedRows.All(line => TableCells(line).Length == 7),
+            "the single aggregate command did not print exactly ten final-ready Markdown rows: " + shellOutput);
+        string[][] sourcedCells = sourcedRows.Select(TableCells).ToArray();
+        Assert.Equal(
+            Enumerable.Range(1, 10),
+            sourcedCells.Select(cells => ParseInteger(cells[0], "rank")));
+        decimal[] dollarChanges = sourcedCells
+            .Select(cells => ParseDecimal(cells[4], "dollar change"))
+            .ToArray();
+        decimal[] percentageChanges = sourcedCells
+            .Select(cells => ParseDecimal(cells[5].TrimEnd('%'), "percentage change"))
+            .ToArray();
+        Assert.All(dollarChanges, change =>
+            Assert.True(change > 0, $"a day-gainer row had a non-positive dollar change: {change}"));
+        Assert.All(percentageChanges, change =>
+            Assert.True(change > 0, $"a day-gainer row had a non-positive percentage change: {change}"));
+        Assert.True(
+            percentageChanges.Zip(percentageChanges.Skip(1), (left, right) => left >= right).All(value => value),
+            "the aggregate command did not rank gainers by descending percentage: " + shellOutput);
+
+        JsonElement done = frames.Last(frame => frame.TryGetProperty("done", out _));
+        Assert.False(done.GetProperty("truncated").GetBoolean(),
+            $"the model used the output budget before completing its final answer: {answer}");
+        Assert.False(string.IsNullOrWhiteSpace(answer),
+            $"the retrieval completed ({completedShell.Detail}) but the model wrote no final answer");
+        Assert.DoesNotContain("model ended this turn without writing an answer", answer,
+            StringComparison.OrdinalIgnoreCase);
+
+        string[] percentageRows = answer.Split('\n')
+            .Where(line => Regex.IsMatch(line, PercentagePattern))
+            .ToArray();
+        int percentages = percentageRows.Sum(line =>
+            Regex.Matches(line, PercentagePattern).Count);
+        Assert.True(percentageRows.Length == 10 && percentages == 10,
+            $"expected exactly ten rows with one gain percentage each; found {percentageRows.Length} rows "
+            + $"and {percentages} percentages: {answer}");
+        Assert.True(percentageRows.All(line => TableCells(line).Length == 7),
+            "the final answer did not present all sourced columns in one compact Markdown table: " + answer);
+
+        // Ground every cell, not just the ticker. A plausible-looking row with a rounded
+        // or invented price used to pass as long as its symbol appeared somewhere in the
+        // tool output.
+        Assert.Equal(sourcedRows.Select(NormalizeTableRow), percentageRows.Select(NormalizeTableRow));
+
+        string[] tickers = percentageRows
+            .Select(line => TableCells(line)[1])
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        Assert.True(tickers.Length == 10,
+            $"expected ten distinct ticker rows, found {tickers.Length} ({string.Join(", ", tickers)}): {answer}");
+        Assert.All(tickers, ticker => Assert.Contains(ticker, shellOutput, StringComparison.Ordinal));
+        Assert.Contains("Yahoo Finance", answer, StringComparison.OrdinalIgnoreCase);
+        Match sourcedTimestamp = Regex.Match(
+            shellOutput,
+            @"\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\b",
+            RegexOptions.CultureInvariant);
+        Assert.True(sourcedTimestamp.Success, "the command printed no source timestamp: " + shellOutput);
+        Assert.Contains(sourcedTimestamp.Value, answer, StringComparison.Ordinal);
+        Assert.True(DateTimeOffset.TryParseExact(
+                sourcedTimestamp.Value,
+                "yyyy-MM-dd HH:mm:ss 'UTC'",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out DateTimeOffset observedAt),
+            "the source timestamp was not parseable as UTC: " + sourcedTimestamp.Value);
+        double ageHours = (DateTimeOffset.UtcNow - observedAt).TotalHours;
+        Assert.True(ageHours is >= -1 and <= 24 * 7,
+            $"the screener data is {ageHours:0.0} hours old, too stale to satisfy 'today' "
+            + "(weekends and market holidays are allowed)");
+
+        // Qwen sometimes turns the sourced heading into an equivalent natural-language
+        // heading. Permit that cosmetic change, but nothing else: after one short heading,
+        // the table header, alignment row, and ten data rows must be byte-for-byte the
+        // command's output. This rejects an unsupported note without overfitting prose.
+        string[] sourcedLines = ContentLines(shellOutput);
+        string[] answerLines = ContentLines(answer);
+        Assert.True(sourcedLines.Length == 13 && answerLines.Length == 13,
+            $"expected exactly one heading and a 12-line sourced table. {shellDiagnostic}");
+        Assert.Equal(sourcedLines.Skip(1), answerLines.Skip(1));
+        string headingPattern = "\\A(?=.{1,220}\\z)(?=.*\\bTop 10\\b)"
+            + "(?=.*\\bgain(?:s|ers?)\\b)(?=.*" + Regex.Escape(sourcedTimestamp.Value) + ")"
+            + "(?=.*Yahoo Finance).+:\\z";
+        Assert.Matches(
+            new Regex(headingPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant),
+            answerLines[0]);
+
+        // Company names and the EQUITY classification now come from the typed screener;
+        // a story about why the move happened still does not.
+        Assert.DoesNotMatch(
+            new Regex(@"\b(?:catalyst|likely\s+(?:because|due)|probably\s+(?:because|due))\b",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant),
+            answer);
+        Assert.DoesNotContain("**Note", answer, StringComparison.OrdinalIgnoreCase);
+
+        // This is deliberately a loose acceptance ceiling, not a benchmark. The measured
+        // default-mode Q8 Metal path completes in well under a minute; three minutes leaves
+        // room for device and network variance while still rejecting the old
+        // install/per-ticker loop, which spent many minutes retrying dependencies and
+        // serial requests.
+        Assert.True(clock.Elapsed < turnCeiling,
+            $"the current-data turn took {clock.Elapsed.TotalSeconds:0.0}s on {LoadedBackend} ({stats}); "
+            + "a single aggregate lookup should not take several minutes");
+
+        static string[] TableCells(string row) => row
+            .Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        static string NormalizeTableRow(string row) =>
+            string.Join("|", TableCells(row));
+
+        static string[] ContentLines(string text) => text
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        static int ParseInteger(string text, string field)
+        {
+            Assert.True(int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value),
+                $"the sourced {field} was not an integer: '{text}'");
+            return value;
+        }
+
+        static decimal ParseDecimal(string text, string field)
+        {
+            Assert.True(decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal value),
+                $"the sourced {field} was not numeric: '{text}'");
+            return value;
+        }
+    }
 
     /// <summary>
     /// Catches the whole code path being broken in any of the places it can break,

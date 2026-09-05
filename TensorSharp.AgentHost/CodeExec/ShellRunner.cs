@@ -846,15 +846,21 @@ namespace TensorSharp.AgentHost.CodeExec
             var outcomes = new List<(ShellInstallRequest Install, string? Error)>();
             foreach (ShellInstallRequest install in installs.OrderBy(i => i.Segment.Start))
             {
+                bool performed = false;
                 string? error = allOk
-                    ? _installer.Install(workspace, install.Language, install.Packages, onOutput)
+                    ? _installer.Install(
+                        workspace, install.Language, install.Packages, onOutput, out performed)
                     : "an install earlier in the same command failed, so this one was not attempted";
 
                 if (error == null)
                 {
-                    notes.Add(install.Packages.Count > 0
-                        ? "Installed: " + string.Join(", ", install.Packages)
-                        : "Installed the dependencies named by the manifest.");
+                    notes.Add(performed
+                        ? install.Packages.Count > 0
+                            ? "Installed: " + string.Join(", ", install.Packages)
+                            : "Installed the dependencies named by the manifest."
+                        : install.Packages.Count > 0
+                            ? "Already installed this session: " + string.Join(", ", install.Packages)
+                            : "The manifest named no new dependencies to install.");
                 }
                 else
                 {
@@ -3323,8 +3329,7 @@ namespace TensorSharp.AgentHost.CodeExec
         private string PointerFor(string runId, string relative, string fullPath) =>
             string.IsNullOrEmpty(_options.ArtifactUriPrefix)
                 ? fullPath
-                : $"{_options.ArtifactUriPrefix!.TrimEnd('/')}/{runId}/"
-                  + string.Join("/", relative.Split('/').Select(Uri.EscapeDataString));
+                : CodeArtifactStore.UrlFor(_options.ArtifactUriPrefix!, runId, relative);
 
         private void AppendArtifacts(
             StringBuilder sb, IReadOnlyList<CodeArtifact> artifacts, IReadOnlyList<string> skipped)

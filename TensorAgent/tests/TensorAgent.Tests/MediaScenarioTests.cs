@@ -319,7 +319,11 @@ public sealed class MediaScenarioTests : IDisposable
         // companions it can see on disk, and a file linked afterwards is one the
         // pipeline never hears about.
         _host = new AgentAppHost(paths);
-        _host.Start();
+        // These scenarios deliberately load through /api/models/load below. Starting
+        // the host would also launch its remembered-model background load, leaving two
+        // unsynchronised ModelService.LoadModel calls racing over the same model and
+        // projector. Start only the loopback server so the API call is the sole load.
+        _host.Server.Start();
         _client = Client(_host.Server);
         return _host;
     }
@@ -464,6 +468,9 @@ public sealed class MediaScenarioTests : IDisposable
         // anyone attach a photo.
         JsonElement models = JsonSerializer.Deserialize<JsonElement>(await _client!.GetStringAsync("/api/models"));
         Assert.False(string.IsNullOrEmpty(models.GetProperty("loaded").GetString()));
+        Assert.Equal(model.Projector.FileName, models.GetProperty("loadedMmProj").GetString());
+        Assert.True(models.GetProperty("visionReady").GetBoolean());
+        Assert.True(models.GetProperty("acceptsVisionProjector").GetBoolean());
 
         JsonElement upload = await UploadAsync(MediaFixtures.RedCircleOnWhitePng(), "circle.png");
         Assert.Equal("image", upload.GetProperty("mediaType").GetString());
@@ -513,6 +520,59 @@ public sealed class MediaScenarioTests : IDisposable
         string answer = TextOf(withPicture);
         AssertMentionsOneOf(answer, "the colour", "red", "crimson", "scarlet");
         AssertMentionsOneOf(answer, "the shape", "circle", "circular", "disc", "disk", "dot", "round", "sphere", "ball");
+    }
+
+    [MultimodalModelFact]
+    public async Task APictureIsRejectedBeforeGenerationWhenTheProjectorIsMissing()
+    {
+        Assert.Null(LiveMedia.UnavailableMultimodal(out CatalogModel model, out string weights, out _));
+        AgentAppHost host = StartApp(model, new Dictionary<string, string>
+        {
+            [model.Weights.FileName] = weights,
+        });
+
+        // This is an intentional text-only load of a multimodal checkpoint. It is a
+        // valid state when optional downloads are disabled; what must never be valid is
+        // pretending an image was analyzed in that state.
+        await Task.Run(() => host.UseModel(model));
+        JsonElement models = JsonSerializer.Deserialize<JsonElement>(await _client!.GetStringAsync("/api/models"));
+        Assert.Equal(JsonValueKind.Null, models.GetProperty("loadedMmProj").ValueKind);
+        Assert.False(models.GetProperty("visionReady").GetBoolean());
+        Assert.True(models.GetProperty("acceptsVisionProjector").GetBoolean());
+
+        JsonElement upload = await UploadAsync(MediaFixtures.RedCircleOnWhitePng(), "circle.png");
+        string file = upload.GetProperty("file").GetString()!;
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+        {
+            Content = JsonContent.Create(new
+            {
+                messages = new[]
+                {
+                    new
+                    {
+                        role = "user",
+                        content = "What is in this picture?",
+                        imagePaths = new[] { file },
+                        // The app host has a file tool, and this exact attachment would
+                        // be stageable. A projector-capable checkpoint must still fail
+                        // closed instead of silently downgrading its broken vision path.
+                        attachments = new[]
+                        {
+                            new { file, fileName = "circle.png", mediaType = "image" },
+                        },
+                    },
+                },
+                maxTokens = 32,
+                think = false,
+            }),
+        };
+
+        using HttpResponseMessage response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        string payload = await response.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        JsonElement rejection = JsonSerializer.Deserialize<JsonElement>(payload);
+        Assert.Equal("vision_not_ready", rejection.GetProperty("code").GetString());
+        Assert.Contains("projector", rejection.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [MultimodalModelFact]

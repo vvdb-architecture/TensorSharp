@@ -32,6 +32,16 @@ namespace TensorSharp.AgentHost.CodeExec
         /// <summary>Whether this host installs anything at all.</summary>
         bool CanInstall { get; }
 
+        /// <summary>Why installation is unavailable when <see cref="CanInstall"/> is false.</summary>
+        string? UnavailableReason => null;
+
+        /// <summary>
+        /// Whether this host installs packages for one language. The default keeps
+        /// existing pip/npm installers compatible; a narrower in-process installer can
+        /// report its real surface without making every skill dependency look available.
+        /// </summary>
+        bool CanInstallLanguage(CodeLanguage language) => CanInstall;
+
         /// <summary>
         /// Install <paramref name="packages"/> into <paramref name="workspace"/>'s
         /// environment.

@@ -392,9 +392,35 @@ namespace TensorSharp.Models
                 Console.WriteLine($"  Split expert biases: {split} tensors");
         }
 
+        /// <summary>
+        /// True when the per-expert gate and up projections were left SEPARATE rather
+        /// than fused into <c>ffn_gate_up_exps.{e}.weight</c>.
+        ///
+        /// <para>
+        /// The fusion is a copy, always: the GGUF holds gate and up as two 3D expert
+        /// blocks, so expert <c>e</c>'s gate slice is never byte-adjacent to its up
+        /// slice, and joining them duplicates already-mapped bytes into anonymous
+        /// memory. MEASURED on gpt-oss-20b Q8_0: <b>6,768 MB</b>, which is the whole
+        /// reason a 20B mixture of experts whose weights are otherwise entirely
+        /// file-backed could not be offered to a phone.
+        /// </para>
+        /// <para>
+        /// Nothing on the GGML path ever reads the fused tensor. Both the fused MoE
+        /// kernel (<see cref="TryMoEPrefillFused"/>, which serves prefill AND
+        /// single-token decode) and the whole-model fused decode graph read
+        /// <see cref="_layerStackedGate"/> / <see cref="_layerStackedUp"/> -- zero-cost
+        /// views over the ORIGINAL 3D blocks, already separate. Only the per-expert
+        /// managed fallback indexed the fused name, and it now has
+        /// <see cref="ExpertFFNSplit"/>, so the copy is declinable like every other one.
+        /// </para>
+        /// </summary>
+        private bool _expertGateUpSplit;
+
         private unsafe void FuseExpertGateUpWeights()
         {
             int fused = 0;
+            int declined = 0;
+            long declinedBytes = 0;
             for (int l = 0; l < Config.NumLayers; l++)
             {
                 for (int e = 0; e < _numExperts; e++)
@@ -407,14 +433,34 @@ namespace TensorSharp.Models
                         _quantWeights.TryGetValue(upName, out var uw) &&
                         gw.GgmlType == uw.GgmlType && gw.Ne0 == uw.Ne0)
                     {
-                        // ExpertFFN and the fused decode arrays index
-                        // ffn_gate_up_exps.{e}.weight BY NAME and gpt-oss has no
-                        // split-expert path, so unlike every other fusion site this one
-                        // cannot decline the copy when the sources are not adjacent --
-                        // there is nothing to fall back to. It is the reason
-                        // gpt-oss-20b's load costs ~6.7 GiB of anonymous memory and why
-                        // the catalog does not offer it to a phone.
-                        QuantizedWeight fusedWeight = CreateFusedQuantizedWeightRequired(gw, uw);
+                        // Declinable, and the decision is model-wide: the name table
+                        // built later has ONE shape for every (layer, expert), so a
+                        // per-pair answer would leave some experts fused and some not
+                        // and the table wrong for half of them. The first pair decides;
+                        // the rest are only measured, so the line printed at the end is
+                        // the whole saving rather than one expert's share of it.
+                        if (_expertGateUpSplit)
+                        {
+                            declinedBytes += gw.RawBytes + uw.RawBytes;
+                            declined++;
+                            continue;
+                        }
+                        // Not under tensor parallelism: the sharder partitions the
+                        // FUSED name (ShardFusedGateUpColumnParallel), so declining
+                        // there would leave it nothing to shard. TP is a multi-GPU
+                        // desktop configuration and never a phone's, so the two
+                        // never want the same answer anyway.
+                        if (!TryCreateFusedQuantizedWeight(
+                                separatePathAvailable: !IsTensorParallel,
+                                out QuantizedWeight fusedWeight, gw, uw))
+                        {
+                            // Nothing is disposed and nothing is removed: the separate
+                            // gate and up weights ARE the model from here on.
+                            _expertGateUpSplit = true;
+                            declinedBytes += gw.RawBytes + uw.RawBytes;
+                            declined++;
+                            continue;
+                        }
 
                         _quantWeights[fusedName] = fusedWeight;
                         _quantWeights.Remove(gateName); gw.Dispose();
@@ -455,6 +501,13 @@ namespace TensorSharp.Models
             }
             if (fused > 0)
                 Console.WriteLine($"  Fused expert Gate+Up projections: {fused}");
+            if (declined > 0)
+            {
+                Console.WriteLine(
+                    $"  Expert Gate+Up kept separate: {declined} pairs, "
+                    + $"{declinedBytes / (1024.0 * 1024.0):0} MB of anonymous copies avoided "
+                    + "(TS_WEIGHT_FUSION_COPIES=1 to fuse anyway)");
+            }
         }
 
         /// <summary>
@@ -655,13 +708,26 @@ namespace TensorSharp.Models
                 string p = $"blk.{l}.";
                 for (int e = 0; e < _numExperts; e++)
                 {
-                    _expertNames[l][e] = new[]
-                    {
-                        p + $"ffn_gate_up_exps.{e}.weight",  // 0
-                        p + $"ffn_gate_up_exps.{e}.bias",    // 1
-                        p + $"ffn_down_exps.{e}.weight",     // 2
-                        p + $"ffn_down_exps.{e}.bias",       // 3
-                    };
+                    // Six names when the gate/up fusion was declined, four when it was
+                    // taken. The shape is uniform across every (layer, expert) because
+                    // the decision is model-wide -- see _expertGateUpSplit.
+                    _expertNames[l][e] = _expertGateUpSplit
+                        ? new[]
+                        {
+                            p + $"ffn_gate_exps.{e}.weight",     // 0
+                            p + $"ffn_gate_exps.{e}.bias",       // 1
+                            p + $"ffn_down_exps.{e}.weight",     // 2
+                            p + $"ffn_down_exps.{e}.bias",       // 3
+                            p + $"ffn_up_exps.{e}.weight",       // 4
+                            p + $"ffn_up_exps.{e}.bias",         // 5
+                        }
+                        : new[]
+                        {
+                            p + $"ffn_gate_up_exps.{e}.weight",  // 0
+                            p + $"ffn_gate_up_exps.{e}.bias",    // 1
+                            p + $"ffn_down_exps.{e}.weight",     // 2
+                            p + $"ffn_down_exps.{e}.bias",       // 3
+                        };
                 }
             }
 
@@ -1816,7 +1882,7 @@ namespace TensorSharp.Models
                 float weight = routingWeights[e];
                 string[] en = _expertNames[layer][expertIdx];
 
-                Tensor expertOut = ExpertFFN(hiddenState, en[0], en[1], en[2], en[3], 1);
+                Tensor expertOut = ExpertForward(hiddenState, en, 1);
                 if (_backend == BackendType.Cuda)
                     Ops.AddMulV(output, output, expertOut, weight);
                 else
@@ -2120,7 +2186,7 @@ namespace TensorSharp.Models
                         batchPtr + (long)i * hiddenDim, rowBytes, rowBytes);
                 }
 
-                Tensor expertOut = ExpertFFN(batchInput, en[0], en[1], en[2], en[3], count);
+                Tensor expertOut = ExpertForward(batchInput, en, count);
                 batchInput.Dispose();
 
                 float* expertOutPtr = GetFloatPtr(expertOut);
@@ -2567,6 +2633,50 @@ namespace TensorSharp.Models
             }
 
             return (routingWeights, selectedExperts);
+        }
+
+        /// <summary>
+        /// One expert, whichever way its gate and up projections are stored. The name
+        /// table says which (see <see cref="_expertGateUpSplit"/>) and this is the one
+        /// place that has to know.
+        /// </summary>
+        private unsafe Tensor ExpertForward(Tensor input, string[] names, int seqLen) =>
+            _expertGateUpSplit
+                ? ExpertFFNSplit(input, names[0], names[1], names[4], names[5], names[2], names[3], seqLen)
+                : ExpertFFN(input, names[0], names[1], names[2], names[3], seqLen);
+
+        /// <summary>
+        /// The same expert with gate and up run as two projections instead of one.
+        ///
+        /// <para>
+        /// Byte-identical to <see cref="ExpertFFN"/>: the fused weight is only ever the
+        /// two of them concatenated along the output dimension, so a single matmul of
+        /// width 2*n_ff and two of width n_ff produce the same numbers. What it costs is
+        /// one extra dispatch per active expert; what it buys is not copying the whole
+        /// mixture of experts into anonymous memory to make the fused weight exist
+        /// (6,768 MB on gpt-oss-20b Q8_0).
+        /// </para>
+        /// </summary>
+        private unsafe Tensor ExpertFFNSplit(
+            Tensor input, string gateWeightName, string gateBiasName,
+            string upWeightName, string upBiasName,
+            string downWeightName, string downBiasName, int seqLen)
+        {
+            Tensor gate = LinearForwardWithBias(input, gateWeightName, gateBiasName);
+            Tensor up = LinearForwardWithBias(input, upWeightName, upBiasName);
+            int halfDim = (int)gate.Sizes[1];
+
+            // In place into `gate`, exactly as the fused path activates the first half
+            // of its gate||up buffer.
+            float* gatePtr = GetFloatPtr(gate);
+            float* upPtr = GetFloatPtr(up);
+            for (int s = 0; s < seqLen; s++)
+                ApplySwiGluOaiInPlace(gatePtr + (long)s * halfDim, upPtr + (long)s * halfDim, halfDim);
+            up.Dispose();
+
+            Tensor down = LinearForwardWithBias(gate, downWeightName, downBiasName);
+            gate.Dispose();
+            return down;
         }
 
         private unsafe Tensor ExpertFFN(Tensor input, string gateUpWeightName, string gateUpBiasName,

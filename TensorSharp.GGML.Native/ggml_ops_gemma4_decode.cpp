@@ -255,7 +255,18 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
     // TSGgml_TensorParallelExecutePlans, so the GPUs overlap and the partial
     // sums are reduced in VRAM. tp_degree <= 1 is the ordinary single-device
     // path and ignores both parameters.
-    int tp_degree, void** tp_plan_out)
+    int tp_degree, void** tp_plan_out,
+    // Separate gate/up FFN weights, for the same reason as the separate K/V
+    // weights above and one more: fusing ffn_gate and ffn_up into ffn_gate_up is
+    // a COPY, because a GGUF writes a block's tensors alphabetically and
+    // ffn_norm sits between them. On gemma-4-12b UD-Q4_K_XL that copy is 3.1 GB
+    // of anonymous memory duplicating bytes already mapped from the file, which
+    // on a phone is charged against the jetsam limit and is what killed the app.
+    // When gate_arr[l] != nullptr the layer runs two matmuls and gu_arr[l] is
+    // ignored; when gate_arr == nullptr or gate_arr[l] == nullptr the fused
+    // weight is used exactly as before, so existing callers are unaffected.
+    void** gate_arr, int* gate_type_arr, std::int64_t* gate_ne0_arr, std::int64_t* gate_ne1_arr, std::int64_t* gate_bytes_arr,
+    void** up_arr, int* up_type_arr, std::int64_t* up_ne0_arr, std::int64_t* up_ne1_arr, std::int64_t* up_bytes_arr)
 {
     try
     {
@@ -342,8 +353,23 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
         // per-token rebuild + bind + gallocr work (~1 ms/token measured) and lets
         // ggml-vulkan's rope+view+set_rows subgraph fusion apply. Vulkan's
         // set_rows covers every KV dtype used here (F32/F16/BF16/Q8_0/Q4_0).
+        // TS_GEMMA4_METAL_PERSIST=1 re-tests the Metal ggml_set_rows crash described
+        // above. On the current vendored ggml it no longer reproduces: the graph
+        // builds, replays, and decodes byte-identically. It stays OFF anyway,
+        // because the thing it was supposed to buy is not there — measured on
+        // gemma-4-E4B Q8_0 / M5 Pro, 46.4 tok/s off against 46.6 on, i.e. the
+        // per-token rebuild is ~0.4% of a decode step, not the ~1 ms/token it
+        // costs on Vulkan. Decode here is bandwidth-bound on the weights (7.6 GB
+        // per token at ~350 GB/s), so there is nothing for a cached graph to win.
+        // Left as an A/B lever rather than a default: flipping a path that once
+        // SIGSEGV'd needs a better reason than noise.
+        static const bool s_metalPersistProbe = []{
+            const char* e = std::getenv("TS_GEMMA4_METAL_PERSIST");
+            return e != nullptr && e[0] == '1';
+        }();
         bool can_persist = g4_persist &&
-            (g_backend_type == BACKEND_TYPE_CUDA || g_backend_type == BACKEND_TYPE_VULKAN);
+            (g_backend_type == BACKEND_TYPE_CUDA || g_backend_type == BACKEND_TYPE_VULKAN ||
+             (s_metalPersistProbe && g_backend_type == BACKEND_TYPE_METAL));
         {
             auto roundup_stride = [](int v){ return ((v + kG4PersistKvStride - 1) / kG4PersistKvStride) * kG4PersistKvStride; };
             for (int l = 0; l < num_layers; l++)
@@ -554,6 +580,8 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
             ggml_tensor* post_attn_norm_w;
             ggml_tensor* ffn_norm_w;
             ggml_tensor* gu_w;
+            ggml_tensor* gate_w;   // separate gate weight (unfused FFN); null when fused
+            ggml_tensor* up_w;     // separate up weight   (unfused FFN); null when fused
             ggml_tensor* down_w;
             ggml_tensor* post_ffn_norm_w;
             ggml_tensor* k_cached_t;
@@ -592,7 +620,19 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
             lt.o_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(o_type_arr[l]), o_ne0_arr[l], o_ne1_arr[l]);
             lt.post_attn_norm_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
             lt.ffn_norm_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
-            lt.gu_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(gu_type_arr[l]), gu_ne0_arr[l], gu_ne1_arr[l]);
+            const bool separate_gate_up = (gate_arr != nullptr && gate_arr[l] != nullptr);
+            if (separate_gate_up)
+            {
+                lt.gu_w = nullptr;
+                lt.gate_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(gate_type_arr[l]), gate_ne0_arr[l], gate_ne1_arr[l]);
+                lt.up_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(up_type_arr[l]), up_ne0_arr[l], up_ne1_arr[l]);
+            }
+            else
+            {
+                lt.gu_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(gu_type_arr[l]), gu_ne0_arr[l], gu_ne1_arr[l]);
+                lt.gate_w = nullptr;
+                lt.up_w = nullptr;
+            }
             lt.down_w = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(down_type_arr[l]), down_ne0_arr[l], down_ne1_arr[l]);
             lt.post_ffn_norm_w = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
 
@@ -745,7 +785,8 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
                 else
                 {
                 const int cachePos = info.isLocal ? (position % info.cacheSize) : position;
-                const int activeStart = info.isLocal ? ((totalSeqLen - info.attendLen) % info.cacheSize) : 0;
+                const int activeStart = swa_decode_window_start(
+                    info.isLocal, totalSeqLen, info.attendLen, info.cacheSize);
                 const int attnKvLen = flash_attn_kv_length(info.attendLen, info.cacheSize, info.hd);
                 const std::size_t kv_byte_offset =
                     static_cast<std::size_t>(cachePos) * lt.k_cached_t->nb[1];
@@ -818,19 +859,35 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
             // 9. Post-attn norm + residual
             ggml_tensor* post_attn_normed = ggml_mul(ctx,
                 ggml_rms_norm(ctx, o_flat, eps), lt.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn_normed);
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn_normed, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // 10. FFN: norm → gate_up → GELU*up → down → post_ffn_norm
             ggml_tensor* ffn_normed = ggml_mul(ctx,
                 ggml_rms_norm(ctx, residual1, eps), lt.ffn_norm_w);
             ggml_tensor* ffn_normed_2d = ggml_reshape_2d(ctx, ffn_normed, hidden_size, 1);
 
-            std::int64_t intermediate_size = gu_ne1_arr[l] / 2;
-            ggml_tensor* gu_flat = ggml_reshape_1d(ctx,
-                ggml_mul_mat(ctx, lt.gu_w, ffn_normed_2d), 2 * intermediate_size);
-            ggml_tensor* gate = ggml_view_1d(ctx, gu_flat, intermediate_size, 0);
-            ggml_tensor* up = ggml_view_1d(ctx, gu_flat, intermediate_size,
-                static_cast<std::size_t>(intermediate_size) * sizeof(float));
+            ggml_tensor* gate;
+            ggml_tensor* up;
+            std::int64_t intermediate_size;
+            if (lt.gate_w != nullptr)
+            {
+                // Two matmuls over the mapped weights instead of one over a copy of
+                // them. Bit-identical: the fused weight is only ever these two
+                // concatenated along the output dimension, so row i of the fused
+                // result is row i of whichever half it came from.
+                intermediate_size = gate_ne1_arr[l];
+                gate = ggml_reshape_1d(ctx, ggml_mul_mat(ctx, lt.gate_w, ffn_normed_2d), intermediate_size);
+                up = ggml_reshape_1d(ctx, ggml_mul_mat(ctx, lt.up_w, ffn_normed_2d), intermediate_size);
+            }
+            else
+            {
+                intermediate_size = gu_ne1_arr[l] / 2;
+                ggml_tensor* gu_flat = ggml_reshape_1d(ctx,
+                    ggml_mul_mat(ctx, lt.gu_w, ffn_normed_2d), 2 * intermediate_size);
+                gate = ggml_view_1d(ctx, gu_flat, intermediate_size, 0);
+                up = ggml_view_1d(ctx, gu_flat, intermediate_size,
+                    static_cast<std::size_t>(intermediate_size) * sizeof(float));
+            }
             ggml_tensor* ffn_hidden = ggml_mul(ctx, ggml_gelu(ctx, gate), up);
 
             ggml_tensor* ffn_2d = ggml_reshape_2d(ctx, ffn_hidden, intermediate_size, 1);
@@ -841,7 +898,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
             // 11. Post-FFN norm + residual
             ggml_tensor* post_ffn_normed = ggml_mul(ctx,
                 ggml_rms_norm(ctx, down_flat, eps), lt.post_ffn_norm_w);
-            ggml_tensor* residual2 = ggml_add(ctx, residual1, post_ffn_normed);
+            ggml_tensor* residual2 = ggml_add(ctx, post_ffn_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // 12. PLE injection (if present)
             if (lt.ple_gate_w != nullptr && ple_input != nullptr)
@@ -857,7 +914,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
                     ggml_mul_mat(ctx, lt.ple_proj_w, ple_gated_2d), hidden_size);
                 ggml_tensor* ple_normed = ggml_mul(ctx,
                     ggml_rms_norm(ctx, ple_proj, eps), lt.ple_post_norm_w);
-                residual2 = ggml_add(ctx, residual2, ple_normed);
+                residual2 = ggml_add(ctx, ple_normed, residual2);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
             }
 
             // 13. Layer scalar
@@ -964,7 +1021,15 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
                 bind_or_mark(lt.v_w, v_arr[l], static_cast<std::size_t>(v_bytes_arr[l]), true);
             }
             bind_or_mark(lt.o_w, o_arr[l], static_cast<std::size_t>(o_bytes_arr[l]), true);
-            bind_or_mark(lt.gu_w, gu_arr[l], static_cast<std::size_t>(gu_bytes_arr[l]), true);
+            if (lt.gate_w != nullptr)
+            {
+                bind_or_mark(lt.gate_w, gate_arr[l], static_cast<std::size_t>(gate_bytes_arr[l]), true);
+                bind_or_mark(lt.up_w, up_arr[l], static_cast<std::size_t>(up_bytes_arr[l]), true);
+            }
+            else
+            {
+                bind_or_mark(lt.gu_w, gu_arr[l], static_cast<std::size_t>(gu_bytes_arr[l]), true);
+            }
             bind_or_mark(lt.down_w, down_arr[l], static_cast<std::size_t>(down_bytes_arr[l]), true);
 
             bind_or_mark(lt.attn_norm_w, attn_norm_arr[l], static_cast<std::size_t>(hidden_size) * sizeof(float), true);

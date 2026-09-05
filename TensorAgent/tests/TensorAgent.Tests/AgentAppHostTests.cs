@@ -3,12 +3,17 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Hosting;
+using TensorAgent.Core.JavaScript;
+using TensorAgent.Core.Python;
 using TensorAgent.Core.Sessions;
 using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Settings;
 using TensorAgent.Core.Shell;
 using TensorSharp.AgentHost.CodeExec;
+using TensorSharp.AgentHost.Skills;
+using TensorSharp.Runtime;
 using TensorSharp.Server;
+using TensorSharp.Server.Skills;
 
 namespace TensorAgent.Tests;
 
@@ -23,6 +28,7 @@ namespace TensorAgent.Tests;
 /// rather than a process launcher that would not exist on a phone.
 /// </para>
 /// </summary>
+[Collection(ProcessEnvironmentCollection.Name)]
 public sealed class AgentAppHostTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tensoragent-host-" + Guid.NewGuid().ToString("N"));
@@ -51,11 +57,71 @@ public sealed class AgentAppHostTests : IDisposable
     {
         _client?.Dispose();
         _host?.Dispose();
+        CodeEnvironment.Reset();
         try { Directory.Delete(_root, true); } catch { }
     }
 
     private async Task<JsonElement> Get(string path)
         => JsonSerializer.Deserialize<JsonElement>(await _client!.GetStringAsync(path));
+
+    /// <summary>
+    /// A remembered model the picker would not offer this device is not loaded either.
+    ///
+    /// <para>
+    /// The Models list is built from <c>ForDevice</c> and the startup load looks the id
+    /// up in the whole catalog, so the two disagreed: an entry that was offered at 12 GB
+    /// when it was chosen, and has since been gated to 16, still auto-loaded on the
+    /// phone -- into a model measured unusable there, with no row in the list to explain
+    /// it or take it back. gpt-oss-20b is exactly that entry.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AModelGatedAboveThisDeviceIsNotLoadedAtStartupAndTheChoiceIsCleared()
+    {
+        CatalogModel tooBig = ModelCatalog.BuiltIn.First(m => m.MinDeviceMemoryGB > 12);
+        AgentPaths paths = Paths with { DeviceMemoryGB = 12 };
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings chosen = settings.Load();
+        chosen.SelectedModelId = tooBig.Id;
+        settings.Save(chosen);
+
+        _host = new AgentAppHost(paths);
+        _host.Start();
+
+        Assert.Equal(AgentAppHost.ModelLoadState.None, _host.ModelLoad);
+        Assert.Null(new SettingsStore(paths.SettingsFile).Load().SelectedModelId);
+    }
+
+    /// <summary>
+    /// A remembered model the catalog no longer has is cleared, not merely skipped.
+    ///
+    /// <para>
+    /// The id encodes the quantization, so re-pointing an entry at a better file
+    /// renames it — <c>gemma-4-12b-iq3xxs</c> becomes <c>gemma-4-12b-iq2m</c> — and
+    /// every install that had the old one selected wakes up holding a name that
+    /// resolves to nothing. Leaving it in settings.json means the app carries a dead
+    /// choice for the rest of its life, presenting it to the picker as the model in
+    /// use. The gated-above-this-device case beside it has always cleared; this is the
+    /// same argument for the case that vanished instead of growing too big.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AModelTheCatalogNoLongerHasIsClearedFromTheSavedChoice()
+    {
+        AgentPaths paths = Paths with { DeviceMemoryGB = 12 };
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings chosen = settings.Load();
+        chosen.SelectedModelId = "gemma-4-12b-iq3xxs";
+        settings.Save(chosen);
+
+        _host = new AgentAppHost(paths);
+        _host.Start();
+
+        Assert.Equal(AgentAppHost.ModelLoadState.None, _host.ModelLoad);
+        Assert.Null(new SettingsStore(paths.SettingsFile).Load().SelectedModelId);
+    }
 
     [Fact]
     public void ItCreatesEverythingItNeedsAndSeparatesBackedUpDataFromRefetchableFiles()
@@ -103,6 +169,334 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.Equal("in-process", host.Backend.Name);
         Assert.Equal("sh", host.Backend.Shell!.Name);
     }
+
+    [Fact]
+    public void TheUnsetSkillsRoundCapLetsCodePlanningUseTwentyFourRounds()
+    {
+        AgentAppHost host = Start();
+
+        // ServerHostingOptions stores eight as the ordinary skills fallback, but the
+        // separate "specified" bit is what lets SkillRequestPlan.RoundsFor promote an
+        // agent that can also write, run and repair code to the larger default.
+        Assert.False(host.Options.SkillsMaxRoundsSpecified);
+        Assert.Equal(8, host.Options.SkillsMaxRounds);
+
+        SkillRequestPlan plan = SkillRequestPlan.Create(
+            host.Skills,
+            Array.Empty<string>(),
+            discovery: false,
+            clientTools: new List<ToolFunction>(),
+            architecture: "qwen35",
+            contextTokens: 32768,
+            options: host.Options,
+            out IReadOnlyList<string> unknown,
+            codeRunner: host.CodeRunner)!;
+
+        Assert.Empty(unknown);
+        Assert.NotNull(plan);
+        Assert.Equal(SkillHostOptions.CodeExecutionRounds, plan.LoopOptions.MaxRounds);
+        Assert.Equal(24, plan.LoopOptions.MaxRounds);
+    }
+
+    [Fact]
+    public void WithNetworkOn_TheModelIsToldTheInProcessInstallerActualLimits()
+    {
+        AgentAppHost host = Start(settings =>
+        {
+            AppSettings enabled = settings.Load();
+            enabled.AllowNetwork = true;
+            settings.Save(enabled);
+        });
+
+        ToolFunction persistent = host.CodeRunner!.DeclareTools(persists: true)
+            .Single(tool => tool.Name == ShellTools.ShellToolName);
+        ToolFunction stateless = Assert.Single(host.CodeRunner.DeclareTools(persists: false));
+
+        Assert.True(host.CodeRunner.CanInstallPackages);
+        Assert.True(host.CodeRunner.CanInstallPackagesFor("python"));
+        Assert.False(host.CodeRunner.CanInstallPackagesFor("javascript"));
+
+        foreach (ToolFunction shell in new[] { persistent, stateless })
+        {
+            Assert.Contains("scrIds=day_gainers", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("quoteType", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("python3 - <<'PY'", shell.Description, StringComparison.Ordinal);
+            Assert.DoesNotContain("python3 -c", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("pure-Python wheels tagged `none-any`", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("does not resolve dependencies", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("compiled/native extensions", shell.Description, StringComparison.Ordinal);
+            Assert.DoesNotContain("npm install", shell.Description, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void ARestrictedNetworkDeclarationDoesNotRecommendABlockedMarketSource()
+    {
+        AgentAppHost host = Start(settings =>
+        {
+            AppSettings enabled = settings.Load();
+            enabled.AllowNetwork = true;
+            enabled.NetworkHosts = new List<string> { "pypi.org" };
+            settings.Save(enabled);
+        });
+
+        string declaration = host.CodeRunner!.Declare().Description;
+        Assert.Contains("ENABLED only for these host suffixes: pypi.org", declaration,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("query1.finance.yahoo.com", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("ENABLED and unrestricted", declaration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheEmbeddedPythonIsPublishedWithoutAdvertisingProgramsFromTheHostPath()
+    {
+        var python = new PackageProbePython();
+        _host = new AgentAppHost(
+            Paths,
+            python: python,
+            javaScript: new UnavailableJavaScript());
+
+        Assert.True(CodeEnvironment.IsConfigured);
+        Assert.True(
+            CodeEnvironment.TryResolveInterpreter(
+                CodeLanguage.Python, out string? interpreter, out string? error),
+            error);
+        Assert.Equal("python3", interpreter);
+        Assert.Equal(new Version(3, 13), CodeEnvironment.PythonVersionOf(interpreter!));
+
+        // The development machine has several of the programs ProbeAvailable checks for,
+        // but none exists in the iOS in-process shell. Configure must replace that PATH
+        // inventory rather than append the embedded runtime to it.
+        Assert.Equal(new[] { "python3 3.13-test" }, CodeEnvironment.AvailableTools);
+        string inventory = _host.CodeRunner!.Declare().Description
+            .Split('\n')
+            .Single(line => line.StartsWith("On this host:", StringComparison.Ordinal));
+        Assert.StartsWith("On this host: python3 3.13-test.", inventory, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void APackageInstallHiddenInANestedShellCannotBypassTheHostBridge()
+    {
+        AgentPaths paths = Paths;
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings enabled = settings.Load();
+        enabled.AllowNetwork = true;
+        settings.Save(enabled);
+
+        var installer = new RecordingInstallHook();
+        _host = new AgentAppHost(paths, python: new PackageProbePython(), installer: installer);
+        SessionWorkspace workspace = _host.Workspaces.GetOrCreate("nested-install");
+
+        SkillToolResult result = _host.CodeRunner!.Execute(
+            ShellCall("sh -c 'pip install img2pdf'"), workspace: workspace);
+
+        Assert.False(result.Ok);
+        Assert.Contains(ExecutionPolicy.InstallsByHostMessage, result.Content, StringComparison.Ordinal);
+        Assert.Empty(installer.Requests);
+        Assert.False(File.Exists(Path.Combine(workspace.EnvDirectory, "img2pdf.py")));
+    }
+
+    [Fact]
+    public async Task OneWorkspaceWaitsForItsInstallWhileAnotherWorkspaceCanKeepRunning()
+    {
+        AgentPaths paths = Paths;
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings enabled = settings.Load();
+        enabled.AllowNetwork = true;
+        settings.Save(enabled);
+
+        var python = new PackageProbePython();
+        var installer = new BlockingInstallHook();
+        _host = new AgentAppHost(paths, python: python, installer: installer);
+        SessionWorkspace installing = _host.Workspaces.GetOrCreate("installing");
+        SessionWorkspace independent = _host.Workspaces.GetOrCreate("independent");
+
+        Task<SkillToolResult> install = Task.Run(() =>
+            _host.CodeRunner!.Execute(ShellCall("pip install img2pdf"), workspace: installing));
+        await installer.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var importStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<SkillToolResult> import = Task.Factory.StartNew(
+            () =>
+            {
+                importStarted.TrySetResult(true);
+                return _host.CodeRunner!.Execute(
+                    ShellCall("python3 -c \"import img2pdf; print(img2pdf.answer)\""),
+                    workspace: installing);
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        await importStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Task<SkillToolResult> otherWorkspace = Task.Run(() =>
+            _host.CodeRunner!.Execute(
+                new ToolCall
+                {
+                    Name = SkillToolNames.WriteFile,
+                    Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+                    {
+                        ["path"] = "unblocked.txt",
+                        ["content"] = "other workspace ran\n",
+                    },
+                },
+                workspace: independent));
+
+        try
+        {
+            SkillToolResult independentResult =
+                await otherWorkspace.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(independentResult.Ok, independentResult.Content);
+            Assert.False(import.IsCompleted, "a second call entered the same workspace during an install");
+            Assert.False(
+                python.CodeEntered.Task.IsCompleted,
+                "Python observed the package directory while the installer was still writing it");
+        }
+        finally
+        {
+            installer.Release.TrySetResult(true);
+        }
+
+        SkillToolResult installed = await install.WaitAsync(TimeSpan.FromSeconds(5));
+        SkillToolResult imported = await import.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(installed.Ok, installed.Content);
+        Assert.True(imported.Ok, imported.Content);
+        Assert.Contains("731", imported.Content, StringComparison.Ordinal);
+        Assert.Equal("other workspace ran\n", File.ReadAllText(
+            Path.Combine(independent.WorkDirectory, "unblocked.txt")));
+    }
+
+    /// <summary>
+    /// The package command has to cross both seams in the assembled app: the agent host
+    /// reads it out of the model's shell line, then TensorAgent hands the validated names
+    /// to its in-process wheel installer. Testing either half by itself missed the wiring
+    /// between them, so every install on iOS fell through to <c>python3 -m pip</c> even
+    /// though the embedded runtime deliberately ships no pip module.
+    /// </summary>
+    [Theory]
+    [InlineData("pip install img2pdf -q && python3 -c \"import img2pdf; print(img2pdf.answer)\"")]
+    [InlineData("python3 -m pip install img2pdf && python3 -c \"import img2pdf; print(img2pdf.answer)\"")]
+    public void ModelWrittenPipCommandsReachTheInProcessInstallerAndTheNextRunCanImportThePackage(
+        string command)
+    {
+        AgentPaths paths = Paths;
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings enabled = settings.Load();
+        enabled.AllowCodeExecution = true;
+        enabled.AllowNetwork = true;
+        settings.Save(enabled);
+
+        var python = new PackageProbePython();
+        var installer = new RecordingInstallHook();
+        _host = new AgentAppHost(paths, python: python, installer: installer);
+        string declarationBeforeInstall = _host.CodeRunner!.Declare().Description;
+
+        SessionWorkspace workspace = _host.Workspaces.GetOrCreate("install-spelling");
+        SkillToolResult result = _host.CodeRunner!.Execute(
+            new ToolCall
+            {
+                Name = "shell",
+                Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["command"] = command,
+                },
+            },
+            workspace: workspace);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Contains("Installed: img2pdf", result.Content, StringComparison.Ordinal);
+        Assert.Contains("731", result.Content, StringComparison.Ordinal);
+
+        InstallRequest request = Assert.Single(installer.Requests);
+        Assert.Equal("python", request.Language);
+        Assert.Equal(new[] { "img2pdf" }, request.Packages);
+        Assert.Equal(workspace.EnvDirectory, request.TargetDirectory);
+        Assert.Equal(workspace.EnvDirectory, request.Policy.PackageRoot);
+        Assert.True(request.Policy.AllowNetwork);
+        Assert.True(File.Exists(Path.Combine(workspace.EnvDirectory, "img2pdf.py")));
+        Assert.Equal(declarationBeforeInstall, _host.CodeRunner.Declare().Description);
+
+        // `python -m pip` is a spelling the host accepts from the MODEL, not a module
+        // the embedded interpreter should ever be asked to run. Its packages are
+        // installed by the hook above.
+        Assert.DoesNotContain("pip", python.ModuleCalls, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AFailedPackageDoesNotForgetPackagesAlreadyCommittedByTheSameCommand()
+    {
+        AgentPaths paths = Paths;
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings enabled = settings.Load();
+        enabled.AllowNetwork = true;
+        settings.Save(enabled);
+
+        var installer = new PartiallyFailingInstallHook();
+        _host = new AgentAppHost(paths, python: new PackageProbePython(), installer: installer);
+        SessionWorkspace workspace = _host.Workspaces.GetOrCreate("partial-install");
+
+        SkillToolResult first = _host.CodeRunner!.Execute(
+            ShellCall("pip install alpha bravo"), workspace: workspace);
+
+        Assert.False(first.Ok);
+        Assert.Contains("Installed alpha before this failure", first.Content, StringComparison.Ordinal);
+        Assert.Contains("Could not install bravo", first.Content, StringComparison.Ordinal);
+        Assert.True(workspace.IsInstalled("python", "alpha"));
+        Assert.False(workspace.IsInstalled("python", "bravo"));
+        Assert.Equal(new[] { "alpha", "bravo" }, installer.Requested);
+
+        SkillToolResult retry = _host.CodeRunner.Execute(
+            ShellCall("pip install alpha"), workspace: workspace);
+
+        Assert.True(retry.Ok, retry.Content);
+        Assert.Contains("Already installed this session: alpha", retry.Content, StringComparison.Ordinal);
+        Assert.Equal(new[] { "alpha", "bravo" }, installer.Requested);
+    }
+
+    [Fact]
+    public void EquivalentDistributionNamesAreInstalledOnlyOncePerSession()
+    {
+        AgentPaths paths = Paths;
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings enabled = settings.Load();
+        enabled.AllowCodeExecution = true;
+        enabled.AllowNetwork = true;
+        settings.Save(enabled);
+
+        var installer = new RecordingInstallHook();
+        _host = new AgentAppHost(paths, python: new PackageProbePython(), installer: installer);
+        SessionWorkspace workspace = _host.Workspaces.GetOrCreate("canonical-package-name");
+
+        SkillToolResult first = _host.CodeRunner!.Execute(
+            ShellCall("pip install zope.interface zope-interface ZOPE_interface"),
+            workspace: workspace);
+
+        Assert.True(first.Ok, first.Content);
+        InstallRequest request = Assert.Single(installer.Requests);
+        Assert.Equal(new[] { "zope.interface" }, request.Packages);
+        Assert.True(workspace.IsInstalled("python", "zope-interface"));
+
+        SkillToolResult retry = _host.CodeRunner.Execute(
+            ShellCall("python3 -m pip install zope_interface"), workspace: workspace);
+
+        Assert.True(retry.Ok, retry.Content);
+        Assert.Contains("Already installed this session: zope_interface", retry.Content, StringComparison.Ordinal);
+        Assert.Single(installer.Requests);
+    }
+
+    private static ToolCall ShellCall(string command) => new()
+    {
+        Name = SkillToolNames.Shell,
+        Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["command"] = command,
+        },
+    };
 
     /// <summary>
     /// With code execution off the runner exists and refuses, rather than not existing.
@@ -152,6 +546,8 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.False(host.Options.SkillsAllowNetwork);
         Assert.False(host.Installer!.CanInstall);
         Assert.Contains("network off", host.DescribeEngine(), StringComparison.Ordinal);
+        Assert.DoesNotContain("scrIds=day_gainers", host.CodeRunner!.Declare().Description,
+            StringComparison.Ordinal);
 
         AppSettings on = host.Settings.Load();
         on.AllowNetwork = true;
@@ -163,6 +559,8 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.True(host.Options.SkillsAllowNetwork);
         Assert.True(host.Installer.CanInstall);
         Assert.Contains("network on", host.DescribeEngine(), StringComparison.Ordinal);
+        Assert.Contains("scrIds=day_gainers", host.CodeRunner!.Declare().Description,
+            StringComparison.Ordinal);
 
         // And back off again, because a switch that can only be turned on is half a
         // switch: a user who changes their mind has to be able to.
@@ -177,6 +575,29 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.False(host.Installer.CanInstall);
         Assert.False(host.CodeRunner!.CanRun);
         Assert.Contains("code execution off", host.DescribeEngine(), StringComparison.Ordinal);
+        Assert.DoesNotContain("scrIds=day_gainers", host.CodeRunner.Declare().Description,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheToolTimeoutAlsoBoundsHostPerformedPackageInstalls()
+    {
+        AgentAppHost host = Start(settings =>
+        {
+            AppSettings configured = settings.Load();
+            configured.ToolTimeoutSeconds = 9;
+            settings.Save(configured);
+        });
+
+        Assert.Equal(TimeSpan.FromSeconds(9), host.CodeExec.Timeout);
+        Assert.Equal(host.CodeExec.Timeout, host.CodeExec.InstallTimeout);
+
+        AppSettings changed = host.Settings.Load();
+        changed.ToolTimeoutSeconds = 480;
+        host.ApplySettings(changed);
+
+        Assert.Equal(TimeSpan.FromSeconds(480), host.CodeExec.Timeout);
+        Assert.Equal(host.CodeExec.Timeout, host.CodeExec.InstallTimeout);
     }
 
     /// <summary>
@@ -651,6 +1072,196 @@ public sealed class AgentAppHostTests : IDisposable
             onRelease();
             base.Dispose();
         }
+    }
+
+    /// <summary>
+    /// A deterministic stand-in for the app's network wheel installer. It writes one
+    /// importable module into the exact target it was handed, making the test about the
+    /// assembled routing and environment rather than PyPI availability.
+    /// </summary>
+    private sealed class RecordingInstallHook : IInstallHook
+    {
+        public List<InstallRequest> Requests { get; } = new();
+
+        public bool CanInstall => true;
+
+        public string? UnavailableReason => null;
+
+        public Task<ExecutionResult> InstallAsync(
+            InstallRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Requests.Add(request);
+            Directory.CreateDirectory(request.TargetDirectory);
+            File.WriteAllText(Path.Combine(request.TargetDirectory, "img2pdf.py"), "answer = 731\n");
+            return Task.FromResult(new ExecutionResult(
+                0,
+                "installed img2pdf probe\n",
+                string.Empty,
+                false,
+                request.TargetDirectory,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                TimeSpan.Zero));
+        }
+    }
+
+    private sealed class BlockingInstallHook : IInstallHook
+    {
+        public TaskCompletionSource<bool> Entered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool CanInstall => true;
+
+        public string? UnavailableReason => null;
+
+        public async Task<ExecutionResult> InstallAsync(
+            InstallRequest request, CancellationToken cancellationToken)
+        {
+            Entered.TrySetResult(true);
+            await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            Directory.CreateDirectory(request.TargetDirectory);
+            File.WriteAllText(Path.Combine(request.TargetDirectory, "img2pdf.py"), "answer = 731\n");
+            return new ExecutionResult(
+                0,
+                "installed img2pdf probe\n",
+                string.Empty,
+                false,
+                request.TargetDirectory,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                TimeSpan.Zero);
+        }
+    }
+
+    private sealed class PartiallyFailingInstallHook : IInstallHook
+    {
+        public List<string> Requested { get; } = new();
+
+        public bool CanInstall => true;
+
+        public string? UnavailableReason => null;
+
+        public Task<ExecutionResult> InstallAsync(
+            InstallRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string package = Assert.Single(request.Packages);
+            Requested.Add(package);
+            return Task.FromResult(string.Equals(package, "bravo", StringComparison.Ordinal)
+                ? ExecutionResult.Failed(
+                    "the probe rejects bravo", request.TargetDirectory,
+                    new Dictionary<string, string>(StringComparer.Ordinal))
+                : new ExecutionResult(
+                    0,
+                    "installed alpha probe\n",
+                    string.Empty,
+                    false,
+                    request.TargetDirectory,
+                    new Dictionary<string, string>(StringComparer.Ordinal),
+                    TimeSpan.Zero));
+        }
+    }
+
+    /// <summary>
+    /// Enough Python to prove that a package in the session's PYTHONPATH is visible.
+    /// Asking it to run a module always fails deliberately, so a regression that sends
+    /// <c>-m pip</c> into embedded CPython cannot be mistaken for an install success.
+    /// </summary>
+    private sealed class PackageProbePython : IPythonRuntime
+    {
+        public List<string> ModuleCalls { get; } = new();
+
+        public TaskCompletionSource<bool> CodeEntered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool IsAvailable => true;
+
+        public string? UnavailableReason => null;
+
+        public string Version => "3.13-test";
+
+        public Task<ExecutionResult> RunScriptAsync(
+            string scriptPath,
+            IReadOnlyList<string> arguments,
+            InterpreterContext context,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(ExecutionResult.Failed(
+                $"the probe does not run scripts: {scriptPath}", context.WorkingDirectory, context.Environment));
+
+        public Task<ExecutionResult> RunCodeAsync(
+            string source,
+            IReadOnlyList<string> arguments,
+            InterpreterContext context,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CodeEntered.TrySetResult(true);
+            string? installed = context.PathEntries("PYTHONPATH")
+                .Select(directory => Path.Combine(directory, "img2pdf.py"))
+                .FirstOrDefault(File.Exists);
+            if (installed is null || !source.Contains("import img2pdf", StringComparison.Ordinal))
+            {
+                return Task.FromResult(ExecutionResult.Failed(
+                    "ModuleNotFoundError: No module named 'img2pdf'",
+                    context.WorkingDirectory,
+                    context.Environment));
+            }
+
+            string module = File.ReadAllText(installed);
+            string stdout = module.Contains("answer = 731", StringComparison.Ordinal)
+                ? "731\n"
+                : string.Empty;
+            return Task.FromResult(new ExecutionResult(
+                0,
+                stdout,
+                string.Empty,
+                false,
+                context.WorkingDirectory,
+                context.Environment,
+                TimeSpan.Zero));
+        }
+
+        public Task<ExecutionResult> RunModuleAsync(
+            string module,
+            IReadOnlyList<string> arguments,
+            InterpreterContext context,
+            CancellationToken cancellationToken)
+        {
+            ModuleCalls.Add(module);
+            return Task.FromResult(ExecutionResult.Failed(
+                $"No module named '{module}'", context.WorkingDirectory, context.Environment));
+        }
+
+        public Task<SyntaxCheckResult> CheckSyntaxAsync(
+            string scriptPath, CancellationToken cancellationToken) =>
+            Task.FromResult(SyntaxCheckResult.Passed);
+    }
+
+    private sealed class UnavailableJavaScript : IJavaScriptRuntime
+    {
+        public bool IsAvailable => false;
+
+        public string? UnavailableReason => "JavaScript is deliberately absent in this test";
+
+        public Task<ExecutionResult> RunScriptAsync(
+            string scriptPath,
+            IReadOnlyList<string> arguments,
+            InterpreterContext context,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(UnavailableReason);
+
+        public Task<ExecutionResult> RunCodeAsync(
+            string source,
+            IReadOnlyList<string> arguments,
+            InterpreterContext context,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(UnavailableReason);
+
+        public Task<SyntaxCheckResult> CheckSyntaxAsync(
+            string scriptPath, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(UnavailableReason);
     }
 
     /// <summary>

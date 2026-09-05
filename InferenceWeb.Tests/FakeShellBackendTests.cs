@@ -664,6 +664,51 @@ public sealed class SkillScriptRunnerBackendTests : IDisposable
     }
 
     [Fact]
+    public void SkillsRun_SeesAnAttachedCsvOnItsFirstCall()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("attached-csv");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required,
+            Backend = backend,
+            Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string source = Path.Combine(_base, "stored-form.csv");
+        File.WriteAllText(source, "row,value\n1,FIRST_SKILL_RUN_SEES_ME\n");
+
+        // The fake backend starts no process, but reads from the exact working
+        // directory the real script receives. Before central staging this callback
+        // throws on the first skills_run call because only CodeRunnerAdapter staged
+        // attachments, and skill scripts bypass that adapter.
+        backend.Answer = launch => FakeShellBackend.Ok(
+            File.ReadAllText(Path.Combine(launch.WorkingDirectory, "form.csv")));
+
+        var context = new SkillToolContext(new[] { skill })
+        {
+            ScriptRunner = runner,
+            Workspace = workspace,
+            CodeInputFiles = new[] { new CodeInputFile("form.csv", source) },
+        };
+        SkillToolResult result = SkillTools.Execute(
+            new ToolCall
+            {
+                Name = SkillTools.RunToolName,
+                Arguments = new Dictionary<string, object>
+                {
+                    ["skill"] = "tester",
+                    ["path"] = "scripts/tool.py",
+                },
+            },
+            context);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Contains("FIRST_SKILL_RUN_SEES_ME", result.Content, StringComparison.Ordinal);
+        Assert.Equal(File.ReadAllBytes(source), File.ReadAllBytes(Path.Combine(workspace.WorkDirectory, "form.csv")));
+    }
+
+    [Fact]
     public void AFailingScript_IsNotOk_AndIsStagedForRepair_FromTheBackendsAnswer()
     {
         var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };

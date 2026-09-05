@@ -95,54 +95,88 @@ public sealed class MainPage : ContentPage
         StartHost();
     }
 
+    /// <summary>The route every generated file is reached through.</summary>
+    private const string ArtifactPrefix = "/api/code/artifacts/";
+
     /// <summary>
-    /// Intercept a tap on a generated file and share it rather than navigating.
+    /// Intercept a tap on a generated file and open it rather than navigating.
     ///
     /// <para>
-    /// The link is <c>/api/code/artifacts/{runId}/{path}</c>. Resolving it through the
-    /// store rather than fetching the URL keeps the confinement check in one place --
-    /// the path segment was chosen by a program a model wrote -- and avoids a loopback
-    /// round trip for a file already on disk.
+    /// The BACKSTOP, not the main path. The page claims these clicks itself and asks
+    /// through <c>open-file</c> (see <see cref="OnPageEvent"/>), because the links carry
+    /// <c>target="_blank"</c> and WebKit routes those to its create-web-view delegate
+    /// rather than to this one -- which is exactly how a tap ended up navigating to the
+    /// route and rendering its 404 body. This still catches a same-frame navigation to
+    /// an artifact URL from anywhere else in the page.
     /// </para>
     /// </summary>
     private async void OnNavigatingShareArtifact(object? sender, WebNavigatingEventArgs e)
     {
-        const string prefix = "/api/code/artifacts/";
         if (!Uri.TryCreate(e.Url, UriKind.Absolute, out Uri? uri) ||
-            !uri.AbsolutePath.StartsWith(prefix, StringComparison.Ordinal))
+            !uri.AbsolutePath.StartsWith(ArtifactPrefix, StringComparison.Ordinal))
         {
             return;
         }
 
-        string rest = Uri.UnescapeDataString(uri.AbsolutePath[prefix.Length..]);
+        // A run listing rather than a file: JSON the page can render, so let it navigate.
+        string rest = Uri.UnescapeDataString(uri.AbsolutePath[ArtifactPrefix.Length..]);
         int slash = rest.IndexOf('/');
         if (slash <= 0 || slash == rest.Length - 1)
-            return;   // a run listing, not a file: let it navigate
+            return;
 
         e.Cancel = true;
-        string runId = rest[..slash];
-        string relative = rest[(slash + 1)..];
+        await OpenArtifactAsync(uri.AbsolutePath, null);
+    }
 
-        try
-        {
-            if (!_host.App.Artifacts.TryResolve(runId, relative, out string? full, out string? error))
-            {
-                await DisplayAlert("Cannot open", error ?? "That file is no longer available.", "OK");
-                return;
-            }
+    /// <summary>
+    /// The path part of what the page sent, whether it sent a path or a whole URL. The
+    /// page sends <c>location.pathname</c>, but a query string rides along and an
+    /// absolute spelling costs nothing to accept.
+    /// </summary>
+    private static string PathOf(string urlOrPath)
+    {
+        if (Uri.TryCreate(urlOrPath, UriKind.Absolute, out Uri? absolute))
+            return absolute.AbsolutePath;
+        int query = urlOrPath.IndexOf('?', StringComparison.Ordinal);
+        return query >= 0 ? urlOrPath[..query] : urlOrPath;
+    }
 
-            await Share.Default.RequestAsync(new ShareFileRequest
-            {
-                Title = Path.GetFileName(relative),
-                File = new ShareFile(full!),
-            });
-        }
-        catch (Exception ex)
+    /// <summary>
+    /// Open one file the model's code produced, named by its own download URL.
+    ///
+    /// <para>
+    /// Resolved through <see cref="TensorSharp.AgentHost.CodeExec.CodeArtifactStore"/>
+    /// rather than by fetching the URL: the confinement check -- the path segment was
+    /// chosen by a program a model wrote -- stays in the one place that owns it, and a
+    /// file already on disk costs no loopback round trip. The URL is the page's, so its
+    /// segments are percent-encoded and have to be decoded one at a time; decoding the
+    /// whole path at once would turn an encoded separator inside a file name into a
+    /// directory boundary.
+    /// </para>
+    /// </summary>
+    private async Task OpenArtifactAsync(string absolutePath, string? displayName)
+    {
+        if (!absolutePath.StartsWith(ArtifactPrefix, StringComparison.Ordinal))
+            return;
+
+        string[] segments = absolutePath[ArtifactPrefix.Length..]
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length < 2)
+            return;
+
+        string runId = Uri.UnescapeDataString(segments[0]);
+        string relative = string.Join('/', segments.Skip(1).Select(Uri.UnescapeDataString));
+
+        if (!_host.App.Artifacts.TryResolve(runId, relative, out string? full, out string? error))
         {
-            // A share sheet that fails must not take the chat down with it.
-            Console.WriteLine($"TensorAgent: share of {relative} failed: {ex.Message}");
-            await DisplayAlert("Cannot share", ex.Message, "OK");
+            await DisplayAlert("Cannot open", error ?? "That file is no longer available.", "OK");
+            return;
         }
+
+        string? failure = await Platforms.iOS.FilePresenter.PresentAsync(
+            full!, string.IsNullOrWhiteSpace(displayName) ? Path.GetFileName(relative) : displayName);
+        if (failure is not null)
+            await DisplayAlert("Cannot open", failure, "OK");
     }
 
 #if DEBUG
@@ -756,6 +790,41 @@ public sealed class MainPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// Call one page-bridge method with an argument, without putting that argument
+    /// anywhere a JavaScript parser will look at it.
+    ///
+    /// <para>
+    /// MAUI's EvaluateJavaScriptAsync does not hand WKWebView the script: it wraps it as
+    /// <c>try{JSON.stringify(eval('&lt;script&gt;'))}catch(e){'null'};</c>, which makes the
+    /// script the body of a single-quoted literal. Serialised JSON spliced in there is
+    /// read as literal escapes first and as JSON second, so a <c>\n</c> — which every
+    /// text file with two lines produces — becomes a real newline inside a string that
+    /// then never closes. eval throws, MAUI's own catch turns the throw into the string
+    /// "null", and the caller sees a completed task. That is an upload that succeeded,
+    /// an attachment that never appeared, and no message anywhere.
+    /// </para>
+    /// <para>
+    /// Base64's alphabet has no quote, backslash or newline, so it crosses that wrapper
+    /// intact. The page answers "ok", which is what makes a failure detectable at all.
+    /// </para>
+    /// </summary>
+    /// <returns>The page's answer: "ok", or something else, or null when it never ran.</returns>
+    private async Task<string?> CallBridgeAsync(string method, object argument)
+    {
+        string json = JsonSerializer.Serialize(argument, Core.Hosting.SseFraming.JsonOptions);
+        string payload = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json));
+        string? answer = await _webView.EvaluateJavaScriptAsync(
+            "window.TensorAgent && window.TensorAgent.__fromHost ? "
+            + "window.TensorAgent.__fromHost('" + method + "','" + payload + "') : 'nobridge'");
+        // MAUI answers a broken script with the STRING "null", so silence here is the
+        // one thing that must not be read as success.
+        if (answer is null || answer.Contains("ok", StringComparison.Ordinal))
+            return answer;
+        Console.WriteLine($"TensorAgent: the page refused {method}: {answer}");
+        return answer;
+    }
+
     /// <summary>Call one method on the page's bridge, if the page has one yet.</summary>
     private Task<string?> Tell(string method) => _webView.EvaluateJavaScriptAsync(
         $"window.TensorAgent && window.TensorAgent.{method} ? window.TensorAgent.{method}() : false");
@@ -774,8 +843,21 @@ public sealed class MainPage : ContentPage
     {
         try
         {
-            string? answer = await _webView.EvaluateJavaScriptAsync("window.TensorAgent ? 'yes' : 'no'");
-            return answer is not null && answer.Contains("yes", StringComparison.Ordinal);
+            // Bounded, and silence counts as ALIVE. The probe runs the instant the chat
+            // comes back, which is exactly when the content process is resuming and the
+            // page's own visibilitychange handler is re-attaching to a running turn --
+            // so an evaluation that has not answered yet is the normal case, not a dead
+            // page. Treating "did not answer" as "dead" reloaded a perfectly good page
+            // and threw away the turn it was showing. Only a definite 'no', or a hard
+            // failure of the evaluation itself, means the page is gone.
+            string? answer = await _webView
+                .EvaluateJavaScriptAsync("window.TensorAgent ? 'yes' : 'no'")
+                .WaitAsync(TimeSpan.FromSeconds(2));
+            return answer is null || answer.Contains("yes", StringComparison.Ordinal);
+        }
+        catch (TimeoutException)
+        {
+            return true;
         }
         catch (Exception)
         {
@@ -856,8 +938,14 @@ public sealed class MainPage : ContentPage
 
             // The page's own addAttachment takes exactly what /api/upload returns, so the
             // service's answer is forwarded verbatim rather than reshaped here.
-            string payload = JsonSerializer.Serialize(result, Core.Hosting.SseFraming.JsonOptions);
-            await _webView.EvaluateJavaScriptAsync("window.TensorAgent.addAttachment(" + payload + ")");
+            string? attached = await CallBridgeAsync("addAttachment", result);
+            if (attached is null || !attached.Contains("ok", StringComparison.Ordinal))
+            {
+                // Uploaded and then lost between here and the composer. Worth its own
+                // sentence: "nothing happened" is what this looked like for every
+                // multi-line file before the bridge stopped splicing JSON into source.
+                await Notice($"{shown} was uploaded but could not be attached to the chat.");
+            }
         }
         catch (TensorSharp.Chat.WebUiRequestRejectedException rejected)
         {
@@ -993,8 +1081,7 @@ public sealed class MainPage : ContentPage
             string text = await _dictation.ListenAsync();
             if (!string.IsNullOrWhiteSpace(text))
             {
-                await _webView.EvaluateJavaScriptAsync(
-                    "window.TensorAgent.insertText(" + System.Text.Json.JsonSerializer.Serialize(text) + ")");
+                await CallBridgeAsync("insertText", new { text });
             }
         }
         catch (Exception ex)
@@ -1025,16 +1112,14 @@ public sealed class MainPage : ContentPage
     /// Show a message inside the page rather than as a native alert, so it looks the
     /// same as everything else the chat says.
     /// </summary>
-    private async Task Notice(string text) => await _webView.EvaluateJavaScriptAsync(
-        "window.TensorAgent.notice(" + System.Text.Json.JsonSerializer.Serialize(text) + ", 'error')");
+    private async Task Notice(string text) => await CallBridgeAsync("notice", new { text, kind = "error" });
 
     /// <summary>
     /// The same notice, with a button that opens this app's page in iOS Settings.
     /// Used for a permission the user has already refused, where nothing the app does
     /// can ask again.
     /// </summary>
-    private async Task NoticeWithSettings(string text) => await _webView.EvaluateJavaScriptAsync(
-        "window.TensorAgent.noticeWithSettings(" + System.Text.Json.JsonSerializer.Serialize(text) + ")");
+    private async Task NoticeWithSettings(string text) => await CallBridgeAsync("noticeWithSettings", new { text });
 
     /// <summary>Open Settings › TensorAgent, which is the only place these grants live.</summary>
     private static void OpenAppSettings()
@@ -1142,6 +1227,24 @@ public sealed class MainPage : ContentPage
 
             case "open-settings":
                 MainThread.BeginInvokeOnMainThread(OpenAppSettings);
+                return;
+
+            // A tap on a file the model's code produced. The page cannot open one
+            // itself: the route serves it as an attachment and a WKWebView with no
+            // download delegate drops attachments silently, which is what left "here
+            // is your PDF" leading nowhere.
+            case "open-file":
+                string fileUrl = message.TryGetProperty("url", out System.Text.Json.JsonElement u)
+                    ? u.GetString() ?? string.Empty : string.Empty;
+                string fileName = message.TryGetProperty("name", out System.Text.Json.JsonElement fn)
+                    ? fn.GetString() ?? string.Empty : string.Empty;
+                if (fileUrl.Length == 0)
+                    return;
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try { await OpenArtifactAsync(PathOf(fileUrl), fileName); }
+                    catch (Exception ex) { Console.WriteLine("TensorAgent: open-file failed: " + ex.Message); }
+                });
                 return;
         }
     }

@@ -14,7 +14,7 @@ public sealed class ConversationStoreTests : IDisposable
     public void RoundTripsMessagesWithTheWebUiPropertyNames()
     {
         var store = new ConversationStore(_dir);
-        Conversation c = store.Create(modelId: "gemma-4-e4b-q4kxl", think: true, skills: new[] { "pdf" });
+        Conversation c = store.Create(modelId: "gemma-4-e4b-iq4xs", think: true, skills: new[] { "pdf" });
         c.Messages.Add(new StoredMessage
         {
             Role = "user",
@@ -43,11 +43,43 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal("hmm", loaded.Messages[1].Thinking);
         Assert.True(loaded.Think);
         Assert.Equal(new[] { "pdf" }, loaded.Skills);
-        Assert.Equal("gemma-4-e4b-q4kxl", loaded.ModelId);
+        Assert.Equal("gemma-4-e4b-iq4xs", loaded.ModelId);
 
         var refs = store.ReferencedUploads();
         Assert.Contains("abc.md", refs);
         Assert.Contains("img1.png", refs);
+    }
+
+    [Fact]
+    public void RoundTripsAFileBackedCsvMarkerWithoutStoringItsRows()
+    {
+        var store = new ConversationStore(_dir);
+        Conversation conversation = store.Create();
+        conversation.Messages.Add(new StoredMessage
+        {
+            Role = "user",
+            Content = "Please analyze this form.",
+            TextFilePaths = new() { "a5.csv" },
+            TextFileNames = new() { "responses.csv" },
+            Attachments = new()
+            {
+                new StoredAttachment
+                {
+                    File = "a5.csv",
+                    FileName = "responses.csv",
+                    MediaType = "text",
+                    FileBacked = true,
+                },
+            },
+        });
+
+        store.Save(conversation);
+
+        string json = File.ReadAllText(Path.Combine(_dir, conversation.Id + ".json"));
+        Assert.DoesNotContain("[File:", json, StringComparison.Ordinal);
+        Conversation loaded = Assert.IsType<Conversation>(store.Load(conversation.Id));
+        StoredAttachment attachment = Assert.Single(Assert.Single(loaded.Messages).Attachments!);
+        Assert.True(attachment.FileBacked);
     }
 
     [Fact]

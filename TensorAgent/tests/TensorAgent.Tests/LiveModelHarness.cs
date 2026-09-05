@@ -60,6 +60,19 @@ public sealed class LiveCodeFactAttribute : FactAttribute
         Skip = LiveModelHarness.Unavailable(out _, out _) ?? LiveModelHarness.NoInterpreterReason();
 }
 
+/// <summary>A live code scenario that also reaches current public internet data.</summary>
+public sealed class LiveNetworkCodeFactAttribute : FactAttribute
+{
+    public LiveNetworkCodeFactAttribute()
+    {
+        Skip = LiveModelHarness.Unavailable(out _, out _)
+            ?? LiveModelHarness.NoInterpreterReason()
+            ?? (NetworkFactAttribute.Enabled
+                ? null
+                : $"reaches the real internet: set {NetworkFactAttribute.Variable}=1 and re-run");
+    }
+}
+
 /// <summary>
 /// A fact that needs the bundled <c>documents</c> skill and the two packages its
 /// scripts import.
@@ -136,6 +149,7 @@ public abstract class LiveModelHarness : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tensoragent-live-" + Guid.NewGuid().ToString("N"));
     private AgentAppHost? _host;
     private HttpClient? _client;
+    private string? _hostedModelFileName;
 
     /// <summary>The running app. Valid after <see cref="Start"/>.</summary>
     protected AgentAppHost Host =>
@@ -344,10 +358,16 @@ public abstract class LiveModelHarness : IDisposable
         };
         paths.EnsureCreated();
 
-        // Link, do not copy: these files are gigabytes.
+        // Link, do not copy: these files are gigabytes. Keep the SOURCE basename,
+        // though. ModelFileVariable deliberately permits a local quantization whose
+        // name differs from the catalog's preferred file; hiding Q8_0 behind the
+        // catalog's IQ4_XS name made the live output claim that the wrong checkpoint
+        // had loaded and left the acceptance test unable to prove which one it ran.
         string target = Path.Combine(paths.ModelsDirectory, model.Id);
         Directory.CreateDirectory(target);
-        File.CreateSymbolicLink(Path.Combine(target, model.Weights.FileName), weights);
+        _hostedModelFileName = Path.GetFileName(weights);
+        string hostedModelPath = Path.Combine(target, _hostedModelFileName);
+        File.CreateSymbolicLink(hostedModelPath, Path.GetFullPath(weights));
 
         var settings = new SettingsStore(paths.SettingsFile);
         AppSettings chosen = settings.Load();
@@ -355,8 +375,17 @@ public abstract class LiveModelHarness : IDisposable
         chosen.MaxTokens = maxTokens;
         settings.Save(chosen);
 
+        // UseModel normally applies these immediately before loading. This harness
+        // loads through the public HTTP API instead, so apply the same catalog budget
+        // here before the model is constructed.
+        EngineMemoryPolicy.Apply(model, chosen);
+
         _host = new AgentAppHost(paths);
-        _host.Start();
+        _host.Options.RepointHostedModel(hostedModelPath, _host.Options.StartupMmProjPath);
+        // The test below deliberately owns the one load through /api/models/load.
+        // AgentAppHost.Start would also schedule its remembered-model load, which
+        // both restores the catalog alias and races this explicit request.
+        _host.Server.Start();
         _client = Connect(_host);
         return _host;
     }
@@ -371,7 +400,15 @@ public abstract class LiveModelHarness : IDisposable
         _client?.Dispose();
         _host?.Dispose();
         _host = new AgentAppHost(paths);
-        _host.Start();
+        if (_hostedModelFileName is { Length: > 0 })
+        {
+            string hostedModelPath = Path.Combine(
+                paths.ModelsDirectory,
+                _host.Settings.Load().SelectedModelId!,
+                _hostedModelFileName);
+            _host.Options.RepointHostedModel(hostedModelPath, _host.Options.StartupMmProjPath);
+        }
+        _host.Server.Start();
         _client = Connect(_host);
         return _host;
     }
@@ -398,19 +435,23 @@ public abstract class LiveModelHarness : IDisposable
     /// <returns>The backend that answered, for the numbers a test prints.</returns>
     protected async Task<string> LoadAsync(CatalogModel model)
     {
+        string modelFileName = _hostedModelFileName
+            ?? throw new InvalidOperationException("Start() did not publish model weights");
         var refusals = new List<string>();
         foreach (string backend in new[] { "ggml_metal", "ggml_cpu" })
         {
             HttpResponseMessage response = await Client.PostAsJsonAsync("/api/models/load", new
             {
-                model = model.Weights.FileName,
+                model = modelFileName,
                 backend,
             });
             string payload = await response.Content.ReadAsStringAsync();
             if (response.IsSuccessStatusCode)
             {
+                JsonElement loaded = JsonSerializer.Deserialize<JsonElement>(payload);
+                Assert.Equal(modelFileName, loaded.GetProperty("model").GetString());
                 LoadedBackend = backend;
-                Console.WriteLine($"live model: {model.Weights.FileName} loaded on {backend}");
+                Console.WriteLine($"live model: {modelFileName} ({model.DisplayName}) loaded on {backend}");
                 return backend;
             }
 

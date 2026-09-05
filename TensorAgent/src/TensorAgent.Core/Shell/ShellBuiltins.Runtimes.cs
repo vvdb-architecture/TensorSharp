@@ -334,6 +334,20 @@ internal static partial class ShellBuiltins
             }
         }
 
+        // pip is intentionally not staged into embedded CPython: installs are a
+        // host operation, and package inspection reads the session's dist-info
+        // directly. Keep Python's common spelling as an alias for that exact same
+        // builtin instead of asking runpy for a module that does not exist. In the
+        // assembled app the raw installer hook is null, so a nested install remains
+        // refused while list/freeze stay useful.
+        if (string.Equals(module, "pip", StringComparison.Ordinal))
+        {
+            var pipArguments = new string[arguments.Count + 1];
+            pipArguments[0] = "pip";
+            arguments.CopyTo(pipArguments, 1);
+            return Pip(exec, pipArguments, io);
+        }
+
         if (code is not null)
             return RunInterpreter(exec, io, (ctx, ct) => runtime.RunCodeAsync(code, arguments, ctx, ct));
         if (module is not null)

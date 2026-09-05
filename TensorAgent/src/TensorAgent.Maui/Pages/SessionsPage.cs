@@ -79,9 +79,20 @@ public sealed class SessionsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        _rows.Clear();
-        foreach (ConversationSummary summary in _app.Conversations.List())
-            _rows.Add(summary);
+        try
+        {
+            _rows.Clear();
+            foreach (ConversationSummary summary in _app.Conversations.List())
+                _rows.Add(summary);
+        }
+        catch (Exception ex)
+        {
+            // Listing the chats reads and parses every file in the conversation store.
+            // If one of them cannot be read, an empty list is a page the user reached;
+            // an exception here cancels the push instead and drops them on the chat,
+            // which is indistinguishable from the menu item not working.
+            Console.WriteLine("TensorAgent: the chats list failed to appear: " + ex);
+        }
     }
 
     private View BuildCell()

@@ -1589,6 +1589,11 @@ namespace
         bind_or_mark(lm_head_t, const_cast<void*>(lm_head_data), static_cast<std::size_t>(lm_head_bytes), true);
         bind_or_mark(final_norm_t, const_cast<void*>(final_norm_data), static_cast<std::size_t>(H) * sizeof(float), true);
 
+        // The TP driver and the host-MoE seams below execute this graph as ordered
+        // slices of its node array, and a reorder would move work across a seam
+        // whose position is a node index. This guard covers both the explicit
+        // reorder below and the one inside alloc_graph_reuse_gallocr.
+        SuppressGraphReorder keep_order(tp_mode || !host_moe.empty());
         optimize_graph_for_metal(graph);
 
         // Persist: give every still-unbound tensor (intermediates, inputs, outputs,

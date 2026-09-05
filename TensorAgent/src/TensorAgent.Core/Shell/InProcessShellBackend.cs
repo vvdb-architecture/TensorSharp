@@ -104,6 +104,14 @@ public sealed class InProcessShellBackend : IShellBackend
     /// </summary>
     public IReadOnlyList<string> NetworkHosts { get; set; }
 
+    /// <summary>
+    /// Whether the layer above this backend intercepts and performs package installs.
+    /// Such a host must not expose its raw hook inside nested model-written shells (that
+    /// would bypass validation), but its engine description should still report the
+    /// capability the user actually has.
+    /// </summary>
+    public bool HostPerformsInstalls { get; set; }
+
     /// <inheritdoc />
     public string Name => "in-process";
 
@@ -130,7 +138,9 @@ public sealed class InProcessShellBackend : IShellBackend
         var parts = new List<string> { "sh (in-process)" };
         parts.Add(_python is { IsAvailable: true } py ? $"python {py.Version}" : "no python");
         parts.Add(_javaScript is { IsAvailable: true } ? "node (JavaScriptCore)" : "no node");
-        parts.Add(_installer is { CanInstall: true } ? "installs enabled" : "no installs");
+        parts.Add(HostPerformsInstalls || _installer is { CanInstall: true }
+            ? "installs enabled"
+            : "no installs");
         return string.Join(", ", parts);
     }
 
@@ -183,7 +193,7 @@ public sealed class InProcessShellBackend : IShellBackend
         var readable = new List<string> { launch.ReadOnlyDirectory };
         readable.AddRange(launch.ReadablePaths);
 
-        return new ExecutionPolicy(
+        var policy = new ExecutionPolicy(
             AllowScripts: true,
             AllowNetwork: launch.AllowNetwork,
             WorkRoot: launch.WriteDirectory,
@@ -196,6 +206,39 @@ public sealed class InProcessShellBackend : IShellBackend
             DefaultTimeout = launch.Timeout,
             AllowLoopbackPort = launch.AllowLoopbackPort,
         };
+
+        // ShellRunner deliberately keeps the session package directory at the
+        // backend seam as environment, because a child-process backend consumes
+        // PIP_TARGET/PYTHONPATH directly. Recover that same host-authored value for
+        // the in-process policy: pip's metadata builtin and embedded Python must
+        // agree on which session environment they are describing. Resolve it through
+        // the policy without PackageRoot first, so an arbitrary environment value
+        // cannot grant a new readable tree merely by naming one.
+        string? candidate = launch.Environment.TryGetValue("PIP_TARGET", out string? target)
+            && !string.IsNullOrWhiteSpace(target)
+                ? target
+                : FirstPathEntry(launch.Environment, "PYTHONPATH");
+        if (!string.IsNullOrWhiteSpace(candidate))
+        {
+            var confined = new ConfinedPaths(policy);
+            if (confined.TryResolve(
+                    candidate, launch.WorkingDirectory, PathAccess.Read,
+                    out string packageRoot, out _))
+            {
+                policy = policy with { PackageRoot = packageRoot };
+            }
+        }
+
+        return policy;
+    }
+
+    private static string? FirstPathEntry(
+        IReadOnlyDictionary<string, string> environment, string name)
+    {
+        if (!environment.TryGetValue(name, out string? value))
+            return null;
+        return value.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault();
     }
 
     private static ConfinedResult Failed(string message)

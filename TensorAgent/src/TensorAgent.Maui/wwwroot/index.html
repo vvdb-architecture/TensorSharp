@@ -407,6 +407,12 @@ body.voice #toggles { display: flex; }
   max-height: 82vh; overflow-y: auto;
 }
 .sheet.on { transform: translateY(0); }
+/* A sheet on its way out is still on screen for the .22s the transform takes, and
+   until this it was still hit-testable the whole way. Tapping a menu row, seeing
+   nothing happen (the screen it opens is a loopback POST, a dispatcher hop and a
+   350ms UIKit animation away) and tapping again sent the SAME open-route twice,
+   which is what two concurrent navigations are made of. */
+.sheet:not(.on) { pointer-events: none; }
 .grab { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px auto 12px; }
 
 /* ---- the main menu, as a drawer from the LEFT ----------------------------

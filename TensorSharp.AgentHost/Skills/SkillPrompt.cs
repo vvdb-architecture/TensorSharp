@@ -452,6 +452,7 @@ namespace TensorSharp.AgentHost.Skills
             AudioPaths = message.AudioPaths != null ? new List<string>(message.AudioPaths) : null,
             TextFilePaths = message.TextFilePaths != null ? new List<string>(message.TextFilePaths) : null,
             TextFileNames = message.TextFileNames != null ? new List<string>(message.TextFileNames) : null,
+            HasFileBackedTextAttachments = message.HasFileBackedTextAttachments,
             IsVideo = message.IsVideo,
             ToolCalls = message.ToolCalls != null ? new List<ToolCall>(message.ToolCalls) : null,
             ToolCallId = message.ToolCallId,

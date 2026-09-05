@@ -1,3 +1,5 @@
+using TensorAgent.Core.Python;
+using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Shell;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
@@ -284,5 +286,94 @@ public sealed class InProcessShellBackendTests : IDisposable
         }, out _, out ConfinedResult failure));
         Assert.False(failure.Started);
         Assert.Contains("does not exist", failure.Error!, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("pip list")]
+    [InlineData("pip freeze")]
+    [InlineData("python3 -m pip list")]
+    [InlineData("python3 -m pip freeze")]
+    public void PackageInspectionReadsTheSessionTargetForEverySupportedSpelling(string command)
+    {
+        (SessionWorkspace workspace, ShellSession session) = NewSession();
+        Directory.CreateDirectory(Path.Combine(workspace.EnvDirectory, "img2pdf-0.6.1.dist-info"));
+        Directory.CreateDirectory(Path.Combine(workspace.EnvDirectory, "yfinance-0.2.65.dist-info"));
+
+        // PIP_TARGET is the authoritative package root. A different PYTHONPATH also
+        // proves the backend did not confuse an appended import path with the
+        // session environment whose installed distributions pip must report.
+        string decoy = Path.Combine(workspace.Root, "decoy");
+        Directory.CreateDirectory(decoy);
+        Directory.CreateDirectory(Path.Combine(decoy, "not-installed-9.9.dist-info"));
+        var backend = new InProcessShellBackend(new PipMustNotReachPython());
+        ConfinedResult result = ((IShellBackend)backend).Run(new ShellLaunch
+        {
+            Command = command,
+            Session = session,
+            WorkingDirectory = session.CurrentDirectory,
+            WriteDirectory = workspace.WorkDirectory,
+            ReadOnlyDirectory = workspace.Root,
+            Environment = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["PIP_TARGET"] = workspace.EnvDirectory,
+                ["PYTHONPATH"] = decoy,
+            },
+            Timeout = TimeSpan.FromSeconds(20),
+        });
+
+        Assert.True(result.Ok, result.Stderr);
+        Assert.Contains("img2pdf==0.6.1", result.Stdout, StringComparison.Ordinal);
+        Assert.Contains("yfinance==0.2.65", result.Stdout, StringComparison.Ordinal);
+        Assert.DoesNotContain("not-installed", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NestedPythonPipInstallStillHasNoRawInstallerHook()
+    {
+        (SessionWorkspace workspace, ShellSession session) = NewSession();
+        var backend = new InProcessShellBackend(new PipMustNotReachPython());
+        ConfinedResult result = ((IShellBackend)backend).Run(new ShellLaunch
+        {
+            Command = "sh -c 'python3 -m pip install img2pdf'",
+            Session = session,
+            WorkingDirectory = session.CurrentDirectory,
+            WriteDirectory = workspace.WorkDirectory,
+            ReadOnlyDirectory = workspace.Root,
+            Environment = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["PIP_TARGET"] = workspace.EnvDirectory,
+                ["PYTHONPATH"] = workspace.EnvDirectory,
+            },
+            Timeout = TimeSpan.FromSeconds(20),
+        });
+
+        Assert.False(result.Ok);
+        Assert.Contains(ExecutionPolicy.InstallsByHostMessage, result.Stderr, StringComparison.Ordinal);
+    }
+
+    private sealed class PipMustNotReachPython : IPythonRuntime
+    {
+        public bool IsAvailable => true;
+        public string? UnavailableReason => null;
+        public string Version => "3.13-test";
+
+        public Task<ExecutionResult> RunScriptAsync(
+            string scriptPath, IReadOnlyList<string> arguments,
+            InterpreterContext context, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("pip inspection reached embedded Python");
+
+        public Task<ExecutionResult> RunCodeAsync(
+            string source, IReadOnlyList<string> arguments,
+            InterpreterContext context, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("pip inspection reached embedded Python");
+
+        public Task<ExecutionResult> RunModuleAsync(
+            string module, IReadOnlyList<string> arguments,
+            InterpreterContext context, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("pip inspection reached embedded Python");
+
+        public Task<SyntaxCheckResult> CheckSyntaxAsync(
+            string scriptPath, CancellationToken cancellationToken)
+            => throw new InvalidOperationException("pip inspection reached embedded Python");
     }
 }

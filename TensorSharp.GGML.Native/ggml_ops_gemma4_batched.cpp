@@ -494,7 +494,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
 
             // 8. post-attn norm + residual
             ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), lt.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // 9. FFN
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), lt.ffn_norm_w);
@@ -508,7 +508,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
 
             // 10. post-FFN norm + residual
             ggml_tensor* post_ffn = ggml_mul(ctx, ggml_rms_norm(ctx, down_out, eps), lt.post_ffn_norm_w);
-            ggml_tensor* residual2 = ggml_add(ctx, residual1, post_ffn);
+            ggml_tensor* residual2 = ggml_add(ctx, post_ffn, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             float scalar = layer_scalar_arr[l];
             if (std::fabs(scalar - 1.0f) > 1e-6f)
@@ -951,7 +951,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecodeBatched(
             }
             ggml_tensor* o_out = ggml_mul_mat(ctx, t.o_w, attn_2d);
             ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), t.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);   // [H, N]
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);   // [H, N]
 
             // ---- dense shared FFN (N tokens) ----
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), t.ffn_norm_w);
@@ -1001,7 +1001,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecodeBatched(
             mlp = ggml_add(ctx, mlp, moe_normed);
 
             ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), t.post_ffw_norm_w);
-            ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+            ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
             if (std::fabs(d.layer_output_scale - 1.0f) > 1e-9f) result = ggml_scale(ctx, result, d.layer_output_scale);
             hidden = result;
         }

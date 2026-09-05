@@ -177,6 +177,27 @@ namespace TensorSharp.AgentHost.CodeExec
             }
         }
 
+        /// <summary>
+        /// Open an existing workspace path through the anchored, no-follow path and
+        /// require the resulting handle to identify a regular file. This is the cheap
+        /// form used when a caller only needs to prove availability, not read bytes.
+        /// </summary>
+        internal static bool CanOpenRegularFileUnderRootNoFollow(string root, string path)
+        {
+            try
+            {
+                using SafeFileHandle? handle = OpenFileUnderRootNoFollow(root, path);
+                return handle != null && !handle.IsInvalid
+                    && TryGetRegularFileSnapshot(handle, out _);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                          or ArgumentException or NotSupportedException
+                                          or DllNotFoundException or EntryPointNotFoundException)
+            {
+                return false;
+            }
+        }
+
         private static bool TryReadBoundedRegularText(
             SafeFileHandle handle, int maxBytes, out string text)
         {

@@ -36,6 +36,8 @@ public sealed class ConversationRecorder
 {
     private readonly ConversationStore _store;
     private readonly ConcurrentDictionary<string, string> _sessionToConversation = new(StringComparer.Ordinal);
+    private int _binds;
+    private string? _current;
 
     public ConversationRecorder(ConversationStore store)
         => _store = store ?? throw new ArgumentNullException(nameof(store));
@@ -57,8 +59,51 @@ public sealed class ConversationRecorder
         conversation ??= _store.MostRecentEmpty();
         conversation ??= _store.Create();
         _sessionToConversation[sessionId] = conversation.Id;
+        Volatile.Write(ref _current, conversation.Id);
+        Interlocked.Increment(ref _binds);
         return conversation;
     }
+
+    /// <summary>
+    /// True until the first chat of this app launch has been opened.
+    ///
+    /// <para>
+    /// The page cannot tell its own first load apart from its fourth, and the two want
+    /// opposite things. Opening the app should show a clean composer; a page that is
+    /// merely coming back -- WebKit kills the content process of a WebView whose view
+    /// left the window, and the reload lands in an app that never stopped, sometimes
+    /// with a turn still generating on this side -- must return to the chat it was in.
+    /// This side does know, because it is the app: a launch is a new process, and a
+    /// new process has bound nothing yet.
+    /// </para>
+    /// <para>
+    /// Counted rather than derived from <see cref="_sessionToConversation"/>, which
+    /// empties again as sessions are disposed and would make a long-running app look
+    /// freshly launched every time the user closed a chat.
+    /// </para>
+    /// </summary>
+    public bool IsColdLaunch => Volatile.Read(ref _binds) == 0;
+
+    /// <summary>
+    /// The chat the page is in right now, or null before it has opened one.
+    ///
+    /// <para>
+    /// What a reloading page comes back to. The obvious substitute — the newest saved
+    /// conversation — is wrong twice over. It is not necessarily the one the user was
+    /// reading, because opening an older chat from the menu saves nothing and so moves
+    /// nothing to the top; and it can never be the empty chat a launch just opened,
+    /// because <see cref="ConversationStore.List"/> omits conversations with no
+    /// messages. That second case is the ordinary one: launch the app, go and look at
+    /// the model list, come back to find yesterday's chat instead of the clean one you
+    /// were given.
+    /// </para>
+    /// <para>
+    /// Every route into a chat goes through <see cref="Bind"/> — the new-chat button,
+    /// the menu rows, and the native Chats page — so this follows the page wherever it
+    /// goes without the page having to report it.
+    /// </para>
+    /// </summary>
+    public string? CurrentConversationId => Volatile.Read(ref _current);
 
     /// <summary>Forget a session that has been disposed. The conversation itself is untouched.</summary>
     public void Release(string sessionId) => _sessionToConversation.TryRemove(sessionId, out _);

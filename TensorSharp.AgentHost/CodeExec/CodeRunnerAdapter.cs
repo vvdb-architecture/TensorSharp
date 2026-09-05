@@ -10,7 +10,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using TensorSharp.AgentHost.Skills;
 using TensorSharp.Runtime;
 
@@ -31,6 +30,10 @@ namespace TensorSharp.AgentHost.CodeExec
         private readonly ShellRunner _runner;
         private readonly CodeExecOptions _options;
         private readonly Action<CodeExecResult>? _onCompleted;
+        private readonly string? _packageInstallInstructions;
+        private readonly string? _networkExecutionInstructions;
+        private readonly Func<bool>? _networkInstructionsAvailable;
+        private readonly Func<IReadOnlyList<string>>? _networkHosts;
 
         /// <param name="runner">The engine.</param>
         /// <param name="options">The host's terms, for the declaration.</param>
@@ -38,14 +41,39 @@ namespace TensorSharp.AgentHost.CodeExec
         /// Observer for each finished call, so a host can record what a command produced
         /// without parsing the model's prose about it.
         /// </param>
+        /// <param name="packageInstallInstructions">
+        /// Stable host-specific package capabilities for the shell declaration, or null
+        /// for the desktop pip/npm description.
+        /// </param>
+        /// <param name="networkExecutionInstructions">
+        /// Stable host-specific guidance for efficient use of this host's network,
+        /// separate from package-manager capabilities. It is exposed only while the
+        /// network switch is on.
+        /// </param>
+        /// <param name="networkInstructionsAvailable">
+        /// Optional live check that the host-specific source is admitted by the current
+        /// network allow-list. Null means the guidance has no narrower host requirement.
+        /// </param>
+        /// <param name="networkHosts">
+        /// Optional live view of the host's outbound allow-list, for an accurate
+        /// declaration. Null or empty means unrestricted when networking is enabled.
+        /// </param>
         public CodeRunnerAdapter(
             ShellRunner runner,
             CodeExecOptions? options = null,
-            Action<CodeExecResult>? onCompleted = null)
+            Action<CodeExecResult>? onCompleted = null,
+            string? packageInstallInstructions = null,
+            string? networkExecutionInstructions = null,
+            Func<bool>? networkInstructionsAvailable = null,
+            Func<IReadOnlyList<string>>? networkHosts = null)
         {
             _runner = runner ?? throw new ArgumentNullException(nameof(runner));
             _options = options ?? runner.Options;
             _onCompleted = onCompleted;
+            _packageInstallInstructions = packageInstallInstructions;
+            _networkExecutionInstructions = networkExecutionInstructions;
+            _networkInstructionsAvailable = networkInstructionsAvailable;
+            _networkHosts = networkHosts;
         }
 
         /// <inheritdoc/>
@@ -116,7 +144,10 @@ namespace TensorSharp.AgentHost.CodeExec
                 {
                     ShellTools.DeclareShell(
                         _options, shell, _runner.KeepsArtifacts, persists: false, fileTools: false,
-                        networkConfinementGuaranteed: _runner.NetworkConfinementGuaranteed),
+                        networkConfinementGuaranteed: _runner.NetworkConfinementGuaranteed,
+                        packageInstallInstructions: PackageInstallInstructions(),
+                        networkExecutionInstructions: NetworkExecutionInstructions(),
+                        networkHosts: _networkHosts?.Invoke()),
                 };
             }
 
@@ -132,7 +163,10 @@ namespace TensorSharp.AgentHost.CodeExec
                 ShellTools.DeclareWrite(),
                 ShellTools.DeclareShell(
                     _options, shell, _runner.KeepsArtifacts, persists, fileTools: true,
-                    networkConfinementGuaranteed: _runner.NetworkConfinementGuaranteed),
+                    networkConfinementGuaranteed: _runner.NetworkConfinementGuaranteed,
+                    packageInstallInstructions: PackageInstallInstructions(),
+                    networkExecutionInstructions: NetworkExecutionInstructions(),
+                    networkHosts: _networkHosts?.Invoke()),
                 ShellTools.DeclarePatch(),
             };
         }
@@ -147,6 +181,21 @@ namespace TensorSharp.AgentHost.CodeExec
         {
             if (!_runner.CanRun)
                 return SkillToolResult.Failure(_runner.UnavailableReason ?? "code execution is unavailable");
+
+            // One session is one shell and one package tree. A replacement turn may
+            // arrive before the cancelled turn's synchronous tool has returned, so all
+            // access is serialized through the workspace rather than allowing a run to
+            // observe a half-extracted install or half-written source file.
+            using IDisposable? execution = workspace?.EnterExecution();
+
+            // Every built-in file/code tool sees the same staged attachments. This used
+            // to happen only immediately before a shell command, so a model following
+            // the cheaper path advertised in the prompt -- read_file("responses.csv")
+            // as its first action -- was told the file existed and then got "not found".
+            // Stage before dispatch so read_file, edits, patches and shell all start from
+            // the identical workspace.
+            if (workspace != null)
+                CodeInputFileStager.Stage(inputFiles, workspace);
 
             // Patching is a workspace operation, not a run: it returns without entering
             // the execution pipeline at all, and nothing is launched.
@@ -182,9 +231,6 @@ namespace TensorSharp.AgentHost.CodeExec
             if (!ShellTools.TryReadShell(call!, out ShellRequest request, out string? error))
                 return SkillToolResult.Failure(error!);
 
-            if (workspace != null)
-                StageInputFiles(inputFiles, workspace);
-
             CodeExecResult result = _runner.Run(
                 request with { ReadablePaths = skillDirectories ?? Array.Empty<string>() },
                 workspace,
@@ -215,71 +261,40 @@ namespace TensorSharp.AgentHost.CodeExec
             return new SkillToolResult(result.Ok, result.Content, null, null) { Files = files };
         }
 
-        /// <summary>
-        /// Put the conversation's attachments in the working directory under the names
-        /// the model was told.
-        ///
-        /// <para>
-        /// An attachment's inlined CONTENT is not a file on disk: asked to "convert this
-        /// md file", a model with only the inline copy re-types it into its program,
-        /// abridged. The real file has to be there under its display name.
-        /// </para>
-        /// <para>
-        /// In a persistent workspace the file may already be there from an earlier call —
-        /// possibly EDITED since. Re-copying would silently revert that work, so an
-        /// up-to-date copy stands and only a genuinely newer source replaces it.
-        /// </para>
-        /// </summary>
-        private static void StageInputFiles(IReadOnlyList<CodeInputFile>? inputFiles, SessionWorkspace workspace)
+        /// <inheritdoc/>
+        public bool CanInstallPackages => _options.AllowInstall && _runner.Installer.CanInstall;
+
+        private string? PackageInstallInstructions()
         {
-            if (inputFiles == null || inputFiles.Count == 0)
-                return;
+            if (_packageInstallInstructions == null || _runner.Installer.CanInstall)
+                return _packageInstallInstructions;
 
-            foreach (CodeInputFile input in inputFiles)
-            {
-                // The name is what the model was told; the flattening keeps a name like
-                // "../x" from writing outside the directory the sandbox will confine.
-                string name = Path.GetFileName(input.Name ?? string.Empty);
-                if (name.Length == 0 || string.IsNullOrEmpty(input.SourcePath))
-                    continue;
-
-                string destination = Path.Combine(workspace.WorkDirectory, name);
-                if (!SkillPathGuard.IsUnder(workspace.WorkDirectory, destination))
-                    continue;
-
-                try
-                {
-                    var existing = new FileInfo(destination);
-                    var source = new FileInfo(input.SourcePath);
-                    if (!source.Exists)
-                        continue;
-                    if (existing.Exists && existing.LastWriteTimeUtc >= source.LastWriteTimeUtc)
-                        continue;
-                    File.Copy(input.SourcePath, destination, overwrite: true);
-
-                    // The HOST just replaced a file behind the model's back — not the
-                    // model, and not anything it ran. "Stale" would overstate what it
-                    // knows, because it never saw this happen at all, so the path is
-                    // dropped entirely and the next edit is checked from scratch.
-                    workspace.Reads.Forget(destination);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // Best effort: a file that cannot be staged is reported by the command
-                    // that goes looking for it, which is a better place to learn about it
-                    // than a note attached to an unrelated call.
-                }
-            }
+            string reason = _runner.Installer.UnavailableReason?.Trim().TrimEnd('.')
+                ?? "the configured installer is unavailable";
+            return $"Python package installation is currently unavailable: {reason}. "
+                 + "Use the standard library and packages already present; do not retry the install.";
         }
 
+        private string? NetworkExecutionInstructions() =>
+            _networkInstructionsAvailable?.Invoke() == false
+                ? null
+                : _networkExecutionInstructions;
+
         /// <inheritdoc/>
-        public bool CanInstallPackages => _options.AllowInstall;
+        public bool CanInstallPackagesFor(string language)
+        {
+            CodeLanguage parsed = CodeExecOptions.ParseLanguage(language);
+            return parsed != CodeLanguage.Unknown
+                && _options.AllowInstall
+                && _runner.Installer.CanInstallLanguage(parsed);
+        }
 
         /// <inheritdoc/>
         public string? InstallPackages(
             string language, IReadOnlyList<string> packages,
             SessionWorkspace workspace, Action<string>? onOutput = null)
         {
+            using IDisposable execution = workspace.EnterExecution();
             return _runner.Installer.Install(
                 workspace, CodeExecOptions.ParseLanguage(language), packages, onOutput);
         }

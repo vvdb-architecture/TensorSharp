@@ -57,7 +57,18 @@ public sealed class SettingsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        Build();
+        try
+        {
+            Build();
+        }
+        catch (Exception ex)
+        {
+            // Build reads the settings file, sizes the models directory and asks the
+            // host to describe the engine. Any of those can throw, and an exception
+            // raised here cancels the push this page is being appeared for -- so the
+            // user taps Settings and stays on the chat, with nothing said anywhere.
+            Console.WriteLine("TensorAgent: the settings screen failed to appear: " + ex);
+        }
     }
 
     /// <summary>
@@ -109,7 +120,7 @@ public sealed class SettingsPage : ContentPage
         _body.Add(Note("Sandbox changes take effect straight away, on the next command the model runs."));
         _engine = new Label
         {
-            Text = "Now: " + _app.DescribeEngine(),
+            Text = "Now: " + DescribeEngineSafely(),
             FontSize = 12,
             TextColor = Theme.Muted,
             Padding = new Thickness(16, 2),
@@ -117,11 +128,26 @@ public sealed class SettingsPage : ContentPage
         _body.Add(_engine);
 
         _body.Add(Section("Generation"));
-        _body.Add(Ladder("Reply length limit",
-            "Maximum tokens in one reply. The model's context window is the real ceiling: "
-            + "a reply cannot exceed what the window leaves after the prompt.",
+        int loadedContext = _app.ModelService.ContextTokens;
+        string contextNote = loadedContext > 0
+            ? "The loaded model's input + output context window is " + Describe(loadedContext) + " tokens."
+            : "The loaded model determines the input + output context window.";
+        _body.Add(Ladder("Reply output limit",
+            "Maximum NEW tokens requested for one reply — this is not the context-window setting. "
+            + contextNote + " A reply uses only what remains after the prompt.",
             settings.MaxTokens, ReplyLengthRungs,
             v => Apply(s => s.MaxTokens = v)));
+        _body.Add(Choice("KV cache precision",
+            "How the conversation's key/value cache is stored. On a phone this is often "
+            + "the larger half of what a loaded model costs, so Q4 buys back more memory "
+            + "than any other choice here.",
+            settings.KvCacheDtype, KvCacheRungs,
+            v => Apply(s => s.KvCacheDtype = v)));
+        _body.Add(Note(
+            "KV cache precision applies the next time a model is loaded — the cache is "
+            + "allocated when the model is. Some models ignore it and always use FP16, "
+            + "because their attention cannot read a quantized cache; the engine "
+            + "substitutes rather than failing."));
         _body.Add(Stepper("Tool timeout", "Seconds before a command is stopped.",
             settings.ToolTimeoutSeconds, 10, 600, 10,
             v => Apply(s => s.ToolTimeoutSeconds = v)));
@@ -171,6 +197,22 @@ public sealed class SettingsPage : ContentPage
             Build();
         };
         _body.Add(clear);
+    }
+
+    /// <summary>
+    /// The engine line, or why there isn't one.
+    ///
+    /// <para>
+    /// A live call into the host, made while this page is being appeared for a push
+    /// that has not completed. AboutPage already wraps the identical call; unguarded
+    /// here it could take the whole Settings screen down with it and leave the user on
+    /// the chat, which reads as the menu having ignored them.
+    /// </para>
+    /// </summary>
+    private string DescribeEngineSafely()
+    {
+        try { return _app.DescribeEngine(); }
+        catch (Exception ex) { return "unavailable (" + ex.GetType().Name + ")"; }
     }
 
     private static View Section(string text) => new Label
@@ -232,6 +274,81 @@ public sealed class SettingsPage : ContentPage
     /// </summary>
     private static readonly int[] ReplyLengthRungs =
         { 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144 };
+
+    /// <summary>
+    /// The K/V cache precisions, in the order the stepper walks them.
+    ///
+    /// <para>
+    /// Widest first, so stepping right spends less memory — the same direction as every
+    /// other stepper on this page. The stored values are the engine's own spellings;
+    /// the labels are what the user is likely to have seen on a model card.
+    /// </para>
+    /// </summary>
+    private static readonly (string Value, string Label)[] KvCacheRungs =
+    {
+        ("f16", "FP16"),
+        ("q8_0", "Q8"),
+        ("q4_0", "Q4"),
+    };
+
+    /// <summary>
+    /// One of a short list of named values, on the same stepper the numbers use.
+    ///
+    /// <para>
+    /// A Picker would open a modal wheel for three options. The stepper is already the
+    /// page's idiom for "walk a small ordered range", and these ARE ordered: each step
+    /// right halves the memory and loses a little precision.
+    /// </para>
+    /// </summary>
+    private static View Choice(
+        string title, string detail, string value,
+        (string Value, string Label)[] options, Action<string> onChanged)
+    {
+        int index = 0;
+        for (int i = 0; i < options.Length; i++)
+        {
+            if (string.Equals(options[i].Value, value, StringComparison.OrdinalIgnoreCase)) index = i;
+        }
+
+        var current = new Label
+        {
+            Text = options[index].Label,
+            FontSize = 15,
+            TextColor = Theme.Accent,
+            VerticalOptions = LayoutOptions.Center,
+        };
+        var stepper = new Stepper(0, options.Length - 1, index, 1) { VerticalOptions = LayoutOptions.Center };
+        stepper.ValueChanged += (_, e) =>
+        {
+            (string Value, string Label) picked = options[Math.Clamp((int)e.NewValue, 0, options.Length - 1)];
+            current.Text = picked.Label;
+            onChanged(picked.Value);
+        };
+
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
+            },
+            Padding = new Thickness(16, 10),
+            ColumnSpacing = 10,
+        };
+        grid.Add(new VerticalStackLayout
+        {
+            Spacing = 2,
+            Children =
+            {
+                new Label { Text = title, FontSize = 16, TextColor = Theme.Text },
+                new Label { Text = detail, FontSize = 12, TextColor = Theme.Muted },
+            },
+        });
+        grid.Add(current, 1, 0);
+        grid.Add(stepper, 2, 0);
+        return grid;
+    }
 
     private static View Ladder(string title, string detail, int value, int[] rungs, Action<int> onChanged)
     {

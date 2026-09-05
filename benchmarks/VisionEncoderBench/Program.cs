@@ -52,11 +52,12 @@ if (!File.Exists(image)) { Console.WriteLine($"[vbench] missing image: {image}")
 
 // TS_VBENCH_BACKEND selects the allocator the encoder is built on:
 //   cpu        (default) GGML CPU allocator      — the ggml_cpu backend
+//   ggml_metal           GGML Metal allocator     — the ggml_metal backend
 //   ggml_cuda            GGML CUDA allocator     — the ggml_cuda backend
 //   cuda                 direct CudaAllocator    — TensorSharp's own CUDA backend
-// "cuda" is what `--backend cuda` gives the server; "cpu"/"ggml_cuda" give
+// "cuda" is what `--backend cuda` gives the server; the GGML choices give
 // _useNativeAttention = true and go through the fused GGML graph. Comparing the
-// checksums across these three proves the direct-CUDA encoder is equivalent.
+// checksums across these backends proves the optimized encoders are equivalent.
 string backendName = Env("TS_VBENCH_BACKEND", "cpu").ToLowerInvariant();
 IAllocator allocator;
 GgmlContext context = null;
@@ -67,8 +68,14 @@ if (backendName == "cuda")
 }
 else
 {
-    var ggmlBackend = backendName is "ggml_cuda" or "ggmlcuda"
-        ? GgmlBackendType.Cuda : GgmlBackendType.Cpu;
+    var ggmlBackend = backendName switch
+    {
+        "cpu" or "ggml_cpu" or "ggmlcpu" => GgmlBackendType.Cpu,
+        "ggml_metal" or "ggmlmetal" or "metal" => GgmlBackendType.Metal,
+        "ggml_cuda" or "ggmlcuda" => GgmlBackendType.Cuda,
+        _ => throw new ArgumentException(
+            $"Unknown TS_VBENCH_BACKEND '{backendName}'. Expected cpu, ggml_metal, ggml_cuda, or cuda."),
+    };
     Console.WriteLine($"[vbench] ggml backend = {ggmlBackend}");
     context = new GgmlContext(new[] { 0 }, ggmlBackend);
     allocator = new GgmlAllocator(context, 0);
@@ -79,6 +86,7 @@ else
 // one encode, plus a label describing the geometry.
 Func<Tensor> encodeOnce;
 string geom;
+IDisposable encoder = null;
 
 switch (type)
 {
@@ -86,6 +94,7 @@ switch (type)
     case "muse_glimmer":
     {
         var enc = new MuseGlimmerVisionEncoder(mmproj, allocator);
+        encoder = enc;
         var (pixels, w, h) = enc.ImageProcessor.ProcessImage(image);
         int rawPatches = (w / enc.PatchSize) * (h / enc.PatchSize);
         int mergedTokens = rawPatches / (enc.MergeSize * enc.MergeSize);
@@ -96,6 +105,7 @@ switch (type)
     case "mistral3":
     {
         var enc = new Mistral3VisionEncoder(mmproj, allocator);
+        encoder = enc;
         var proc = new Mistral3ImageProcessor(enc.ImageSize, enc.PatchSize);
         var (pixels, w, h) = proc.ProcessImage(image);
         geom = $"{w}x{h}, patch={enc.PatchSize}, merge={enc.SpatialMergeSize}";
@@ -105,6 +115,7 @@ switch (type)
     case "qwen35":
     {
         var enc = new Qwen35VisionEncoder(mmproj, allocator);
+        encoder = enc;
         var proc = new Qwen35ImageProcessor(enc.PatchSize, enc.SpatialMergeSize);
         var (pixels, resH, resW) = proc.ProcessImage(image);
         geom = $"{resW}x{resH}, patch={enc.PatchSize}, merge={enc.SpatialMergeSize}";
@@ -114,6 +125,7 @@ switch (type)
     default: // gemma4
     {
         var enc = new Gemma4VisionEncoder(mmproj, allocator);
+        encoder = enc;
         var proc = enc.IsUnified
             ? new Gemma4ImageProcessor(imageMean: enc.ImageMean, imageStd: enc.ImageStd)
             : new Gemma4ImageProcessor();
@@ -186,3 +198,13 @@ times.Sort();
 double median = times[times.Count / 2];
 double mean = times.Sum() / times.Count;
 Console.WriteLine($"[vbench] RESULT median={median:F1} ms  mean={mean:F1} ms  min={times[0]:F1} ms  max={times[^1]:F1} ms");
+encoder?.Dispose();
+// Some optimized encoder paths hand short-lived tensors to finalizable storage
+// wrappers. Drain those before ggml-metal's process-wide device destructor checks
+// that its residency sets are empty; otherwise a successful benchmark exits 134.
+encodeOnce = null;
+GC.Collect();
+GC.WaitForPendingFinalizers();
+GC.Collect();
+if (context != null)
+    GgmlBasicOps.Shutdown();

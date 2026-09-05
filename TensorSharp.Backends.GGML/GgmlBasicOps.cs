@@ -3244,7 +3244,9 @@ namespace TensorSharp.GGML
             IntPtr pleModelProjData = default, int pleModelProjType = 0,
             long pleModelProjNe0 = 0, long pleModelProjNe1 = 0, long pleModelProjBytes = 0,
             IntPtr pleModelProjNormData = default,
-            int tpDegree = 1, IntPtr[] tpPlanOut = null)
+            int tpDegree = 1, IntPtr[] tpPlanOut = null,
+            IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
             GgmlNative.Gemma4ModelDecode(
                 hiddenData, hiddenSize, numLayers,
@@ -3278,7 +3280,9 @@ namespace TensorSharp.GGML
                 pleModelProjData, pleModelProjType,
                 pleModelProjNe0, pleModelProjNe1, pleModelProjBytes,
                 pleModelProjNormData,
-                tpDegree, tpPlanOut);
+                tpDegree, tpPlanOut,
+                gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr);
         }
 
         /// <summary>True token-batched dense decode (N concurrent sequences in one
@@ -3363,7 +3367,9 @@ namespace TensorSharp.GGML
             IntPtr pleProjWData = default, int pleProjWType = 0,
             long pleProjWNe0 = 0, long pleProjWNe1 = 0, long pleProjWBytes = 0,
             IntPtr pleProjNormData = default,
-            int tpDegree = 1, IntPtr[] tpPlanOut = null)
+            int tpDegree = 1, IntPtr[] tpPlanOut = null,
+            IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
             return GgmlNative.Gemma4ModelVerify(
                 hiddenData, hiddenSize, numLayers, numTokens,
@@ -3394,7 +3400,9 @@ namespace TensorSharp.GGML
                 pleProjWData, pleProjWType,
                 pleProjWNe0, pleProjWNe1, pleProjWBytes,
                 pleProjNormData,
-                tpDegree, tpPlanOut);
+                tpDegree, tpPlanOut,
+                gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr);
         }
 
         /// <summary>

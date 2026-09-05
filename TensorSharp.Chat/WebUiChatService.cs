@@ -157,7 +157,7 @@ namespace TensorSharp.Chat
                 string runId = Guid.NewGuid().ToString("N");
                 IReadOnlyList<CodeArtifact> kept = _codeArtifacts.Capture(
                     runId, workDirectory,
-                    (id, relative, _) => prefix + "/" + id + "/" + relative,
+                    (id, relative, _) => CodeArtifactStore.UrlFor(prefix, id, relative),
                     out _, exclude);
                 return kept.Select(a => new SkillProducedFile(a.Path, a.Bytes, a.Pointer)).ToList();
             };
@@ -280,10 +280,25 @@ namespace TensorSharp.Chat
                 mmProjModels = mmProjFiles,
                 loaded = _svc.LoadedModelName,
                 loadedMmProj = _svc.LoadedMmProjName,
+                // A projector path is only configuration; this is the runtime
+                // capability after the model has actually loaded and accepted it.
+                // Phone clients use it to keep an image in the composer instead of
+                // sending image-pad tokens to a text-only load of a vision model.
+                visionReady = _svc.Model?.HasVisionEncoder() ?? false,
+                // Separate architecture capability from current readiness. A false
+                // visionReady on Qwen/Gemma means "install/enable the projector"; on
+                // an inherently text-only model it means images may only be passed as
+                // staged files to host-owned tools.
+                acceptsVisionProjector =
+                    _svc.Model is TensorSharp.Models.Architecture.IVisionCapableModel,
                 loadedBackend = _svc.LoadedBackend,
                 defaultBackend = _options.DefaultBackend,
                 supportedBackends = _options.SupportedBackends,
                 architecture = _svc.Architecture,
+                // The real input + output window of the loaded engine. This is
+                // intentionally separate from defaultMaxTokens, which is only the
+                // requested number of NEW reply tokens and cannot enlarge the model.
+                contextTokens = _svc.ContextTokens,
                 defaultMaxTokens = _options.DefaultMaxTokens,
                 video,
                 // Null when this build serves no skills at all, so the UI can hide the
@@ -371,9 +386,10 @@ namespace TensorSharp.Chat
         /// The reply shape depends on what the file is: an image (HEIC/HEIF gain a PNG
         /// <c>previewUrl</c> because no browser renders them), a video (frames are
         /// extracted next to it, named after its GUID, so the Web UI can reference them
-        /// by bare name), a text file (full content, never truncated), or a PDF (its text
-        /// layer; a scanned PDF falls back to page images for a vision model, or says
-        /// exactly why it cannot be read). Rejections are 413/507 (budget), 400
+        /// by bare name), a text file (full content, never truncated, except CSV tables,
+        /// which stay file-backed), or a PDF (its text layer; a scanned PDF falls back
+        /// to page images for a vision model, or says exactly why it cannot be read).
+        /// Rejections are 413/507 (budget), 400
         /// (unsupported extension, unreadable video/PDF).
         /// </para>
         /// </summary>
@@ -471,6 +487,31 @@ namespace TensorSharp.Chat
 
             if (mediaType == "text")
             {
+                // A CSV is structured data and can tokenize far more densely than its
+                // byte size suggests. Sending its full body back through the browser
+                // makes every later chat request and saved transcript carry the table
+                // again, before the server can replace it with a tool-backed reference.
+                // Keep the complete upload on disk and make the wire contract explicit;
+                // ordinary prose/code files retain the established inline contract.
+                if (string.Equals(ext, ".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new
+                    {
+                        ok = true,
+                        file = safeFileName,
+                        url = uploadUrl,
+                        mediaType,
+                        fileName = originalFileName,
+                        fileBacked = true,
+                        truncated = false,
+                        truncateLimit = (int?)null,
+                        truncateUnit = (string)null,
+                        modelContextLimit = _svc.Model?.MaxContextLength,
+                        originalTokenCount = (int?)null,
+                        returnedTokenCount = (int?)null,
+                    };
+                }
+
                 string textContent = TextUploadHelper.PreserveFullText(
                     await File.ReadAllTextAsync(savePath, cancellationToken));
 
@@ -556,7 +597,9 @@ namespace TensorSharp.Chat
                 }
 
                 // Scanned / image-only PDF (no selectable text layer).
-                bool visionLoaded = _svc.LoadedMmProjName != null || (_svc.Model?.HasVisionEncoder() ?? false);
+                // A configured/projector filename is not proof that this model accepted
+                // it (a mismatched GGUF can otherwise make a scanned PDF look usable).
+                bool visionLoaded = _svc.Model?.HasVisionEncoder() ?? false;
                 if (!visionLoaded)
                 {
                     uploadLogger.LogWarning(LogEventIds.UploadReceived,
@@ -1447,10 +1490,53 @@ namespace TensorSharp.Chat
                 throw new WebUiRequestRejectedException(400, new { error = attachmentError });
             }
 
+            bool hasImageInputs = messages.Any(
+                message => message?.ImagePaths is { Count: > 0 });
+            bool visionReady = _svc.Model?.HasVisionEncoder() ?? false;
+            bool acceptsProjector =
+                _svc.Model is TensorSharp.Models.Architecture.IVisionCapableModel;
+
+            // A Qwen/Gemma model without its optional mmproj still renders image
+            // placeholders, but it cannot replace them with embeddings. Letting that
+            // reach generation produces a fluent hallucination about an image the
+            // model never saw. Refuse before the first stream frame so every Web UI
+            // gets an actionable HTTP error and OnChatRequest cannot persist a turn
+            // that never had a valid input. This remains a hard refusal even when file
+            // tools are enabled: a projector-capable checkpoint was explicitly chosen
+            // for vision, and silently changing its input contract would hide a broken
+            // model installation.
+            //
+            // An inherently text-only model is different. It may legitimately be asked
+            // to transform an image FILE (for example, put a photo into a PDF) through
+            // a host-owned tool. That case is decided after the tool plan and staging
+            // below; the image channel is removed before generation, so the model is
+            // never allowed to pretend that it saw pixels directly.
+            if (hasImageInputs && !visionReady &&
+                (acceptsProjector || _svc.IsDiffusionModel))
+            {
+                RejectImageInput(webUiLogger, acceptsProjector);
+            }
+
             // DiffusionGemma streams a live "denoising preview" (whole-message replace per step)
             // rather than appended tokens, so it has its own loop.
             if (_svc.IsDiffusionModel)
             {
+                try
+                {
+                    // Diffusion models expose no file/code tool loop. Reconstruct the
+                    // former inline CSV shape so they either see the complete small
+                    // table or reject it for context, never answer about unseen rows.
+                    messages = ChatHistoryPreparer.RestoreUnstagedFileBackedCsvAttachments(messages);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    webUiLogger.LogWarning(LogEventIds.HttpRequestRejected,
+                        "/api/chat could not read a file-backed CSV: {Error}", ex.Message);
+                    throw new WebUiRequestRejectedException(400, new
+                    {
+                        error = "The attached CSV could not be read from upload storage. Upload it again and retry.",
+                    });
+                }
                 OnChatRequest?.Invoke(chatSession.Id, body);
                 await foreach (object frame in ChatStreamDiffusionAsync(chatSession, messages, maxTokens, webUiLogger, cancellationToken))
                     yield return frame;
@@ -1459,11 +1545,14 @@ namespace TensorSharp.Chat
 
             // Resolved AFTER attachment paths so nothing about that check changes, and
             // before the parser gate because the built-in skill tools turn it on.
+            IReadOnlyList<CodeInputFile> sourceCodeInputFiles = CollectCodeInputFiles(messages);
+            IReadOnlyList<CodeInputFile> codeInputFiles = ReadableCodeInputFiles(sourceCodeInputFiles);
+            SessionWorkspace workspace = WorkspaceFor(chatSession);
             var skillPlan = SkillRequestPlan.Create(
                 _skills, requestedSkills, SkillSelectionParser.ParseDiscovery(body), uiTools,
                 _svc.Architecture, _svc.ContextTokens, _options, out var unknownSkills, codeRunner: _codeRunner,
-                codeInputFiles: ReadableCodeInputFiles(CollectCodeInputFiles(messages)),
-                workspace: WorkspaceFor(chatSession),
+                codeInputFiles: codeInputFiles,
+                workspace: workspace,
                 captureProducedFiles: ScriptFileCapture(),
                 logger: webUiLogger);
 
@@ -1474,6 +1563,91 @@ namespace TensorSharp.Chat
                 throw new WebUiRequestRejectedException(400, new
                 {
                     error = $"No skill called '{unknownSkills[0]}' is installed.",
+                });
+            }
+
+            // CSV is structured data, not prose. Replace the browser's huge inline copy
+            // only after the complete upload is demonstrably readable in this request's
+            // persistent workspace. Building the plan first also lets us distinguish a
+            // host-owned reader from a caller tool that merely shadows the same name.
+            IReadOnlyDictionary<string, string> stagedFiles =
+                new Dictionary<string, string>(StringComparer.Ordinal);
+            if (skillPlan?.ToolContext?.Workspace is { } csvWorkspace && skillPlan.ToolsOffered)
+            {
+                bool hostCanReadStagedFile = HasHostOwnedFileReader(skillPlan);
+
+                if (hostCanReadStagedFile)
+                {
+                    IReadOnlySet<string> stagedFileNames;
+                    using (csvWorkspace.BeginOperation())
+                        stagedFileNames = CodeInputFileStager.Stage(codeInputFiles, csvWorkspace);
+
+                    var bySource = new Dictionary<string, string>(StringComparer.Ordinal);
+                    for (int i = 0; i < codeInputFiles.Count; i++)
+                    {
+                        CodeInputFile input = codeInputFiles[i];
+                        bool wasStaged = stagedFileNames.Contains(input.Name);
+                        if (wasStaged &&
+                            !string.IsNullOrEmpty(input.SourcePath) &&
+                            !bySource.ContainsKey(input.SourcePath))
+                        {
+                            bySource.Add(input.SourcePath, input.Name);
+                        }
+
+                        // HEIC/HEIF inputs may have been converted to a readable PNG.
+                        // The messages still point at the original upload, so retain an
+                        // alias from that source path to the staged, converted name. It
+                        // also lets the safety gate below prove that every visual input
+                        // really is available to the host tool before removing it from
+                        // the model's image channel.
+                        if (wasStaged &&
+                            i < sourceCodeInputFiles.Count &&
+                            !string.IsNullOrEmpty(sourceCodeInputFiles[i].SourcePath) &&
+                            !bySource.ContainsKey(sourceCodeInputFiles[i].SourcePath))
+                        {
+                            bySource.Add(sourceCodeInputFiles[i].SourcePath, input.Name);
+                        }
+                    }
+                    stagedFiles = bySource;
+                }
+            }
+
+            // Text-only checkpoints may carry a user-attached image solely as a file a
+            // host tool can open. Require proof that every image path was staged (not
+            // merely that a similarly named client tool was declared), then remove the
+            // visual input before it reaches ChatGenerationPipeline's vision guard.
+            // Missing attachments, derived video/PDF frames, shadowed tools and staging
+            // failures all remain honest 400s rather than becoming hallucinated vision.
+            if (hasImageInputs && !visionReady && !acceptsProjector)
+            {
+                if (!TryUseImagesAsStagedFiles(messages, stagedFiles))
+                    RejectImageInput(webUiLogger, acceptsProjector: false);
+
+                webUiLogger.LogInformation(LogEventIds.SkillSelected,
+                    "/api/chat supplied image attachments to a text-only model as staged files " +
+                    "(model={Model}, files={FileCount})",
+                    _svc.LoadedModelName ?? "(none)", stagedFiles.Count);
+            }
+
+            messages = ChatHistoryPreparer.UseFileBackedCsvAttachments(messages, stagedFiles);
+
+            // The metadata-only upload contract is an optimisation, never permission
+            // to hide the table from the model. If this model/request cannot expose a
+            // readable workspace, rebuild the former full-inline shape on the server.
+            // Small CSVs therefore retain their old no-tools behaviour; large ones hit
+            // the attached-document context check with an accurate explanation instead
+            // of producing a plausible answer about data the model never received.
+            try
+            {
+                messages = ChatHistoryPreparer.RestoreUnstagedFileBackedCsvAttachments(messages);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                webUiLogger.LogWarning(LogEventIds.HttpRequestRejected,
+                    "/api/chat could not read a file-backed CSV: {Error}", ex.Message);
+                throw new WebUiRequestRejectedException(400, new
+                {
+                    error = "The attached CSV could not be read from upload storage. Upload it again and retry.",
                 });
             }
 
@@ -1586,8 +1760,14 @@ namespace TensorSharp.Chat
                         // parser over them would be parsing parsed text.
                         if (!string.IsNullOrEmpty(update.ThinkingPiece))
                             yield return WebUiSseEvents.Thinking(update.ThinkingPiece);
-                        if (!string.IsNullOrEmpty(update.Piece))
+                        if (HasParsedAnswerContent(update))
                         {
+                            // SkillChatLoop has already separated content from thinking
+                            // and tool progress. Count that content exactly as the
+                            // non-loop parser branch below does; otherwise a successful
+                            // tool-assisted answer is followed by the false "ended this
+                            // turn without writing an answer" placeholder.
+                            sawContent = true;
                             tokenCount++;
                             yield return WebUiSseEvents.Token(update.Piece);
                         }
@@ -1776,6 +1956,83 @@ namespace TensorSharp.Chat
                 chatSession.Id, turnPromptTokens, 0);
         }
 
+        private void RejectImageInput(ILogger logger, bool acceptsProjector)
+        {
+            string error = acceptsProjector
+                ? "This model is loaded without its image projector. Load the matching vision projector, then retry."
+                : "The loaded model cannot directly analyze this image. Load a vision-capable model and its image projector. File-conversion workflows also require an uploaded attachment and a host file tool.";
+            logger.LogWarning(LogEventIds.HttpRequestRejected,
+                "/api/chat rejected: image input was supplied but vision is not ready " +
+                "(model={Model}, architecture={Architecture}, mmproj={MmProj})",
+                _svc.LoadedModelName ?? "(none)", _svc.Architecture ?? "(unknown)",
+                _svc.LoadedMmProjName ?? "(none)");
+            throw new WebUiRequestRejectedException(400, new
+            {
+                code = "vision_not_ready",
+                error,
+            });
+        }
+
+        /// <summary>
+        /// True only when one of the declared file readers is implemented by this host.
+        /// A caller tool with the same name deliberately does not count: TensorAgent
+        /// cannot stage private files and then assume an external caller will read them.
+        /// </summary>
+        internal static bool HasHostOwnedFileReader(SkillRequestPlan plan)
+        {
+            if (plan?.ToolsOffered != true || plan.ToolContext?.Workspace == null)
+                return false;
+
+            return plan.Tools.Any(tool =>
+                (string.Equals(tool?.Name, SkillToolNames.ReadFile, StringComparison.Ordinal) ||
+                 string.Equals(tool?.Name, SkillToolNames.Shell, StringComparison.Ordinal) ||
+                 (plan.ToolContext.ScriptRunner != null &&
+                  string.Equals(tool?.Name, SkillTools.RunToolName, StringComparison.Ordinal))) &&
+                !plan.ClientTools.Any(client => string.Equals(
+                    client?.Name, tool?.Name, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        /// <summary>
+        /// Downgrade visual inputs to ordinary file attachments for a text-only model,
+        /// but only after every referenced image is known to exist in the host tool's
+        /// workspace. Validation is a separate pass so a failure never half-mutates
+        /// historical messages.
+        /// </summary>
+        internal static bool TryUseImagesAsStagedFiles(
+            List<ChatMessage> messages,
+            IReadOnlyDictionary<string, string> stagedFiles)
+        {
+            if (messages == null || stagedFiles == null)
+                return false;
+
+            bool foundImage = false;
+            foreach (ChatMessage message in messages)
+            {
+                if (message?.ImagePaths == null)
+                    continue;
+
+                foreach (string imagePath in message.ImagePaths)
+                {
+                    foundImage = true;
+                    if (string.IsNullOrEmpty(imagePath) ||
+                        !stagedFiles.ContainsKey(imagePath))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            if (!foundImage)
+                return false;
+
+            foreach (ChatMessage message in messages)
+            {
+                if (message?.ImagePaths is { Count: > 0 })
+                    message.ImagePaths = null;
+            }
+            return true;
+        }
+
         /// <summary>
         /// Everything the user attached to this conversation, as files a <c>shell</c>
         /// command may open by name.
@@ -1911,6 +2168,14 @@ namespace TensorSharp.Chat
         }
 
         /// <summary>
+        /// True when an update already parsed by <see cref="SkillChatLoop"/> contains
+        /// user-visible answer text. Thinking and tool-progress-only updates do not
+        /// satisfy the empty-answer guard.
+        /// </summary>
+        internal static bool HasParsedAnswerContent(ChatStreamUpdate update) =>
+            update.IsParsed && !string.IsNullOrEmpty(update.Piece);
+
+        /// <summary>
         /// The skill lookups the disclosure loop has performed since the last call, to be
         /// streamed as their own <c>skill_step</c> frames.
         ///
@@ -1952,17 +2217,7 @@ namespace TensorSharp.Chat
                     yield return WebUiSseEvents.ToolCalls(finalParsed.ToolCalls);
             }
 
-            // A turn that was cut off before producing ANY answer is the one case
-            // where silence is actively misleading: the caller gets an empty string
-            // and a `truncated` flag it has to know to look for, and a user sees the
-            // assistant say nothing at all. It happens when a reasoning model spends
-            // the whole allowance inside its thinking channel — observed at 8000
-            // tokens and 888 seconds for an empty reply. Say what happened, in the
-            // answer itself, where it cannot be missed.
-            //
-            // The retry that precedes this is the actual remedy; this message is what
-            // is left when even that produced nothing.
-            // The other silence, and the one a user actually hits: the turn ran a skill
+            // The silence a user actually hits: the turn ran a skill
             // or a tool, streamed plenty of tokens doing it, and then ended without writing
             // an answer. tokenCount is healthy, truncated is false, and the page shows the
             // step that ran followed by nothing at all -- "I do not know what was
@@ -1975,13 +2230,12 @@ namespace TensorSharp.Chat
                     + " written after it. Ask it to summarise the result, or try again.)_");
             }
 
-            if (truncated && tokenCount == 0)
-            {
-                yield return WebUiSseEvents.Token(
-                    "_(No answer was produced: the model spent this turn's whole token budget "
-                    + "on internal reasoning before writing anything. Raise max tokens, turn "
-                    + "thinking off for this request, or ask for something narrower.)_");
-            }
+            // A turn truncated before it wrote anything used to explain itself here, in
+            // the answer, as a paragraph about token budgets and thinking channels. It
+            // read as the model's reply and it was not one -- the user asked a question
+            // and got a lecture about settings. The `done` frame already carries both
+            // `truncated` and the token count, so the page can say so in its own chrome
+            // if it ever should; the transcript is not the place for it.
 
             sw.Stop();
             double tokPerSec = tokenCount > 0 ? tokenCount / sw.Elapsed.TotalSeconds : 0;

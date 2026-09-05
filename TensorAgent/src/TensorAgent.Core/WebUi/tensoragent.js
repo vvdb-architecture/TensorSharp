@@ -15,7 +15,9 @@
   var modelBtn = $('model'), hold = $('hold'), abc = $('abc');
 
   var state = {
-    model: null, arch: null, backend: null,
+    model: null, arch: null, backend: null, contextTokens: 0, visionReady: false,
+    acceptsVisionProjector: true,
+    visionChecking: false,
     session: null, conversation: null,
     history: [],            // {role, content, attachments}
     attachments: [],        // /api/upload responses
@@ -53,11 +55,18 @@
     if (txt != null) n.textContent = txt;
     return n;
   }
+  // A non-2xx is a failure. fetch RESOLVES for 403 and 500 -- only a dropped
+  // connection rejects -- so a caller that just fires this off cannot tell a refused
+  // request from a delivered one. That is survivable for a telemetry ping and not for
+  // the menu, where the whole effect of the tap is this request arriving.
   function post(url, body) {
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body || {}),
+    }).then(function (r) {
+      if (!r.ok) throw new Error(url + ' answered HTTP ' + r.status);
+      return r;
     });
   }
   function atBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 90; }
@@ -153,6 +162,7 @@
     var preview = a.previewFile || (a.previewUrl ? uploadName(a.previewUrl) : '');
     if (preview) chip.previewFile = preview;
     if (a.frames && a.frames.length) chip.frames = a.frames.slice();
+    if (a.fileBacked === true) chip.fileBacked = true;
     if (typeof a.pageCount === 'number') chip.pageCount = a.pageCount;
     if (typeof a.extractedPageCount === 'number') chip.extractedPageCount = a.extractedPageCount;
     if (typeof a.renderedAsImages === 'boolean') chip.renderedAsImages = a.renderedAsImages;
@@ -480,6 +490,17 @@
     state.model = (d && d.loaded) || null;
     state.arch = (d && d.architecture) || null;
     state.backend = (d && d.loadedBackend) || null;
+    // loadedMmProj is retained as a compatibility fallback for an older host.
+    // visionReady is authoritative: it is true only after the loaded model has
+    // accepted a projector (or carries an integrated vision tower).
+    state.visionReady = !!(d && (
+      typeof d.visionReady === 'boolean' ? d.visionReady : d.loadedMmProj
+    ));
+    // Default conservatively for an older host: if vision is unavailable, keep the
+    // image in the composer instead of assuming a text-only model/tool workflow.
+    state.acceptsVisionProjector = !d || typeof d.acceptsVisionProjector !== 'boolean'
+      ? true : d.acceptsVisionProjector;
+    state.contextTokens = (d && d.contextTokens) || 0;
     state.maxTokens = (d && d.defaultMaxTokens) || 2048;
     paintModelButton();
   }
@@ -492,8 +513,11 @@
     if (state.model) {
       modelBtn.className = '';
       modelBtn.textContent = pretty(state.model);
-      modelBtn.appendChild(el('span', 'sub',
-        state.backend === 'ggml_metal' ? '  GPU' : state.backend === 'ggml_cpu' ? '  CPU' : ''));
+      var details = [];
+      if (state.backend === 'ggml_metal') details.push('GPU');
+      else if (state.backend === 'ggml_cpu') details.push('CPU');
+      if (state.contextTokens > 0) details.push(shortTokens(state.contextTokens) + ' context');
+      if (details.length) modelBtn.appendChild(el('span', 'sub', '  ' + details.join(' · ')));
     } else if (loadingModel()) {
       modelBtn.className = 'empty';
       modelBtn.textContent = 'Loading ' + (state.modelInfo.name || 'the model') + '…';
@@ -501,13 +525,16 @@
       modelBtn.className = 'empty';
       modelBtn.textContent = 'No model yet';
     }
-    send.disabled = !state.model && !state.generating;
+    send.disabled = state.visionChecking || (!state.model && !state.generating);
   }
   function loadingModel() {
     return !!(state.modelInfo && state.modelInfo.loading);
   }
   function pretty(file) {
     return String(file).replace(/\.gguf$/i, '').replace(/-(it|instruct)\b/i, '').replace(/[-_]/g, ' ');
+  }
+  function shortTokens(tokens) {
+    return tokens >= 1024 && tokens % 1024 === 0 ? (tokens / 1024) + 'K' : String(tokens);
   }
 
   function refreshModel() {
@@ -628,11 +655,37 @@
     });
   }
 
-  // Open the most recent conversation, so the app resumes where the user left off
-  // instead of greeting them with a blank page every launch.
-  function resumeLatest() {
+  /**
+   * Open whichever chat this page coming up should be showing.
+   *
+   * Launching the app gets a clean one. Resuming the last conversation is right for a
+   * page that is merely coming back -- WebKit kills the content process of a WebView
+   * whose view left the window, and that reload lands in an app that never stopped,
+   * sometimes with a turn still generating for the chat the user was reading -- and
+   * wrong for the app being opened, where the previous chat is one tap away in the
+   * menu and an empty composer is what was asked for. The page cannot tell those two
+   * apart from inside, so it asks the host, which is the app and therefore knows.
+   */
+  function openAtLaunch() {
     return loadConversations().then(function (list) {
-      return openConversation(list.length ? list[0].id : null);
+      return fetch('/api/agent/launch')
+        .then(function (r) { return r.json(); })
+        .catch(function () { return null; })
+        .then(function (d) {
+          // Unreachable or unreadable means start clean. Of the two ways to be wrong,
+          // an unexpected blank chat is the one the user can fix with one tap; an
+          // unexpected old chat is the thing they asked us to stop doing.
+          var cold = !d || d.cold !== false;
+          if (cold) return openConversation(null);
+          // Coming back: to the chat the host says the page was in, NOT to the newest
+          // saved one. They are usually different and the difference is the whole bug
+          // -- the empty chat a launch opens is never in the list, since a chat with no
+          // messages is not listed, so falling back to list[0] would hand the user
+          // yesterday's conversation the first time the content process was reclaimed.
+          // The id can name a chat deleted since; the host answers that with a fresh
+          // one rather than an error.
+          return openConversation(d.conversation || (list.length ? list[0].id : null));
+        });
     });
   }
 
@@ -649,11 +702,12 @@
     busy.className = on ? 'on' : '';
     send.textContent = on ? '■' : '➤';
     send.className = 'round ' + (on ? 'stop' : 'send');
-    send.disabled = !on && !state.model;
+    send.disabled = state.visionChecking || (!on && !state.model);
   }
 
   function sendMessage() {
     if (state.generating) { stop(); return; }
+    if (state.visionChecking) return;
     var t = text.value.trim();
     if (!t && !state.attachments.length) return;
     if (!state.model) {
@@ -665,11 +719,58 @@
     }
 
     var atts = state.attachments.slice();
-    addTurn('user', t, atts);
-    text.value = ''; autoGrow();
-    state.attachments = []; paintChips();
-
     var msg = messageFor(t, atts);
+    var nextHistory = state.history.concat([msg]);
+
+    // Capability can change while this long-lived WKWebView is hidden on the Models
+    // page. Re-read it immediately before every image-bearing request, while the
+    // composer is still intact. The server repeats this check authoritatively.
+    if (nextHistory.some(function (m) { return m && m.imagePaths && m.imagePaths.length; })) {
+      state.visionChecking = true;
+      send.disabled = true;
+      var conversation = state.conversation;
+      refreshModel().then(function (modelState) {
+        state.visionChecking = false;
+        paintModelButton();
+        if (state.conversation !== conversation) return;
+        if (!modelState || !state.model) {
+          noticeWithAction(
+            'The model is no longer loaded. Choose a model, then send this image again.',
+            'Open Models',
+            function () { openRoute('models'); return true; });
+          return;
+        }
+        var hostFileSkillCanDecide = !state.acceptsVisionProjector
+          && skillsOn() && state.skills.length > 0;
+        if (!state.visionReady && !hostFileSkillCanDecide) {
+          var message = state.acceptsVisionProjector
+            ? 'This model is loaded without its vision file, so it cannot see the attached image yet.'
+            : 'This model cannot see images. Choose a vision model to analyze the attachment.';
+          noticeWithAction(
+            message,
+            'Open Models',
+            function () { openRoute('models'); return true; });
+          return;
+        }
+        commitMessage(t, atts, msg);
+      });
+      return;
+    }
+
+    commitMessage(t, atts, msg);
+  }
+
+  function commitMessage(t, atts, msg) {
+    var userView = addTurn('user', t, atts);
+    // A capability refresh is asynchronous. Preserve anything newly typed or
+    // attached during that short check instead of clearing it with the sent draft.
+    if (text.value.trim() === t) text.value = '';
+    autoGrow();
+    state.attachments = state.attachments.filter(function (a) {
+      return atts.indexOf(a) < 0;
+    });
+    paintChips();
+
     state.history.push(msg);
 
     var body = {
@@ -685,7 +786,7 @@
     if (state.session) body.sessionId = state.session;
     if (skillsOn() && state.skills.length) body.skills = state.skills;
 
-    stream(body);
+    stream(body, { text: t, attachments: atts, message: msg, turn: userView.turn });
   }
 
   /**
@@ -695,10 +796,10 @@
    * differently: `imagePaths` is what the vision encoder sees (a video's frames go in
    * here too), `stillImagePaths` is the pictures the user actually attached,
    * `videoFilePaths` and `audioPaths` are the media themselves, and `textFilePaths`
-   * names the documents whose text has been inlined into the content. `attachments`
-   * is the sixth and it is the one the user sees: what the chips said, so a reopened
-   * chat says it again -- and, on the host side, which files to stage into the
-   * working directory of anything the model runs.
+   * names text documents whether their prose is inline or their table is file-backed.
+   * `attachments` is the sixth and it is the one the user sees: what the chips said,
+   * so a reopened chat says it again -- and, on the host side, which files to stage
+   * into the working directory of anything the model runs.
    */
   function messageFor(typed, atts) {
     var msg = { role: 'user', content: typed || describe(atts) };
@@ -717,6 +818,11 @@
         (a.frames || []).forEach(function (f) { imagePaths.push(f); });
       } else if (kind === 'audio') {
         audioPaths.push(a.file);
+      } else if (kind === 'text' && a.fileBacked === true) {
+        // CSV rows stay in the uploaded file. Keep the structured path and display
+        // name so the server can stage the complete table for its file/code tools;
+        // deliberately do not manufacture an inline [File: ...] envelope.
+        if (a.file) { textFilePaths.push(a.file); textFileNames.push(a.fileName || a.file); }
       } else if (a.textContent) {
         // Text and born-digital PDFs alike: the content goes in front of the
         // question, and the file is named so a program can open the whole of it.
@@ -819,10 +925,41 @@
     return true;
   }
 
-  function failed(view, e) {
+  function failed(view, e, sentDraft) {
     progressDone();
     state.abort = null;
     if (e && e.name === 'AbortError') { setGenerating(false); return; }
+    // The model can change in the narrow interval between the capability refresh and
+    // POST, and a selected skill may turn out not to own a host file reader. The
+    // server is the final authority; on its vision refusal, put the exact draft back
+    // instead of consuming an image that was never processed.
+    if (e && e.code === 'vision_not_ready' && sentDraft) {
+      state.turn = null;
+      if (view && view.turn && view.turn.parentNode) view.turn.remove();
+      if (sentDraft.turn && sentDraft.turn.parentNode) sentDraft.turn.remove();
+      var messageIndex = state.history.lastIndexOf(sentDraft.message);
+      if (messageIndex >= 0) state.history.splice(messageIndex, 1);
+
+      if (sentDraft.text) {
+        var newerText = text.value.trim();
+        text.value = newerText && newerText !== sentDraft.text
+          ? sentDraft.text + '\n' + text.value : sentDraft.text;
+      }
+      sentDraft.attachments.slice().reverse().forEach(function (attachment) {
+        var alreadyPresent = state.attachments.some(function (current) {
+          return current === attachment || (current && attachment && current.file === attachment.file);
+        });
+        if (!alreadyPresent) state.attachments.unshift(attachment);
+      });
+      autoGrow(); paintChips();
+      noticeWithAction(
+        e.message || 'The loaded model cannot process this image.',
+        'Open Models',
+        function () { openRoute('models'); return true; });
+      setGenerating(false);
+      state.liveView = null;
+      return;
+    }
     // A read that broke while a turn is still the app's is this page losing its
     // connection, not the model failing. Saying "The request failed" for that would be
     // telling the user their answer is gone while it is still being written. Take it
@@ -857,7 +994,7 @@
     return state.liveView;
   }
 
-  function stream(body) {
+  function stream(body, sentDraft) {
     state.liveView = null;
     var view = liveView();
     setGenerating(true);
@@ -877,10 +1014,10 @@
       // model rather than merely stopping us listening to it.
       state.turn = res.headers.get('X-TensorAgent-Turn') || null;
       if (!res.ok) {
-        return res.text().then(function (t) { throw new Error(reasonOf(t) || ('HTTP ' + res.status)); });
+        return res.text().then(function (t) { throw responseError(t, res.status); });
       }
       return read(res, view);
-    }).catch(function (e) { failed(view, e); });
+    }).catch(function (e) { failed(view, e, sentDraft); });
   }
 
   /**
@@ -923,6 +1060,17 @@
       if (b && typeof b.error === 'string') return b.error;
     } catch (e) {}
     return text;
+  }
+
+  /** Preserve a structured refusal code while still presenting its readable error. */
+  function responseError(text, status) {
+    var error = new Error(reasonOf(text) || ('HTTP ' + status));
+    error.status = status;
+    try {
+      var body = JSON.parse(text);
+      if (body && typeof body.code === 'string') error.code = body.code;
+    } catch (e) {}
+    return error;
   }
 
   /**
@@ -1178,13 +1326,39 @@
       // it through the shell would mean registering a native page to show it.
       var sheet = b.getAttribute('data-sheet');
       if (sheet) {
-        if (sheet === 'skills-sheet') loadSkills().then(function () { openSheet(sheet); });
-        else openSheet(sheet);
+        // Open it, THEN fill it. Waiting on /api/skills first meant a tap on Skills
+        // closed the drawer and showed nothing at all while the request was in flight
+        // -- and the loopback server shares this process with the engine, so a turn
+        // that is generating is exactly when that request is slow. A failure used to
+        // leave the sheet closed for good, with nothing said.
+        openSheet(sheet);
+        if (sheet === 'skills-sheet') {
+          loadSkills().catch(function (e) {
+            notice('Skills could not be listed: ' + ((e && e.message) || e), 'error');
+          });
+        }
         return;
       }
-      post('/api/agent/events', { type: 'open-route', route: b.getAttribute('data-route') });
+      openRoute(b.getAttribute('data-route'));
     });
   });
+
+  /**
+   * Ask the app for one of its own screens.
+   *
+   * <para>Every failure here used to look the same as a tap that never landed: the
+   * drawer had already closed, the request was fired and forgotten, and the user was
+   * looking at the chat. Saying so is most of the fix -- a menu that admits it could
+   * not open something is one the user can retry deliberately, instead of tapping
+   * again into a race.</para>
+   */
+  function openRoute(route) {
+    if (!route) return;
+    post('/api/agent/events', { type: 'open-route', route: route })
+      .catch(function (e) {
+        notice('Could not open ' + route + ': ' + ((e && e.message) || e), 'error');
+      });
+  }
 
   modelBtn.addEventListener('click', function () {
     var info = $('model-info');
@@ -1195,10 +1369,10 @@
   });
   $('open-models').addEventListener('click', function () {
     closeSheets();
-    post('/api/agent/events', { type: 'open-route', route: 'models' });
+    openRoute('models');
   });
   var cta = $('empty-cta');
-  if (cta) cta.addEventListener('click', function () { post('/api/agent/events', { type: 'open-models' }); });
+  if (cta) cta.addEventListener('click', function () { openRoute('models'); });
 
   // ---- skills --------------------------------------------------------------
   //
@@ -1558,8 +1732,67 @@
   }
 
   // ---- the bridge the native side uses ------------------------------------
+
+  /**
+   * Decode what the app sent, which always arrives base64'd. See `__fromHost`.
+   */
+  function fromBase64Utf8(b64) {
+    var binary = atob(b64), escaped = '';
+    for (var i = 0; i < binary.length; i++)
+      escaped += '%' + ('0' + binary.charCodeAt(i).toString(16)).slice(-2);
+    return decodeURIComponent(escaped);
+  }
+
+  /**
+   * What each host call does with its decoded argument.
+   *
+   * A table rather than a lookup on window.TensorAgent, so that the app can only reach
+   * the calls meant for it, and so each one can say what shape it expects.
+   */
+  var hostCalls = {
+    addAttachment: function (a) { window.TensorAgent.addAttachment(a); },
+    insertText: function (a) { window.TensorAgent.insertText(a && a.text); },
+    notice: function (a) { notice(a && a.text, (a && a.kind) || 'error'); },
+    noticeWithSettings: function (a) { window.TensorAgent.noticeWithSettings(a && a.text); },
+    openConversation: function (a) { window.TensorAgent.openConversation(a && a.id); },
+  };
+
   window.TensorAgent = {
     notice: notice,
+
+    /**
+     * The one door host data comes in through.
+     *
+     * <para>Everything the app used to send was spliced into a JavaScript SOURCE
+     * string: `window.TensorAgent.addAttachment({...json...})`, handed to
+     * EvaluateJavaScriptAsync. MAUI then wraps that in
+     * `try{JSON.stringify(eval('<script>'))}catch(e){'null'};` -- so the script becomes
+     * the contents of a single-quoted literal, and the escapes belong to the LITERAL
+     * before they ever belong to the JSON. A file with two lines carries a \n, the
+     * outer literal turns it into a real newline, and eval is handed a string that is
+     * not closed. That is a SyntaxError, MAUI's own catch turns it into the string
+     * "null", and the app throws that away: the upload succeeded, nothing attached,
+     * and nobody was told. An apostrophe in a file name did the same thing by closing
+     * the literal early.</para>
+     *
+     * <para>Base64 has no quote, no backslash and no newline in its alphabet, so it
+     * passes through that wrapper unchanged. The answer is a word rather than nothing,
+     * so the app can tell a call that arrived from one that did not.</para>
+     */
+    __fromHost: function (name, payload) {
+      try {
+        var call = Object.prototype.hasOwnProperty.call(hostCalls, name) ? hostCalls[name] : null;
+        if (!call) return 'nomethod:' + name;
+        call(JSON.parse(fromBase64Utf8(payload)));
+        return 'ok';
+      } catch (e) {
+        return 'failed:' + ((e && e.message) || e);
+      }
+    },
+
+    /** How many files are chipped under the composer. For tests and the app's own checks. */
+    attachmentCount: function () { return state.attachments.length; },
+
     addAttachment: function (a) {
       if (!a || !a.ok) { notice((a && a.error) || 'Upload failed', 'error'); return; }
       state.attachments.push(a); paintChips();
@@ -1619,6 +1852,68 @@
     nativeReady: function () { state.native = true; return true; },
   };
 
+  // ---- a file the model made -----------------------------------------------
+  //
+  // Every link to /api/code/artifacts/... -- the file card this page renders, and the
+  // markdown link the model copies into its own answer, which is a different anchor
+  // built by render() -- is caught HERE, on the document, rather than by the anchor
+  // that happens to have been created.
+  //
+  // Navigating one inside the app does nothing useful in either direction. The route
+  // serves it as an attachment (program-written content must never render in the origin
+  // that holds the launch token) and a WKWebView with no download delegate silently
+  // drops an attachment; the link also carries target="_blank", which WebKit routes to
+  // its create-web-view path rather than to the navigation delegate the app listens on.
+  // So the app is ASKED, over the transport every other native request already uses,
+  // and it opens the file in a native previewer with a share sheet behind it.
+  //
+  // Outside the app there is nothing to ask and the browser's own download is right, so
+  // this only claims the click when the page is running natively.
+  var ARTIFACT_PREFIX = '/api/code/artifacts/';
+  // Plain string work rather than `new URL`: this file also runs under a bare
+  // JavaScriptCore in the page tests, where URL is a WebKit binding that does not
+  // exist. An artifact link is either the route's own path or that path on this
+  // origin, and no third spelling reaches here.
+  function pageOrigin() {
+    var href = String(window.location.href || '');
+    var scheme = href.indexOf('://');
+    if (scheme < 0) return '';
+    var slash = href.indexOf('/', scheme + 3);
+    return slash < 0 ? href : href.slice(0, slash);
+  }
+  function artifactPath(href) {
+    var path = href;
+    if (href.charAt(0) !== '/') {
+      var origin = pageOrigin();
+      // Anything on another origin is somebody else's link and stays the browser's.
+      if (!origin || href.indexOf(origin + '/') !== 0) return null;
+      path = href.slice(origin.length);
+    }
+    if (path.indexOf(ARTIFACT_PREFIX) !== 0) return null;
+    var cut = path.search(/[?#]/);
+    return cut < 0 ? path : path.slice(0, cut);
+  }
+  function artifactHref(node) {
+    for (var n = node; n && n !== document; n = n.parentNode) {
+      if (n.tagName !== 'A') continue;
+      // Both spellings: the attribute a rendered markdown link carries, and the
+      // property the file card sets (which a browser reflects into the attribute and
+      // the page tests' DOM does not).
+      var href = (n.getAttribute && n.getAttribute('href')) || n.href;
+      if (!href) return null;
+      var path = artifactPath(String(href));
+      return path ? { url: path, name: n.textContent || '' } : null;
+    }
+    return null;
+  }
+  document.addEventListener('click', function (ev) {
+    if (!state.native || ev.defaultPrevented || ev.button) return;
+    var hit = artifactHref(ev.target);
+    if (!hit) return;
+    ev.preventDefault();
+    post('/api/agent/events', { type: 'open-file', url: hit.url, name: hit.name });
+  });
+
   // The page heals itself, without needing the app to tell it to. Opening any other
   // screen takes this WebView out of the window, and WebKit suspends a content process
   // whose view is not in one -- so the reader stops mid-answer and the page is told
@@ -1637,7 +1932,7 @@
   refreshEngine()
     .then(function () { return applySettings(true); })
     .then(refreshModel)
-    .then(resumeLatest)
+    .then(openAtLaunch)
     .then(function () { post('/api/agent/events', { type: 'ready', conversation: state.conversation }); })
     .catch(function (e) { notice('Could not start: ' + ((e && e.message) || e), 'error'); });
 })();

@@ -2552,7 +2552,9 @@ internal enum GgmlIndexReductionOp
             IntPtr pleModelProjData, int pleModelProjType,
             long pleModelProjNe0, long pleModelProjNe1, long pleModelProjBytes,
             IntPtr pleModelProjNormData,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, out IntPtr tpPlanOut,
+            IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
+            IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr);
 
 
         [LibraryImport(DllName)]
@@ -2896,7 +2898,9 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjWData, int pleProjWType,
             long pleProjWNe0, long pleProjWNe1, long pleProjWBytes,
             IntPtr pleProjNormData,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, out IntPtr tpPlanOut,
+            IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
+            IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -5738,7 +5742,9 @@ internal enum GgmlIndexReductionOp
             IntPtr pleModelProjData = default, int pleModelProjType = 0,
             long pleModelProjNe0 = 0, long pleModelProjNe1 = 0, long pleModelProjBytes = 0,
             IntPtr pleModelProjNormData = default,
-            int tpDegree = 1, IntPtr[] tpPlanOut = null)
+            int tpDegree = 1, IntPtr[] tpPlanOut = null,
+            IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
             CheckResult(TSGgml_Gemma4ModelDecode(
                 hiddenData, hiddenSize, numLayers,
@@ -5772,7 +5778,9 @@ internal enum GgmlIndexReductionOp
                 pleModelProjData, pleModelProjType,
                 pleModelProjNe0, pleModelProjNe1, pleModelProjBytes,
                 pleModelProjNormData,
-                tpDegree, out IntPtr plan), "gemma4_model_decode");
+                tpDegree, out IntPtr plan,
+                gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr), "gemma4_model_decode");
             // Tensor-parallel mode returns a plan instead of running the graph;
             // the caller collects one per rank for TensorParallelExecutePlans.
             if (tpPlanOut != null) tpPlanOut[0] = plan;
@@ -5863,7 +5871,9 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjWData = default, int pleProjWType = 0,
             long pleProjWNe0 = 0, long pleProjWNe1 = 0, long pleProjWBytes = 0,
             IntPtr pleProjNormData = default,
-            int tpDegree = 1, IntPtr[] tpPlanOut = null)
+            int tpDegree = 1, IntPtr[] tpPlanOut = null,
+            IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
             int r = TSGgml_Gemma4ModelVerify(
                 hiddenData, hiddenSize, numLayers, numTokens,
@@ -5894,7 +5904,9 @@ internal enum GgmlIndexReductionOp
                 pleProjWData, pleProjWType,
                 pleProjWNe0, pleProjWNe1, pleProjWBytes,
                 pleProjNormData,
-                tpDegree, out IntPtr plan);
+                tpDegree, out IntPtr plan,
+                gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr);
             // Tensor-parallel mode returns a plan instead of running the graph.
             if (tpPlanOut != null) tpPlanOut[0] = plan;
             return r != 0;

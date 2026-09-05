@@ -1184,7 +1184,38 @@ namespace tsg
     bool alloc_graph_moe_stream_gallocr(ggml_cgraph* graph);
     // Run Metal's backend graph optimizer before any graph allocation. Direct
     // backend graph_compute calls do not invoke this hook themselves.
+    //
+    // The shared allocators (alloc_graph_reuse_gallocr / alloc_graph_moe_stream_gallocr)
+    // call this for every graph they place, so a whole-model kernel gets it for
+    // free. Paths that allocate with ggml_backend_alloc_ctx_tensors directly (the
+    // persistent captured graphs, the small-N bump-allocated ones) still have to
+    // call it themselves, before that allocation.
     void optimize_graph_for_metal(ggml_cgraph* graph);
+
+    // Some whole-model graphs are executed as ORDERED SLICES of their node array
+    // (ggml_graph_view): the host-MoE seams stop at a node INDEX to run an
+    // offloaded expert on the CPU, the tensor-parallel driver reduces at recorded
+    // cut points, and the vendor-conv runner pulls out CONV_2D nodes one at a
+    // time. Metal's graph_optimize PERMUTES gf->nodes[], so on such a graph it
+    // would move work across a seam whose position is an index — the host would
+    // then read an activation the GPU has not produced yet, which shows up as
+    // wrong numbers rather than a failure.
+    //
+    // A builder that will slice its graph holds one of these across the
+    // allocation (and across any explicit optimize_graph_for_metal call);
+    // the optimizer then leaves that graph's order alone. Construct with the
+    // condition itself — `SuppressGraphReorder keep_order(tp_mode || !host_moe.empty());`
+    // — so the guard reads as the reason it exists.
+    struct SuppressGraphReorder
+    {
+        explicit SuppressGraphReorder(bool active);
+        ~SuppressGraphReorder();
+        SuppressGraphReorder(const SuppressGraphReorder&) = delete;
+        SuppressGraphReorder& operator=(const SuppressGraphReorder&) = delete;
+
+    private:
+        bool active_;
+    };
     // Free the cached reuse gallocr (called from TSGgml_Shutdown / backend reset).
     void free_reuse_gallocr();
     // Free the calling thread's cached prefill-attention sessions (defined in

@@ -209,6 +209,58 @@ public sealed class WebUiRoutesTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// What the page asks before it decides which chat to open.
+    ///
+    /// <para>
+    /// Launching the app should show an empty composer. A page that is merely reloading
+    /// inside an app that never stopped — WebKit kills the content process of a WebView
+    /// whose view left the window — should come back to the chat it was in, which may
+    /// still have an answer being generated for it here. Both are the same page load
+    /// seen from inside the page, so the host answers for it.
+    /// </para>
+    /// <para>
+    /// The last assertion is the one a bare "is any session bound" check gets wrong:
+    /// sessions are released as chats are closed, so a long-running app would report
+    /// itself freshly launched the moment the user closed a chat, and then throw away
+    /// the next one they opened.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task TheHostCallsItAColdLaunchOnlyUntilTheFirstChatIsOpened()
+    {
+        var recorder = new ConversationRecorder(_conversations);
+        using var server = new LoopbackServer(NullLogger.Instance) { RequireToken = false };
+        server.MapWebUi(_chat, _root, skills: null, recorder: recorder);
+        server.Start();
+        using var client = new HttpClient { BaseAddress = new Uri(server.BaseUrl) };
+
+        Assert.True(
+            (await BodyOf(await client.GetAsync("/api/agent/launch"))).GetProperty("cold").GetBoolean(),
+            "the first page load after the app started is the launch, and gets a clean chat");
+
+        JsonElement created = await BodyOf(await client.PostAsync("/api/sessions?conversation=new", null));
+        string sessionId = created.GetProperty("sessionId").GetString()!;
+        string conversationId = created.GetProperty("conversationId").GetString()!;
+
+        JsonElement warm = await BodyOf(await client.GetAsync("/api/agent/launch"));
+        Assert.False(warm.GetProperty("cold").GetBoolean(),
+            "a page reloading inside a running app must resume its chat, not start over");
+
+        // And it says WHICH chat. This one has no messages, so it is not in
+        // /api/agent/conversations at all — a page left to guess from that list would
+        // send the user to a different conversation than the one it was in.
+        Assert.Equal(conversationId, warm.GetProperty("conversation").GetString());
+        Assert.DoesNotContain(
+            new ConversationStore(_conversations.Root).List(), c => c.Id == conversationId);
+
+        await client.DeleteAsync("/api/sessions/" + sessionId);
+
+        Assert.False(
+            (await BodyOf(await client.GetAsync("/api/agent/launch"))).GetProperty("cold").GetBoolean(),
+            "closing a chat made a running app look freshly launched");
+    }
+
     [Fact]
     public async Task TheFileATurnProducedIsWrittenDownWithTheAnswerThatMentionsIt()
     {

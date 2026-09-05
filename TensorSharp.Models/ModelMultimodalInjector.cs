@@ -431,16 +431,26 @@ namespace TensorSharp.Models
         /// </summary>
         internal List<int> ProcessQwenVLHistory(Qwen35VisionEncoder encoder, List<ChatMessage> history, List<int> inputTokens)
         {
-            if (encoder == null)
-                return inputTokens;
-
             var imagePaths = GetImagePathsInPromptOrder(history);
             if (imagePaths.Count == 0)
                 return inputTokens;
 
+            // Returning the unexpanded <|image_pad|> token here makes the language
+            // model answer anyway, but it is answering about pixels it never received.
+            // Keep this invariant next to Qwen's expansion as a final line of defence
+            // even though the shared chat pipeline rejects the request first.
+            if (encoder == null)
+            {
+                throw new InvalidOperationException(
+                    "Qwen image input requires a loaded vision projector; no vision encoder is active.");
+            }
+
             int imagePadId = _model.Tokenizer.LookupToken("<|image_pad|>");
             if (imagePadId < 0)
-                return inputTokens;
+            {
+                throw new InvalidOperationException(
+                    "Qwen image input could not be expanded because the tokenizer has no <|image_pad|> token.");
+            }
 
             var processor = new Qwen35ImageProcessor(encoder.PatchSize, encoder.SpatialMergeSize);
             var cachedEmbeddings = new CachedEmbedding[imagePaths.Count];

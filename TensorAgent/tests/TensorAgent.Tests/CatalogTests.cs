@@ -43,6 +43,20 @@ public sealed class CatalogTests
         }
     }
 
+    [Fact]
+    public void Gemma4TwelveBUsesThePinnedIq2MArtifact()
+    {
+        CatalogModel model = Assert.Single(ModelCatalog.BuiltIn,
+            m => m.Family == CatalogFamily.Gemma4 && m.Parameters == "12B");
+
+        Assert.Equal("gemma-4-12b-iq2m", model.Id);
+        Assert.Equal("UD-IQ2_M", model.Quantization);
+        Assert.Equal("gemma-4-12b-it-UD-IQ2_M.gguf", model.Weights.FileName);
+        Assert.Equal(4_213_353_280, model.Weights.Bytes);
+        Assert.Equal("4bd2461d35398dbcf5f3d5f0c9ad91cac78ae35b556e3a81f315a0cc0815ae8c",
+            model.Weights.Sha256);
+    }
+
     /// <summary>
     /// What a device of a given size actually grants the app. A 12 GB iPhone gives
     /// about 8.5 GB with <c>com.apple.developer.kernel.increased-memory-limit</c>, and
@@ -137,7 +151,7 @@ public sealed class CatalogTests
     public void DeviceTiersGateTheLargeEntries()
     {
         Assert.Empty(ModelCatalog.ForDevice(8));
-        Assert.Contains(ModelCatalog.ForDevice(12), m => m.Id == "qwen3.8-27b-iq2xxs");
+        Assert.Contains(ModelCatalog.ForDevice(12), m => m.Id == "qwen3.8-27b-iq1s");
         // A 12 GB phone IS now offered the mixture-of-experts entries. It was not, on the
         // premise that Metal wires the mapped weights; measurement says otherwise (see
         // EstimatedAnonymous), and both MoE entries charge about 0.8 GB of anonymous
@@ -162,10 +176,95 @@ public sealed class CatalogTests
         Assert.Equal(tier, ModelCatalog.DeviceMemoryTier(bytes));
     }
 
+    /// <summary>
+    /// A weights file sitting loose in the models directory is swept too.
+    ///
+    /// <para>
+    /// The directory holds one sub-folder per catalog id and nothing else, so a file
+    /// directly inside it belongs to no entry by construction. It gets there when
+    /// weights are pushed onto the device by hand and land beside the per-model folders
+    /// instead of inside one — and it is worse off than an orphaned directory, because
+    /// the Models list is built from catalog entries: a stray file has no row, no size
+    /// attributed to any model, and no delete button, while being several gigabytes.
+    /// </para>
+    /// <para>
+    /// The other half is that a real model's files are NOT strays. They live one level
+    /// down, so enumerating only the top level must not reach them.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ASweepAlsoRemovesAWeightsFileLeftLooseInTheModelsDirectory()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "ta-stray-" + Guid.NewGuid().ToString("n"));
+        try
+        {
+            var store = new ModelStore(root);
+            CatalogModel offered = ModelCatalog.ForDevice(12)[0];
+
+            Directory.CreateDirectory(Path.Combine(root, offered.Id));
+            File.WriteAllBytes(Path.Combine(root, offered.Id, "weights.gguf"), new byte[4096]);
+            File.WriteAllBytes(Path.Combine(root, "gemma-4-12b-it-UD-IQ2_M.gguf"), new byte[1024]);
+            File.WriteAllBytes(Path.Combine(root, "mmproj-F16.gguf"), new byte[512]);
+
+            long freed = store.SweepOrphanedModels();
+
+            Assert.Equal(1536, freed);
+            Assert.False(File.Exists(Path.Combine(root, "gemma-4-12b-it-UD-IQ2_M.gguf")));
+            Assert.False(File.Exists(Path.Combine(root, "mmproj-F16.gguf")));
+            Assert.True(File.Exists(Path.Combine(root, offered.Id, "weights.gguf")),
+                "the sweep reached inside a model's own directory and deleted its weights");
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Weights left behind when an entry changes which file it points at.
+    ///
+    /// <para>
+    /// The id carries the quantization, so re-pointing Gemma 4 12B from UD-IQ3_XXS to
+    /// UD-IQ2_M renames its directory and orphans the old one -- 4.6 GB with no row in
+    /// the Models list and therefore no way for the user to remove it. An entry gated
+    /// to a bigger device is NOT an orphan, which is the half that would be a data-loss
+    /// bug: an iPad-only model's weights must survive a sweep run on a phone.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ASweepRemovesWeightsNoEntryClaimsAndKeepsTheOnesThatAreMerelyGatedOff()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "ta-sweep-" + Guid.NewGuid().ToString("n"));
+        try
+        {
+            var store = new ModelStore(root);
+            CatalogModel offered = ModelCatalog.ForDevice(12)[0];
+            CatalogModel gatedOff = ModelCatalog.BuiltIn.First(m => m.MinDeviceMemoryGB > 12);
+
+            foreach (string id in new[] { offered.Id, gatedOff.Id, "gemma-4-12b-iq3xxs" })
+            {
+                Directory.CreateDirectory(Path.Combine(root, id));
+                File.WriteAllBytes(Path.Combine(root, id, "weights.gguf"), new byte[2048]);
+            }
+
+            long freed = store.SweepOrphanedModels();
+
+            Assert.Equal(2048, freed);
+            Assert.True(Directory.Exists(Path.Combine(root, offered.Id)));
+            Assert.True(Directory.Exists(Path.Combine(root, gatedOff.Id)),
+                "a sweep on a phone deleted the weights of a model only an iPad is offered");
+            Assert.False(Directory.Exists(Path.Combine(root, "gemma-4-12b-iq3xxs")));
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
     [Fact]
     public void FindIsCaseInsensitive()
     {
-        Assert.NotNull(ModelCatalog.Find("GEMMA-4-E4B-Q4KXL"));
+        Assert.NotNull(ModelCatalog.Find("GEMMA-4-E4B-IQ4XS"));
         Assert.Null(ModelCatalog.Find("nope"));
     }
 }

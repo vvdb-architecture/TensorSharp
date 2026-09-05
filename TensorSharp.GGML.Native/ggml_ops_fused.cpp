@@ -1885,7 +1885,7 @@ int fused_gemma4_vision_block_f32_impl(
     ggml_tensor* act = ggml_mul(ctx, ggml_gelu_quick(ctx, g), u);
     ggml_tensor* dn = clampt(ggml_mul_mat(ctx, down_w_t, clampt(act, clamps[24], clamps[25])), clamps[26], clamps[27]);
     ggml_tensor* postF = ggml_mul(ctx, ggml_rms_norm(ctx, dn, eps), fpn_t);
-    ggml_tensor* outv = ggml_add(ctx, r1, postF);
+    ggml_tensor* outv = ggml_add(ctx, postF, r1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
     ggml_tensor* output = ggml_cpy(ctx, outv, hidden_binding.tensor);
     if (!output)

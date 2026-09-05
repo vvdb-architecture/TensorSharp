@@ -85,8 +85,25 @@ public sealed class InProcessShellTests : IDisposable
         Assert.Contains("no system package manager", stderr, StringComparison.Ordinal);
         Assert.Contains("no native program can be installed", stderr, StringComparison.Ordinal);
         // ...and the half that DOES work, which is the whole point of saying anything.
+        Assert.Contains("pure-Python", stderr, StringComparison.Ordinal);
+        Assert.Contains("none-any", stderr, StringComparison.Ordinal);
+        Assert.Contains("pip install", stderr, StringComparison.Ordinal);
         Assert.Contains("python3 -m pip install", stderr, StringComparison.Ordinal);
-        Assert.Contains("npm install", stderr, StringComparison.Ordinal);
+        Assert.Contains("Dependencies are not resolved automatically", stderr, StringComparison.Ordinal);
+        Assert.Contains("npm/JavaScript packages cannot be installed", stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("`npm install", stderr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AMissingNpmDoesNotPromiseThatJavaScriptPackagesCanBeInstalled()
+    {
+        string stderr = Run("npm install left-pad").Stderr;
+
+        Assert.Contains("npm: command not found", stderr, StringComparison.Ordinal);
+        Assert.Contains("npm/JavaScript packages cannot be installed", stderr, StringComparison.Ordinal);
+        Assert.Contains("Node's built-in modules", stderr, StringComparison.Ordinal);
+        Assert.Contains("pure-Python", stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("npm install <name>", stderr, StringComparison.Ordinal);
     }
 
     [Fact]

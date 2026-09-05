@@ -55,6 +55,50 @@ public static class EngineMemoryPolicy
     public const string KvCacheDtypeVariable = "KV_CACHE_DTYPE";
 
     /// <summary>
+    /// The K/V cache precisions the Settings screen offers, widest first.
+    ///
+    /// <para>
+    /// The spellings are the engine's own (<c>KvCacheDtypeConfig.TryParse</c>), so what
+    /// is stored in the settings file is what the environment variable carries and what
+    /// the catalog entries are written in — one vocabulary, not three that have to be
+    /// translated between.
+    /// </para>
+    /// </summary>
+    public static readonly string[] KvCacheDtypes = { "f16", "q8_0", "q4_0" };
+
+    /// <summary>
+    /// The cache precision this load should ask for.
+    ///
+    /// <para>
+    /// The user's setting wins, because it is the one the user can see. The catalog
+    /// entry is the fallback for a settings file written before the setting existed, or
+    /// carrying a value this build does not know — an unrecognised string must not
+    /// reach the engine, where an unparseable value is silently ignored and leaves
+    /// whatever the PREVIOUS model set still in force.
+    /// </para>
+    /// <para>
+    /// Asking is all this does. A family that cannot read a block-quantized cache
+    /// refuses it during model construction and substitutes f16
+    /// (<c>ModelBase.RefuseUnsupportedBlockQuantizedKvCache</c>), which is why a global
+    /// q4_0 is safe to default to even though half this catalog is Gemma 4.
+    /// </para>
+    /// </summary>
+    public static string ResolveKvCacheDtype(CatalogModel model, AppSettings? settings)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        string? chosen = settings?.KvCacheDtype?.Trim();
+        if (!string.IsNullOrEmpty(chosen))
+        {
+            foreach (string known in KvCacheDtypes)
+            {
+                if (string.Equals(known, chosen, StringComparison.OrdinalIgnoreCase))
+                    return known;
+            }
+        }
+        return model.KvCacheDtype;
+    }
+
+    /// <summary>
     /// Apply <paramref name="model"/>'s budget for the load that is about to happen.
     /// Returns the context length handed to the engine, or 0 when the entry does not
     /// state one (the diffusion entries, which hold no KV cache) and the GGUF's own
@@ -75,9 +119,10 @@ public static class EngineMemoryPolicy
         else
             Environment.SetEnvironmentVariable(MaxContextVariable, null);
 
+        string dtype = ResolveKvCacheDtype(model, settings);
         Environment.SetEnvironmentVariable(
             KvCacheDtypeVariable,
-            string.IsNullOrWhiteSpace(model.KvCacheDtype) ? null : model.KvCacheDtype);
+            string.IsNullOrWhiteSpace(dtype) ? null : dtype);
 
         // Managed-to-managed, and read when the model is constructed, which is after
         // this. The static config is what the model layer consults for the cache dtype;
@@ -86,7 +131,10 @@ public static class EngineMemoryPolicy
 
         Console.WriteLine(
             $"TensorAgent: engine budget for {model.Id} -- context {(context > 0 ? context.ToString() : "from GGUF")}, " +
-            $"KV cache {model.KvCacheDtype ?? "auto"}");
+            $"KV cache {(string.IsNullOrWhiteSpace(dtype) ? "auto" : dtype)}"
+            + (string.Equals(dtype, model.KvCacheDtype, StringComparison.OrdinalIgnoreCase)
+                ? string.Empty
+                : $" (setting; this entry asks for {model.KvCacheDtype})"));
 
         return context;
     }

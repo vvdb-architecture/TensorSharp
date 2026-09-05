@@ -279,6 +279,19 @@ public abstract class LoopbackResponse
 /// names verbatim). The Web UI keys on those property names.</summary>
 public static class SseFraming
 {
+    /// <summary>
+    /// How every JSON body and every stream frame is written.
+    ///
+    /// <para>
+    /// Nulls are WRITTEN, deliberately: this has to stay byte-identical to
+    /// TensorSharp.Server's SSE writer, because the same Web UI page reads both and
+    /// LoopbackServerTests pins the parity. Omitting them here looked like the tidy fix
+    /// for a saved conversation's <c>"imagePaths": null</c> coming back into the page's
+    /// history and stopping the next request in the parser -- but the parser is where
+    /// that belongs (ChatMessageParser.StringList), and it is fixed there. A body a page
+    /// sends must not be able to depend on what a route chose to omit.
+    /// </para>
+    /// </summary>
     public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.General);
     private static readonly byte[] Prefix = "data: "u8.ToArray();
     private static readonly byte[] Suffix = "\n\n"u8.ToArray();

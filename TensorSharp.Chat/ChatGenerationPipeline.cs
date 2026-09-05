@@ -321,6 +321,19 @@ namespace TensorSharp.Server
             bool hasMultimodal = RequiresMultimodalPreparation(renderHistory);
             if (hasMultimodal)
             {
+                // Projectors are optional at the hosting layer so a multimodal model
+                // can legitimately be loaded for text alone. An image request is not
+                // legitimate in that state: sending the placeholder through ordinary
+                // text inference produces a confident answer about pixels the model
+                // never received. WebUiChatService rejects this before streaming;
+                // this invariant protects every other caller of the shared pipeline.
+                if (HasImageAttachments(renderHistory) && !model.HasVisionEncoder())
+                {
+                    throw new InvalidOperationException(
+                        "Image input cannot be processed because the loaded model has no active vision encoder. " +
+                        "Load the matching image projector and retry.");
+                }
+
                 // Multimodal prompt preparation drives the vision/audio
                 // encoder, which runs many GGML ops on the backend. Take
                 // the model-wide GPU compute lock so we don't race the
@@ -898,12 +911,23 @@ namespace TensorSharp.Server
                 return;
             }
 
+            if (promptTokens >= modelContextLimit)
+            {
+                throw new PromptContextOverflowException(
+                    $"The complete attached document makes this prompt require {promptTokens} tokens, " +
+                    $"which exceeds the effective model/engine context limit of {modelContextLimit} tokens. No " +
+                    "document content was truncated. The maxTokens/reply-length setting controls only " +
+                    "generated output and cannot enlarge the context window. For a large CSV or table, " +
+                    "enable code execution so the agent can analyze the complete file with tools; for " +
+                    "other documents, attach a shorter document or configure a larger effective context limit.");
+            }
+
             throw new PromptContextOverflowException(
                 $"The prompt containing the complete attached document requires {promptTokens} prompt " +
                 $"tokens plus a {maxTokens}-token generation reserve, but the current model/engine " +
                 $"configuration allows {modelContextLimit} context tokens. No document content was " +
-                "truncated. Reduce maxTokens, attach a shorter document, increase the scheduler KV " +
-                "block pool, or use a model with a larger context window.");
+                "truncated. Reduce the reply length, attach a shorter document, or use a model configured " +
+                "for more context.");
         }
 
         internal static bool HasTextFileAttachments(List<ChatMessage> history)
@@ -941,6 +965,17 @@ namespace TensorSharp.Server
                 if (m == null) continue;
                 if (m.ImagePaths != null && m.ImagePaths.Count > 0) return true;
                 if (m.AudioPaths != null && m.AudioPaths.Count > 0) return true;
+            }
+            return false;
+        }
+
+        internal static bool HasImageAttachments(List<ChatMessage> history)
+        {
+            if (history == null) return false;
+            foreach (ChatMessage message in history)
+            {
+                if (message?.ImagePaths is { Count: > 0 })
+                    return true;
             }
             return false;
         }

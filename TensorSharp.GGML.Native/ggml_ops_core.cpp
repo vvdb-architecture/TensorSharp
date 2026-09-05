@@ -1703,6 +1703,9 @@ namespace tsg
         if (s_disabled || g_backend == nullptr || graph == nullptr || slots == nullptr)
             return false;
 
+        // Deliberately does NOT reorder for Metal here, even though this is the one
+        // place that would cover every whole-model kernel at once. It measured
+        // slower on Gemma 4; see optimize_graph_for_metal below for the numbers.
         ReuseGallocrSlot& slot = slots[::tsg::g_active_rank];
         std::lock_guard<std::mutex> lock(slot.mutex);
         if (slot.backend != g_backend)
@@ -1758,9 +1761,52 @@ namespace tsg
         return true;
     }
 
+    // Depth rather than a bool: a builder can hold the guard across a nested
+    // allocation (the MoE-offload streaming graph is built inside one).
+    static thread_local int g_graph_reorder_suppress_depth = 0;
+
+    SuppressGraphReorder::SuppressGraphReorder(bool active)
+        : active_(active)
+    {
+        if (active_)
+            ++g_graph_reorder_suppress_depth;
+    }
+
+    SuppressGraphReorder::~SuppressGraphReorder()
+    {
+        if (active_)
+            --g_graph_reorder_suppress_depth;
+    }
+
+    // Kept an explicit per-kernel call rather than folded into the shared allocator,
+    // because the reorder is a per-architecture trade rather than a free win. Wiring
+    // it in for everyone does raise concurrency exactly as advertised — gemma-4-E4B
+    // pp512 went from 44 of 1061 nodes encoded concurrently to 127, past llama.cpp's
+    // 120 — and still measured SLOWER, reproducibly, with the A/B order alternated so
+    // thermal drift could not fake it:
+    //
+    //   gemma-4-E4B  pp512  2281 -> 2254 t/s   tg128  46.0 -> 44.8 tok/s
+    //   Qwen3.5-9B   pp512  1280 -> 1305 t/s   tg128  31.4 -> 31.8 tok/s
+    //   Qwen3.6-A3B  pp512  1740 -> 1802 t/s   tg128  77.5 -> 83.9 tok/s
+    //
+    // Removing barriers is not free: the reordered schedule interleaves ops that were
+    // adjacent, widening the live set the caches have to hold. So each kernel opts in
+    // where it measures faster, instead of Gemma 4 paying to buy Qwen3.6 its 8%.
     void optimize_graph_for_metal(ggml_cgraph* graph)
     {
 #if defined(TSG_GGML_USE_METAL)
+        // A/B escape hatch. TS_METAL_GRAPH_OPTIMIZE=0 restores the unreordered order
+        // for isolating a regression to it.
+        static const bool s_enabled = []() {
+            const char* e = std::getenv("TS_METAL_GRAPH_OPTIMIZE");
+            return !(e != nullptr && e[0] == '0');
+        }();
+        if (!s_enabled)
+            return;
+
+        // This graph will be executed as ordered slices; see SuppressGraphReorder.
+        if (g_graph_reorder_suppress_depth > 0)
+            return;
         // Direct tsg::compute_graph() calls do not run the backend
         // optimizer. Match ggml's scheduler path for Metal, where this hook
         // reorders alias-aware nodes and applies supported graph fusions.

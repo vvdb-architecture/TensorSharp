@@ -198,6 +198,7 @@ namespace TensorSharp.AgentHost.Skills
 
         private readonly HashSet<string> _installedPackages = new(StringComparer.OrdinalIgnoreCase);
         private readonly object _gate = new();
+        private readonly object _executionGate = new();
         private int _activeOperations;
         private bool _releaseRequested;
         private Action? _releaseWhenIdle;
@@ -312,6 +313,37 @@ namespace TensorSharp.AgentHost.Skills
                 _activeOperations++;
             }
             return new WorkspaceOperation(this);
+        }
+
+        /// <summary>
+        /// Serialize synchronous tools that touch this session's files or package
+        /// environment. A replacement chat turn can begin while the cancelled turn's
+        /// synchronous tool is still unwinding; without this gate it can import a wheel
+        /// while the first turn is only halfway through extracting it.
+        /// </summary>
+        /// <remarks>
+        /// Monitor ownership is deliberately re-entrant. A skill script holds the lease
+        /// while it runs and may synchronously call back into the same code runner to
+        /// install a missing dependency on that same thread.
+        /// </remarks>
+        internal IDisposable EnterExecution()
+        {
+            Monitor.Enter(_executionGate);
+            return new ExecutionLease(_executionGate);
+        }
+
+        private sealed class ExecutionLease : IDisposable
+        {
+            private object? _gate;
+
+            public ExecutionLease(object gate) => _gate = gate;
+
+            public void Dispose()
+            {
+                object? gate = Interlocked.Exchange(ref _gate, null);
+                if (gate != null)
+                    Monitor.Exit(gate);
+            }
         }
 
         private void EndOperation()

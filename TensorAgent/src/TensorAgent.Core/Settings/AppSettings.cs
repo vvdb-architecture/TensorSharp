@@ -47,6 +47,26 @@ public sealed class AppSettings
     /// <summary>Override of the catalog entry's context length (0 = catalog default).</summary>
     [JsonPropertyName("contextLength")] public int ContextLength { get; set; }
 
+    /// <summary>
+    /// How precisely the K/V cache is stored: <c>f16</c>, <c>q8_0</c> or <c>q4_0</c>.
+    ///
+    /// <para>
+    /// The cache, not the weights. On a phone it is often the larger half of what a
+    /// loaded model costs -- a 32k window is gigabytes, and on Metal every token is
+    /// charged twice (see <see cref="Hosting.EngineMemoryPolicy"/>) -- so dropping it
+    /// from 16 to 4 bits per value buys back more memory than any weight choice left
+    /// on the table. q4_0 by default because that is the trade a phone should make.
+    /// </para>
+    /// <para>
+    /// A REQUEST, not a guarantee. Architectures whose attention cannot read a
+    /// block-quantized cache refuse it at load and use f16 instead -- Gemma 4, whose
+    /// sliding-window layers keep a circular cache with float-only helpers, and
+    /// GPT-OSS -- so on those this setting changes nothing and is not allowed to.
+    /// Read at model construction, so a change applies to the next model that loads.
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("kvCacheDtype")] public string KvCacheDtype { get; set; } = "q4_0";
+
     /// <summary>Skills selected by default for new chats.</summary>
     [JsonPropertyName("defaultSkills")] public List<string> DefaultSkills { get; set; } = new();
 

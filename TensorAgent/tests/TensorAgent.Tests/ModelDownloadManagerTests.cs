@@ -226,6 +226,57 @@ public sealed class ModelDownloadManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task AProjectorOnlyFailureResumesTheProjectorWhenGlobalOptionalsAreOff()
+    {
+        byte[] weights = Body(128 * 1024);
+        byte[] projector = Body(512 * 1024);
+        using var weightsServer = new RangeServer(weights);
+        using var projectorServer = new RangeServer(projector);
+        string storeRoot = Path.Combine(_root, "projector-resume");
+        var store = new ModelStore(storeRoot, new ResumableDownloader(maxAttempts: 1));
+        using var downloads = new ModelDownloadManager(store, NullLogger.Instance);
+
+        CatalogModel textEntry = Entry("vision", weightsServer);
+        CatalogFile projectorFile = new(
+            CatalogFileRole.Projector, "mmproj.gguf", "http://127.0.0.1:1/mmproj.gguf",
+            projector.Length, Convert.ToHexStringLower(SHA256.HashData(projector)), Optional: true);
+        CatalogModel broken = textEntry with
+        {
+            Files = new[] { textEntry.Weights, projectorFile },
+            Modalities = CatalogModalities.Image,
+        };
+
+        // The required weights are already usable. This is the state in which the
+        // Models page exposes Add vision even though Download optional files is off.
+        Directory.CreateDirectory(store.DirectoryFor(broken));
+        await File.WriteAllBytesAsync(store.PathFor(broken, broken.Weights), weights);
+
+        downloads.Start(broken, new[] { CatalogFileRole.Projector });
+        ModelDownloadStatus failed = await WaitForEnd(downloads, broken.Id);
+        Assert.Equal(DownloadState.Failed, failed.State);
+        Assert.True(failed.RequestsOnly(CatalogFileRole.Projector));
+
+        CatalogModel reachable = broken with
+        {
+            Files = new[] { broken.Weights, projectorFile with { Url = projectorServer.Url } },
+        };
+
+        // No optional-role argument is supplied here: foreground resume must remember
+        // the explicit Add vision request, rather than re-reading the global setting
+        // and completing immediately after noticing that the weights already exist.
+        Assert.Equal(new[] { broken.Id }, downloads.ResumeInterrupted(
+            id => string.Equals(id, broken.Id, StringComparison.Ordinal) ? reachable : null));
+
+        ModelDownloadStatus finished = await WaitForEnd(downloads, broken.Id);
+        Assert.Equal(DownloadState.Completed, finished.State);
+        Assert.True(finished.RequestsOnly(CatalogFileRole.Projector));
+        Assert.Equal(projector,
+            await File.ReadAllBytesAsync(store.PathFor(reachable, reachable.Projector!)));
+        Assert.Equal(0, weightsServer.Requests);
+        Assert.Equal(1, projectorServer.Requests);
+    }
+
+    [Fact]
     public async Task TheBusySignalRisesOnTheFirstTransferAndFallsOnTheLast()
     {
         byte[] body = Body(1024 * 1024);

@@ -161,6 +161,12 @@ namespace TensorSharp.AgentHost.Skills
         bool CanInstallPackages => false;
 
         /// <summary>
+        /// Whether packages for <paramref name="language"/> can be installed. Hosts that
+        /// support every language may rely on the aggregate default.
+        /// </summary>
+        bool CanInstallPackagesFor(string language) => CanInstallPackages;
+
+        /// <summary>
         /// Install <paramref name="packages"/> into <paramref name="workspace"/>'s
         /// environment, under the same rules every host-built install obeys (wheels
         /// only, confined, allow-list honored). Exists so a skill SCRIPT's missing

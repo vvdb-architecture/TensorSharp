@@ -37,6 +37,9 @@ public sealed class ModelsPage : ContentPage
     /// <summary>The running app, so the debug reproduction hook can drive the same path a tap does.</summary>
     internal AgentAppHost Host => _app;
     private readonly ObservableCollection<ModelRow> _rows = new();
+    // A normal Download tap means "use this when it finishes" only while the user
+    // remains on this page and has not chosen another model in the meantime.
+    private string? _pendingAutoSelectId;
 
     /// <summary>
     /// True only while this page is on screen.
@@ -95,20 +98,31 @@ public sealed class ModelsPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        _visible = true;
-        // Re-attached rather than re-started: the transfer has been running the whole
-        // time this page was gone, and the rows have to pick up where it is now.
-        // Detached first, because Shell can appear a cached page again without having
-        // disappeared it, and a handler added twice repaints every row twice.
+        // Subscribe before taking the snapshot. Otherwise a transfer can complete
+        // after Refresh sees Running and before the handler is attached, leaving the
+        // reconstructed row stuck forever in that stale state.
         _app.Downloads.Changed -= OnDownloadChanged;
         _app.Downloads.Changed += OnDownloadChanged;
-        Refresh();
+        try
+        {
+            Refresh();
+            _visible = true;
+        }
+        catch (Exception ex)
+        {
+            _app.Downloads.Changed -= OnDownloadChanged;
+            // A page that cannot list the models is still a page the user reached. Left
+            // to propagate, this cancels the push and drops them back on the chat with
+            // nothing said -- indistinguishable from the menu not working.
+            Console.WriteLine("TensorAgent: the models list failed to appear: " + ex);
+        }
     }
 
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         _visible = false;
+        _pendingAutoSelectId = null;
         _app.Downloads.Changed -= OnDownloadChanged;
     }
 
@@ -135,15 +149,28 @@ public sealed class ModelsPage : ContentPage
                     row.Report(status.Progress);
                     return;
                 case DownloadState.Completed:
+                    bool visionOnly = status.RequestsOnly(CatalogFileRole.Projector);
+                    bool selectedNow = string.Equals(
+                        _app.Settings.Load().SelectedModelId, row.Model.Id, StringComparison.Ordinal);
+                    bool autoSelect = !visionOnly && string.Equals(
+                        _pendingAutoSelectId, row.Model.Id, StringComparison.Ordinal);
+                    if (autoSelect)
+                        _pendingAutoSelectId = null;
                     row.Finish(_app.Models);
-                    if (_visible)
+                    if (_visible && (autoSelect || (visionOnly && selectedNow)))
                         Select(row);
+                    else if (_visible && visionOnly && row.IsSelected != selectedNow)
+                        Refresh();
                     return;
                 case DownloadState.Cancelled:
+                    if (string.Equals(_pendingAutoSelectId, row.Model.Id, StringComparison.Ordinal))
+                        _pendingAutoSelectId = null;
                     row.Cancelled(_app.Models);
                     return;
                 default:
-                    row.Failed(status.Error ?? "the download failed");
+                    if (string.Equals(_pendingAutoSelectId, row.Model.Id, StringComparison.Ordinal))
+                        _pendingAutoSelectId = null;
+                    row.Failed(_app.Models, status.Error ?? "the download failed");
                     return;
             }
         });
@@ -164,6 +191,8 @@ public sealed class ModelsPage : ContentPage
     private void Refresh()
     {
         string? selected = _app.Settings.Load().SelectedModelId;
+        string? loadedModel = _app.ModelService.LoadedModelName;
+        bool visionReady = _app.ModelService.Model?.HasVisionEncoder() ?? false;
         int deviceGB = _app.Paths.DeviceMemoryGB;
         _rows.Clear();
         foreach (CatalogModel model in ModelCatalog.BuiltIn
@@ -171,7 +200,9 @@ public sealed class ModelsPage : ContentPage
                      .ThenBy(m => m.MinDeviceMemoryGB)
                      .ThenBy(m => m.TotalBytes))
         {
-            _rows.Add(new ModelRow(model, _app.Models, selected, deviceGB, _app.Downloads.StatusOf(model.Id)));
+            _rows.Add(new ModelRow(
+                model, _app.Models, selected, deviceGB, _app.Downloads.StatusOf(model.Id),
+                loadedModel, visionReady));
         }
     }
 
@@ -203,6 +234,18 @@ public sealed class ModelsPage : ContentPage
         action.SetBinding(Button.BackgroundColorProperty, nameof(ModelRow.ActionColor));
         action.Clicked += (s, _) => OnAction(((Button)s!).BindingContext as ModelRow);
 
+        var addVision = new Button
+        {
+            Text = "Add vision",
+            FontSize = 14,
+            Padding = new Thickness(14, 6),
+            BackgroundColor = Theme.Accent,
+            TextColor = Colors.White,
+            CornerRadius = 8,
+        };
+        addVision.SetBinding(IsVisibleProperty, nameof(ModelRow.CanAddVision));
+        addVision.Clicked += (s, _) => OnVisionAction(((Button)s!).BindingContext as ModelRow);
+
         var remove = new Button
         {
             Text = "Delete",
@@ -215,7 +258,7 @@ public sealed class ModelsPage : ContentPage
         remove.SetBinding(IsVisibleProperty, nameof(ModelRow.CanDelete));
         remove.Clicked += (s, _) => OnDelete(((Button)s!).BindingContext as ModelRow);
 
-        var buttons = new HorizontalStackLayout { Spacing = 8, Children = { action, remove } };
+        var buttons = new HorizontalStackLayout { Spacing = 8, Children = { action, addVision, remove } };
 
         return new Border
         {
@@ -264,6 +307,32 @@ public sealed class ModelsPage : ContentPage
     }
 
     /// <summary>
+    /// Fetch only the optional projector. The ordinary action remains available for
+    /// text-only use, so the global optional-download switch still means what it says;
+    /// this second button is explicit consent to add the model's image capability.
+    /// </summary>
+    private async void OnVisionAction(ModelRow? row)
+    {
+        if (row is null || !row.NeedsVisionProjector)
+            return;
+
+        AppSettings settings = _app.Settings.Load();
+        if (!settings.AllowCellularDownloads && Platforms.iOS.DeviceState.IsOnCellularOnly())
+        {
+            await DisplayAlert(
+                "Waiting for Wi-Fi",
+                $"The vision file for {row.Model.DisplayName} has "
+                + $"{row.VisionBytesRemaining / 1e9:0.0} GB left to download. "
+                + "Turn on \u201CDownload over cellular\u201D in Settings to download it anyway.",
+                "OK");
+            return;
+        }
+
+        row.BeginVisionDownload();
+        _app.Downloads.Start(row.Model, new[] { CatalogFileRole.Projector });
+    }
+
+    /// <summary>
     /// Use this model now, and go back to the chat.
     ///
     /// <para>
@@ -282,17 +351,26 @@ public sealed class ModelsPage : ContentPage
     /// </summary>
     private async void Select(ModelRow row)
     {
+        // Choosing any model supersedes a promise to auto-select a different download
+        // that happens to finish while this load is in flight.
+        _pendingAutoSelectId = null;
         row.BeginLoading();
         try
         {
             string backend = await Task.Run(() => _app.UseModel(row.Model));
             Refresh();
-            await AppShell.BackToChatAsync();
+            // Only if this is still the screen the user is looking at. Loading takes
+            // twenty seconds and nobody is made to wait here for it: they can go back to
+            // the chat, open the drawer and pick another screen while it runs. Popping
+            // unconditionally when the load lands takes that screen away again, and from
+            // the user's side it looks exactly like a menu item that did nothing.
+            if (AppShell.IsOnTop(this))
+                await AppShell.BackToChatAsync();
             Console.WriteLine($"TensorAgent: now using {row.Model.Id} on {backend}");
         }
         catch (Exception ex)
         {
-            row.Failed(ex.Message);
+            row.Failed(_app.Models, ex.Message);
             await DisplayAlert("Could not use this model", ex.Message, "OK");
             Refresh();
         }
@@ -312,6 +390,7 @@ public sealed class ModelsPage : ContentPage
     /// </summary>
     private void Download(ModelRow row)
     {
+        _pendingAutoSelectId = row.Model.Id;
         row.BeginDownload();
         _app.Downloads.Start(
             row.Model,
@@ -349,15 +428,25 @@ public sealed class ModelRow : BindableObject
     /// </param>
     public ModelRow(
         CatalogModel model, ModelStore store, string? selectedId, int deviceMemoryGB,
-        ModelDownloadStatus? download = null)
+        ModelDownloadStatus? download = null, string? loadedModelName = null,
+        bool loadedVisionReady = false)
     {
         Model = model;
         Runnable = model.MinDeviceMemoryGB <= deviceMemoryGB;
         DeviceMemoryGB = deviceMemoryGB;
-        IsInstalled = store.StateOf(model) == InstallState.Installed;
+        RefreshInstallState(store);
         IsSelected = string.Equals(model.Id, selectedId, StringComparison.Ordinal);
+        VisionActivationRequired = IsSelected
+            && IsInstalled
+            && model.Modalities.HasFlag(CatalogModalities.Image)
+            && store.CompanionPath(model, CatalogFileRole.Projector) is not null
+            && string.Equals(model.Weights.FileName, loadedModelName, StringComparison.OrdinalIgnoreCase)
+            && !loadedVisionReady;
         _status = DescribeState(store);
-        _actionLabel = !Runnable ? "Too big" : IsInstalled ? (IsSelected ? "Selected" : "Use") : "Download";
+        _actionLabel = !Runnable ? "Too big"
+            : VisionActivationRequired ? "Enable vision"
+            : IsInstalled ? (IsSelected ? "Selected" : "Use")
+            : "Download";
 
         if (download is { IsRunning: true } running)
         {
@@ -366,7 +455,7 @@ public sealed class ModelRow : BindableObject
         }
         else if (download is { State: DownloadState.Failed } failed)
         {
-            Failed(failed.Error ?? "the download failed");
+            Failed(store, failed.Error ?? "the download failed");
         }
         else if (download is { State: DownloadState.Cancelled } && !IsInstalled)
         {
@@ -382,6 +471,12 @@ public sealed class ModelRow : BindableObject
     public int DeviceMemoryGB { get; }
     public bool IsInstalled { get; private set; }
     public bool IsSelected { get; }
+    /// <summary>Weights can answer text, but this advertised image model lacks its optional projector.</summary>
+    public bool NeedsVisionProjector { get; private set; }
+    /// <summary>Bytes left in the projector download, accounting for a resumable .part.</summary>
+    public long VisionBytesRemaining { get; private set; }
+    /// <summary>The projector arrived after this selected model was loaded text-only.</summary>
+    public bool VisionActivationRequired { get; }
 
     public string Title => Model.DisplayName + (IsSelected ? "  ·  in use" : string.Empty);
 
@@ -417,15 +512,23 @@ public sealed class ModelRow : BindableObject
 
     public string Status { get => _status; private set { _status = value; OnPropertyChanged(); } }
     public double Fraction { get => _fraction; private set { _fraction = value; OnPropertyChanged(); } }
-    public bool IsBusy { get => _busy; private set { _busy = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanDelete)); } }
+    public bool IsBusy { get => _busy; private set { _busy = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanDelete)); OnPropertyChanged(nameof(CanAddVision)); } }
     public string ActionLabel { get => _actionLabel; private set { _actionLabel = value; OnPropertyChanged(); } }
     public bool CanDelete => IsInstalled && !IsBusy;
+    public bool CanAddVision => Runnable && NeedsVisionProjector && !IsBusy;
 
     public void BeginDownload()
     {
         IsBusy = true;
         ActionLabel = "Stop";
         Status = "Starting…";
+    }
+
+    public void BeginVisionDownload()
+    {
+        IsBusy = true;
+        ActionLabel = "Stop";
+        Status = "Starting the vision download…";
     }
 
     /// <summary>Loading the weights, which is seconds rather than instant.</summary>
@@ -447,25 +550,34 @@ public sealed class ModelRow : BindableObject
     public void Finish(ModelStore store)
     {
         IsBusy = false;
-        IsInstalled = true;
+        RefreshInstallState(store);
         Fraction = 1;
-        ActionLabel = "Use";
+        ActionLabel = IsSelected ? "Selected" : "Use";
         Status = DescribeState(store);
         OnPropertyChanged(nameof(CanDelete));
+        OnPropertyChanged(nameof(CanAddVision));
     }
 
     public void Cancelled(ModelStore store)
     {
         IsBusy = false;
-        ActionLabel = "Resume";
+        RefreshInstallState(store);
+        ActionLabel = IsInstalled
+            ? (VisionActivationRequired ? "Enable vision" : IsSelected ? "Selected" : "Use")
+            : "Resume";
         Status = "Stopped. " + DescribeState(store);
+        OnPropertyChanged(nameof(CanAddVision));
     }
 
-    public void Failed(string message)
+    public void Failed(ModelStore store, string message)
     {
         IsBusy = false;
-        ActionLabel = "Retry";
+        RefreshInstallState(store);
+        ActionLabel = IsInstalled
+            ? (VisionActivationRequired ? "Enable vision" : IsSelected ? "Selected" : "Use")
+            : "Retry";
         Status = message;
+        OnPropertyChanged(nameof(CanAddVision));
     }
 
     private string DescribeState(ModelStore store)
@@ -477,12 +589,40 @@ public sealed class ModelRow : BindableObject
             return $"Needs a {Model.MinDeviceMemoryGB} GB device · this one has {DeviceMemoryGB} GB";
         }
 
+        if (NeedsVisionProjector)
+        {
+            return $"Text ready · vision file not downloaded · {Gb(VisionBytesRemaining)} GB to add · {Model.License}";
+        }
+
+        if (VisionActivationRequired)
+        {
+            return $"Vision downloaded · tap Enable vision to load it · {Model.License}";
+        }
+
         return store.StateOf(Model) switch
         {
             InstallState.Installed => $"On this device · {Gb(store.InstalledBytes(Model))} GB · {Model.License}",
             InstallState.Partial => $"Partly downloaded · {Gb(store.RemainingBytes(Model))} GB still to fetch",
             _ => $"Not downloaded · {Gb(Model.TotalBytes)} GB · {Model.License}",
         };
+    }
+
+    private void RefreshInstallState(ModelStore store)
+    {
+        IsInstalled = store.StateOf(Model) == InstallState.Installed;
+        CatalogFile? projector = Model.Projector;
+        NeedsVisionProjector = IsInstalled
+            && projector is { Optional: true }
+            && Model.Modalities.HasFlag(CatalogModalities.Image)
+            && store.CompanionPath(Model, CatalogFileRole.Projector) is null;
+
+        VisionBytesRemaining = 0;
+        if (!NeedsVisionProjector || projector is null)
+            return;
+
+        string part = ResumableDownloader.PartPath(store.PathFor(Model, projector));
+        long have = File.Exists(part) ? Math.Min(new FileInfo(part).Length, projector.Bytes) : 0;
+        VisionBytesRemaining = projector.Bytes - have;
     }
 
     private static string Gb(long bytes) => (bytes / 1e9).ToString("0.00");

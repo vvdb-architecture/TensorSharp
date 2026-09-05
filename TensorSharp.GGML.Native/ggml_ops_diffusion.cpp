@@ -437,7 +437,7 @@ TSG_EXPORT int TSGgml_DiffusionDecodeLayer(const TSGgmlDiffusionDecodeLayerDesc*
 
         // ===================== Final residual + decoder scalar =====================
         ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), post_ffw_norm_w);
-        ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+        ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
         if (std::fabs(d->dec_scale - 1.0f) > 1e-9f)
             result = ggml_scale(ctx, result, d->dec_scale);
 

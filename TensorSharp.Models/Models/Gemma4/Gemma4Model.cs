@@ -619,6 +619,33 @@ namespace TensorSharp.Models
         /// </summary>
         protected override bool SupportsBlockQuantizedKvCache => false;
 
+        /// <summary>
+        /// Gemma 4 runs ffn_gate and ffn_up as two matmuls when they were not fused,
+        /// so the load-time fusion -- which is a COPY, because a GGUF writes a block's
+        /// tensors alphabetically and ffn_norm lands between gate and up -- can be
+        /// declined where memory matters more than one dispatch per layer per token.
+        ///
+        /// <para>
+        /// MEASURED on gemma-4-12b UD-Q4_K_XL: 48 layers x (1,554 MB gate + 1,554 MB up)
+        /// = <b>3.1 GB</b> of anonymous memory duplicating bytes already mapped from the
+        /// file. On a 12 GB iPhone that is charged against the jetsam limit in full,
+        /// and it is what killed TensorAgent on this model. The managed FFN already had
+        /// its split path (FFNGeluSeparate, reached through TryResolveSeparateGateUpWeights);
+        /// what was missing was the fused decode and verify GRAPHS, which bound one
+        /// gate_up weight per layer. Both now take the pair -- see the gate_arr/up_arr
+        /// parameters of TSGgml_Gemma4ModelDecode and TSGgml_Gemma4ModelVerify.
+        /// </para>
+        /// </summary>
+        /// <remarks>
+        /// Not under tensor parallelism: the sharder partitions the FUSED name
+        /// (ShardFusedGateUpColumnParallel), so declining would leave it nothing to
+        /// shard. TP is a multi-GPU desktop configuration and never a phone's.
+        /// </remarks>
+        protected override bool SupportsSplitGateUpFfn => !IsTensorParallel;
+
+        /// <summary>True when this model's FFN weights were left as separate gate/up.</summary>
+        private bool _gateUpSplit;
+
         private bool FusedGraphRejectsKvDtype =>
             _kvCacheDtype.IsBlockQuantized()
             && !(_backend == BackendType.GgmlMetal || _backend == BackendType.GgmlCuda);
@@ -2535,6 +2562,12 @@ namespace TensorSharp.Models
             public int[] VType; public long[] VNe0, VNe1, VBytes;
             public int[] OType; public long[] ONe0, ONe1, OBytes;
             public int[] GuType; public long[] GuNe0, GuNe1, GuBytes;
+            // Set INSTEAD of Gu when the gate/up fusion was declined to save the
+            // anonymous copy it would have cost (see FuseGateUpWeights /
+            // AllowWeightFusionCopies). Null entries mean "this layer is fused".
+            public IntPtr[] Gate, Up;
+            public int[] GateType, UpType;
+            public long[] GateNe0, GateNe1, GateBytes, UpNe0, UpNe1, UpBytes;
             public int[] DownType; public long[] DownNe0, DownNe1, DownBytes;
             // PLE
             public IntPtr[] PleGate, PleProj, PlePostNorm;
@@ -2676,6 +2709,21 @@ namespace TensorSharp.Models
                     _canUseFusedFullModelDecode = false;
                     return;
                 }
+
+                // The FFN, same shape of question. A layer carries either the fused
+                // ffn_gate_up or the separate pair; a layer with neither has no FFN
+                // weight at all and nothing here can run.
+                bool guFused = _quantWeights.ContainsKey($"{prefix}.ffn_gate_up.weight");
+                bool guSeparate = _quantWeights.ContainsKey($"{prefix}.ffn_gate.weight")
+                    && _quantWeights.ContainsKey($"{prefix}.ffn_up.weight");
+                if (!guFused && !guSeparate)
+                {
+                    _canUseFusedDecode = false;
+                    _canUseFusedFullModelDecode = false;
+                    return;
+                }
+                if (!guFused)
+                    _gateUpSplit = true;
             }
 
             var a = new Gemma4DecodeArrays();
@@ -2691,6 +2739,10 @@ namespace TensorSharp.Models
             a.V = new IntPtr[n]; a.VType = new int[n]; a.VNe0 = new long[n]; a.VNe1 = new long[n]; a.VBytes = new long[n];
             a.OType = new int[n]; a.ONe0 = new long[n]; a.ONe1 = new long[n]; a.OBytes = new long[n];
             a.GuType = new int[n]; a.GuNe0 = new long[n]; a.GuNe1 = new long[n]; a.GuBytes = new long[n];
+            a.Gate = new IntPtr[n]; a.GateType = new int[n];
+            a.GateNe0 = new long[n]; a.GateNe1 = new long[n]; a.GateBytes = new long[n];
+            a.Up = new IntPtr[n]; a.UpType = new int[n];
+            a.UpNe0 = new long[n]; a.UpNe1 = new long[n]; a.UpBytes = new long[n];
             a.DownType = new int[n]; a.DownNe0 = new long[n]; a.DownNe1 = new long[n]; a.DownBytes = new long[n];
             a.PleGate = new IntPtr[n]; a.PleProj = new IntPtr[n]; a.PlePostNorm = new IntPtr[n];
             a.PleGateType = new int[n]; a.PleProjType = new int[n];
@@ -2806,6 +2858,25 @@ namespace TensorSharp.Models
                     a.GuNe0[l] = guW.Ne0;
                     a.GuNe1[l] = guW.Ne1;
                     a.GuBytes[l] = guW.RawBytes;
+                }
+                else if (_quantWeights.TryGetValue($"{prefix}.ffn_gate.weight", out var gateW)
+                         && _quantWeights.TryGetValue($"{prefix}.ffn_up.weight", out var upW))
+                {
+                    // The fusion was declined, so the graph runs two matmuls over the
+                    // mapped weights. Not fusing is the whole point: on gemma-4-12b
+                    // UD-Q4_K_XL joining them is a 3.1 GB copy of bytes already mapped
+                    // from the GGUF, which on a phone is charged against the jetsam
+                    // limit -- and it bought one dispatch per layer per token.
+                    a.Gate[l] = gateW.CacheKey;
+                    a.GateType[l] = gateW.GgmlType;
+                    a.GateNe0[l] = gateW.Ne0;
+                    a.GateNe1[l] = gateW.Ne1;
+                    a.GateBytes[l] = gateW.RawBytes;
+                    a.Up[l] = upW.CacheKey;
+                    a.UpType[l] = upW.GgmlType;
+                    a.UpNe0[l] = upW.Ne0;
+                    a.UpNe1[l] = upW.Ne1;
+                    a.UpBytes[l] = upW.RawBytes;
                 }
 
                 string downName = $"{prefix}.ffn_down.weight";
@@ -3003,7 +3074,11 @@ namespace TensorSharp.Models
                     pleTokenId: pleIdArg,
                     pleModelProjData: pleProjWData, pleModelProjType: pleProjWType,
                     pleModelProjNe0: pleProjWNe0, pleModelProjNe1: pleProjWNe1, pleModelProjBytes: pleProjWBytes,
-                    pleModelProjNormData: pleProjNormData);
+                    pleModelProjNormData: pleProjNormData,
+                    gateArr: a.Gate, gateTypeArr: a.GateType,
+                    gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
+                    upArr: a.Up, upTypeArr: a.UpType,
+                    upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes);
                 return false;
             }
 
@@ -3041,7 +3116,12 @@ namespace TensorSharp.Models
                     pleIdArg,
                     pleProjWData, pleProjWType,
                     pleProjWNe0, pleProjWNe1, pleProjWBytes,
-                    pleProjNormData);
+                    pleProjNormData,
+                    tpDegree: 1, tpPlanOut: null,
+                    gateArr: a.Gate, gateTypeArr: a.GateType,
+                    gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
+                    upArr: a.Up, upTypeArr: a.UpType,
+                    upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes);
             }
             return true;
         }
@@ -3107,6 +3187,13 @@ namespace TensorSharp.Models
 
             // Folded quantized lm_head (this kernel requires the fold).
             if (!_fdFoldLmHead) return false;
+            // The batched kernel takes only the FUSED gate_up weight. When the fusion
+            // was declined to save the copy (see BuildGemma4DecodeArrays) there is no
+            // such weight, so this path declines and the caller round-robins through
+            // the single-token decode, which does understand the split pair. Nothing
+            // on a phone reaches here -- N is 1 -- and nothing that does reaches it
+            // with the fusion declined, since the decline is an iOS default.
+            if (_gateUpSplit) return false;
             if (!_weights.TryGetValue("output_norm.weight", out var finalNormT)) return false;
             if (!_quantWeights.TryGetValue(_hasTiedOutput ? "token_embd.weight" : "output.weight", out var lmqw))
                 return false;
@@ -3344,7 +3431,12 @@ namespace TensorSharp.Models
                 a.PlePostNorm,
                 isExcept,
                 pleTableData, pleTableType, pleTableNe0, pleTableNe1, pleTableBytes, pleIds,
-                pleProjWData, pleProjWType, pleProjWNe0, pleProjWNe1, pleProjWBytes, pleProjNormData);
+                pleProjWData, pleProjWType, pleProjWNe0, pleProjWNe1, pleProjWBytes, pleProjNormData,
+                tpDegree: 1, tpPlanOut: null,
+                gateArr: a.Gate, gateTypeArr: a.GateType,
+                gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
+                upArr: a.Up, upTypeArr: a.UpType,
+                upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes);
         }
 
         // Gates the whole-model multi-token prefill path. Default on; set

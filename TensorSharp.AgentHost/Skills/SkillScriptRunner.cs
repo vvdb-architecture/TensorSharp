@@ -167,6 +167,11 @@ namespace TensorSharp.AgentHost.Skills
         {
             ArgumentNullException.ThrowIfNull(skill);
 
+            // The same workspace also backs model-written shell calls. Keep the whole
+            // dependency/setup/run cycle atomic with respect to a replacement turn; the
+            // lease is re-entrant when auto-install calls the code runner below.
+            using IDisposable? execution = _options.Workspace?.EnterExecution();
+
             if (!CanRun)
                 return SkillToolResult.Failure(UnavailableReason!);
 
@@ -205,7 +210,7 @@ namespace TensorSharp.AgentHost.Skills
             // Dependencies the model named up front, and any requirements.txt the skill
             // ships (root or the script's own directory, once per session): both go into
             // the session environment BEFORE the first attempt.
-            if (installLanguage != null && CanAutoInstall)
+            if (installLanguage != null && CanAutoInstall(installLanguage))
             {
                 if (packages is { Count: > 0 })
                     InstallInto(installLanguage, packages, setupNotes, onOutput, "requested");
@@ -231,9 +236,10 @@ namespace TensorSharp.AgentHost.Skills
             }
         }
 
-        private bool CanAutoInstall =>
+        private bool CanAutoInstall(string language) =>
             _options.Workspace != null
-            && _options.PackageInstaller is { CanInstallPackages: true };
+            && _options.PackageInstaller is { } installer
+            && installer.CanInstallPackagesFor(language);
 
         /// <summary>The install language for a script extension, or null.</summary>
         private static string? InstallLanguageFor(string extension) =>
@@ -312,7 +318,7 @@ namespace TensorSharp.AgentHost.Skills
                 result = RunConfined(skill, normalized, scriptPath, interpreter, arguments,
                     workDirectory, onOutput, out string stderrText);
 
-                if (result.Ok || installLanguage == null || !CanAutoInstall
+                if (result.Ok || installLanguage == null || !CanAutoInstall(installLanguage)
                     || attempted.Count >= Math.Max(1, _options.MaxAutoInstallAttempts))
                     break;
 

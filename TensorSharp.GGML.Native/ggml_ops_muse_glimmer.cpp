@@ -968,7 +968,7 @@ TSG_EXPORT int TSGgml_MuseGlimmerModelForward(
 
             // 8. post-attention norm (its own epsilon) + residual
             ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, post_norm_eps), lt.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // 9. FFN: pre-norm -> SwiGLU -> down
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), lt.ffn_norm_w);
@@ -993,7 +993,7 @@ TSG_EXPORT int TSGgml_MuseGlimmerModelForward(
 
             // 10. post-FFN norm (its own epsilon) + residual
             ggml_tensor* post_ffn = ggml_mul(ctx, ggml_rms_norm(ctx, down, post_norm_eps), lt.post_ffn_norm_w);
-            hidden = ggml_add(ctx, residual1, post_ffn);
+            hidden = ggml_add(ctx, post_ffn, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
         }
 
         if (trace_this_call && !tp_mode)

@@ -658,7 +658,7 @@ TSG_EXPORT int TSGgml_Gemma4LayerPrefill(
 
         // Post-attn norm + residual
         ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), post_attn_norm_w);
-        ggml_tensor* residual1 = ggml_add(ctx, hidden_t, post_attn);
+        ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden_t);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
         // FFN: norm -> gate_up -> GELU*up -> down -> post_norm -> residual.
         // gate/up are *strided* views into gu_out (one half each), so we
@@ -674,7 +674,7 @@ TSG_EXPORT int TSGgml_Gemma4LayerPrefill(
         ggml_tensor* down_out = ggml_mul_mat(ctx, down_w, ffn_act);
 
         ggml_tensor* post_ffn = ggml_mul(ctx, ggml_rms_norm(ctx, down_out, eps), post_ffn_norm_w);
-        ggml_tensor* residual2 = ggml_add(ctx, residual1, post_ffn);
+        ggml_tensor* residual2 = ggml_add(ctx, post_ffn, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
         // PLE injection (optional, mirrors Gemma4ModelDecode's per-layer block):
         //   ple = post_norm(proj(GELU(gate(residual2)) * ple_input))
@@ -686,7 +686,7 @@ TSG_EXPORT int TSGgml_Gemma4LayerPrefill(
             ggml_tensor* ple_proj = ggml_mul_mat(ctx, ple_proj_w, ple_gated);
             ggml_tensor* ple_normed = ggml_mul(ctx,
                 ggml_rms_norm(ctx, ple_proj, eps), ple_post_norm_w);
-            residual2 = ggml_add(ctx, residual2, ple_normed);
+            residual2 = ggml_add(ctx, ple_normed, residual2);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
         }
 
         if (std::fabs(layerScalar - 1.0f) > 1e-6f)

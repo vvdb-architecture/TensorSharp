@@ -172,7 +172,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
             ggml_tensor* v_write = ggml_cont(ctx, v_perm);
 
             const int cachePos = isLocal ? (position % cacheSize) : position;
-            const int activeStart = isLocal ? ((totalSeqLen - attendLen) % cacheSize) : 0;
+            const int activeStart = swa_decode_window_start(isLocal, totalSeqLen, attendLen, cacheSize);
             const int attnKvLen = flash_attn_kv_length(attendLen, cacheSize, hd);
             const std::size_t kv_byte_offset = static_cast<std::size_t>(cachePos) * k_cached_t->nb[1];
             ggml_tensor* k_dst = ggml_view_3d(ctx, k_cached_t, hd, 1, kvH, k_cached_t->nb[1], k_cached_t->nb[2], kv_byte_offset);
@@ -195,7 +195,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
             ggml_tensor* q_3d = ggml_reshape_3d(ctx, q_normed, hd, nH, 1);
             q_rope = ggml_rope_ext(ctx, q_3d, pos_tensor, rope_ff, rope_dims, 2, 0, d->rope_base, 1.0f, 0, 1, 0, 0);
 
-            const int activeStart = isLocal ? ((totalSeqLen - attendLen) % cacheSize) : 0;
+            const int activeStart = swa_decode_window_start(isLocal, totalSeqLen, attendLen, cacheSize);
             const int attnKvLen = flash_attn_kv_length(attendLen, cacheSize, hd);
             if (flash_attn_requires_masked_padding(hd))
             {
@@ -218,7 +218,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
         ggml_tensor* attn_flat = ggml_reshape_2d(ctx, attn_out, qDim, 1);
         ggml_tensor* o_flat = ggml_reshape_1d(ctx, ggml_mul_mat(ctx, o_w, attn_flat), H);
         ggml_tensor* post_attn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, o_flat, eps), post_attn_norm_w);
-        ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn_normed);
+        ggml_tensor* residual1 = ggml_add(ctx, post_attn_normed, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
         // ===================== Dense shared FFN =====================
         ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), ffn_norm_w);
@@ -313,7 +313,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
 
         // ===================== Final residual + layer scale =====================
         ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), post_ffw_norm_w);
-        ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+        ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
         if (std::fabs(d->layer_output_scale - 1.0f) > 1e-9f)
             result = ggml_scale(ctx, result, d->layer_output_scale);
 
@@ -1023,7 +1023,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
             else
             {
                 const int cachePos = isLocal ? (position % cacheSize) : position;
-                const int activeStart = isLocal ? ((totalSeqLen - attendLen) % cacheSize) : 0;
+                const int activeStart = swa_decode_window_start(isLocal, totalSeqLen, attendLen, cacheSize);
                 const int attnKvLen = flash_attn_kv_length(attendLen, cacheSize, hd);
                 const std::size_t kv_byte_offset = static_cast<std::size_t>(cachePos) * t.k_cached_t->nb[1];
                 ggml_tensor* k_dst = ggml_view_3d(ctx, t.k_cached_t, hd, 1, kvH, t.k_cached_t->nb[1], t.k_cached_t->nb[2], kv_byte_offset);
@@ -1053,7 +1053,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
             ggml_tensor* o_flat = ggml_reshape_1d(ctx, o_mm, H);
             if (tp_mode) { tp_partial.push_back(o_mm); tp_boundary.push_back(o_flat); }
             ggml_tensor* post_attn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, o_flat, eps), t.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn_normed);
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn_normed, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // ===== Dense shared FFN =====
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), t.ffn_norm_w);
@@ -1182,7 +1182,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
 
             // ===== Final residual + layer scale =====
             ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), t.post_ffw_norm_w);
-            ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+            ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
             if (std::fabs(d.layer_output_scale - 1.0f) > 1e-9f)
                 result = ggml_scale(ctx, result, d.layer_output_scale);
 
@@ -2211,7 +2211,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelVerify(
                 mlp = ggml_add(ctx, mlp, moe_normed);
                 // final residual + layer scale
                 ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), t.post_ffw_norm_w);
-                ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+                ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
                 if (std::fabs(d.layer_output_scale - 1.0f) > 1e-9f)
                     result = ggml_scale(ctx, result, d.layer_output_scale);
                 return result;
@@ -2299,7 +2299,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelVerify(
                     ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_tile, eps), t.post_attn_norm_w);
                     ggml_tensor* hidden_tile = ggml_view_2d(ctx, hidden, H, qLen,
                         hidden->nb[1], static_cast<std::size_t>(qs) * hidden->nb[1]);
-                    ggml_tensor* residual1 = ggml_add(ctx, hidden_tile, post_attn);        // [H, qLen]
+                    ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden_tile);        // [H, qLen]
                     ggml_tensor* result_tile = layer_tail(residual1, qLen);                // [H, qLen]
                     result_acc = (result_acc == nullptr) ? result_tile : ggml_concat(ctx, result_acc, result_tile, 1);  // [H, qe]
                 }
@@ -2330,7 +2330,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelVerify(
                 ggml_tensor* o_out = ggml_mul_mat(ctx, t.o_w, attn_flat);                  // [H, N]
                 if (tp_mode) tp_partial.push_back(o_out);
                 ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), t.post_attn_norm_w);
-                ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);                // [H, N]
+                ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);                // [H, N]
                 result = layer_tail(residual1, N);                                         // [H, N]
             }
 

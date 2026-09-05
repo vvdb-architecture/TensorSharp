@@ -34,7 +34,7 @@ public sealed class EngineMemoryPolicyTests : IDisposable
     [Fact]
     public void TheCatalogEntrysContextLengthReachesTheEngine()
     {
-        CatalogModel qwen = Entry("qwen3.5-9b-q4kxl");
+        CatalogModel qwen = Entry("qwen3.5-9b-iq4xs");
         int applied = EngineMemoryPolicy.Apply(qwen, new AppSettings());
 
         Assert.Equal(qwen.ContextLength, applied);
@@ -46,7 +46,7 @@ public sealed class EngineMemoryPolicyTests : IDisposable
     [Fact]
     public void TheUsersOwnOverrideWinsOverTheCatalog()
     {
-        CatalogModel qwen = Entry("qwen3.5-9b-q4kxl");
+        CatalogModel qwen = Entry("qwen3.5-9b-iq4xs");
         int applied = EngineMemoryPolicy.Apply(qwen, new AppSettings { ContextLength = 4096 });
 
         Assert.Equal(4096, applied);
@@ -69,27 +69,100 @@ public sealed class EngineMemoryPolicyTests : IDisposable
     [Fact]
     public void SwitchingModelsReplacesTheBudgetRatherThanKeepingTheOldOne()
     {
-        EngineMemoryPolicy.Apply(Entry("qwen3.5-9b-q4kxl"), new AppSettings());
+        EngineMemoryPolicy.Apply(Entry("qwen3.5-9b-iq4xs"), new AppSettings());
         string? first = Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable);
 
-        EngineMemoryPolicy.Apply(Entry("qwen3.8-27b-iq2xxs"), new AppSettings());
+        EngineMemoryPolicy.Apply(Entry("qwen3.8-27b-iq1s"), new AppSettings());
         string? second = Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable);
 
         // Against the catalog, not literals: the point of the test is that switching
         // REPLACES the budget, and hardcoding the numbers only breaks it when a
         // context is legitimately retuned.
-        Assert.Equal(Entry("qwen3.5-9b-q4kxl").ContextLength.ToString(), first);
-        Assert.Equal(Entry("qwen3.8-27b-iq2xxs").ContextLength.ToString(), second);
+        Assert.Equal(Entry("qwen3.5-9b-iq4xs").ContextLength.ToString(), first);
+        Assert.Equal(Entry("qwen3.8-27b-iq1s").ContextLength.ToString(), second);
         Assert.NotNull(first);
     }
 
+    /// <summary>
+    /// With no preference of the user's, the entry's own dtype is what the engine gets.
+    /// </summary>
     [Fact]
     public void TheKvCacheDtypeReachesTheEngineToo()
     {
-        CatalogModel qwen = Entry("qwen3.5-9b-q4kxl");
-        EngineMemoryPolicy.Apply(qwen, new AppSettings());
+        CatalogModel qwen = Entry("qwen3.5-9b-iq4xs");
+        EngineMemoryPolicy.Apply(qwen, new AppSettings { KvCacheDtype = string.Empty });
 
         Assert.Equal(qwen.KvCacheDtype, Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvCacheDtypeVariable));
+    }
+
+    /// <summary>
+    /// The Settings screen's choice reaches the engine, and beats the catalog entry.
+    ///
+    /// <para>
+    /// The catalog entry is per-model tuning; the setting is the user looking at their
+    /// own phone and deciding they would rather spend precision than memory. Whichever
+    /// way round one thinks about that, the thing a user can SEE has to be the thing
+    /// that happens, or it is a switch that does nothing — which is the failure this
+    /// whole file exists because of.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("f16")]
+    [InlineData("q8_0")]
+    [InlineData("q4_0")]
+    public void TheChosenKvCacheDtypeBeatsTheCatalogEntry(string chosen)
+    {
+        CatalogModel qwen = Entry("qwen3.5-9b-iq4xs");
+        EngineMemoryPolicy.Apply(qwen, new AppSettings { KvCacheDtype = chosen });
+
+        Assert.Equal(chosen, Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvCacheDtypeVariable));
+    }
+
+    /// <summary>
+    /// A value this build does not recognise falls back to the entry rather than
+    /// reaching the engine.
+    ///
+    /// <para>
+    /// Not fussiness. KvCacheDtypeConfig.ConfigureFromEnvironment IGNORES a string it
+    /// cannot parse, and its state is static and process-wide, so an unparseable value
+    /// does not mean "the default" — it means whatever the PREVIOUS model set is still
+    /// in force. A settings file from a newer build, or one edited by hand, would
+    /// silently give the next model the last one's cache.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData("q5_1")]
+    [InlineData("nonsense")]
+    [InlineData("  ")]
+    public void AnUnknownKvCacheDtypeFallsBackToTheEntry(string bogus)
+    {
+        CatalogModel qwen = Entry("qwen3.5-9b-iq4xs");
+        EngineMemoryPolicy.Apply(qwen, new AppSettings { KvCacheDtype = bogus });
+
+        Assert.Equal(qwen.KvCacheDtype, Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvCacheDtypeVariable));
+    }
+
+    /// <summary>
+    /// The default is q4_0, and it is a value the engine can actually parse.
+    ///
+    /// <para>
+    /// Both halves matter. The first is the product decision; the second is that every
+    /// string this setting can hold has to survive KvCacheDtypeConfig.TryParse, because
+    /// one that does not is inert in the silent way described above.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void TheDefaultCacheIsQ4AndEveryOfferedValueIsOneTheEngineParses()
+    {
+        Assert.Equal("q4_0", new AppSettings().KvCacheDtype);
+        Assert.Contains("q4_0", EngineMemoryPolicy.KvCacheDtypes);
+
+        foreach (string offered in EngineMemoryPolicy.KvCacheDtypes)
+        {
+            Assert.True(
+                TensorSharp.Models.KvCacheDtypeConfig.TryParse(offered, out _),
+                $"the Settings screen offers {offered}, which the engine cannot parse and would ignore");
+        }
     }
 
     /// <summary>

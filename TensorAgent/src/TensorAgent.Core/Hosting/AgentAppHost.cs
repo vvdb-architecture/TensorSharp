@@ -65,6 +65,11 @@ public sealed class AgentAppHost : IDisposable
     /// from outside, and getting it wrong costs a segmentation fault rather than a
     /// failed assertion.
     /// </param>
+    /// <param name="installer">
+    /// A package hook to use instead of the PyPI wheel installer; null builds the app's
+    /// normal installer. Tests inject one to verify the complete model-command route
+    /// without depending on the public package index.
+    /// </param>
     public AgentAppHost(
         AgentPaths paths,
         string? webRoot = null,
@@ -73,7 +78,8 @@ public sealed class AgentAppHost : IDisposable
         IJavaScriptRuntime? javaScript = null,
         int port = 0,
         IReadOnlyList<BackendOption>? backends = null,
-        ModelService? modelService = null)
+        ModelService? modelService = null,
+        IInstallHook? installer = null)
     {
         Paths = paths ?? throw new ArgumentNullException(nameof(paths));
         _loggerFactory = loggerFactory ?? NullLoggerFactory.Instance;
@@ -83,6 +89,12 @@ public sealed class AgentAppHost : IDisposable
         AppSettings settings = Settings.Load();
 
         Models = new ModelStore(paths.ModelsDirectory);
+        // Weights whose catalog entry is gone -- the previous quantization of an entry
+        // that now points at a different file. Nothing else can reach them: the Models
+        // list is built from the catalog, so a directory no entry claims has no row and
+        // no delete button, and it is gigabytes. Swept once per launch, before anything
+        // reads the store.
+        Models.SweepOrphanedModels();
         // The downloads belong to the APP, not to the model list: a five-gigabyte
         // transfer must not end because the user went back to the chat. See
         // ModelDownloadManager.
@@ -100,6 +112,17 @@ public sealed class AgentAppHost : IDisposable
             AllowInstall = settings.AllowNetwork,
             ScratchDirectory = paths.ScratchDirectory,
             Timeout = TimeSpan.FromSeconds(Math.Clamp(settings.ToolTimeoutSeconds, 5, 600)),
+            InstallTimeout = TimeSpan.FromSeconds(Math.Clamp(settings.ToolTimeoutSeconds, 5, 600)),
+            // Without this the runner hands back the artifact's ABSOLUTE PATH ON DISK
+            // instead of a URL, and everything downstream faithfully carries it: the
+            // model is told "tell the user where they are on disk", the page renders
+            // /var/mobile/Containers/Data/.../report.pdf as an ordinary link, and tapping
+            // it asks the loopback server for a path it serves nothing at --
+            // {"error":"not found"}. Mapping the artifact route (below) fixed the half of
+            // this that was a missing endpoint; this is the half that was a link pointing
+            // somewhere else entirely. TensorSharp.Server sets the same prefix in its
+            // Program.cs, which is why the desktop never had either symptom.
+            ArtifactUriPrefix = WebUiChatService.DefaultArtifactUriPrefix,
         };
 
         Workspaces = new SessionWorkspaceManager(paths.ScratchDirectory, _loggerFactory.CreateLogger("TensorAgent.Workspaces"));
@@ -112,22 +135,39 @@ public sealed class AgentAppHost : IDisposable
         // never one that fails halfway through a script.
         Python = python ?? Discover(() => new EmbeddedPython(paths.PythonRuntimeDirectory));
         JavaScript = javaScript ?? Discover(() => new JavaScriptCoreEngine());
+        ConfigureCodeEnvironment(Python, JavaScript);
         // The installer's own policy answers "can this app install anything at all",
         // which is the user's network switch; each individual install is re-checked
         // against the policy of the launch that asked for it.
-        Installer = new WheelInstaller(new ExecutionPolicy(
+        Installer = installer ?? new WheelInstaller(new ExecutionPolicy(
             AllowScripts: settings.AllowCodeExecution,
             AllowNetwork: settings.AllowNetwork,
             WorkRoot: paths.ScratchDirectory,
             ReadableRoots: Array.Empty<string>(),
-            TempRoot: paths.ScratchDirectory));
-        Backend = new InProcessShellBackend(Python, JavaScript, Installer, settings.NetworkHosts);
+            TempRoot: paths.ScratchDirectory)
+        {
+            NetworkHosts = settings.NetworkHosts,
+        }, pythonVersion: Python?.Version);
+        // Do not expose the raw hook inside the model's shell. The ShellRunner bridge
+        // below is the sole install path and applies validation, the package allow-list,
+        // the session ledger, target directory and timeout. A nested `sh -c 'pip ...'`
+        // must not step around those terms.
+        Backend = new InProcessShellBackend(
+            Python, JavaScript, installer: null, networkHosts: settings.NetworkHosts);
         Artifacts = new CodeArtifactStore(paths.ArtifactsDirectory);
+        // ShellRunner intercepts every recognised `pip install` before the remaining
+        // command reaches Backend. Supplying the bridge is therefore essential: its
+        // desktop default tries to launch a real `python -m pip`, while this host has no
+        // processes and deliberately does not stage pip into embedded CPython.
+        var packageInstaller = new InstallHookPackageInstaller(
+            Installer, CodeExec, () => Backend.NetworkHosts);
+        Backend.HostPerformsInstalls = packageInstaller.CanInstall;
         ShellRunner runner = new(
             CodeExec,
             _loggerFactory.CreateLogger("TensorAgent.CodeExec"),
             Artifacts,
-            backend: Backend);
+            backend: Backend,
+            installer: packageInstaller);
         // Always built, never conditional on the switch. ShellRunner.CanRun reads
         // CodeExec.Enabled every time it is asked, and the request planner offers the
         // code tools only for a runner that says it can run -- so a runner that exists
@@ -135,7 +175,14 @@ public sealed class AgentAppHost : IDisposable
         // user can lift from the Settings screen without relaunching the app. Building
         // it conditionally is what made both sandbox switches take effect "next time
         // TensorAgent starts", which on a phone reads as a switch that does nothing.
-        CodeRunner = new CodeRunnerAdapter(runner, CodeExec);
+        CodeRunner = new CodeRunnerAdapter(
+            runner,
+            CodeExec,
+            packageInstallInstructions: InstallHookPackageInstaller.ModelInstallInstructions,
+            networkExecutionInstructions: InstallHookPackageInstaller.ModelExecutionInstructions,
+            networkInstructionsAvailable: () => IsNetworkHostAllowed(
+                InstallHookPackageInstaller.ModelExecutionHost, Backend.NetworkHosts),
+            networkHosts: () => Backend.NetworkHosts);
 
         Skills = new SkillRegistry(new SkillRegistryOptions
         {
@@ -155,6 +202,10 @@ public sealed class AgentAppHost : IDisposable
         Uploads = new UploadStoragePolicy(paths.UploadsDirectory);
 
         Options = BuildOptions(paths, settings, backends);
+        // The startup selection's card values, so the first message of a launch is
+        // sampled the same way the tenth is (UseModel repoints these on every switch).
+        if (settings.SelectedModelId is { Length: > 0 } startupId && ModelCatalog.Find(startupId) is { } startupModel)
+            Options.RepointSamplingDefaults(SamplingDefaultsFor(startupModel));
 
         // A diffusion entry is five files, not one, and only three of them are found by
         // the scan the pipeline does next to the weights. Publishing all of them here —
@@ -300,8 +351,39 @@ public sealed class AgentAppHost : IDisposable
             return;
 
         AppSettings settings = Settings.Load();
-        if (settings.SelectedModelId is not { Length: > 0 } id || ModelCatalog.Find(id) is not { } model)
+        if (settings.SelectedModelId is not { Length: > 0 } id)
             return;
+
+        // An id no entry claims any more. Catalogs are re-pointed at better files and
+        // the id carries the quantization, so every such swap leaves whoever had the
+        // old one selected holding a name that resolves to nothing. Cleared for the
+        // same reason the gated-off case below is: a selection nothing can act on is
+        // worse than none, because the picker goes on presenting it as the choice.
+        if (ModelCatalog.Find(id) is not { } model)
+        {
+            _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                "the last used model {Model} is no longer in the catalog; clearing the selection", id);
+            settings.SelectedModelId = null;
+            Settings.Save(settings);
+            return;
+        }
+
+        // A tier the picker would not offer this device is not one to load behind the
+        // user's back either. Find() searches the WHOLE catalog while the Models list is
+        // built from ForDevice(), so an entry that was offered when it was chosen -- or
+        // that came from a backup of a larger device -- would otherwise be loaded on a
+        // phone that cannot run it, with no row in the list to explain or undo it. The
+        // choice is cleared rather than merely skipped, so the picker starts clean.
+        if (model.MinDeviceMemoryGB > Paths.DeviceMemoryGB)
+        {
+            _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                "{Model} needs a {Needs} GB device and this one reports {Has} GB; clearing the selection",
+                model.Id, model.MinDeviceMemoryGB, Paths.DeviceMemoryGB);
+            settings.SelectedModelId = null;
+            Settings.Save(settings);
+            return;
+        }
+
         if (!File.Exists(Paths.SelectedModelPath(settings)))
         {
             _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
@@ -378,6 +460,7 @@ public sealed class AgentAppHost : IDisposable
         CodeExec.AllowNetwork = settings.AllowNetwork;
         CodeExec.AllowInstall = settings.AllowNetwork;
         CodeExec.Timeout = TimeSpan.FromSeconds(Math.Clamp(settings.ToolTimeoutSeconds, 5, 600));
+        CodeExec.InstallTimeout = CodeExec.Timeout;
         // The reply length limit is read by /api/models, which the page re-reads every
         // time it comes back to the front, so moving it here is all it takes for the
         // stepper to mean something before the next launch.
@@ -393,6 +476,7 @@ public sealed class AgentAppHost : IDisposable
                 NetworkHosts = settings.NetworkHosts,
             };
         }
+        Backend.HostPerformsInstalls = CodeExec.AllowInstall && Installer is { CanInstall: true };
 
         Options.RepointSandboxPermissions(settings.AllowCodeExecution, settings.AllowNetwork);
         Options.RepointSkills(settings.SkillsEnabled);
@@ -518,6 +602,53 @@ public sealed class AgentAppHost : IDisposable
     }
 
     /// <summary>
+    /// Tell the shared agent layer about runtimes that have no executable on PATH.
+    /// Syntax checks, API probes and skill-script planning all resolve interpreters
+    /// through <see cref="CodeEnvironment"/>; without this call they silently probe the
+    /// phone's empty process environment and skip work the embedded runtimes can do.
+    /// </summary>
+    private static void ConfigureCodeEnvironment(
+        IPythonRuntime? python, IJavaScriptRuntime? javaScript)
+    {
+        bool hasPython = python is { IsAvailable: true };
+        bool hasJavaScript = javaScript is { IsAvailable: true };
+        string pythonVersionText = hasPython ? python!.Version : string.Empty;
+
+        var available = new List<string>();
+        if (hasPython)
+            available.Add($"python3 {pythonVersionText}");
+        if (hasJavaScript)
+            available.Add("node (JavaScriptCore)");
+
+        string numericVersion = new(
+            pythonVersionText.TakeWhile(character => char.IsAsciiDigit(character) || character == '.').ToArray());
+        numericVersion = numericVersion.TrimEnd('.');
+        Version? pythonVersion = Version.TryParse(numericVersion, out Version? parsed) ? parsed : null;
+
+        CodeEnvironment.Configure(
+            available,
+            language => language switch
+            {
+                CodeLanguage.Python when hasPython => "python3",
+                CodeLanguage.JavaScript when hasJavaScript => "node",
+                _ => null,
+            },
+            interpreter => Path.GetFileName(interpreter).StartsWith("python", StringComparison.OrdinalIgnoreCase)
+                ? pythonVersion
+                : null);
+    }
+
+    private static bool IsNetworkHostAllowed(
+        string host, IReadOnlyList<string> allowedHosts)
+    {
+        if (allowedHosts.Count == 0)
+            return true;
+        return allowedHosts.Any(allowed =>
+            string.Equals(host, allowed, StringComparison.OrdinalIgnoreCase)
+            || host.EndsWith("." + allowed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// The backends this build can actually offer, best first.
     ///
     /// <para>
@@ -533,6 +664,16 @@ public sealed class AgentAppHost : IDisposable
         new BackendOption("ggml_metal", "GPU (Metal)"),
         new BackendOption("ggml_cpu", "CPU"),
     };
+
+    /// <summary>The catalog entry's card values as the defaults a request falls back to.</summary>
+    private static SamplingDefaults SamplingDefaultsFor(CatalogModel model) =>
+        new(new TensorSharp.Runtime.SamplingConfig
+        {
+            Temperature = model.Sampling.Temperature,
+            TopK = model.Sampling.TopK,
+            TopP = model.Sampling.TopP,
+            MinP = model.Sampling.MinP,
+        });
 
     private static ServerHostingOptions BuildOptions(
         AgentPaths paths, AppSettings settings, IReadOnlyList<BackendOption>? backends) => new(
@@ -558,6 +699,11 @@ public sealed class AgentAppHost : IDisposable
         skillsEnabled: settings.SkillsEnabled,
         skillsDiscovery: true,
         skillsAllowScripts: settings.AllowCodeExecution,
+        // Zero means "the operator did not choose a cap". The agent plan then uses
+        // SkillHostOptions.CodeExecutionRounds (24) when code is offered. Omitting this
+        // argument selects the constructor's literal default of 8 and marks it as an
+        // explicit cap, which cut Qwen off while it was still retrieving the answer.
+        skillsMaxRounds: 0,
         skillsAllowNetwork: settings.AllowNetwork);
 
     /// <summary>
@@ -610,15 +756,26 @@ public sealed class AgentAppHost : IDisposable
             Settings.Save(settings);
 
             string weights = Paths.SelectedModelPath(settings);
-            string? projector = Paths.SelectedProjectorPath(settings);
             if (!File.Exists(weights))
             {
                 var missing = new FileNotFoundException($"{model.DisplayName} is not downloaded yet.", weights);
                 SetModelLoad(ModelLoadState.Failed, missing.Message);
                 throw missing;
             }
-            if (projector is not null && !File.Exists(projector))
-                projector = null;
+
+            // A filename existing is not enough: an interrupted optional download can
+            // leave a truncated destination behind. Only a catalog-size-complete
+            // projector is safe to hand to the engine. Optional projectors may be
+            // absent for text-only use; required ones make the install incomplete.
+            string? projector = Models.CompanionPath(model, CatalogFileRole.Projector);
+            if (model.Projector is { Optional: false } requiredProjector && projector is null)
+            {
+                string path = Models.PathFor(model, requiredProjector);
+                var missing = new FileNotFoundException(
+                    $"{model.DisplayName}'s image projector is not downloaded yet.", path);
+                SetModelLoad(ModelLoadState.Failed, missing.Message);
+                throw missing;
+            }
 
             // Before the load, not after: the engine reads its context length and KV
             // dtype when the model is constructed. This is the only funnel for a load
@@ -627,6 +784,15 @@ public sealed class AgentAppHost : IDisposable
             // measurements -- this is what stops a pasted document from growing the KV
             // cache until jetsam kills the app.
             EngineMemoryPolicy.Apply(model, settings);
+
+            // The entry's own card values, for the same reason and in the same place.
+            // CatalogModel.Sampling was written for every entry and read by nothing, so
+            // every model was sampled at the built-in Ollama-compatible default
+            // (temperature 0.8, top-k 40, top-p 0.9) whatever its card said -- Gemma 4
+            // asks for 1.0 / 64 / 0.95 and Qwen for 0.7 / 20 / 0.8. A wrong sampler does
+            // not fail, it just answers worse, which is the hardest kind of setting to
+            // notice is inert.
+            Options.RepointSamplingDefaults(SamplingDefaultsFor(model));
 
             Options.RepointHostedModel(weights, projector);
 

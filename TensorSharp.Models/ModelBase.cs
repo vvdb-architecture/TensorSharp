@@ -1211,7 +1211,14 @@ namespace TensorSharp.Models
         ///
         /// TS_WEIGHT_FUSION_COPIES=1 forces the copies back on, =0 forces them off.
         /// </summary>
-        protected static bool AllowWeightFusionCopies { get; } = ResolveAllowWeightFusionCopies();
+        /// <remarks>
+        /// Read per call rather than cached in a static initializer. It is consulted a
+        /// few dozen times per model LOAD and never during inference, so the cost is
+        /// nil -- and caching it made the policy untestable in-process: a test cannot
+        /// load the same model both ways when the first load freezes the answer for
+        /// the life of the runner.
+        /// </remarks>
+        protected static bool AllowWeightFusionCopies => ResolveAllowWeightFusionCopies();
 
         private static bool ResolveAllowWeightFusionCopies()
         {

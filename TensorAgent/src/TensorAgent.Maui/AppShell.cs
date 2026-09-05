@@ -41,6 +41,12 @@ public sealed class AppShell : Shell
 {
     private readonly Dictionary<string, Page> _pages;
 
+    /// <summary>One navigation at a time; see <see cref="OpenAsync"/>.</summary>
+    private static readonly SemaphoreSlim Gate = new(1, 1);
+
+    /// <summary>How long a pop is given before this gives up on it and pushes anyway.</summary>
+    private static readonly TimeSpan PopTimeout = TimeSpan.FromSeconds(3);
+
     public AppShell(MainPage chat, Pages.SessionsPage sessions, Pages.ModelsPage models, Pages.SettingsPage settings, Pages.AboutPage about)
     {
         Title = "TensorAgent";
@@ -110,34 +116,107 @@ public sealed class AppShell : Shell
     public static async Task OpenAsync(string? route)
     {
         if (Current is not AppShell shell)
+        {
+            Console.WriteLine($"TensorAgent: open {route} ignored, the shell is {Current?.GetType().Name ?? "null"}");
             return;
+        }
         // Decided BEFORE anything is popped, so a route this shell does not have leaves
         // the app exactly where it was rather than quietly closing the page the user is
         // looking at.
         Page? page = null;
         bool chat = route is null or "main";
         if (!chat && !shell._pages.TryGetValue(route!, out page))
+        {
+            Console.WriteLine($"TensorAgent: open {route} ignored, this shell has no such route");
             return;
+        }
 
+        // One navigation at a time. Everything below reads the stack and then awaits, and
+        // a value read before an await is a guess afterwards: the MAUI stack is mutated
+        // several dispatcher hops after PushAsync is called, and iOS's Shell renderer
+        // does not serialise navigations for us. Two callers inside here at once is not
+        // hypothetical -- a second tap while the drawer slides shut, ModelsPage
+        // returning to the chat when a model finishes loading, and UIKit's own back
+        // button all arrive as independent main-thread work items -- and every way they
+        // interleave ends with the user on the chat: the loser of a double pop throws
+        // "Can't pop last page off stack", a pop's completion is a single overwritable
+        // field that can be left pending forever, and a pop's late teardown removes the
+        // view controller a concurrent re-push just installed.
+        await Gate.WaitAsync().ConfigureAwait(true);
         try
         {
             INavigation navigation = shell.Navigation;
+
+            // Asking for the page already on top is a no-op, not a pop and a push. This
+            // is what makes an impatient double tap harmless.
+            if (!chat && Top(navigation) is { } top && ReferenceEquals(top, page))
+                return;
+
             // Shell's stack carries a null placeholder for the shell content itself, so
             // anything past the first entry is a page pushed over the chat. Bounded
             // rather than `while`: a pop that does not shorten the stack would otherwise
             // spin forever on the UI thread, and the stack is never deeper than one.
             for (int i = 0; i < 8 && navigation.NavigationStack.Count > 1; i++)
-                await navigation.PopAsync(false);
+            {
+                // Never awaited unbounded. The renderer resolves a pop through a single
+                // field that a concurrent pop or an interactive back-swipe overwrites,
+                // and an unresolved one leaves this method parked between the pop and
+                // the push -- no exception, no log, and a menu item that did nothing.
+                Task pop = navigation.PopAsync(false);
+                if (await Task.WhenAny(pop, Task.Delay(PopTimeout)).ConfigureAwait(true) != pop)
+                {
+                    Console.WriteLine(
+                        $"TensorAgent: open {route}: a pop did not complete in {PopTimeout.TotalSeconds:0.#}s "
+                        + $"with {navigation.NavigationStack.Count} on the stack; pushing anyway");
+                    break;
+                }
+                await pop.ConfigureAwait(true);
+            }
 
-            if (!chat)
-                await navigation.PushAsync(page!);
+            // The pages are DI singletons, so the same instance is pushed for the life of
+            // the app. MAUI adds it to the stack a second time without complaint and then
+            // hands UIKit a view controller that is already installed, which is a
+            // corrupted stack rather than an error.
+            if (!chat && !navigation.NavigationStack.Contains(page!))
+                await navigation.PushAsync(page!).ConfigureAwait(true);
+
+            Console.WriteLine(
+                $"TensorAgent: open {route ?? "main"} -> stack {navigation.NavigationStack.Count}, "
+                + $"top {Top(navigation)?.GetType().Name ?? "chat"}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"TensorAgent: open {route} failed: " + ex.Message);
+            // The whole exception, not just the message: the type is what tells a
+            // "Can't pop last page off stack" race apart from a page that threw in
+            // OnAppearing, and both land the user on the chat looking identical.
+            Console.WriteLine($"TensorAgent: open {route} failed: " + ex);
+        }
+        finally
+        {
+            Gate.Release();
         }
     }
 
     /// <summary>Come back to the chat, from a page that is done.</summary>
     public static Task BackToChatAsync() => OpenAsync("main");
+
+    /// <summary>
+    /// Whether <paramref name="page"/> is the page the user is looking at.
+    ///
+    /// <para>
+    /// For deferred work that wants to return to the chat when it finishes. Loading a
+    /// model takes twenty seconds, and the user does not have to wait on the Models
+    /// screen while it happens -- so "go back to the chat now" has to mean "…if the
+    /// screen I was started from is still the one on top", or it pops whatever the user
+    /// opened in the meantime and their menu tap looks like it did nothing.
+    /// </para>
+    /// </summary>
+    public static bool IsOnTop(Page page)
+        => Current is AppShell shell && ReferenceEquals(Top(shell.Navigation), page);
+
+    private static Page? Top(INavigation navigation)
+    {
+        IReadOnlyList<Page> stack = navigation.NavigationStack;
+        return stack.Count > 1 ? stack[^1] : null;
+    }
 }

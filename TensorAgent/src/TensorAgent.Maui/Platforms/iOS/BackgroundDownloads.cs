@@ -11,7 +11,6 @@
 using Foundation;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Downloads;
-using TensorAgent.Core.Settings;
 using UIKit;
 
 namespace TensorAgent.Maui.Platforms.iOS;
@@ -41,15 +40,13 @@ namespace TensorAgent.Maui.Platforms.iOS;
 internal sealed class BackgroundDownloads : IDisposable
 {
     private readonly ModelDownloadManager _downloads;
-    private readonly SettingsStore _settings;
     private readonly List<NSObject> _observers = new();
     private readonly BackgroundAssertion _assertion = new("TensorAgent.ModelDownload");
     private bool _disposed;
 
-    public BackgroundDownloads(ModelDownloadManager downloads, SettingsStore settings)
+    public BackgroundDownloads(ModelDownloadManager downloads)
     {
         _downloads = downloads ?? throw new ArgumentNullException(nameof(downloads));
-        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
         _downloads.BusyChanged += OnBusyChanged;
         _observers.Add(NSNotificationCenter.DefaultCenter.AddObserver(
@@ -77,9 +74,7 @@ internal sealed class BackgroundDownloads : IDisposable
             return;
         try
         {
-            IReadOnlyList<string> resumed = _downloads.ResumeInterrupted(
-                ModelCatalog.Find,
-                ModelDownloadManager.OptionalRolesFor(_settings.Load().DownloadOptionalFiles));
+            IReadOnlyList<string> resumed = _downloads.ResumeInterrupted(ModelCatalog.Find);
             if (resumed.Count > 0)
                 Console.WriteLine("TensorAgent: resumed " + string.Join(", ", resumed));
         }

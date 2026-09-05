@@ -239,6 +239,12 @@ public sealed class EmbeddedPython : IPythonRuntime
         // timer accepts; interrupting at once is what a caller asking for zero
         // seconds meant.
         TimeSpan timeout = context.EffectiveTimeout > TimeSpan.Zero ? context.EffectiveTimeout : TimeSpan.FromMilliseconds(1);
+        // CPython cannot observe the managed interrupt while blocked inside a socket
+        // syscall. Bound one connect/read stall even when the overall tool is allowed to
+        // do longer work; downloads that keep making progress are unaffected.
+        TimeSpan networkTimeout = timeout < TimeSpan.FromSeconds(30)
+            ? timeout
+            : TimeSpan.FromSeconds(30);
 
         // Serialized here rather than inside the interpreter so a queued run
         // waits with its caller's cancellation token, and so a run that outlived
@@ -247,12 +253,11 @@ public sealed class EmbeddedPython : IPythonRuntime
         bool released = false;
         try
         {
-            var pathBack = new List<string>();
-            if (!string.IsNullOrEmpty(policy.PackageRoot))
-                pathBack.Add(policy.PackageRoot);
+            IReadOnlyList<string> pathBack = ReadableImportPaths(context, confined);
 
             string payload = PythonInterpreter.CreatePayload(
-                mode, target, argv, context.WorkingDirectory, context.Environment, pathFront, pathBack, context.StandardInput);
+                mode, target, argv, context.WorkingDirectory, context.Environment,
+                pathFront, pathBack, _layout.Packages, networkTimeout, context.StandardInput);
             string policySource = PythonBootstrap.CreatePolicySource(confined, policy.AllowNetwork, policy.NetworkHosts);
 
             long runId = Interlocked.Increment(ref _runId);
@@ -308,6 +313,47 @@ public sealed class EmbeddedPython : IPythonRuntime
             if (!released)
                 _runs.Release();
         }
+    }
+
+    /// <summary>
+    /// Resolve the caller's Python import path through the same confinement used for
+    /// file reads. CPython is initialized in isolated mode, so it intentionally ignores
+    /// the process's real <c>PYTHONPATH</c>; the per-launch environment still has to be
+    /// applied explicitly or packages unpacked into a session can never be imported.
+    /// </summary>
+    internal static IReadOnlyList<string> ReadableImportPaths(
+        InterpreterContext context, ConfinedPaths confined)
+    {
+        var paths = new List<string>();
+
+        void Add(string? path)
+        {
+            if (string.IsNullOrEmpty(path)
+                || !confined.TryResolve(
+                    path, context.WorkingDirectory, PathAccess.Read,
+                    out string resolved, out _)
+                || paths.Contains(resolved, StringComparer.Ordinal))
+            {
+                return;
+            }
+            paths.Add(resolved);
+        }
+
+        // PYTHONPATH is ordered. ShellRunner puts the session package directory first
+        // and a skill runner may append the skill's own root. Empty entries are dropped
+        // rather than interpreted as an extra current-directory grant.
+        string pythonPath = context.EnvironmentValue("PYTHONPATH");
+        foreach (string entry in pythonPath.Split(
+                     Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            Add(entry);
+        }
+
+        // Direct runtime callers predate the environment handoff and identify their
+        // package tree on the policy. Keep that route as a fallback and deduplicate it
+        // when ShellRunner supplied both forms.
+        Add(context.Policy.PackageRoot);
+        return paths;
     }
 
     /// <summary>

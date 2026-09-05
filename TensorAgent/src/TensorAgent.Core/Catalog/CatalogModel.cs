@@ -48,7 +48,7 @@ public sealed record CatalogFile(
 
 /// <summary>Model families the catalog knows; used for grouping in the UI and for
 /// family-specific defaults (thinking, sampling).</summary>
-public enum CatalogFamily { Gemma4, Qwen35, Qwen36, Qwen38, QwenImage }
+public enum CatalogFamily { Gemma4, Qwen35, Qwen36, Qwen38, QwenImage, GptOss }
 
 /// <summary>Dense or mixture-of-experts.</summary>
 public enum CatalogArchitectureKind { Dense, MixtureOfExperts, Diffusion }

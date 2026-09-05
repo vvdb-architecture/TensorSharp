@@ -1,7 +1,10 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorAgent.Core.Hosting;
 using TensorSharp.AgentHost.CodeExec;
+using TensorSharp.AgentHost.Skills;
+using TensorSharp.Runtime;
 
 namespace TensorAgent.Tests;
 
@@ -108,6 +111,69 @@ public sealed class CodeArtifactRouteTests : IDisposable
         CaptureOne("runesc", "ok.pdf", "%PDF-1.7\n"u8.ToArray());
         HttpResponseMessage response = await _client.GetAsync("/api/code/artifacts/runesc/..%2f..%2fsettings.json");
         Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// The link a real command hands back has to be the link the route answers.
+    ///
+    /// <para>
+    /// It was not, and mapping the route did not fix it: the app never set
+    /// <c>ArtifactUriPrefix</c>, so <see cref="ShellRunner"/> fell through to its
+    /// no-server branch and handed back the artifact's ABSOLUTE PATH ON DISK. The model
+    /// was told "tell the user where they are on disk", the page rendered
+    /// <c>/var/mobile/Containers/Data/.../report.pdf</c> as an ordinary link, and tapping
+    /// it asked this server for a path it serves nothing at -- <c>{"error":"not found"}</c>,
+    /// which is precisely the reported symptom and survived the route being added.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task ACommandThatWritesAFileHandsBackALinkThisServerAnswers()
+    {
+        string root = Path.Combine(_root, "app");
+        using var host = new AgentAppHost(new AgentPaths(Path.Combine(root, "data"), Path.Combine(root, "cache")));
+        host.Start();
+        using var client = new HttpClient { BaseAddress = new Uri(host.Server.BaseUrl) };
+        client.DefaultRequestHeaders.Add("Cookie", $"{LoopbackServer.TokenCookie}={host.Server.Token}");
+
+        SessionWorkspace workspace = host.Workspaces.GetOrCreate("session-artifacts");
+        var call = new ToolCall
+        {
+            Name = "shell",
+            Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["command"] = "printf '%PDF-1.7\\n' > report.pdf",
+            },
+        };
+        SkillToolResult result = host.CodeRunner!.Execute(call, workspace: workspace);
+
+        SkillProducedFile file = Assert.Single(result.Files);
+        Assert.StartsWith("/api/code/artifacts/", file.Url, StringComparison.Ordinal);
+        // And it is a LINK in what the model is told, not a path it has to describe.
+        Assert.Contains("](" + file.Url + ")", result.Content, StringComparison.Ordinal);
+
+        HttpResponseMessage response = await client.GetAsync(file.Url);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    /// <summary>
+    /// A name with a space in it. The two producers built this URL separately and only
+    /// one of them escaped anything, so the same file was reachable through a shell
+    /// command's link and a 404 through a skill script's.
+    /// </summary>
+    [Fact]
+    public async Task ANameThatNeedsEscapingResolvesFromTheEscapedLink()
+    {
+        string work = Path.Combine(_root, "work-spaces");
+        Directory.CreateDirectory(Path.Combine(work, "out dir"));
+        File.WriteAllBytes(Path.Combine(work, "out dir", "my report #2.pdf"), "%PDF-1.7\n"u8.ToArray());
+        IReadOnlyList<CodeArtifact> captured = _artifacts.Capture(
+            "runescape", work,
+            (id, rel, _) => CodeArtifactStore.UrlFor("/api/code/artifacts", id, rel), out _);
+
+        string url = Assert.Single(captured).Pointer;
+        Assert.Equal("/api/code/artifacts/runescape/out%20dir/my%20report%20%232.pdf", url);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync(url)).StatusCode);
     }
 
     [Fact]

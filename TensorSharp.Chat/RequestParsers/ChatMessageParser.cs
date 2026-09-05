@@ -48,32 +48,54 @@ namespace TensorSharp.Server.RequestParsers
                     Content = msgEl.GetProperty("content").GetString()
                 };
 
-                if (msgEl.TryGetProperty("imagePaths", out var imgs) && imgs.GetArrayLength() > 0)
-                    msg.ImagePaths = imgs.EnumerateArray().Select(e => e.GetString()).ToList();
+                msg.ImagePaths = StringList(msgEl, "imagePaths");
+                msg.AudioPaths = StringList(msgEl, "audioPaths");
 
-                if (msgEl.TryGetProperty("audioPaths", out var auds) && auds.GetArrayLength() > 0)
-                    msg.AudioPaths = auds.EnumerateArray().Select(e => e.GetString()).ToList();
-
-                // Text uploads inline their content into msg.Content; the original file
-                // paths are surfaced separately so the per-turn audit log can record
-                // which uploaded files belonged to this message.
-                if (msgEl.TryGetProperty("textFilePaths", out var texts) && texts.GetArrayLength() > 0)
-                    msg.TextFilePaths = texts.EnumerateArray().Select(e => e.GetString()).ToList();
+                // Text uploads usually inline their content into msg.Content. Large CSV
+                // tables use the explicit fileBacked attachment marker instead; either
+                // way, the paths identify the upload for staging and audit logging.
+                msg.TextFilePaths = StringList(msgEl, "textFilePaths");
 
                 // The names the user knows those files by ("report.md" rather than the
                 // stored GUID), same order as textFilePaths. Optional: older clients
                 // don't send it, and code execution then stages under the stored name.
-                if (msgEl.TryGetProperty("textFileNames", out var textNames) && textNames.GetArrayLength() > 0)
-                    msg.TextFileNames = textNames.EnumerateArray().Select(e => e.GetString()).ToList();
+                msg.TextFileNames = StringList(msgEl, "textFileNames");
 
-                if (msgEl.TryGetProperty("isVideo", out var iv))
+                if (msgEl.TryGetProperty("isVideo", out var iv)
+                    && (iv.ValueKind == JsonValueKind.True || iv.ValueKind == JsonValueKind.False))
+                {
                     msg.IsVideo = iv.GetBoolean();
+                }
 
                 ReadAttachments(msgEl, msg);
 
                 messages.Add(msg);
             }
             return messages;
+        }
+
+        /// <summary>
+        /// One optional array of strings out of a message, or null.
+        ///
+        /// <para>
+        /// The <c>ValueKind</c> check is the whole point, and it was missing from four
+        /// of these five fields. A message may carry <c>"imagePaths": null</c> — the
+        /// saved-conversation payload serializes every unset list that way — and
+        /// <see cref="JsonElement.GetArrayLength"/> on a null THROWS, so the request
+        /// died with a 500 inside the parser. What that looked like from the phone was a
+        /// chat that worked until it was reopened and then refused every message,
+        /// because the page sends the history it was handed back.
+        /// </para>
+        /// </summary>
+        private static List<string> StringList(JsonElement msgEl, string name)
+        {
+            if (!msgEl.TryGetProperty(name, out JsonElement list)
+                || list.ValueKind != JsonValueKind.Array
+                || list.GetArrayLength() == 0)
+            {
+                return null;
+            }
+            return list.EnumerateArray().Select(e => e.GetString()).ToList();
         }
 
         /// <summary>
@@ -105,6 +127,18 @@ namespace TensorSharp.Server.RequestParsers
                     if (string.IsNullOrWhiteSpace(file))
                         continue;
                     string name = attachment.TryGetProperty("fileName", out var n) ? n.GetString() : null;
+                    string mediaType = attachment.TryGetProperty("mediaType", out var mt)
+                        ? mt.GetString()
+                        : null;
+                    bool fileBacked = attachment.TryGetProperty("fileBacked", out var fb)
+                        && fb.ValueKind == JsonValueKind.True;
+                    if (fileBacked &&
+                        string.Equals(mediaType, "text", StringComparison.OrdinalIgnoreCase) &&
+                        (string.Equals(Path.GetExtension(file), ".csv", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(Path.GetExtension(name), ".csv", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        msg.HasFileBackedTextAttachments = true;
+                    }
                     paths.Add(file);
                     names.Add(string.IsNullOrWhiteSpace(name) ? file : name);
                 }
