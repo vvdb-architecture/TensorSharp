@@ -129,9 +129,18 @@ public sealed class SettingsPage : ContentPage
 
         _body.Add(Section("Generation"));
         int loadedContext = _app.ModelService.ContextTokens;
-        string contextNote = loadedContext > 0
-            ? "The loaded model's input + output context window is " + Describe(loadedContext) + " tokens."
-            : "The loaded model determines the input + output context window.";
+        int modelContext = _app.ModelService.ModelContextTokens;
+        string contextNote = modelContext > loadedContext && loadedContext > 0
+            ? "The model supports " + Describe(modelContext) + " input + output tokens; "
+                + "TensorAgent currently keeps " + Describe(loadedContext) + " active to fit this device."
+            : modelContext > 0 && loadedContext > modelContext
+                ? "The model declares " + Describe(modelContext) + " input + output tokens; "
+                    + "the configured active window is " + Describe(loadedContext) + " tokens."
+                : modelContext > 0
+                    ? "The loaded model's input + output context window is " + Describe(modelContext) + " tokens."
+                    : loadedContext > 0
+                        ? "The active input + output context window is " + Describe(loadedContext) + " tokens."
+                        : "The loaded model determines the input + output context window.";
         _body.Add(Ladder("Reply output limit",
             "Maximum NEW tokens requested for one reply — this is not the context-window setting. "
             + contextNote + " A reply uses only what remains after the prompt.",

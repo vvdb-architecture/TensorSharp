@@ -15,7 +15,8 @@
   var modelBtn = $('model'), hold = $('hold'), abc = $('abc');
 
   var state = {
-    model: null, arch: null, backend: null, contextTokens: 0, visionReady: false,
+    model: null, arch: null, backend: null, contextTokens: 0,
+    modelContextTokens: 0, visionReady: false,
     acceptsVisionProjector: true,
     visionChecking: false,
     session: null, conversation: null,
@@ -501,6 +502,10 @@
     state.acceptsVisionProjector = !d || typeof d.acceptsVisionProjector !== 'boolean'
       ? true : d.acceptsVisionProjector;
     state.contextTokens = (d && d.contextTokens) || 0;
+    // New hosts report the GGUF's own window separately from the effective
+    // runtime/KV-cache limit. Fall back for compatibility with an older host.
+    state.modelContextTokens = d && typeof d.modelContextTokens === 'number'
+      ? d.modelContextTokens : state.contextTokens;
     state.maxTokens = (d && d.defaultMaxTokens) || 2048;
     paintModelButton();
   }
@@ -516,7 +521,16 @@
       var details = [];
       if (state.backend === 'ggml_metal') details.push('GPU');
       else if (state.backend === 'ggml_cpu') details.push('CPU');
-      if (state.contextTokens > 0) details.push(shortTokens(state.contextTokens) + ' context');
+      if (state.modelContextTokens > 0) {
+        if (state.contextTokens > 0 && state.contextTokens !== state.modelContextTokens) {
+          details.push(shortTokens(state.modelContextTokens) + ' model context');
+          details.push(shortTokens(state.contextTokens) + ' active');
+        } else {
+          details.push(shortTokens(state.modelContextTokens) + ' context');
+        }
+      } else if (state.contextTokens > 0) {
+        details.push(shortTokens(state.contextTokens) + ' active context');
+      }
       if (details.length) modelBtn.appendChild(el('span', 'sub', '  ' + details.join(' · ')));
     } else if (loadingModel()) {
       modelBtn.className = 'empty';

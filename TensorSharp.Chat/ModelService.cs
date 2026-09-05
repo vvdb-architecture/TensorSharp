@@ -32,6 +32,15 @@ namespace TensorSharp.Server
         }
 
         public ModelService(ILogger<ModelService> logger)
+            : this(logger, createModel: null)
+        {
+        }
+
+        /// <summary>Test seam for exercising the service/API boundary without loading
+        /// a production-sized model. Production callers use the public constructor.</summary>
+        internal ModelService(
+            ILogger<ModelService> logger,
+            Func<string, BackendType, ITensorParallelGroup, string, ModelBase> createModel)
         {
             logger ??= NullLogger<ModelService>.Instance;
 
@@ -39,7 +48,9 @@ namespace TensorSharp.Server
             var kvCacheRenderer = new KVCachePromptRenderer(promptRenderer);
             var telemetry = new InferenceTelemetry(logger);
 
-            _lifecycle = new ModelLifecycleService(logger);
+            _lifecycle = createModel == null
+                ? new ModelLifecycleService(logger)
+                : new ModelLifecycleService(logger, createModel);
             _intrinsicSession = new ChatSession("__svc_intrinsic__");
             _engineHost = new InferenceEngineHost(_lifecycle, logger);
             _generation = new ChatGenerationPipeline(_lifecycle, _engineHost, kvCacheRenderer, telemetry, logger);
@@ -252,6 +263,13 @@ namespace TensorSharp.Server
         /// fraction of the context so a large skill cannot crowd out the conversation.
         /// </summary>
         public int ContextTokens => _lifecycle.Model?.MaxContextLength ?? 0;
+
+        /// <summary>
+        /// Context window declared by the loaded model artifact, or 0 when nothing is
+        /// loaded. This can be larger than <see cref="ContextTokens"/> when a host
+        /// applies a smaller runtime limit for memory safety.
+        /// </summary>
+        public int ModelContextTokens => _lifecycle.Model?.Config?.DeclaredContextLength ?? 0;
 
         /// <summary>
         /// Session-aware chat with Agent Skills.

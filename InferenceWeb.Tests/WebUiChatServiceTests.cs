@@ -64,9 +64,9 @@ public class WebUiChatServiceTests : IDisposable
         ServerHostingOptions Options,
         SkillRegistry Skills);
 
-    private Fixture Build(UploadStoragePolicy uploads = null)
+    private Fixture Build(UploadStoragePolicy uploads = null, ModelService model = null)
     {
-        var model = new ModelService();
+        model ??= new ModelService();
         var sessions = new SessionManager();
         var options = Options();
         var skills = new SkillRegistry(new SkillRegistryOptions());
@@ -195,10 +195,28 @@ public class WebUiChatServiceTests : IDisposable
         Assert.Equal("ggml_cpu", root.GetProperty("defaultBackend").GetString());
         Assert.Equal("ggml_cpu", root.GetProperty("supportedBackends")[0].GetProperty("Value").GetString());
         Assert.Equal(0, root.GetProperty("contextTokens").GetInt32());
+        Assert.Equal(0, root.GetProperty("modelContextTokens").GetInt32());
         Assert.Equal(100, root.GetProperty("defaultMaxTokens").GetInt32());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("video").ValueKind);
         Assert.True(root.GetProperty("skills").GetProperty("enabled").GetBoolean());
         Assert.DoesNotContain(_baseDir, viaService);
+    }
+
+    [Fact]
+    public void GetModels_ReportsTheLoadedModelsDeclaredAndActiveContexts()
+    {
+        string modelPath = WriteMinimalGguf("context-reporting.gguf");
+        using var model = new ModelService(
+            NullLogger<ModelService>.Instance,
+            (path, _, _, _) => new ContextReportingModel(path, declaredContext: 262144, activeContext: 32768));
+        model.LoadModel(modelPath, null, "cpu");
+        Fixture f = Build(model: model);
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(f.Service.GetModels()));
+        JsonElement root = doc.RootElement;
+
+        Assert.Equal(262144, root.GetProperty("modelContextTokens").GetInt32());
+        Assert.Equal(32768, root.GetProperty("contextTokens").GetInt32());
     }
 
     [Fact]
@@ -237,6 +255,35 @@ public class WebUiChatServiceTests : IDisposable
         Assert.Equal(400, theDefault.StatusCode);
         Assert.False(bool.Parse(Field(theDefault.Payload, "ok")!));
         Assert.Equal("Cannot dispose the default session.", Field(theDefault.Payload, "error"));
+    }
+
+    private string WriteMinimalGguf(string name)
+    {
+        string path = Path.Combine(_baseDir, name);
+        using var writer = new BinaryWriter(File.Create(path));
+        writer.Write(0x46554747u); // "GGUF"
+        writer.Write(3u);
+        writer.Write(0UL); // tensors
+        writer.Write(0UL); // metadata entries
+        writer.Write(new byte[8]); // 32-byte data alignment
+        return path;
+    }
+
+    private sealed class ContextReportingModel : ModelBase
+    {
+        public ContextReportingModel(string path, int declaredContext, int activeContext)
+            : base(path, BackendType.Cpu)
+        {
+            Config = new ModelConfig
+            {
+                Architecture = "qwen35",
+                DeclaredContextLength = declaredContext,
+            };
+            _maxContextLength = activeContext;
+        }
+
+        protected override float[] ForwardCore(int[] tokens) => Array.Empty<float>();
+        protected override void ResetKVCacheCore() { }
     }
 
     [Fact]

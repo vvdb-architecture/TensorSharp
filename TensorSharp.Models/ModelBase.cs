@@ -471,24 +471,35 @@ namespace TensorSharp.Models
         protected int ResolveConfiguredContextLength(int fallback = 4096)
         {
             int? explicitOverride = null;
-            string source;
             string ctxEnv = Environment.GetEnvironmentVariable("MAX_CONTEXT");
             if (!string.IsNullOrWhiteSpace(ctxEnv) && int.TryParse(ctxEnv, out int envCtx) && envCtx > 0)
                 explicitOverride = envCtx;
 
-            int resolved = ResolveConfiguredContextLength(
-                Config?.Architecture ?? _gguf.GetString("general.architecture") ?? string.Empty,
-                _gguf.Metadata,
-                fallback,
-                explicitOverride,
-                out source);
+            string architecture = Config?.Architecture
+                ?? _gguf.GetString("general.architecture")
+                ?? string.Empty;
+            int modelContextLength = ResolveModelContextLength(
+                architecture, _gguf.Metadata, fallback, out string modelSource);
+
+            // Retain what the artifact declares even when the host deliberately
+            // serves a smaller window. MaxContextLength is the effective runtime
+            // bound; Config.DeclaredContextLength is reporting metadata and must not
+            // be used for allocation or prompt budgeting.
+            if (Config != null)
+                Config.DeclaredContextLength = modelSource == "fallback" ? 0 : modelContextLength;
+
+            int resolved = explicitOverride ?? modelContextLength;
 
             if (explicitOverride.HasValue)
-                Console.WriteLine($"Context length: using MAX_CONTEXT={resolved}.");
-            else if (source == "fallback")
+                Console.WriteLine(
+                    $"Context length: using MAX_CONTEXT={resolved}; model declares "
+                    + (modelSource == "fallback"
+                        ? "no context metadata."
+                        : $"{modelSource}={modelContextLength}."));
+            else if (modelSource == "fallback")
                 Console.WriteLine($"Context length: metadata missing, falling back to {resolved} tokens.");
             else
-                Console.WriteLine($"Context length: using GGUF metadata {source}={resolved}.");
+                Console.WriteLine($"Context length: using GGUF metadata {modelSource}={resolved}.");
 
             return resolved;
         }
@@ -802,6 +813,20 @@ namespace TensorSharp.Models
                 return explicitOverride.Value;
             }
 
+            return ResolveModelContextLength(architecture, metadata, fallback, out source);
+        }
+
+        /// <summary>
+        /// Resolve the model artifact's declared context window without applying a
+        /// host override. Reporting code uses this value to avoid presenting a
+        /// memory-policy limit as if it were the model's own capability.
+        /// </summary>
+        internal static int ResolveModelContextLength(
+            string architecture,
+            IReadOnlyDictionary<string, object> metadata,
+            int fallback,
+            out string source)
+        {
             foreach (string key in GetContextLengthMetadataKeys(architecture))
             {
                 if (TryGetPositiveInt(metadata, key, out int contextLength))

@@ -295,10 +295,12 @@ namespace TensorSharp.Chat
                 defaultBackend = _options.DefaultBackend,
                 supportedBackends = _options.SupportedBackends,
                 architecture = _svc.Architecture,
-                // The real input + output window of the loaded engine. This is
-                // intentionally separate from defaultMaxTokens, which is only the
-                // requested number of NEW reply tokens and cannot enlarge the model.
+                // The effective input + output window of the loaded engine. This is
+                // intentionally separate from the model artifact's own window and
+                // from defaultMaxTokens, which is only the requested number of NEW
+                // reply tokens and cannot enlarge either one.
                 contextTokens = _svc.ContextTokens,
+                modelContextTokens = _svc.ModelContextTokens,
                 defaultMaxTokens = _options.DefaultMaxTokens,
                 video,
                 // Null when this build serves no skills at all, so the UI can hide the

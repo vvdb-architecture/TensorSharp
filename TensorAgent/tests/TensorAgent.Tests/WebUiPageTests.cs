@@ -147,6 +147,60 @@ public sealed class WebUiPageTests : IDisposable
         throw new DirectoryNotFoundException($"no TensorAgent above {AppContext.BaseDirectory}");
     }
 
+    [Theory]
+    [InlineData(131072, 8192, "128K model context", "8K active")]
+    [InlineData(262144, 16384, "256K model context", "16K active")]
+    [InlineData(262144, 32768, "256K model context", "32K active")]
+    public void HeaderShowsTheModelsOwnContextSeparatelyFromTheActiveLimit(
+        int modelContext, int activeContext, string expectedModel, string expectedActive)
+    {
+        JsonElement result = Run($$"""
+            R['/api/models'] = { loaded: 'model.gguf', architecture: 'qwen35',
+                loadedBackend: 'ggml_metal', visionReady: true,
+                contextTokens: {{activeContext}}, modelContextTokens: {{modelContext}} };
+            """, """
+            var detail = __page.byId['model'].querySelector('.sub');
+            return { detail: detail ? detail.textContent : '' };
+            """);
+
+        string detail = result.GetProperty("detail").GetString()!;
+        Assert.Contains(expectedModel, detail, StringComparison.Ordinal);
+        Assert.Contains(expectedActive, detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HeaderKeepsCompatibilityWhenTheHostReportsOnlyOneContext()
+    {
+        JsonElement result = Run("""
+            R['/api/models'] = { loaded: 'model.gguf', architecture: 'gemma4',
+                loadedBackend: 'ggml_metal', visionReady: true, contextTokens: 8192 };
+            """, """
+            var detail = __page.byId['model'].querySelector('.sub');
+            return { detail: detail ? detail.textContent : '' };
+            """);
+
+        string detail = result.GetProperty("detail").GetString()!;
+        Assert.Contains("8K context", detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("active", detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HeaderDoesNotPresentAnEffectiveFallbackAsModelMetadata()
+    {
+        JsonElement result = Run("""
+            R['/api/models'] = { loaded: 'model.gguf', architecture: 'unknown',
+                loadedBackend: 'ggml_cpu', visionReady: false,
+                contextTokens: 4096, modelContextTokens: 0 };
+            """, """
+            var detail = __page.byId['model'].querySelector('.sub');
+            return { detail: detail ? detail.textContent : '' };
+            """);
+
+        string detail = result.GetProperty("detail").GetString()!;
+        Assert.Contains("4K active context", detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("model context", detail, StringComparison.Ordinal);
+    }
+
     // =====================================================================================
     // what a message with attachments carries
     // =====================================================================================

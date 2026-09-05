@@ -36,6 +36,13 @@ namespace TensorSharp.Runtime
         public int IntermediateSize { get; set; }
         public string ChatTemplate { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Maximum context length declared by the model artifact. This is the model's
+        /// own window, before a host applies a smaller runtime/KV-cache limit such as
+        /// <c>MAX_CONTEXT</c>.
+        /// </summary>
+        public int DeclaredContextLength { get; set; }
+
         public int NumExperts { get; set; }
         public int NumExpertsUsed { get; set; }
         public int SlidingWindow { get; set; }

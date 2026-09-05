@@ -18,6 +18,80 @@ public class ModelContextLengthTests
     }
 
     [Fact]
+    public void ResolveModelContextLength_IgnoresTheHostLimit()
+    {
+        var metadata = new Dictionary<string, object>
+        {
+            ["qwen35.context_length"] = 262144u,
+            ["qwen35.rope.scaling.original_context_length"] = 32768u
+        };
+
+        int modelContext = ModelBase.ResolveModelContextLength(
+            "qwen35", metadata, 4096, out string source);
+        int activeContext = ModelBase.ResolveConfiguredContextLength(
+            "qwen35", metadata, 4096, 32768, out _);
+
+        Assert.Equal(262144, modelContext);
+        Assert.Equal("qwen35.context_length", source);
+        Assert.Equal(32768, activeContext);
+    }
+
+    [Fact]
+    public void ModelRetainsItsDeclaredContextWhileServingASmallerHostWindow()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"context-probe-{Guid.NewGuid():N}.gguf");
+        string previous = Environment.GetEnvironmentVariable("MAX_CONTEXT");
+        try
+        {
+            WriteContextGguf(path, "qwen35", 262144);
+            Environment.SetEnvironmentVariable("MAX_CONTEXT", "32768");
+
+            using var model = new ContextProbeModel(path);
+
+            Assert.Equal(262144, model.Config.DeclaredContextLength);
+            Assert.Equal(32768, model.EffectiveContextLength);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("MAX_CONTEXT", previous);
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Bench")]
+    public void DeclaredContextResolutionBenchmark()
+    {
+        var metadata = new Dictionary<string, object>
+        {
+            ["qwen35.context_length"] = 262144u,
+            ["qwen35.rope.scaling.original_context_length"] = 32768u
+        };
+        const int iterations = 1_000_000;
+        int checksum = 0;
+        Assert.Equal(
+            262144,
+            ModelBase.ResolveModelContextLength("qwen35", metadata, 4096, out _));
+
+        for (int i = 0; i < 10_000; i++)
+            checksum ^= ModelBase.ResolveModelContextLength("qwen35", metadata, 4096, out _);
+
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < iterations; i++)
+            checksum ^= ModelBase.ResolveModelContextLength("qwen35", metadata, 4096, out _);
+        clock.Stop();
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+
+        double nanoseconds = clock.Elapsed.TotalMilliseconds * 1_000_000 / iterations;
+        Console.WriteLine(
+            $"[context-metadata] {iterations:N0} resolutions: {clock.Elapsed.TotalMilliseconds:F1} ms, "
+            + $"{nanoseconds:F1} ns/op, {allocated / (double)iterations:F1} B/op");
+
+        Assert.Equal(0, checksum);
+    }
+
+    [Fact]
     public void ResolveConfiguredContextLength_UsesStandardContextLengthBeforeOriginalContext()
     {
         var metadata = new Dictionary<string, object>
@@ -215,5 +289,50 @@ public class ModelContextLengthTests
             Assert.False(GpuMemoryBudget.AppliesTo(b));
             Assert.False(GpuMemoryBudget.AppliesToReservations(b));
         }
+    }
+
+    private static void WriteContextGguf(string path, string architecture, uint contextLength)
+    {
+        using var stream = File.Create(path);
+        using var writer = new BinaryWriter(stream);
+        writer.Write(0x46554747u); // "GGUF"
+        writer.Write(3u);
+        writer.Write(0UL); // tensors
+        writer.Write(2UL); // metadata entries
+
+        WriteGgufString(writer, "general.architecture");
+        writer.Write((uint)GgufValueType.String);
+        WriteGgufString(writer, architecture);
+
+        WriteGgufString(writer, architecture + ".context_length");
+        writer.Write((uint)GgufValueType.Uint32);
+        writer.Write(contextLength);
+
+        int padding = (int)((32 - stream.Position % 32) % 32);
+        writer.Write(new byte[padding]);
+    }
+
+    private static void WriteGgufString(BinaryWriter writer, string value)
+    {
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        writer.Write((ulong)bytes.Length);
+        writer.Write(bytes);
+    }
+
+    private sealed class ContextProbeModel : ModelBase
+    {
+        public ContextProbeModel(string path) : base(path, BackendType.Cpu)
+        {
+            Config = new ModelConfig
+            {
+                Architecture = _gguf.GetString("general.architecture") ?? string.Empty,
+            };
+            EffectiveContextLength = ResolveConfiguredContextLength();
+        }
+
+        public int EffectiveContextLength { get; }
+
+        protected override float[] ForwardCore(int[] tokens) => Array.Empty<float>();
+        protected override void ResetKVCacheCore() { }
     }
 }
