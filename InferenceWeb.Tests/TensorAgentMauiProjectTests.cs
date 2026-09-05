@@ -23,8 +23,8 @@ namespace InferenceWeb.Tests;
 /// The head cannot be referenced from a net10.0 test project (it targets
 /// net10.0-ios and needs the maui-ios workload), and the facts that make it
 /// work are all declarative: the static NativeReference to the GgmlOps
-/// xcframework with the exported_symbol linker flags, the Web UI linked from
-/// TensorSharp.Server/wwwroot rather than copied, the loopback ATS exception,
+/// xcframework with the exported_symbol linker flags, the phone-specific Web UI
+/// bundled from the app's own wwwroot, the loopback ATS exception,
 /// and the device-only memory entitlements. Each of these was hit for real
 /// while bringing the app up, and each fails silently when removed - the
 /// project still builds, and the app then dies at first P/Invoke or shows a
@@ -110,7 +110,17 @@ public class TensorAgentMauiProjectTests
     public void Head_ReferencesAndRootsEveryEngineAssembly()
     {
         XDocument doc = Csproj;
-        string[] engine = { "TensorSharp.Core", "TensorSharp.Runtime", "TensorSharp.Models", "TensorSharp.Backends.GGML", "TensorSharp.AgentHost" };
+        string[] engine =
+        {
+            "TensorSharp.Core",
+            "TensorSharp.Runtime",
+            "TensorSharp.Runtime.Logging",
+            "TensorSharp.Models",
+            "TensorSharp.Backends.GGML",
+            "TensorSharp.AgentHost",
+            "TensorSharp.Chat",
+            "TensorAgent.Core",
+        };
 
         var references = doc.Descendants(Ns + "ProjectReference")
             .Select(e => Path.GetFileNameWithoutExtension(e.Attribute("Include")!.Value.Replace('\\', '/')))
@@ -130,23 +140,21 @@ public class TensorAgentMauiProjectTests
     }
 
     [Fact]
-    public void Head_BundlesTheServersWwwrootInsteadOfForkingIt()
+    public void Head_BundlesItsOwnPhoneWwwroot()
     {
         // Several things are bundled now — the skills, the Python standard library —
-        // so this is the one that matters: the Web UI, linked from the Server rather
-        // than copied.
+        // so this is the one that matters: the phone-specific Web UI. It deliberately
+        // differs from the desktop Server page while speaking the same loopback API.
         XElement bundle = Assert.Single(Csproj.Descendants(Ns + "BundleResource")
-            .Where(e => e.Attribute("Include")!.Value.Replace('\\', '/').Contains("TensorSharp.Server/wwwroot", StringComparison.Ordinal)));
-        Assert.EndsWith("TensorSharp.Server/wwwroot/**/*", bundle.Attribute("Include")!.Value.Replace('\\', '/'));
+            .Where(e => e.Attribute("Include")!.Value.Replace('\\', '/') == "wwwroot/**/*"));
         Assert.StartsWith("webui/", bundle.Attribute("Link")?.Value.Replace('\\', '/'));
 
-        // No copy of index.html may live under the app: the whole point of the
-        // link is that the Web UI has exactly one source of truth.
-        Assert.False(
-            Directory.EnumerateFiles(MauiDir, "index.html", SearchOption.AllDirectories)
-                .Any(p => !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") &&
-                          !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")),
-            "TensorAgent.Maui must not carry its own index.html; it links TensorSharp.Server/wwwroot.");
+        string page = Path.Combine(MauiDir, "wwwroot", "index.html");
+        Assert.True(File.Exists(page), "TensorAgent.Maui must carry its phone-specific index.html.");
+        Assert.DoesNotContain(
+            Csproj.Descendants(Ns + "BundleResource"),
+            e => e.Attribute("Include")!.Value.Replace('\\', '/')
+                .Contains("TensorSharp.Server/wwwroot", StringComparison.Ordinal));
     }
 
     [Fact]

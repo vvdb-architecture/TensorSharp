@@ -1700,6 +1700,31 @@ internal enum GgmlIndexReductionOp
             long m2Ne1,
             long m2RawBytes);
 
+        // ------------------------------------------------------------------
+        // The tensor-parallel PLAN SLOT contract (applies to every entry point
+        // below that takes a `tpPlanOut`).
+        //
+        // These kernels either RUN their graph or, under tensor parallelism,
+        // build it and hand back a plan the caller executes once per rank. The
+        // native side picks between the two by testing whether `tp_plan_out` is
+        // a null pointer.
+        //
+        // So the parameter MUST be `IntPtr[]`, which marshals a null array to a
+        // real null pointer. Declaring it `out IntPtr` passes the address of a
+        // stack local, i.e. a NON-null slot on every call — including from
+        // callers that are not tensor-parallel. Those callers then silently land
+        // in plan mode: the graph is built, parked, and never executed, while
+        // the entry point still returns success. The op computes nothing and
+        // reports that it worked.
+        //
+        // Note the native gate widens a caller's tpDegree to the process-wide TP
+        // degree, so passing tpDegree=1 is NOT enough to stay out of plan mode
+        // inside a tensor-parallel process — only a null slot is. This is what
+        // silently turned Nemotron's Mamba2 residual add (a replicated, rank-0
+        // computation) into a no-op under --tp 2.
+        //
+        // GgmlTensorParallelPlanSlotContractTests guards this.
+        // ------------------------------------------------------------------
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial int TSGgml_FusedMatMulQuantAddF32(
@@ -1710,7 +1735,7 @@ internal enum GgmlIndexReductionOp
             long m2Ne0,
             long m2Ne1,
             long m2RawBytes,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -1735,7 +1760,7 @@ internal enum GgmlIndexReductionOp
             long downNe1,
             long downRawBytes,
             int halfDim,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -2429,7 +2454,7 @@ internal enum GgmlIndexReductionOp
             int ropeMode,
             int kvCacheType,
             float eps,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -2456,6 +2481,7 @@ internal enum GgmlIndexReductionOp
             float eps,
             int tpDegree = 1, IntPtr[] tpPlanOut = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             CheckResult(TSGgml_Qwen35AttentionLayerPrefill(
                 hiddenData, hiddenSize, seqLen,
                 attnNormW,
@@ -2467,9 +2493,7 @@ internal enum GgmlIndexReductionOp
                 cacheSize, startPos,
                 ropeBase, ropeFreqScale, ropeDims,
                 ropeMode, kvCacheType, eps,
-                tpDegree, out IntPtr plan), "qwen35_attention_layer_prefill");
-            // Tensor-parallel mode returns a plan instead of running the graph.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
+                tpDegree, tpPlanOut), "qwen35_attention_layer_prefill");
         }
 
         public static void GptOssAttentionLayerPrefill(
@@ -2552,7 +2576,7 @@ internal enum GgmlIndexReductionOp
             IntPtr pleModelProjData, int pleModelProjType,
             long pleModelProjNe0, long pleModelProjNe1, long pleModelProjBytes,
             IntPtr pleModelProjNormData,
-            int tpDegree, out IntPtr tpPlanOut,
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut,
             IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
             IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr);
 
@@ -2898,7 +2922,7 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjWData, int pleProjWType,
             long pleProjWNe0, long pleProjWNe1, long pleProjWBytes,
             IntPtr pleProjNormData,
-            int tpDegree, out IntPtr tpPlanOut,
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut,
             IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
             IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr);
 
@@ -3339,7 +3363,7 @@ internal enum GgmlIndexReductionOp
             IntPtr logits, int vocabSize,
             IntPtr lmHead, int lmHeadType, long lmHeadNe0, long lmHeadNe1, long lmHeadBytes,
             IntPtr finalNorm,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         /// <summary>
         /// Builds one rank's whole-model decode graph and returns a plan pointer
@@ -3352,10 +3376,10 @@ internal enum GgmlIndexReductionOp
             long lmHeadNe0, long lmHeadNe1, long lmHeadBytes, IntPtr finalNorm,
             int tpDegree, IntPtr[] tpPlanOut)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             int rc = TSGgml_GptOssModelDecodeTP(layers, numLayers, hidden, hiddenSize, position,
                 logits, vocabSize, lmHead, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes, finalNorm,
-                tpDegree, out IntPtr plan);
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
+                tpDegree, tpPlanOut);
             return rc != 0;
         }
 
@@ -3368,7 +3392,7 @@ internal enum GgmlIndexReductionOp
             IntPtr logits, int vocabSize,
             IntPtr lmHead, int lmHeadType, long lmHeadNe0, long lmHeadNe1, long lmHeadBytes,
             IntPtr finalNorm,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         /// <summary>
         /// Builds one rank's whole-model prefill graph and returns a plan pointer
@@ -3380,10 +3404,10 @@ internal enum GgmlIndexReductionOp
             long lmHeadNe0, long lmHeadNe1, long lmHeadBytes, IntPtr finalNorm,
             int tpDegree, IntPtr[] tpPlanOut)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             int rc = TSGgml_GptOssModelPrefillTP(layers, numLayers, hidden, hiddenSize, numTokens,
                 startPos, logits, vocabSize, lmHead, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes,
-                finalNorm, tpDegree, out IntPtr plan);
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
+                finalNorm, tpDegree, tpPlanOut);
             return rc != 0;
         }
 
@@ -3491,13 +3515,13 @@ internal enum GgmlIndexReductionOp
             IntPtr logits, int vocabSize,
             IntPtr lmHead, int lmHeadType, long lmHeadNe0, long lmHeadNe1, long lmHeadBytes,
             IntPtr finalNorm, float logitSoftcap,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         public static void Gemma4MoEModelDecode(Gemma4MoELayerDecodeArgs[] layers, int numLayers, IntPtr hidden, int hiddenSize, int position)
         {
             CheckResult(TSGgml_Gemma4MoEModelDecode(layers, numLayers, hidden, hiddenSize, position,
                 IntPtr.Zero, 0, IntPtr.Zero, 0, 0, 0, 0, IntPtr.Zero, 0.0f,
-                1, out _), nameof(TSGgml_Gemma4MoEModelDecode));
+                1, null), nameof(TSGgml_Gemma4MoEModelDecode));
         }
 
         // Folded variant: appends final-norm + lm_head + softcap so logits[vocab] are
@@ -3507,12 +3531,11 @@ internal enum GgmlIndexReductionOp
             IntPtr finalNorm, float logitSoftcap,
             int tpDegree = 1, IntPtr[] tpPlanOut = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             CheckResult(TSGgml_Gemma4MoEModelDecode(layers, numLayers, hidden, hiddenSize, position,
                 logits, vocabSize, lmHead, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes, finalNorm, logitSoftcap,
-                tpDegree, out IntPtr plan),
+                tpDegree, tpPlanOut),
                 nameof(TSGgml_Gemma4MoEModelDecode));
-            // Tensor-parallel mode returns a plan instead of running the graph.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
         }
 
         // TRUE token-batched MoE decode: N concurrent sequences, one token each, in
@@ -3555,7 +3578,7 @@ internal enum GgmlIndexReductionOp
             [In] Gemma4MoELayerDecodeArgs[] layers, int numLayers,
             IntPtr hidden, int hiddenSize, int startPos, int numTokens,
             byte[] mmIsExcept,
-            int tpDegree, out IntPtr tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -3570,10 +3593,9 @@ internal enum GgmlIndexReductionOp
         public static bool Gemma4MoEModelVerify(Gemma4MoELayerDecodeArgs[] layers, int numLayers, IntPtr hidden, int hiddenSize, int startPos, int numTokens,
             byte[] mmIsExcept = null, int tpDegree = 1, IntPtr[] tpPlanOut = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             int rc = TSGgml_Gemma4MoEModelVerify(layers, numLayers, hidden, hiddenSize, startPos, numTokens,
-                mmIsExcept, tpDegree, out IntPtr plan);
-            // Tensor-parallel mode returns a plan instead of running the graph.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
+                mmIsExcept, tpDegree, tpPlanOut);
             return rc != 0;
         }
 
@@ -4779,11 +4801,10 @@ internal enum GgmlIndexReductionOp
             IntPtr m2Data, int m2GgmlType, long m2Ne0, long m2Ne1, long m2RawBytes,
             int tpDegree = 1, IntPtr[] tpPlanOut = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             CheckResult(TSGgml_FusedMatMulQuantAddF32(
                 residual, input, m2Data, m2GgmlType, m2Ne0, m2Ne1, m2RawBytes,
-                tpDegree, out IntPtr plan), "fused_matmul_quant_add");
-            // Tensor-parallel mode returns a plan instead of running the graph.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
+                tpDegree, tpPlanOut), "fused_matmul_quant_add");
         }
 
         public static void ReleaseFusedMatmulAddTpGraphs()
@@ -4803,13 +4824,12 @@ internal enum GgmlIndexReductionOp
             int halfDim,
             int tpDegree = 1, IntPtr[] tpPlanOut = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             CheckResult(TSGgml_FusedFFNSwiGLUQuantF32(
                 residual, input, normWeightData, normWeightCount, eps,
                 gateUpData, gateUpGgmlType, gateUpNe0, gateUpNe1, gateUpRawBytes,
                 downData, downGgmlType, downNe0, downNe1, downRawBytes,
-                halfDim, tpDegree, out IntPtr plan), "fused_ffn_swiglu_quant");
-            // Tensor-parallel mode returns a plan instead of running the graph.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
+                halfDim, tpDegree, tpPlanOut), "fused_ffn_swiglu_quant");
         }
 
         public static void FusedFFNActProjectQuant(
@@ -5746,6 +5766,7 @@ internal enum GgmlIndexReductionOp
             IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
             IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             CheckResult(TSGgml_Gemma4ModelDecode(
                 hiddenData, hiddenSize, numLayers,
                 attnNormArr, qkvArr, qNormArr, kNormArr,
@@ -5778,12 +5799,9 @@ internal enum GgmlIndexReductionOp
                 pleModelProjData, pleModelProjType,
                 pleModelProjNe0, pleModelProjNe1, pleModelProjBytes,
                 pleModelProjNormData,
-                tpDegree, out IntPtr plan,
+                tpDegree, tpPlanOut,
                 gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
                 upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr), "gemma4_model_decode");
-            // Tensor-parallel mode returns a plan instead of running the graph;
-            // the caller collects one per rank for TensorParallelExecutePlans.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
         }
 
         /// <summary>True token-batched dense decode: N concurrent sequences, one
@@ -5875,6 +5893,7 @@ internal enum GgmlIndexReductionOp
             IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
             IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
+            if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             int r = TSGgml_Gemma4ModelVerify(
                 hiddenData, hiddenSize, numLayers, numTokens,
                 attnNormArr, qkvArr, qNormArr, kNormArr,
@@ -5904,11 +5923,9 @@ internal enum GgmlIndexReductionOp
                 pleProjWData, pleProjWType,
                 pleProjWNe0, pleProjWNe1, pleProjWBytes,
                 pleProjNormData,
-                tpDegree, out IntPtr plan,
+                tpDegree, tpPlanOut,
                 gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
                 upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr);
-            // Tensor-parallel mode returns a plan instead of running the graph.
-            if (tpPlanOut != null) tpPlanOut[0] = plan;
             return r != 0;
         }
 

@@ -27,6 +27,7 @@
     <MlxNativeMetallibName Condition="$([MSBuild]::IsOSPlatform('OSX'))">mlx.metallib</MlxNativeMetallibName>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\TensorSharp.Runtime.Logging\TensorSharp.Runtime.Logging.csproj" />
     <ProjectReference Include="..\TensorSharp.Runtime\TensorSharp.Runtime.csproj" />
     <ProjectReference Include="..\TensorSharp.Chat\TensorSharp.Chat.csproj" />
     <ProjectReference Include="..\TensorSharp.AgentHost\TensorSharp.AgentHost.csproj" />
