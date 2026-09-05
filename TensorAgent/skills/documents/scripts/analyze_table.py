@@ -32,8 +32,8 @@ import sys
 NUMERIC_STRIP = " \t$%,"
 
 
-def read_csv(path: str, delimiter: "str | None") -> "tuple[list, list]":
-    with open(path, newline="", encoding="utf-8-sig") as handle:
+def _read_csv(path: str, delimiter: "str | None", encoding: str) -> "tuple[list, list]":
+    with open(path, newline="", encoding=encoding) as handle:
         sample = handle.read(64 * 1024)
         handle.seek(0)
         if delimiter is None:
@@ -43,9 +43,29 @@ def read_csv(path: str, delimiter: "str | None") -> "tuple[list, list]":
                 delimiter = ","
         reader = csv.reader(handle, delimiter=delimiter)
         rows = [row for row in reader]
-    if not rows:
-        return [], []
-    return rows[0], rows[1:]
+    return (rows[0], rows[1:]) if rows else ([], [])
+
+
+def read_csv(path: str, delimiter: "str | None") -> "tuple[list, list]":
+    """Read a UTF-8 CSV, falling back to the common Windows export encoding.
+
+    A BOM is authoritative for UTF-16/32, while ``utf-8-sig`` retains the
+    existing behavior of removing a UTF-8 BOM from the first heading. UTF-8
+    stays strict so a legacy byte is never silently replaced. Election systems
+    and spreadsheet applications also commonly export Windows-1252; retrying
+    from the beginning is necessary because the first non-UTF-8 byte may occur
+    after the delimiter sample.
+    """
+    with open(path, "rb") as handle:
+        prefix = handle.read(4)
+    if prefix.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+        return _read_csv(path, delimiter, "utf-32")
+    if prefix.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return _read_csv(path, delimiter, "utf-16")
+    try:
+        return _read_csv(path, delimiter, "utf-8-sig")
+    except UnicodeDecodeError:
+        return _read_csv(path, delimiter, "cp1252")
 
 
 def read_xlsx(path: str, sheet_name: "str | None") -> "tuple[list, list, int]":

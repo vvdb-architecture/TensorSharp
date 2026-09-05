@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -607,7 +608,8 @@ namespace TensorSharp.AgentHost.Skills
 
             string? skillName = ReadString(call, "skill");
             string? path = ReadString(call, "path") ?? ReadString(call, "script");
-            IReadOnlyList<string> args = ReadArgumentList(call, "args") ?? ReadArgumentList(call, "arguments")
+            IReadOnlyList<string> args = ReadRunArgumentList(call, "args", context.CodeInputFiles)
+                                         ?? ReadRunArgumentList(call, "arguments", context.CodeInputFiles)
                                          ?? Array.Empty<string>();
 
             if (string.IsNullOrWhiteSpace(skillName) || string.IsNullOrWhiteSpace(path))
@@ -618,6 +620,45 @@ namespace TensorSharp.AgentHost.Skills
 
             path = StripSkillPrefix(path!, skill!.Id);
             return context.ScriptRunner.Run(skill, path, args, onOutput, ReadPackagesArgument(call));
+        }
+
+        /// <summary>
+        /// Read a script argument vector, with one deliberately narrow repair for an
+        /// attached filename. A scalar normally has shell-style tokenization, but local
+        /// models also emit <c>args="my results.csv"</c> after copying the exact name
+        /// from the attachment prompt. When the whole scalar is exactly one known input
+        /// name, it is unambiguously one argument even though the model omitted quotes.
+        /// </summary>
+        /// <remarks>
+        /// Do not apply this to an array: its item boundaries are already explicit. Do
+        /// not search within a larger command line either; options and ordinary scalar
+        /// arguments must retain <see cref="SkillScriptRunner.SplitArguments"/> semantics.
+        /// </remarks>
+        private static IReadOnlyList<string>? ReadRunArgumentList(
+            ToolCall call, string name, IReadOnlyList<CodeInputFile> inputFiles)
+        {
+            if (call.Arguments == null || !call.Arguments.TryGetValue(name, out object? value) || value == null)
+                return null;
+
+            string? scalar = value switch
+            {
+                string text => text,
+                JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(),
+                _ => null,
+            };
+
+            if (scalar != null && inputFiles != null)
+            {
+                string candidate = scalar.Trim();
+                foreach (CodeInputFile input in inputFiles)
+                {
+                    string attachedName = Path.GetFileName(input.Name ?? string.Empty);
+                    if (attachedName.Length > 0 && string.Equals(candidate, attachedName, StringComparison.Ordinal))
+                        return new[] { attachedName };
+                }
+            }
+
+            return ReadArgumentList(call, name);
         }
 
         /// <summary>

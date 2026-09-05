@@ -386,6 +386,137 @@ public sealed class DocumentSkillTests
     private static readonly byte[] PdfMagic = "%PDF-"u8.ToArray();
     private static readonly byte[] ZipMagic = [0x50, 0x4B, 0x03, 0x04];
 
+    /// <summary>
+    /// A Windows CSV is not necessarily UTF-8. The real election-results file that
+    /// exposed this contained two otherwise ordinary names with an <c>0xE9</c> byte;
+    /// the analyzer read 64 KiB as UTF-8 and stopped before it could report a row.
+    /// Exercise the same script through the app's shell, and construct the fixture as
+    /// bytes so a source-file or test-runner encoding cannot accidentally turn it into
+    /// valid UTF-8.
+    /// </summary>
+    [LivePythonFact]
+    public void AnalyzeTableFallsBackToWindows1252WithoutLosingNamesOrStatistics()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-cp1252-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("legacy-csv");
+            string work = workspace.WorkDirectory;
+            byte[] legacyCsv =
+            [
+                .. "candidate,votes\r\nSam M"u8.ToArray(),
+                0xE9,
+                .. "ndez,10\r\nRuth P"u8.ToArray(),
+                0xE9,
+                .. "rez,20\r\n"u8.ToArray(),
+            ];
+            File.WriteAllBytes(Path.Combine(work, "legacy.csv"), legacyCsv);
+
+            IShellBackend backend = new InProcessShellBackend(python);
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+            ConfinedResult result = backend.Run(new ShellLaunch
+            {
+                Command = $"python3 '{Path.Combine(Scripts, "analyze_table.py")}' legacy.csv",
+                Session = session,
+                WorkingDirectory = work,
+                WriteDirectory = work,
+                ReadOnlyDirectory = Scripts,
+                Timeout = TimeSpan.FromSeconds(30),
+            });
+
+            Assert.True(result.Ok && result.ExitCode == 0,
+                $"analyze_table.py failed with exit {result.ExitCode}.{Environment.NewLine}"
+                + $"stdout: {result.Stdout}{Environment.NewLine}stderr: {result.Stderr}");
+
+            using JsonDocument report = JsonDocument.Parse(result.Stdout);
+            JsonElement rootElement = report.RootElement;
+            Assert.Equal(2, rootElement.GetProperty("rows_read").GetInt32());
+            JsonElement profiles = rootElement.GetProperty("profile");
+            string[] names = profiles[0].GetProperty("top_values").EnumerateArray()
+                .Select(item => item[0].GetString()!)
+                .ToArray();
+            Assert.Contains("Sam Méndez", names);
+            Assert.Contains("Ruth Pérez", names);
+
+            JsonElement voteProfile = profiles[1];
+            Assert.True(voteProfile.GetProperty("numeric").GetBoolean());
+            JsonElement stats = voteProfile.GetProperty("stats");
+            Assert.Equal(2, stats.GetProperty("count").GetInt32());
+            Assert.Equal(30, stats.GetProperty("sum").GetDouble());
+            Assert.Equal(15, stats.GetProperty("mean").GetDouble());
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Excel-style "Unicode Text" exports are commonly UTF-16 tab-separated files.
+    /// Without checking their BOM before the single-byte fallback, the CSV reader sees
+    /// a NUL after every character and cannot recover the headings or rows.
+    /// </summary>
+    [LivePythonFact]
+    public void AnalyzeTableHonorsAUtf16BomForTabSeparatedInput()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-utf16-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("utf16-tsv");
+            string work = workspace.WorkDirectory;
+            byte[] utf16Tsv =
+            [
+                0xFF, 0xFE,
+                .. System.Text.Encoding.Unicode.GetBytes("candidate\tvotes\r\nZoë\t7\r\nRenée\t9\r\n"),
+            ];
+            File.WriteAllBytes(Path.Combine(work, "unicode.tsv"), utf16Tsv);
+
+            IShellBackend backend = new InProcessShellBackend(python);
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+            ConfinedResult result = backend.Run(new ShellLaunch
+            {
+                Command = $"python3 '{Path.Combine(Scripts, "analyze_table.py")}' unicode.tsv",
+                Session = session,
+                WorkingDirectory = work,
+                WriteDirectory = work,
+                ReadOnlyDirectory = Scripts,
+                Timeout = TimeSpan.FromSeconds(30),
+            });
+
+            Assert.True(result.Ok && result.ExitCode == 0,
+                $"analyze_table.py failed with exit {result.ExitCode}.{Environment.NewLine}"
+                + $"stdout: {result.Stdout}{Environment.NewLine}stderr: {result.Stderr}");
+
+            using JsonDocument report = JsonDocument.Parse(result.Stdout);
+            JsonElement rootElement = report.RootElement;
+            Assert.Equal(new[] { "candidate", "votes" }, rootElement.GetProperty("columns").EnumerateArray()
+                .Select(column => column.GetString())
+                .ToArray());
+            Assert.Equal(2, rootElement.GetProperty("rows_read").GetInt32());
+            JsonElement profiles = rootElement.GetProperty("profile");
+            string[] names = profiles[0].GetProperty("top_values").EnumerateArray()
+                .Select(item => item[0].GetString()!)
+                .ToArray();
+            Assert.Contains("Zoë", names);
+            Assert.Contains("Renée", names);
+            Assert.Equal(16, profiles[1].GetProperty("stats").GetProperty("sum").GetDouble());
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
     /// <summary>The packages that come from the staged runtime rather than the standard library.</summary>
     private static readonly HashSet<string> ThirdParty =
         new(StringComparer.Ordinal) { "reportlab", "pypdf", "openpyxl", "defusedxml", "PIL" };

@@ -709,6 +709,67 @@ public sealed class SkillScriptRunnerBackendTests : IDisposable
     }
 
     [Fact]
+    public void SkillsRun_RepairsAnExactAttachedNameWithoutChangingOrdinaryScalarSplitting()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("attached-csv-spaces");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required,
+            Backend = backend,
+            Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        const string displayName = "webresults-20251106 2.csv";
+        string source = Path.Combine(_base, "stored-results.csv");
+        File.WriteAllText(source, "candidate,votes\nSam,10\n");
+
+        backend.Answer = _ => FakeShellBackend.Ok("analyzed\n");
+        var context = new SkillToolContext(new[] { skill })
+        {
+            ScriptRunner = runner,
+            Workspace = workspace,
+            CodeInputFiles = new[] { new CodeInputFile(displayName, source) },
+        };
+
+        SkillToolResult result = SkillTools.Execute(
+            new ToolCall
+            {
+                Name = SkillTools.RunToolName,
+                Arguments = new Dictionary<string, object>
+                {
+                    ["skill"] = "tester",
+                    ["path"] = "scripts/tool.py",
+                    // Exact shape observed in the live upload-to-chat run: the model
+                    // copied the right friendly name but did not add nested quotes.
+                    ["args"] = displayName,
+                },
+            },
+            context);
+
+        Assert.True(result.Ok, result.Content);
+        ShellLaunch launch = Assert.Single(backend.Launches);
+        Assert.Equal(displayName, Assert.Single(launch.Argv!.Skip(2)));
+        Assert.True(File.Exists(Path.Combine(workspace.WorkDirectory, displayName)));
+
+        SkillToolResult ordinary = SkillTools.Execute(
+            new ToolCall
+            {
+                Name = SkillTools.RunToolName,
+                Arguments = new Dictionary<string, object>
+                {
+                    ["skill"] = "tester",
+                    ["path"] = "scripts/tool.py",
+                    ["args"] = "--out summary.json 2400",
+                },
+            },
+            context);
+
+        Assert.True(ordinary.Ok, ordinary.Content);
+        Assert.Equal(new[] { "--out", "summary.json", "2400" }, backend.Launches[1].Argv!.Skip(2));
+    }
+
+    [Fact]
     public void AFailingScript_IsNotOk_AndIsStagedForRepair_FromTheBackendsAnswer()
     {
         var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };

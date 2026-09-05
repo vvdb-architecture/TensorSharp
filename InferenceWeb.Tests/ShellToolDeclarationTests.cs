@@ -814,6 +814,104 @@ public class ShellToolDeclarationTests : IDisposable
     }
 
     [Fact]
+    public void AWindows1252CsvIsUtf8InTheExecutionWorkspace_WithoutChangingTheUpload()
+    {
+        // Real election/spreadsheet exports still commonly use a legacy Windows code
+        // page. The model quite reasonably writes open(..., encoding='utf-8'), and the
+        // bundled table tools make the same assumption; failing only when they reach a
+        // candidate's accented name turns a valid table into a wasted repair loop.
+        string expected = "candidate,votes\r\nSam Méndez,4639\r\nRuth Pérez,2191\r\n";
+        byte[] upload = System.Text.Encoding.ASCII.GetBytes(
+            "candidate,votes\r\nSam M?ndez,4639\r\nRuth P?rez,2191\r\n");
+        upload["candidate,votes\r\nSam M".Length] = 0xE9;
+        upload["candidate,votes\r\nSam M?ndez,4639\r\nRuth P".Length] = 0xE9;
+
+        string source = Path.Combine(_base, "stored-election.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "legacy-csv-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("legacy-csv");
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("election results.csv", source) }, workspace);
+
+        Assert.Contains("election results.csv", available);
+        string staged = Path.Combine(workspace.WorkDirectory, "election results.csv");
+        var strictUtf8 = new System.Text.UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        Assert.Equal(expected, File.ReadAllText(staged, strictUtf8));
+        Assert.False(File.ReadAllBytes(staged).AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }));
+
+        // The served/downloadable upload is evidence and must remain the exact file the
+        // user supplied; only the private copy programs work on is normalised.
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AMalformedBomMarkedCsvIsNotStagedWithReplacementCharacters()
+    {
+        // StreamReader's built-in BOM detection replaces a caller-supplied strict
+        // UTF-8 decoder with a permissive one. Pin the stronger contract here: a bad
+        // byte after a real BOM makes the attachment unavailable instead of changing
+        // evidence into U+FFFD and handing plausible-but-corrupt data to the model.
+        byte[] upload = [0xEF, 0xBB, 0xBF, (byte)'a', (byte)',', 0xC3, (byte)'(', (byte)'\n'];
+        string source = Path.Combine(_base, "malformed.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "malformed-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("malformed-csv");
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("malformed.csv", source) }, workspace);
+
+        Assert.DoesNotContain("malformed.csv", available);
+        Assert.False(File.Exists(Path.Combine(workspace.WorkDirectory, "malformed.csv")));
+        Assert.Empty(Directory.GetFiles(workspace.WorkDirectory, ".tensorsharp-stage-*.tmp"));
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AFailedCsvRefreshDoesNotLeaveTheOlderAttachmentReadable()
+    {
+        byte[] upload = [0xEF, 0xBB, 0xBF, (byte)'a', (byte)',', 0xC3, (byte)'(', (byte)'\n'];
+        string source = Path.Combine(_base, "new-malformed.csv");
+        File.WriteAllBytes(source, upload);
+        File.SetLastWriteTimeUtc(source, DateTime.UtcNow);
+
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "stale-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("stale-csv");
+        string staged = Path.Combine(workspace.WorkDirectory, "form.csv");
+        File.WriteAllText(staged, "row,value\n1,STALE_UPLOAD_MUST_NOT_BE_READ\n");
+        File.SetLastWriteTimeUtc(staged, DateTime.UtcNow.AddHours(-2));
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("form.csv", source) }, workspace);
+
+        Assert.DoesNotContain("form.csv", available);
+        Assert.False(File.Exists(staged));
+        Assert.Empty(Directory.GetFiles(workspace.WorkDirectory, ".tensorsharp-stage-*.tmp"));
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AUtf16CsvBomIsRemovedFromTheUtf8ExecutionCopy()
+    {
+        const string expected = "candidate,votes\r\nZoë,7\r\nRenée,9\r\n";
+        byte[] upload = [.. System.Text.Encoding.Unicode.GetPreamble(),
+                         .. System.Text.Encoding.Unicode.GetBytes(expected)];
+        string source = Path.Combine(_base, "unicode-upload.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "unicode-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("unicode-csv");
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("unicode results.csv", source) }, workspace);
+
+        Assert.Contains("unicode results.csv", available);
+        byte[] staged = File.ReadAllBytes(Path.Combine(workspace.WorkDirectory, "unicode results.csv"));
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(expected), staged);
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
     public void AttachmentStagingDoesNotFollowAnExistingDestinationSymlinkOutsideTheWorkspace()
     {
         const string witness = "OUTSIDE_WITNESS_MUST_NOT_CHANGE\n";

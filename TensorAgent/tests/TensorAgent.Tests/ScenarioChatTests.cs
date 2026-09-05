@@ -579,15 +579,15 @@ public sealed class ScenarioChatTests : LiveModelHarness
         // instead of about its vocabulary.
         Match verdict = Regex.Match(
             answer,
-            @"ANSWER:\s*total\s*=\s*(?<total>[0-9][0-9,_ ]*)\s*,\s*region\s*=\s*(?<region>[A-Za-z][A-Za-z '\-]*)",
+            @"ANSWER:\s*total\s*=\s*(?<total>[0-9][0-9,_ ]*(?:\.[0-9]+)?)\s*,\s*region\s*=\s*(?<region>[A-Za-z][A-Za-z '\-]*)",
             RegexOptions.IgnoreCase);
         Assert.True(verdict.Success,
             $"the reply has no 'ANSWER: total=..., region=...' line, so which region it settled on cannot be "
             + $"told apart from which regions it mentioned. The model answered: {answer}");
 
-        long statedTotal = long.Parse(
+        decimal statedTotal = decimal.Parse(
             Regex.Replace(verdict.Groups["total"].Value, @"[,_ ]", string.Empty), CultureInfo.InvariantCulture);
-        Assert.Equal(expectedTotal, statedTotal);
+        Assert.Equal((decimal)expectedTotal, statedTotal);
 
         Assert.Equal(best.Key, verdict.Groups["region"].Value.Trim(), StringComparer.OrdinalIgnoreCase);
     }
