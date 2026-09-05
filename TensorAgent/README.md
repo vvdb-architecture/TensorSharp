@@ -6,6 +6,12 @@ the TensorSharp engine statically, serves the Server's own `wwwroot/index.html` 
 a WKWebView from an in-process loopback HTTP server, and answers that page's API
 with the same chat pipeline the desktop uses.
 
+This is the current source implementation of TensorSharp's iOS/iPadOS target.
+Physical devices use the GGML Metal (`ggml_metal`) backend; build it with
+`TensorSharpIosTargets=true`. It is not a remote client or a separate inference
+engine. The latest tagged desktop release may not include TensorAgent yet, so
+follow the source-build instructions below.
+
 Nothing leaves the phone. The model runs locally, the sandbox has no network unless
 the user grants it, and dictation asks for on-device speech recognition.
 

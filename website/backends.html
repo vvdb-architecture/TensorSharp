@@ -16,7 +16,7 @@
 <main class="content" id="content">
   <div class="breadcrumb"><a href="index.html">Home</a> › Compute Backends</div>
   <h1>Compute Backends</h1>
-  <p class="lede">A backend is selected with <code>--backend</code> (CLI and server) and decides which hardware runs the math. Every backend falls back to CPU for any unimplemented op, so output stays correct everywhere — backends differ only in speed.</p>
+  <p class="lede">A backend is selected with <code>--backend</code> (CLI and server) and decides which hardware runs the math. Every backend falls back to CPU for any unimplemented op, so output stays correct everywhere — backends differ only in speed. TensorAgent adds an iOS/iPadOS application target that uses the GGML Metal backend on physical Apple devices.</p>
 
   <h2 id="table">Which backend should I use?</h2>
   <div class="table-scroll">
@@ -24,6 +24,7 @@
     <thead><tr><th>Your hardware</th><th>Recommended</th><th>Flag</th><th>Notes</th></tr></thead>
     <tbody>
       <tr><td><strong>Apple Silicon (Mac)</strong></td><td>GGML Metal</td><td><code>ggml_metal</code></td><td>Default on macOS. <code>mlx</code> is an alternative Apple-Silicon GPU path.</td></tr>
+      <tr><td><strong>iPhone / iPad</strong></td><td>GGML Metal through TensorAgent</td><td><code>ggml_metal</code></td><td>Native iOS target; build the <code>TensorAgent</code> app with <code>TensorSharpIosTargets=true</code>. No ASP.NET Core host or child processes.</td></tr>
       <tr><td><strong>Windows / Linux + NVIDIA</strong></td><td>GGML CUDA</td><td><code>ggml_cuda</code></td><td>Most-tested NVIDIA path. <code>cuda</code> is the direct PTX/cuBLAS backend for experimentation — and the one that supports <a href="distributed.html">multi-GPU tensor parallelism</a>.</td></tr>
       <tr><td><strong>Windows / Linux + AMD / Intel / NVIDIA</strong></td><td>GGML Vulkan</td><td><code>ggml_vulkan</code></td><td>Vendor-neutral GPU path via ggml-vulkan (cooperative-matrix accelerated where the driver supports it). Built automatically when the machine has a Vulkan runtime; opt out with <code>--no-vulkan</code>.</td></tr>
       <tr><td><strong>No GPU / portability / debugging</strong></td><td>Pure C# CPU</td><td><code>cpu</code></td><td>No native dependencies, and managed matmuls now run on a multi-core worker pool. For faster CPU inference use <code>ggml_cpu</code> (native kernels).</td></tr>
@@ -43,6 +44,7 @@
       <tr><td>GGML Vulkan</td><td><code>ggml_vulkan</code></td><td>Vendor-neutral GPU inference through ggml (AMD / Intel / NVIDIA)</td></tr>
       <tr><td>GGML CPU</td><td><code>ggml_cpu</code></td><td>Native CPU kernels</td></tr>
       <tr><td>Pure C# CPU</td><td><code>cpu</code></td><td>Portability &amp; debugging</td></tr>
+      <tr><td>iOS GGML Metal</td><td>TensorAgent app</td><td>On-device iPhone/iPad inference through the statically linked iOS <code>.xcframework</code></td></tr>
     </tbody>
   </table>
   </div>

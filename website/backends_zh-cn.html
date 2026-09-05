@@ -16,7 +16,8 @@
 <main class="content" id="content">
   <div class="breadcrumb"><a href="index_zh-cn.html">首页</a> › 计算后端</div>
   <h1>计算后端</h1>
-  <p class="lede">后端通过 <code>--backend</code>（CLI 与服务器）选择，决定由哪种硬件运行数学运算。对任何未实现的运算，每个后端都会回退到 CPU，因此各处输出都保持正确 —— 后端只在速度上不同。</p>
+  <p class="callout note">TensorAgent 另提供 iOS/iPadOS 应用目标，在真机 Apple 设备上使用 GGML Metal 后端；构建时启用 <code>TensorSharpIosTargets=true</code>。</p>
+  <p class="lede">后端通过 <code>--backend</code>（CLI 与服务器）选择，决定由哪种硬件运行数学运算。对任何未实现的运算，每个后端都会回退到 CPU，因此各处输出都保持正确 —— 后端只在速度上不同。TensorAgent 另提供 iOS/iPadOS 应用目标，在真机 Apple 设备上使用 GGML Metal 后端。</p>
 
   <h2 id="table">我该用哪个后端？</h2>
   <div class="table-scroll">
@@ -24,6 +25,7 @@
     <thead><tr><th>你的硬件</th><th>推荐</th><th>参数</th><th>说明</th></tr></thead>
     <tbody>
       <tr><td><strong>Apple Silicon（Mac）</strong></td><td>GGML Metal</td><td><code>ggml_metal</code></td><td>macOS 默认。<code>mlx</code> 是另一条 Apple Silicon GPU 路径。</td></tr>
+      <tr><td><strong>iPhone / iPad</strong></td><td>TensorAgent 的 GGML Metal</td><td><code>ggml_metal</code></td><td>原生 iOS 目标；使用 <code>TensorSharpIosTargets=true</code> 构建 <code>TensorAgent</code>。不使用 ASP.NET Core host，也不启动子进程。</td></tr>
       <tr><td><strong>Windows / Linux + NVIDIA</strong></td><td>GGML CUDA</td><td><code>ggml_cuda</code></td><td>测试最充分的 NVIDIA 路径。<code>cuda</code> 是用于实验的直接 PTX/cuBLAS 后端 —— 也是支持<a href="distributed_zh-cn.html">多 GPU 张量并行</a>的那一个。</td></tr>
       <tr><td><strong>Windows / Linux + AMD / Intel / NVIDIA</strong></td><td>GGML Vulkan</td><td><code>ggml_vulkan</code></td><td>与厂商无关的 GPU 路径（ggml-vulkan，驱动支持时启用 cooperative-matrix 加速）。当主机存在 Vulkan 运行时时会在原生构建时自动启用；用 <code>--no-vulkan</code> 退出。</td></tr>
       <tr><td><strong>无 GPU / 可移植 / 调试</strong></td><td>纯 C# CPU</td><td><code>cpu</code></td><td>无原生依赖，且托管 matmul 现在跑在多核工作线程池上。要更快的 CPU 推理请用 <code>ggml_cpu</code>（原生内核）。</td></tr>
@@ -43,6 +45,7 @@
       <tr><td>GGML Vulkan</td><td><code>ggml_vulkan</code></td><td>通过 ggml 的厂商无关 GPU 推理（AMD / Intel / NVIDIA）</td></tr>
       <tr><td>GGML CPU</td><td><code>ggml_cpu</code></td><td>原生 CPU 内核</td></tr>
       <tr><td>纯 C# CPU</td><td><code>cpu</code></td><td>可移植与调试</td></tr>
+      <tr><td>iOS GGML Metal</td><td>TensorAgent 应用</td><td>通过静态链接的 iOS <code>.xcframework</code> 在 iPhone/iPad 上本地推理</td></tr>
     </tbody>
   </table>
   </div>

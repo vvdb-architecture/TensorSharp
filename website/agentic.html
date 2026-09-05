@@ -29,6 +29,10 @@
   </ol>
   <div class="callout note"><div class="ic">🎯</div><p><strong>Current scope is one model and one in-process tool loop.</strong> TensorSharp does not spawn multiple agents or delegate to subagents, and it has no interactive approval queue before each command. The operator grants or withholds skills, script execution, code execution, networking, and installation when the CLI or server starts; an internal tool then runs under that policy or refuses.</p></div>
 
+  <h2 id="ios">TensorAgent on iPhone and iPad</h2>
+  <p><strong>TensorAgent</strong> packages this local chat and agent experience as a .NET MAUI iOS/iPadOS app. The engine is statically linked as an iOS <code>.xcframework</code> and uses <code>ggml_metal</code> on physical devices. The app shares the host-neutral chat pipeline with the CLI and server, but serves the UI through an in-process loopback server because iOS has no ASP.NET Core runtime pack.</p>
+  <p>Models download to the device with resume and SHA-256 verification; conversations survive app restarts; photos, camera, video, files, and dictation use the same chat attachment flow. Since iOS cannot start child processes, TensorAgent's shell, Python, and JavaScript integrations are runtime-backed and report their limits explicitly. See the <a href="../TensorAgent/README.md">TensorAgent README</a> for build and simulator verification.</p>
+
   <h2 id="skills">Agent Skills and progressive disclosure</h2>
   <p>A skill is a directory containing a required <code>SKILL.md</code> plus any scripts, references, and assets its instructions need. TensorSharp follows the Agent Skills specification and can load published skill repositories without rewriting their layout.</p>
   <pre data-lang="text"><code>pdf/
