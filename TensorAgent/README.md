@@ -188,7 +188,16 @@ TensorAgent/scripts/verify-sim.sh           # drive the running app's API from t
                                             # (also takes a DEVICE log: a phone's 127.0.0.1
                                             #  is the phone's, so it skips the API half and
                                             #  checks everything the app logged about itself)
+TensorAgent/scripts/deploy-device.sh         # Release build: auto-sign, install, and launch
 ```
+
+`deploy-device.sh` selects the only connected physical iPhone, an installed
+`Apple Development` identity, and a compatible provisioning profile. If more
+than one phone or identity is available, set `DEVICE_ID` or `CODESIGN_KEY`;
+`CODESIGN_PROVISION` can likewise override profile selection. The install is an
+update in place, so existing models, conversations, and settings are retained.
+Release deployment rebuilds the native iOS xcframework from the current checkout;
+set `TENSORAGENT_REBUILD_XCFRAMEWORK=0` only when intentionally reusing it.
 
 Five environment variables drive a Debug build from a script, because neither
 `simctl` nor `devicectl` can tap or type:

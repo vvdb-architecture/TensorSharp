@@ -12,6 +12,10 @@
 #   CODESIGN_KEY    signing identity, e.g. "Apple Development: you@example.com (XXXXXXXXXX)"
 #   CODESIGN_PROVISION  profile NAME or UUID for ai.tensorsharp.tensoragent
 #   SKIP_SIGNING=1  build without signing (compile/link/AOT check only; NOT installable)
+#   NO_INCREMENTAL=1  force a non-incremental build (used by deploy-device.sh so
+#                     a stale unsigned bundle can never be reused)
+#   TENSORAGENT_REBUILD_XCFRAMEWORK=1  rebuild the device + simulator native
+#                     slices even when the xcframework already exists
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,10 +29,14 @@ export TENSORSHARP_GGML_NATIVE_SKIP=true
 export TENSORSHARP_MLX_NATIVE_SKIP=true
 
 XCFRAMEWORK="${REPO_ROOT}/TensorSharp.GGML.Native/build-ios/GgmlOps.xcframework"
-if [[ ! -d "${XCFRAMEWORK}/ios-arm64" ]]; then
-    echo "The xcframework has no ios-arm64 (device) slice: ${XCFRAMEWORK}" >&2
-    echo "Run TensorSharp.GGML.Native/build-ios.sh, which builds both slices." >&2
-    exit 1
+if [[ ! -d "${XCFRAMEWORK}/ios-arm64" || "${TENSORAGENT_REBUILD_XCFRAMEWORK:-0}" == "1" ]]; then
+    if [[ ! -d "${REPO_ROOT}/ExternalProjects/ggml" ]]; then
+        echo "ExternalProjects/ggml is missing; run eng/fetch-ggml.sh once before building the xcframework." >&2
+        exit 1
+    fi
+    echo "==> Building ${XCFRAMEWORK}"
+    TENSORSHARP_IOS_SLICES="device sim" \
+        bash "${REPO_ROOT}/TensorSharp.GGML.Native/build-ios.sh"
 fi
 
 ARGS=(
@@ -48,6 +56,7 @@ else
     ARGS+=( -p:CodesignKey="${CODESIGN_KEY}" )
     [[ -n "${CODESIGN_PROVISION:-}" ]] && ARGS+=( -p:CodesignProvision="${CODESIGN_PROVISION}" )
 fi
+[[ "${NO_INCREMENTAL:-0}" == "1" ]] && ARGS+=( --no-incremental )
 
 echo "==> dotnet $(dotnet --version): TensorAgent.Maui (${CONFIGURATION}, ios-arm64)"
 dotnet build "${ARGS[@]}"
