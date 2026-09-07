@@ -25,7 +25,7 @@
 cd TensorSharp
 TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet build TensorSharp.slnx -c Release -p:TensorSharpSkipMlxNative=true
 curl --create-dirs --fail -L "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q8_0.gguf?download=true" -o models/gemma-4-E4B-it-Q8_0.gguf
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda</code></pre>
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda</code></pre>
   <p>Apple Silicon 请省略 CUDA 环境变量并使用 <code>ggml_metal</code>；受支持的 Windows/Linux Vulkan GPU 请改为请求 <code>TENSORSHARP_GGML_NATIVE_ENABLE_VULKAN=ON</code> 并使用 <code>ggml_vulkan</code>；没有受支持的 GPU 时可省略该环境变量并使用 <code>ggml_cpu</code>。占用内存更低的 <code>gemma-4-E4B-it-Q4_K_M.gguf</code> 位于同一仓库。纯文本不需要投影器；图像、视频或音频还需匹配的 <code>mmproj-gemma-4-E4B-it-Q8_0.gguf</code>，并通过 <code>--mmproj</code> 传入。Windows PowerShell 与完整平台语法见<a href="getting-started_zh-cn.html#e4b-fast-lane">快速开始</a>。</p>
   <p>在第二个终端中验证 OpenAI 兼容端点：</p>
   <pre data-lang="bash"><code>curl -s http://localhost:5000/v1/chat/completions \

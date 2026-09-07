@@ -23,7 +23,7 @@ namespace TensorSharp.Server
     /// TensorSharp.Backends.Cuda or TensorSharp.Backends.MLX (a static partial class
     /// cannot span two assemblies, hence a sibling class rather than a partial).
     /// </summary>
-    internal static class BackendCatalogProbes
+    public static class BackendCatalogProbes
     {
         /// <summary>The backends this machine can actually run, in UI order.</summary>
         internal static IReadOnlyList<BackendOption> GetSupportedBackends()
@@ -65,7 +65,7 @@ namespace TensorSharp.Server
         /// The probe exceptions swallowed above, one <c>"ggml_metal: reason"</c> line
         /// per backend, so the startup banner's backend list carries a cause.
         /// </summary>
-        internal static IReadOnlyList<string> DescribeProbeFailures()
+        public static IReadOnlyList<string> DescribeProbeFailures()
         {
             lock (ProbeFailures)
             {

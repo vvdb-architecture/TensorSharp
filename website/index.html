@@ -36,7 +36,7 @@
       <div>&nbsp;&nbsp;--backend <span class="c-ac">ggml_cuda</span></div>
       <div>&nbsp;</div>
       <div><span class="c-cm"># or serve an OpenAI-compatible API</span></div>
-      <div>dotnet run --project TensorSharp.Server -- \</div>
+      <div>dotnet run --project TensorSharp.Server.Host -- \</div>
       <div>&nbsp;&nbsp;--model <span class="c-st">model.gguf</span> --backend <span class="c-ac">cpu</span></div>
       <div><span class="c-cm"># UI → http://localhost:5000/ · health → /health</span></div>
     </div>
@@ -101,7 +101,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Cli -c R
     <li>
       <h3>Prefer a UI + API?</h3>
       <p>Start the server with the same model. The browser chat is at <code>/</code>; the plain liveness check is at <code>/health</code>.</p>
-      <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
+      <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server.Host -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
 # open http://localhost:5000/</code></pre>
     </li>
   </ol>

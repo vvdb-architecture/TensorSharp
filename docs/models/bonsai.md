@@ -135,7 +135,7 @@ The same model path works in the OpenAI-compatible server:
 
 ```bash
 MAX_CONTEXT=16384 KV_CACHE_DTYPE=f16 \
-dotnet run --project TensorSharp.Server -c Release -- \
+dotnet run --project TensorSharp.Server.Host -c Release -- \
   --model /path/to/Bonsai-8B-Q1_0.gguf --backend ggml_metal \
   --host 127.0.0.1 --port 5000
 

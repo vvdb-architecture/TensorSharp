@@ -41,11 +41,11 @@
   <p>It is off by default. For a draft head embedded in the trunk GGUF, enable it on the server with <code>--spec</code> (env <code>TS_SPEC=1</code>, legacy <code>TS_MTP_SPEC=1</code>); a draft head that ships as its own GGUF is enabled simply by naming it with <code>--draft-model</code>:</p>
   <pre data-lang="bash"><code># Qwen 3.6 — the NextN block is embedded in the trunk GGUF, no extra file needed
 # (use a GGUF from unsloth/Qwen3.6-35B-A3B-MTP-GGUF; base-repo exports strip the NextN block)
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --backend ggml_cuda \
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --backend ggml_cuda \
     --spec --spec-draft 8 --spec-pmin 0.75
 
 # Gemma 4 — load the separate gemma4-assistant draft GGUF that matches the target
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model gemma-4-12B-it-qat-UD-Q4_K_XL.gguf --backend ggml_cuda \
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model gemma-4-12B-it-qat-UD-Q4_K_XL.gguf --backend ggml_cuda \
     --draft-model mtp-gemma-4-12B-it.gguf</code></pre>
   <h4>Two draft-head shapes</h4>
   <ul>

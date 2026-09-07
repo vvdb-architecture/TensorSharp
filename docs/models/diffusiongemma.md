@@ -47,7 +47,7 @@ each step repaints the whole message via `replace` SSE frames; the Ollama/OpenAI
 compatibility endpoints return the final text only):
 
 ```bash
-dotnet run --project TensorSharp.Server -c Release -- --model models/diffusiongemma-26B-A4B-it-Q4_K_M.gguf --backend ggml_cuda
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/diffusiongemma-26B-A4B-it-Q4_K_M.gguf --backend ggml_cuda
 ```
 
 ## 1. Origin and intent

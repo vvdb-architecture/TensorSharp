@@ -48,7 +48,7 @@ namespace TensorSharp.Server.ProtocolAdapters
     /// frame order all live in the service so the in-process hosts share them; nothing
     /// here may reshape a payload.
     /// </summary>
-    internal sealed class WebUiAdapter
+    public sealed class WebUiAdapter
     {
         private readonly WebUiChatService _service;
         private readonly ModelService _svc;

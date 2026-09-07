@@ -36,7 +36,7 @@
       <div>&nbsp;&nbsp;--backend <span class="c-ac">ggml_cuda</span></div>
       <div>&nbsp;</div>
       <div><span class="c-cm"># 或启动兼容 OpenAI 的 API 服务</span></div>
-      <div>dotnet run --project TensorSharp.Server -- \</div>
+      <div>dotnet run --project TensorSharp.Server.Host -- \</div>
       <div>&nbsp;&nbsp;--model <span class="c-st">model.gguf</span> --backend <span class="c-ac">cpu</span></div>
       <div><span class="c-cm"># UI → http://localhost:5000/ · 健康检查 → /health</span></div>
     </div>
@@ -101,7 +101,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Cli -c R
     <li>
       <h3>想要 UI + API？</h3>
       <p>用同一模型启动服务端。浏览器聊天位于 <code>/</code>；纯文本存活检查位于 <code>/health</code>。</p>
-      <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
+      <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server.Host -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
 # 打开 http://localhost:5000/</code></pre>
     </li>
   </ol>

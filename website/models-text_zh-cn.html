@@ -30,7 +30,7 @@ echo "请说明本地推理的价值。" &gt; prompt.txt
 # 纯文本不需要 mmproj。
 dotnet run --project TensorSharp.Cli -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf \
     --input prompt.txt --max-tokens 300 --backend ggml_cuda
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf \
     --backend ggml_cuda</code></pre>
   <p>Apple Silicon 请省略 CUDA 环境变量并使用 <code>ggml_metal</code>；受支持的 Windows/Linux Vulkan GPU 请改为请求 <code>TENSORSHARP_GGML_NATIVE_ENABLE_VULKAN=ON</code> 并使用 <code>ggml_vulkan</code>。图像、视频或音频输入还需运行 <code>hf download ggml-org/gemma-4-E4B-it-GGUF mmproj-gemma-4-E4B-it-Q8_0.gguf --local-dir models</code>，并传入 <code>--mmproj models/mmproj-gemma-4-E4B-it-Q8_0.gguf</code>。服务端浏览器界面位于 <code>http://localhost:5000/</code>，存活检查为 <code>/health</code>。Windows PowerShell 与完整平台语法见<a href="getting-started_zh-cn.html#e4b-fast-lane">快速开始</a>。</p>
 

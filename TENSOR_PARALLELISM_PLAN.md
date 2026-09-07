@@ -123,7 +123,7 @@ Row-parallel splits copy the relevant blocks per row into new aligned buffers.
 TensorSharp.Cli --model qwen3.5-9b.gguf --backend cuda --tp 2
 
 # Server: via environment variable
-TENSORSHARP_TP_DEGREE=2 dotnet run --project TensorSharp.Server
+TENSORSHARP_TP_DEGREE=2 dotnet run --project TensorSharp.Server.Host
 
 # Config JSON (auto-expanded to CLI args)
 { "tp": 2, "backend": "cuda", "model": "qwen3.5-9b.gguf" }
@@ -796,7 +796,7 @@ TensorSharp.Cli --model qwen3.5-9b.gguf --backend cuda --tp 2 \
 # Node 0:
 TENSORSHARP_TP_DEGREE=2 TENSORSHARP_TP_NODE_ID=0 \
 TENSORSHARP_TP_PEERS=192.168.1.10:9500,192.168.1.11:9500 \
-  dotnet run --project TensorSharp.Server
+  dotnet run --project TensorSharp.Server.Host
 
 # Config JSON (auto-expanded to CLI args)
 { "tp": 2, "tp-node-id": 0, "tp-peers": "192.168.1.10:9500,192.168.1.11:9500", "backend": "cuda" }

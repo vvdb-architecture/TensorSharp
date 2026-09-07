@@ -40,11 +40,11 @@
   <div class="callout tip"><div class="ic">🎯</div><p>由于请求自身的采样器 —— 温度、top-k/p 与全部惩罚 —— <em>同时</em>驱动草稿与验证，输出<strong>与标准解码完全一致</strong>。推测只改变产生相同 token 所需的前向次数。</p></div>
   <p>它默认关闭。内嵌在主干 GGUF 里的草稿头在服务器上用 <code>--spec</code>（环境变量 <code>TS_SPEC=1</code>，旧名 <code>TS_MTP_SPEC=1</code>）启用；以独立 GGUF 发布的草稿头则只需用 <code>--draft-model</code> 写出文件即自动启用：</p>
   <pre data-lang="bash"><code># Qwen 3.6 —— 必须使用保留 NextN 块的 -MTP- 仓库 GGUF；基础仓库导出会剥离该块
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --backend ggml_cuda \
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf --backend ggml_cuda \
     --spec --spec-draft 8 --spec-pmin 0.75
 
 # Gemma 4 —— 加载与目标匹配的独立 gemma4-assistant 草稿 GGUF
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model gemma-4-12B-it-qat-UD-Q4_K_XL.gguf --backend ggml_cuda \
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model gemma-4-12B-it-qat-UD-Q4_K_XL.gguf --backend ggml_cuda \
     --draft-model mtp-gemma-4-12B-it.gguf</code></pre>
   <h4>两种草稿头形态</h4>
   <ul>

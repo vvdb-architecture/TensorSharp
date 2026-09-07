@@ -110,7 +110,7 @@ dotnet run --project TensorSharp.Cli -c Release -- --model models/gemma-4-E4B-it
 
 ```bash
 # 服务端
-dotnet run --project TensorSharp.Server -c Release -- --model models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
   --backend ggml_cuda --draft-model models/mtp-gemma-4-12B-it.gguf
 
 # CLI —— 投机在 --input、--input-jsonl、--multi-turn-jsonl 与 --interactive 下均会启用

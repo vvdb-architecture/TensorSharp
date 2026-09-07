@@ -98,7 +98,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Cli -c R
   <p>逐轮输入消息；用 <a href="cli_zh-cn.html#repl">斜杠命令</a>（如 <code>/reset</code>、<code>/think on</code> 或 <code>/image photo.png</code>）控制会话。</p>
 
   <h3>方式 C —— 浏览器 UI + HTTP API（服务器）</h3>
-  <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
+  <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server.Host -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
 # 打开 http://localhost:5000/index.html</code></pre>
   <p><code>http://localhost:5000/</code> 返回健康状态；浏览器聊天位于 <code>/index.html</code>。<a href="http-api_zh-cn.html">兼容 Ollama 和 OpenAI</a> 的端点使用同一个固定端口。</p>
 

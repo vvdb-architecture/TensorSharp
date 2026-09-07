@@ -82,7 +82,7 @@ Server (the Web UI at `http://localhost:5000/index.html` routes image + prompt t
 `POST /api/image-edit/stream` — attach an image and type the edit instruction):
 
 ```bash
-dotnet run --project TensorSharp.Server -c Release -- \
+dotnet run --project TensorSharp.Server.Host -c Release -- \
   --model models/qwen-image-edit-2511-Q4_K_M.gguf --backend ggml_cuda \
   --qwen-image-vae models/VAE/Qwen_Image-VAE.safetensors \
   --qwen-image-vl models/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf \

@@ -46,7 +46,7 @@ dotnet run --project TensorSharp.Cli -c Release -- --model models/diffusiongemma
 每一步通过 `replace` SSE 帧重绘整条消息；Ollama/OpenAI 兼容端点只返回最终文本）：
 
 ```bash
-dotnet run --project TensorSharp.Server -c Release -- --model models/diffusiongemma-26B-A4B-it-Q4_K_M.gguf --backend ggml_cuda
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/diffusiongemma-26B-A4B-it-Q4_K_M.gguf --backend ggml_cuda
 ```
 
 ## 1. 来源与目标

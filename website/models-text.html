@@ -30,7 +30,7 @@ echo "Explain why local inference is useful." &gt; prompt.txt
 # Text needs no mmproj.
 dotnet run --project TensorSharp.Cli -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf \
     --input prompt.txt --max-tokens 300 --backend ggml_cuda
-dotnet run --project TensorSharp.Server -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release --no-build -- --model models/gemma-4-E4B-it-Q8_0.gguf \
     --backend ggml_cuda</code></pre>
   <p>On Apple Silicon, omit the CUDA environment assignment and use <code>ggml_metal</code>; on a supported Windows/Linux Vulkan GPU, request <code>TENSORSHARP_GGML_NATIVE_ENABLE_VULKAN=ON</code> instead and use <code>ggml_vulkan</code>. For image, video, or audio input, also run <code>hf download ggml-org/gemma-4-E4B-it-GGUF mmproj-gemma-4-E4B-it-Q8_0.gguf --local-dir models</code> and pass <code>--mmproj models/mmproj-gemma-4-E4B-it-Q8_0.gguf</code>. The server's browser UI is <code>http://localhost:5000/</code>; its liveness endpoint is <code>/health</code>. See <a href="getting-started.html#e4b-fast-lane">Getting Started</a> for Windows PowerShell and full platform syntax.</p>
 

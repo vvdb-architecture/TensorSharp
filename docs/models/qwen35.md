@@ -76,7 +76,7 @@ names, validation or defaults. They have to be on the command line that *loads* 
 
 ```bash
 # server
-dotnet run --project TensorSharp.Server -c Release -- --model models/qwen3.6-35b-a3b-mtp/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --backend ggml_cuda --spec
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/qwen3.6-35b-a3b-mtp/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --backend ggml_cuda --spec
 
 # CLI — speculation engages on --input, --input-jsonl, --multi-turn-jsonl and --interactive
 dotnet run --project TensorSharp.Cli -c Release -- --model models/qwen3.6-35b-a3b-mtp/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --backend ggml_cuda --spec --spec-draft 4 --input prompt.txt --max-tokens 512

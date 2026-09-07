@@ -28,7 +28,7 @@ namespace TensorSharp.Server.ProtocolAdapters
     /// what remains here is what only HTTP has — the multipart form, the
     /// <c>text/plain</c> file response and the <c>201</c> on install.
     /// </summary>
-    internal sealed class SkillsAdapter
+    public sealed class SkillsAdapter
     {
         private readonly SkillsService _service;
 

@@ -59,7 +59,7 @@ dotnet run --project TensorSharp.Cli -c Release -- --model models/NVIDIA-Nemotro
 Server (Web UI + OpenAI/Ollama-compatible APIs on `http://localhost:5000`):
 
 ```bash
-dotnet run --project TensorSharp.Server -c Release -- --model models/NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-UD-Q4_K_XL.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/NVIDIA-Nemotron-3-Nano-Omni-30B-A3B-Reasoning-UD-Q4_K_XL.gguf \
   --mmproj models/mmproj-BF16.gguf --backend ggml_cuda --max-tokens 4096
 ```
 

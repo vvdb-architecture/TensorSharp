@@ -124,7 +124,7 @@
   --model models/model.gguf --backend ggml_metal \
   --skills-dir ./skills --skill pdf --code-exec -i</code></pre>
   <p>也可以为 Web UI 与兼容 API 托管同一套循环：</p>
-  <pre data-lang="bash"><code>dotnet run --project TensorSharp.Server -c Release -- \
+  <pre data-lang="bash"><code>dotnet run --project TensorSharp.Server.Host -c Release -- \
   --model models/model.gguf --backend ggml_cuda \
   --skills-dir ./skills --code-exec
 

@@ -118,7 +118,7 @@ activated is a fail-fast startup error rather than a silent fallback (§12.2):
 
 ```bash
 # server
-dotnet run --project TensorSharp.Server -c Release -- --model models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
   --backend ggml_cuda --draft-model models/mtp-gemma-4-12B-it.gguf
 
 # CLI — speculation engages on --input, --input-jsonl, --multi-turn-jsonl and --interactive

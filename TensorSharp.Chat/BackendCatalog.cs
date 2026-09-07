@@ -31,7 +31,7 @@ namespace TensorSharp.Server
     /// constants.
     /// </para>
     /// </summary>
-    internal static class BackendCatalog
+    public static class BackendCatalog
     {
         // TensorSharp.Server should always expose the two CPU choices distinctly:
         // `ggml_cpu` is the native GGML CPU backend, while `cpu` is the pure C# backend.
@@ -83,7 +83,7 @@ namespace TensorSharp.Server
             return supportedBackends.FirstOrDefault()?.Value ?? canonicalBackend ?? configuredBackend;
         }
 
-        internal static string Canonicalize(string backend)
+        public static string Canonicalize(string backend)
         {
             if (string.IsNullOrWhiteSpace(backend))
                 return null;

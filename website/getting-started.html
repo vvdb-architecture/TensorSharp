@@ -98,7 +98,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Cli -c R
   <p>Type messages turn-by-turn; drive the session with <a href="cli.html#repl">slash commands</a> like <code>/reset</code>, <code>/think on</code>, or <code>/image photo.png</code>.</p>
 
   <h3>Option C — browser UI + HTTP APIs (server)</h3>
-  <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
+  <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server.Host -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
 # open http://localhost:5000/index.html</code></pre>
   <p>The health response is at <code>http://localhost:5000/</code>; the browser chat is at <code>/index.html</code>. The <a href="http-api.html">Ollama- and OpenAI-compatible</a> endpoints use the same fixed port.</p>
 

@@ -25,7 +25,7 @@ namespace TensorSharp.Server.Hosting
     /// Those hosts simply leave the factory unset and every load is single-node.
     /// </para>
     /// </summary>
-    internal static class DistributedTensorParallel
+    public static class DistributedTensorParallel
     {
         /// <summary>
         /// Null when <c>TENSORSHARP_TP_NODE_ID</c> / <c>TENSORSHARP_TP_PEERS</c> are not

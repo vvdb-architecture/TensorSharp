@@ -40,7 +40,7 @@ dotnet run --project TensorSharp.Cli -c Release -- --model models/gpt-oss-20b-MX
 Server (Web UI + OpenAI/Ollama-compatible APIs on `http://localhost:5000`):
 
 ```bash
-dotnet run --project TensorSharp.Server -c Release -- --model models/gpt-oss-20b-MXFP4.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/gpt-oss-20b-MXFP4.gguf \
   --backend ggml_cuda --max-tokens 4096
 ```
 

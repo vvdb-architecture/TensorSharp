@@ -22,13 +22,13 @@ namespace TensorSharp.Server.Hosting
     /// static-file middleware at all (TensorSharp.Chat carries it), while
     /// <see cref="StaticFileOptions"/> only exists here.
     /// </summary>
-    internal static class UploadStaticFiles
+    public static class UploadStaticFiles
     {
         internal static IContentTypeProvider BuildServeContentTypes() =>
             new FileExtensionContentTypeProvider(UploadContentPolicy.ServeContentTypes.ToDictionary(
                 kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase));
 
-        internal static StaticFileOptions BuildStaticFileOptions(string uploadDirectory) => new()
+        public static StaticFileOptions BuildStaticFileOptions(string uploadDirectory) => new()
         {
             FileProvider = new PhysicalFileProvider(uploadDirectory),
             RequestPath = "/uploads",
