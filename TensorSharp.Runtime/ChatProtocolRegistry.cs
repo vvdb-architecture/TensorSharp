@@ -119,6 +119,25 @@ namespace TensorSharp.Runtime
             });
 
             // ---- Qwen -------------------------------------------------------
+            Register(new ChatProtocol
+            {
+                Id = "qwen3",
+                Architectures = new[] { "qwen3" },
+                CreateOutputParser = () => new ChatMlOutputParser(),
+                // Qwen3 generation prompts place the reasoning boundary after the
+                // assistant marker. Thinking-capable templates open it; the Bonsai
+                // 8B template deliberately emits the closed/empty form every time.
+                // Past-turn rendering may omit that boundary, so raw-token replay
+                // must put back exactly what the live KV cache saw.
+                AssistantGenerationSuffix = thinking => thinking
+                    ? "<think>\n"
+                    : "<think>\n\n</think>\n\n",
+                EmitsEmptyThinkBlockForPastTurns = _ => true,
+                // Tool results are rendered solely from role=tool; the preceding
+                // structured call is not needed, making lossless raw replay safe.
+                ToolCallRawSplicing = ToolCallRawSplicing.Always,
+            });
+
             // Qwen2 / Qwen2.5(-VL): ChatML tool syntax without a thinking
             // channel. Without this entry the family fell through to the passthrough
             // parser, which can never read a tool call back — so skills and run_code

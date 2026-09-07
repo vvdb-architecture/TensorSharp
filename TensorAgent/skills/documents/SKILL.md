@@ -188,10 +188,27 @@ python3 scripts/make_pptx.py --spec spec.json --out deck.pptx
 }
 ```
 
-Bullets nest to three levels via `level`. Images are scaled to fit and centred.
+Bullets nest to three levels via `level`. The common tree form
+`{ "text": "Heading", "bullets": ["Detail"] }` is also accepted and flattened
+to those levels, so do not rewrite an otherwise-correct spec just to expand it.
+A citation bullet may add `date` and `url` beside `text`; the writer joins all
+three visibly on the slide. Images are scaled to fit and centred.
 A table slide holds about 12 rows before it runs off the bottom — split a longer
 one across slides. `notes` is refused rather than silently dropped: speaker
 notes need a notesMaster part this writer does not build.
+
+Prefer the canonical fields in the example. For compatibility with common deck
+specs, a slide with no `layout` is a bullets slide and its `content` array is an
+alias for `bullets` (do not provide both). An optional top-level `sources` array
+accepts URL strings or `{ "title": "...", "date": "...", "url": "..." }`
+objects and becomes a final Sources slide. For compatibility, the same
+`sources` array on an individual slide is collected into that one final Sources
+slide; a slide whose only body is `sources` acts as that final-slide placeholder
+instead of creating an additional empty slide. A `text` slide that also contains a `bullets` array is unambiguously
+normalized to a bullets slide, with its introductory `text` retained first.
+Unknown fields, ambiguous aliases, and layouts without visible required content
+fail before a `.pptx` is written; the diagnostic names the slide and the fields
+accepted by its layout.
 
 ## make_docx.py — a Word document
 

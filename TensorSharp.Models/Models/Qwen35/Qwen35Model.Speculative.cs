@@ -484,8 +484,10 @@ namespace TensorSharp.Models
                 return;
             }
 
-            EnsureKvCacheHostSynchronized();
-            EnsureFusedDecodeStateHostSynchronized();
+            // A failed last-row-only verify may leave the only current recurrent
+            // state in the native ping-pong buffer. Cross through the shared
+            // device-to-host barrier before the per-op loop reads host mirrors.
+            PrepareHostPrefillFallback();
             for (int layer = 0; layer < Config.NumLayers; layer++)
             {
                 long tl = Stopwatch.GetTimestamp();

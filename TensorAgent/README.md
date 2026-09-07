@@ -26,22 +26,22 @@ blocks, skill steps and artifact links all behave identically. The app's own
 additions are appended to the page as one script tag at request time; the file
 itself is never forked.
 
-**A built-in model catalog.** Eight entries chosen to fit a phone, with the exact
-byte size and SHA-256 of each file. Downloads resume from a kept `.part` after an
-interruption and are verified before use, and they belong to the APP rather than to
-the screen that started one — see "Downloads" below. Both families and both
-architectures are covered:
+**A built-in model catalog.** Six dense entries chosen to fit a phone, with the
+exact byte size and SHA-256 of every file. Four are downloadable; those downloads
+resume from a kept `.part` after an interruption, are verified before use, and
+belong to the APP rather than to the screen that started one — see "Downloads"
+below. The two Bonsai cards are text-only, local-import entries: their GGUFs embed
+no publisher repository or license, so the app offers a file picker instead of
+inventing a download URL and accepts only the exact hash-pinned artifact.
 
-| Model | Architecture | Download | Needs | Hugging Face repo |
+| Model | Modalities | Required artifact(s) | Needs | Source |
 | --- | --- | --- | --- | --- |
-| Gemma 4 E2B (Q8_0) | dense | 5.52 GB | 12 GB | `ggml-org/gemma-4-E2B-it-GGUF` |
-| Gemma 4 E4B (UD-Q4_K_XL) | dense | 5.79 GB | 12 GB | `unsloth/gemma-4-E4B-it-GGUF` |
-| Gemma 4 E4B (Q8_0) | dense | 8.59 GB | 16 GB | `ggml-org/gemma-4-E4B-it-GGUF` |
-| Qwen3.5 9B (UD-Q4_K_XL) | dense | 6.89 GB | 12 GB | `unsloth/Qwen3.5-9B-GGUF` |
-| Qwen3.8 27B (UD-IQ2_XXS) | dense | 8.20 GB | 12 GB | `unsloth/Qwen3.8-27B-GGUF` |
-| Gemma 4 26B-A4B (UD-IQ2_XXS) | mixture of experts | 11.11 GB | 16 GB | `unsloth/gemma-4-26B-A4B-it-GGUF` |
-| Qwen3.6 35B-A3B (UD-IQ1_M) | mixture of experts | 10.95 GB | 16 GB | `unsloth/Qwen3.6-35B-A3B-GGUF` |
-| Qwen-Image-Edit 2511 (Q2_K) | diffusion | 12.32 GB | 12 GB | `unsloth/Qwen-Image-Edit-2511-GGUF` + 3 companions |
+| Gemma 4 E2B (Q8_0) | text, image, audio, video | download: 4,967,497,152-byte main GGUF + 557,368,064-byte projector | 12 GB | `ggml-org/gemma-4-E2B-it-GGUF` |
+| Gemma 4 E4B (IQ4_XS) | text, image, audio, video | download: 4,715,416,704-byte main GGUF + 559,874,816-byte projector; 98,653,280-byte draft optional | 12 GB | `unsloth/gemma-4-E4B-it-GGUF` + `ggml-org/gemma-4-E4B-it-GGUF` projector |
+| Gemma 4 12B (UD-IQ2_M) | text; image and video with optional projector | download: 4,213,353,280-byte main GGUF; 175,115,840-byte projector and 465,109,248-byte draft optional | 12 GB | `unsloth/gemma-4-12b-it-GGUF` |
+| Bonsai 8B (Q1_0) | text only | local import: `Bonsai-8B-Q1_0.gguf`, exactly 1,158,654,496 bytes | 12 GB | no publisher repo embedded |
+| Bonsai 27B (Q1_0) | text only | local import: `Bonsai-27B-Q1_0.gguf`, exactly 3,803,452,480 bytes | 12 GB | no publisher repo embedded |
+| Qwen3.5 9B (IQ4_XS) | text; image and video with optional projector | download: 5,168,653,536-byte main GGUF; 918,166,080-byte projector optional | 12 GB | `unsloth/Qwen3.5-9B-GGUF` |
 
 The catalog is filtered by the device's own memory, so a phone is never offered a
 model it cannot load.
@@ -473,10 +473,9 @@ checked and these were not:
 - **The native picker's own file names.** `UploadNaming` is tested against the shapes
   iOS produces (a stem with no extension, no content type, HEIC and MP4 bytes behind
   the same absent name), but the picker itself has only been run by hand.
-- **Image editing.** Qwen-Image-Edit is in the catalog and `/api/image-edit` is
-  bound to the same service the desktop uses, but no image has been generated on
-  iOS. At 10.97 GB across four files it needs a 16 GB device and sequential
-  load/unload that has not been exercised.
+- **Image editing.** `/api/image-edit` remains bound to the same service the desktop
+  uses, but the built-in catalog no longer offers a Qwen-Image-Edit checkpoint and
+  no image has been generated on iOS.
 - **Video generation.** The routes exist because they are part of the shared
   surface. No video model is small enough for the catalog, so nothing offers one.
 - **Package installation.** `WheelInstaller` refuses without the network switch and

@@ -11,6 +11,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xunit;
 
@@ -104,6 +105,54 @@ public class TensorAgentMauiProjectTests
         string frameworks = native.Attribute("Frameworks")?.Value ?? string.Empty;
         foreach (string framework in new[] { "Foundation", "Metal", "MetalKit", "MetalPerformanceShaders", "MetalPerformanceShadersGraph", "Accelerate" })
             Assert.Contains(framework, frameworks.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public void Head_RetainsBonsaiNativeEntryPointsInRelease()
+    {
+        XDocument symbols = XDocument.Load(Path.Combine(MauiDir, "GgmlExportedSymbols.targets"));
+        string[] retained = symbols.Descendants(Ns + "ReferenceNativeSymbol")
+            .Select(e => e.Attribute("Include")?.Value)
+            .OfType<string>()
+            .ToArray();
+
+        foreach (string export in new[]
+                 {
+                     "TSGgml_Qwen3ModelPrefill",
+                     "TSGgml_Qwen3ModelDecodeLogits",
+                     "TSGgml_Qwen3DropDecodeCache",
+                     "TSGgml_Qwen3ResetDecodeCache",
+                     "TSGgml_TransformerLayerDecode",
+                     "TSGgml_TransformerModelDecode",
+                     "TSGgml_Qwen35ArenaDiscardHostPointer",
+                 })
+        {
+            Assert.Contains(export, retained);
+        }
+
+        // The failure is architectural rather than Bonsai-specific: an export
+        // added to the static archive but omitted here survives Debug/simulator
+        // builds and then disappears under the Release device strip step. Keep
+        // the manifest identical to the native source exports so the next model
+        // kernel cannot repeat that delayed EntryPointNotFound failure.
+        string nativeDir = Path.Combine(RepoRoot, "TensorSharp.GGML.Native");
+        var exportPattern = new Regex(
+            @"^\s*TSG_EXPORT[^\r\n]*\b(TSGgml_[A-Za-z0-9_]+)\s*\(",
+            RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        string[] nativeExports = Directory.EnumerateFiles(nativeDir, "*.*", SearchOption.TopDirectoryOnly)
+            .Where(path => path.EndsWith(".cpp", StringComparison.Ordinal) ||
+                           path.EndsWith(".c", StringComparison.Ordinal) ||
+                           path.EndsWith(".h", StringComparison.Ordinal))
+            .SelectMany(path => exportPattern.Matches(File.ReadAllText(path))
+                .Select(match => match.Groups[1].Value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(nativeExports,
+            retained.Distinct(StringComparer.Ordinal)
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray());
     }
 
     [Fact]

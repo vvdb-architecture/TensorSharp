@@ -15,8 +15,8 @@
 // attention KV lives in persistent per-layer arenas written by one set_rows
 // and read by one batched flash-attention, and the GDN conv/delta recurrent
 // state lives in per-slot device arenas updated in-graph — no per-step host
-// round trips, so the graph is CUDA-graph capturable and request churn
-// replays one captured graph.
+// round trips. CUDA can capture the graph, while Metal retains and replays the
+// same slot-stable graph across request churn.
 //
 // The engine drives this through the same three IBatchedPagedModel hooks
 // GPT-OSS implements: TryForwardBatchedFusedDecode (host logits),
@@ -101,7 +101,11 @@ namespace TensorSharp.Models
             IReadOnlyList<string> requestIds, int[] tokens, int[] positions,
             float[][] outLogits, int[] outNextTokens)
         {
-            if (_backend != BackendType.GgmlCuda || IsTensorParallel || _fusedHolders == null)
+            // The native graph is shared by CUDA and Metal. Its recurrent-slot
+            // aggregation carries explicit dataflow dependencies, so Metal's
+            // concurrent graph scheduler cannot race the column producers.
+            if ((_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal)
+                || IsTensorParallel || _fusedHolders == null)
                 return false;
             if (!_fullDecodeEnabled || _fdUnsupported || _fdSpecSessionActive)
                 return false;
@@ -140,7 +144,7 @@ namespace TensorSharp.Models
             if (_quantWeights.TryGetValue("token_embd.weight", out QuantizedWeight tokenQw))
             {
                 if (!CanUseGgmlQuantizedGetRows(tokenQw.GgmlType))
-                    return ArenaDecline($"token embedding type {tokenQw.GgmlType} lacks CUDA get_rows");
+                    return ArenaDecline($"token embedding type {tokenQw.GgmlType} lacks backend get_rows support");
                 emb = ResolveW(tokenQw, null);
             }
             else if (_weights.TryGetValue("token_embd.weight", out Tensor tokenF32))
@@ -250,11 +254,11 @@ namespace TensorSharp.Models
             var logitsBuf = _arenaLogitsStaging;
             var sampledSorted = outNextTokens != null ? new int[n] : null;
 
-            bool ok;
+            int arenaStatus;
             fixed (float* lp = logitsBuf)
             fixed (int* sp = sampledSorted)
             {
-                ok = GgmlBasicOps.TryQwen35ArenaDecodeBatched(
+                arenaStatus = GgmlBasicOps.Qwen35ArenaDecodeBatchedStatus(
                     _fdLayers, numLayers, n,
                     tokSorted, posSorted,
                     kPtrs, vPtrs, convPtrs, deltaPtrs,
@@ -272,9 +276,10 @@ namespace TensorSharp.Models
                     emb.ptr, emb.type, emb.ne0, emb.ne1, emb.bytes,
                     (IntPtr)sp, wantLogits);
             }
-            if (!ok)
+            if (arenaStatus != 1)
             {
                 string err = GgmlBasicOps.LastNativeError();
+                ThrowIfArenaDecodeStateUnrecoverable(arenaStatus, err);
                 if (err != _lastArenaDeclineLogged)
                 {
                     _lastArenaDeclineLogged = err;
@@ -299,8 +304,27 @@ namespace TensorSharp.Models
                 h.CacheSeqLen = posSorted[i] + 1;
                 h.KvHostDirty = true;
                 h.GdnHostDirty = true;
+                h.ArenaStateResident = true;
             }
             return true;
+        }
+
+        /// <summary>Interpret the native arena's tri-state result. A graph that
+        /// started execution can leave only a subset of recurrent layers advanced;
+        /// there is no correct serial fallback without a pre-step state checkpoint,
+        /// so fail the affected requests and let normal error cleanup recycle their
+        /// holders. Zero remains an ordinary pre-compute decline.</summary>
+        internal static void ThrowIfArenaDecodeStateUnrecoverable(int status, string nativeError)
+        {
+            if (status >= 0)
+                return;
+
+            throw new InvalidOperationException(
+                (string.IsNullOrWhiteSpace(nativeError)
+                    ? "Qwen3.5 arena batched decode graph execution failed."
+                    : nativeError) +
+                " The graph may have partially advanced recurrent state; the affected " +
+                "sequences were failed because serial fallback would use stale host state.");
         }
     }
 }

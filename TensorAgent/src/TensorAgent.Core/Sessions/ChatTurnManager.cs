@@ -341,6 +341,8 @@ public sealed class ChatTurnManager : IDisposable
     {
         var content = new StringBuilder();
         var thinking = new StringBuilder();
+        var artifacts = new List<StoredArtifact>();
+        var artifactUrls = new HashSet<string>(StringComparer.Ordinal);
         string? sessionId = null;
         ChatTurnState state;
 
@@ -349,7 +351,7 @@ public sealed class ChatTurnManager : IDisposable
             await foreach (object frame in frames(turn.Token).WithCancellation(turn.Token).ConfigureAwait(false))
             {
                 turn.Append(frame, content, MaxBufferedFrames);
-                ReadInto(frame, content, thinking, ref sessionId);
+                ReadInto(frame, content, thinking, artifacts, artifactUrls, ref sessionId);
             }
             state = ChatTurnState.Completed;
         }
@@ -384,7 +386,14 @@ public sealed class ChatTurnManager : IDisposable
         // this conversation has, and its partial answer is what is on the screen.
         if (sessionId is not null && StillOwns(turn))
         {
-            try { _recorder?.Complete(sessionId, content.ToString(), thinking.ToString()); }
+            try
+            {
+                _recorder?.Complete(
+                    sessionId,
+                    content.ToString(),
+                    thinking.ToString(),
+                    artifacts.Count == 0 ? null : artifacts);
+            }
             catch (Exception) { /* a lost transcript must not be a crash on a background thread */ }
         }
 
@@ -404,7 +413,13 @@ public sealed class ChatTurnManager : IDisposable
     /// JSON is the only way in — the same round trip the route's recorder used to do,
     /// and the only way to stay honest about what was actually sent.
     /// </summary>
-    private static void ReadInto(object frame, StringBuilder content, StringBuilder thinking, ref string? sessionId)
+    private static void ReadInto(
+        object frame,
+        StringBuilder content,
+        StringBuilder thinking,
+        List<StoredArtifact> artifacts,
+        HashSet<string> artifactUrls,
+        ref string? sessionId)
     {
         try
         {
@@ -419,6 +434,40 @@ public sealed class ChatTurnManager : IDisposable
                 content.Clear().Append(whole);
             else if (root.TryGetProperty("thinking", out JsonElement thought) && thought.GetString() is { } reasoning)
                 thinking.Append(reasoning);
+
+            // A tool's ordinary `files` field is provisional: a guarded workflow can
+            // produce a syntactically valid-looking file and then reject it for stale
+            // contents, unsafe package relationships, or a missing required step. Only
+            // the dedicated frame emitted after the host completion proof belongs in
+            // durable history. This also mirrors the page's URL-based de-duplication
+            // when a replay contains the same verified frame more than once.
+            if (root.TryGetProperty("artifact_verified", out JsonElement verified)
+                && verified.ValueKind == JsonValueKind.True
+                && root.TryGetProperty("files", out JsonElement files)
+                && files.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement file in files.EnumerateArray())
+                {
+                    if (file.ValueKind != JsonValueKind.Object
+                        || !file.TryGetProperty("url", out JsonElement urlElement)
+                        || urlElement.GetString() is not { Length: > 0 } url
+                        || !artifactUrls.Add(url))
+                    {
+                        continue;
+                    }
+
+                    string name = file.TryGetProperty("name", out JsonElement nameElement)
+                        && nameElement.GetString() is { Length: > 0 } suppliedName
+                            ? suppliedName
+                            : url;
+                    long bytes = file.TryGetProperty("bytes", out JsonElement bytesElement)
+                        && bytesElement.TryGetInt64(out long suppliedBytes)
+                        && suppliedBytes > 0
+                            ? suppliedBytes
+                            : 0;
+                    artifacts.Add(new StoredArtifact { Name = name, Bytes = bytes, Url = url });
+                }
+            }
             if (root.TryGetProperty("sessionId", out JsonElement id) && id.GetString() is { Length: > 0 } value)
                 sessionId = value;
         }

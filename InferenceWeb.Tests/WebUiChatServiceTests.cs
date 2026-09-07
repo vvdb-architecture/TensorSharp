@@ -11,9 +11,12 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
+using TensorSharp.AgentHost.Skills;
 using TensorSharp.Chat;
+using TensorSharp.Runtime;
 using TensorSharp.Server.Hosting;
 using TensorSharp.Server.ProtocolAdapters;
+using TensorSharp.Server.Skills;
 
 namespace InferenceWeb.Tests;
 
@@ -38,7 +41,30 @@ public class WebUiChatServiceTests : IDisposable
         try { Directory.Delete(_baseDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private ServerHostingOptions Options() => new(
+    [Fact]
+    public void LegacyPublicConstructorSignatureRemainsAvailableForCompiledConsumers()
+    {
+        Type[] legacyParameters =
+        {
+            typeof(ModelService),
+            typeof(SessionManager),
+            typeof(ServerHostingOptions),
+            typeof(UploadStoragePolicy),
+            typeof(SkillRegistry),
+            typeof(ICodeRunner),
+            typeof(SessionWorkspaceManager),
+            typeof(TensorSharp.AgentHost.CodeExec.CodeArtifactStore),
+            typeof(Microsoft.Extensions.Logging.ILoggerFactory),
+            typeof(string),
+        };
+
+        Assert.NotNull(typeof(WebUiChatService).GetConstructor(legacyParameters));
+    }
+
+    private ServerHostingOptions Options(
+        bool skillsAllowScripts = false,
+        bool skillsAllowNetwork = false,
+        SkillSandboxMode skillsSandbox = SkillSandboxMode.Required) => new(
         startupModelPath: Path.Combine(_baseDir, "models", "foo.gguf"),
         startupMmProjPath: Path.Combine(_baseDir, "models", "mmproj-foo.gguf"),
         defaultBackend: "ggml_cpu",
@@ -54,7 +80,10 @@ public class WebUiChatServiceTests : IDisposable
         uploadDirectory: _baseDir,
         logDirectory: Path.Combine(_baseDir, "logs"),
         fileLoggingEnabled: false,
-        samplingDefaults: null);
+        samplingDefaults: null,
+        skillsAllowScripts: skillsAllowScripts,
+        skillsSandbox: skillsSandbox,
+        skillsAllowNetwork: skillsAllowNetwork);
 
     private sealed record Fixture(
         WebUiChatService Service,
@@ -106,6 +135,183 @@ public class WebUiChatServiceTests : IDisposable
         Assert.False(WebUiChatService.HasParsedAnswerContent(
             ChatStreamUpdate.ToolProgress("running", "shell", "output")));
     }
+
+    [Fact]
+    public void HostSkillRoutingRespectsEveryExplicitOptOutAndCallerTools()
+    {
+        Assert.True(WebUiChatService.MayInferSkillRoute(
+            skillsEnabled: true, requestedDiscovery: null, clientTools: null));
+        Assert.False(WebUiChatService.MayInferSkillRoute(
+            skillsEnabled: false, requestedDiscovery: null, clientTools: null));
+        Assert.False(WebUiChatService.MayInferSkillRoute(
+            skillsEnabled: true, requestedDiscovery: false, clientTools: null));
+        Assert.False(WebUiChatService.MayInferSkillRoute(
+            skillsEnabled: true,
+            requestedDiscovery: null,
+            clientTools: new[] { new ToolFunction { Name = "caller's_tool" } }));
+    }
+
+    [Fact]
+    public void RoutedWorkflowPreflightReportsEveryDisabledRequiredCapability()
+    {
+        WebUiSkillRoute route = RoutedWorkflow(requiresNetwork: true);
+        ServerHostingOptions options = Options(
+            skillsAllowScripts: false, skillsAllowNetwork: false);
+
+        string error = WebUiChatService.RoutedWorkflowPreflightError(
+            route, plan: null, options);
+
+        Assert.Contains("skills_run tool is disabled", error, StringComparison.Ordinal);
+        Assert.Contains("network access for skill scripts is disabled", error, StringComparison.Ordinal);
+        Assert.Contains("Then retry", error, StringComparison.Ordinal);
+        Assert.False(options.SkillsAllowScripts);
+        Assert.False(options.SkillsAllowNetwork);
+    }
+
+    [Fact]
+    public void RoutedWorkflowPreflightRejectsAMissingSkillsRunChannelEvenWhenPermissionsAreEnabled()
+    {
+        string error = WebUiChatService.RoutedWorkflowPreflightError(
+            RoutedWorkflow(requiresNetwork: true),
+            plan: null,
+            Options(
+                skillsAllowScripts: true,
+                skillsAllowNetwork: true,
+                skillsSandbox: SkillSandboxMode.Off));
+
+        Assert.Contains("skills_run tool is unavailable", error, StringComparison.Ordinal);
+        Assert.Contains("tool-capable chat model", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RoutedWorkflowPreflightAcceptsAnAvailableSkillsRunChannelAndExplicitNetworkPermission()
+    {
+        string skillsRoot = Path.Combine(_baseDir, "preflight-skills");
+        string skillRoot = Path.Combine(skillsRoot, "research");
+        Directory.CreateDirectory(skillRoot);
+        File.WriteAllText(Path.Combine(skillRoot, SkillManifestParser.SkillFileName), """
+            ---
+            name: research
+            description: Researches the web.
+            ---
+            # Research
+            """);
+        var registry = new SkillRegistry(new SkillRegistryOptions { Roots = new[] { skillsRoot } });
+        ServerHostingOptions options = Options(
+            skillsAllowScripts: true,
+            skillsAllowNetwork: true,
+            skillsSandbox: SkillSandboxMode.Off);
+        SkillRequestPlan plan = SkillRequestPlan.Create(
+            registry,
+            new[] { "research" },
+            discovery: false,
+            clientTools: null,
+            architecture: "nemotron_h_moe",
+            contextTokens: 8192,
+            options,
+            out IReadOnlyList<string> unknown);
+
+        Assert.Empty(unknown);
+        Assert.NotNull(plan);
+        Assert.Null(WebUiChatService.RoutedWorkflowPreflightError(
+            RoutedWorkflow(requiresNetwork: true), plan, options));
+    }
+
+    [Fact]
+    public async Task InferredRoutedWorkflowRejectsMissingCapabilitiesBeforeGeneration()
+    {
+        string modelPath = WriteMinimalGguf("routed-preflight.gguf");
+        using var model = new ModelService(
+            NullLogger<ModelService>.Instance,
+            (path, _, _, _) => new ContextReportingModel(path, declaredContext: 8192, activeContext: 8192));
+        model.LoadModel(modelPath, null, "cpu");
+
+        string skillsRoot = Path.Combine(_baseDir, "routed-preflight-skills");
+        string skillRoot = Path.Combine(skillsRoot, "research");
+        Directory.CreateDirectory(skillRoot);
+        File.WriteAllText(Path.Combine(skillRoot, SkillManifestParser.SkillFileName), """
+            ---
+            name: research
+            description: Researches the web.
+            ---
+            # Research
+            """);
+        var skills = new SkillRegistry(new SkillRegistryOptions { Roots = new[] { skillsRoot } });
+        var sessions = new SessionManager();
+        ServerHostingOptions options = Options(
+            skillsAllowScripts: false, skillsAllowNetwork: true);
+        var service = new WebUiChatService(
+            model,
+            sessions,
+            options,
+            new UploadStoragePolicy(_baseDir),
+            skills,
+            codeRunner: null,
+            workspaces: null,
+            codeArtifacts: null,
+            NullLoggerFactory.Instance,
+            WebUiChatService.DefaultArtifactUriPrefix,
+            skillRouter: (_, _, _) => RoutedWorkflow(requiresNetwork: true));
+        bool generationHookFired = false;
+        service.OnChatRequest = (_, _) => generationHookFired = true;
+
+        WebUiRequestRejectedException ex = await RejectionOf(service.ChatStreamAsync(
+            Json("""{"messages":[{"role":"user","content":"make a researched deck"}]}"""),
+            CancellationToken.None));
+
+        Assert.Equal(503, ex.StatusCode);
+        Assert.Equal("routed_workflow_unavailable", Field(ex.Payload, "code"));
+        Assert.Contains("skills_run tool is disabled", ex.Message, StringComparison.Ordinal);
+        Assert.False(generationHookFired, "preflight rejection must happen before generation is accepted");
+        Assert.True(options.SkillsAllowNetwork);
+    }
+
+    [Fact]
+    public async Task RoutedArtifactSetupFailureAlsoCarriesTheBrowserRollbackCode()
+    {
+        string modelPath = WriteMinimalGguf("routed-artifact-preflight.gguf");
+        using var model = new ModelService(
+            NullLogger<ModelService>.Instance,
+            (path, _, _, _) => new ContextReportingModel(path, declaredContext: 8192, activeContext: 8192));
+        model.LoadModel(modelPath, null, "cpu");
+
+        var service = new WebUiChatService(
+            model,
+            new SessionManager(),
+            Options(),
+            new UploadStoragePolicy(_baseDir),
+            new SkillRegistry(new SkillRegistryOptions()),
+            codeRunner: null,
+            workspaces: null,
+            codeArtifacts: null,
+            NullLoggerFactory.Instance,
+            WebUiChatService.DefaultArtifactUriPrefix,
+            skillRouter: (_, _, _) => new WebUiSkillRoute(
+                Array.Empty<string>(),
+                "Create the deliverable.",
+                new WebUiArtifactRequirement(
+                    ".pptx", Array.Empty<WebUiSkillRunRequirement>()),
+                RequiresNetwork: false));
+        bool generationHookFired = false;
+        service.OnChatRequest = (_, _) => generationHookFired = true;
+
+        WebUiRequestRejectedException ex = await RejectionOf(service.ChatStreamAsync(
+            Json("""{"messages":[{"role":"user","content":"make a deck"}]}"""),
+            CancellationToken.None));
+
+        Assert.Equal(503, ex.StatusCode);
+        Assert.Equal("routed_workflow_unavailable", Field(ex.Payload, "code"));
+        Assert.Contains("durable artifact downloads", ex.Message, StringComparison.Ordinal);
+        Assert.False(generationHookFired);
+    }
+
+    private static WebUiSkillRoute RoutedWorkflow(bool requiresNetwork) => new(
+        new[] { "research" },
+        "Use research.",
+        new WebUiArtifactRequirement(
+            ".pptx",
+            new[] { new WebUiSkillRunRequirement("research", "scripts/research.py") }),
+        RequiresNetwork: requiresNetwork);
 
     // ---- /api/chat preflight -------------------------------------------------
 

@@ -716,6 +716,14 @@ namespace TensorSharp.Models
             if (!IsGgmlBackend)
                 return false;
 
+            // Q1_0 is deliberately gathered from the mmap on the host. It is only
+            // used by embedding tables, so this moves a few KiB per prompt while
+            // avoiding backend-specific get_rows coverage gaps for the new format.
+            // The large Q1_0 projection matrices still stay device-resident and use
+            // the optimized mul_mat kernels.
+            if ((GgmlTensorType)ggmlType == GgmlTensorType.Q1_0)
+                return false;
+
             if (_backend != BackendType.GgmlCuda)
                 return true;
 

@@ -617,9 +617,9 @@ namespace TensorSharp.AgentHost.CodeExec
             {
                 Name = WriteToolName,
                 Description =
-                    "Create a file, or replace one completely. Use it for a file that does not exist "
-                    + "yet, and for the rare case where a file genuinely should be thrown away and "
-                    + "written again.\n"
+                    "Create a new file. To intentionally replace a file that already exists, set "
+                    + "overwrite=true; otherwise the host refuses before changing it. Reserve full "
+                    + "replacement for the rare case where the old file should be discarded.\n"
                     + "To CHANGE a file that already exists, use " + EditToolName + " instead. Rewriting "
                     + "a file to change part of it costs you every line that was already correct and "
                     + "re-rolls each one, which is how a second bug appears in code that worked — and it "
@@ -637,6 +637,14 @@ namespace TensorSharp.AgentHost.CodeExec
                     {
                         Type = "string",
                         Description = "The complete contents of the file.",
+                    },
+                    ["overwrite"] = new()
+                    {
+                        Type = "boolean",
+                        Description =
+                            "Optional confirmation for an intentional full replacement of a file that already "
+                            + "exists. Omit or false for normal use. A local bug fix belongs in edit_file, not "
+                            + "here; set true only when the old file genuinely should be discarded in full.",
                     },
                 },
                 Required = new List<string> { "path", "content" },
@@ -800,7 +808,18 @@ namespace TensorSharp.AgentHost.CodeExec
         public readonly record struct EditRequest(string Path, string OldString, string NewString, bool ReplaceAll);
 
         /// <summary>What a <c>write_file</c> call asked for.</summary>
-        public readonly record struct WriteRequest(string Path, string Content);
+        public readonly record struct WriteRequest(string Path, string Content)
+        {
+            /// <summary>
+            /// Explicit confirmation that an existing file should be discarded in full.
+            /// Kept outside the positional contract so existing compiled callers retain
+            /// the original constructor and two-value deconstruction shape.
+            /// </summary>
+            // Direct host callers using the original two-argument API retain its
+            // replacement semantics. Tool JSON is parsed explicitly below, where an
+            // omitted flag is false and therefore protects model-authored repairs.
+            public bool Overwrite { get; init; } = true;
+        }
 
         /// <summary>
         /// Read a <c>read_file</c> call.
@@ -962,7 +981,10 @@ namespace TensorSharp.AgentHost.CodeExec
                 return false;
             }
 
-            request = new WriteRequest(path!, content);
+            request = new WriteRequest(path!, content)
+            {
+                Overwrite = ReadBool(arguments, "overwrite"),
+            };
             return true;
         }
 
@@ -986,8 +1008,28 @@ namespace TensorSharp.AgentHost.CodeExec
                 string text => text,
                 JsonElement { ValueKind: JsonValueKind.String } je => je.GetString(),
                 JsonElement { ValueKind: JsonValueKind.Null } => null,
+                JsonElement je => je.GetRawText(),
+                // Some native tool-call grammars parse an unquoted JSON document in a
+                // string parameter into dictionaries/lists before it reaches us. Calling
+                // ToString() on that value writes the CLR type name into the file and
+                // forces the model to regenerate the entire document. Preserve the data
+                // as JSON instead; scalar parameters retain their existing conversion.
+                System.Collections.IDictionary or System.Collections.IEnumerable =>
+                    SerializeStructuredText(raw),
                 _ => AsString(raw),
             };
+        }
+
+        private static string? SerializeStructuredText(object value)
+        {
+            try
+            {
+                return JsonSerializer.Serialize(value);
+            }
+            catch (Exception ex) when (ex is JsonException or NotSupportedException)
+            {
+                return null;
+            }
         }
 
         private static object? Find(IDictionary<string, object> arguments, params string[] names)

@@ -56,7 +56,7 @@ namespace TensorSharp.Runtime.Scheduling
 
         // Retained fused-cache continuation hooks (wired by the engine to the
         // executor). Cross-request analogue of the live-cache hooks above: they
-        // re-adopt a FINISHED concurrent request's retained per-request KV holder
+        // re-adopt a FINISHED concurrent request's retained per-request state holder
         // for a new request whose prompt exactly extends it. Unlike live-cache
         // continuation (one shared cache, sole-sequence only), each retained holder
         // is independent, so multiple concurrent admissions can each continue from
@@ -70,6 +70,10 @@ namespace TensorSharp.Runtime.Scheduling
         // Running set: keyed by request id, ordered by sn for fairness.
         private readonly Dictionary<string, SequenceState> _running = new();
         private readonly List<SequenceState> _runningOrder = new();
+        // When a mixed decode/prefill step runs out of token budget part-way
+        // through the prefill set, resume at that sequence next iteration.
+        // Request ids survive additions/removals better than a numeric cursor.
+        private string _nextPrefillRequestId;
         private readonly ILogger _logger;
 
         public ContinuousBatchScheduler(
@@ -230,55 +234,108 @@ namespace TensorSharp.Runtime.Scheduling
             // on the fused single-graph prefill path. The moment a 2nd request
             // appears this reverts to small chunks automatically.
             bool noContention = (_running.Count + _waiting.Count) <= 1;
-            int prefillCap = noContention
-                ? Math.Min(_cfg.SoloPrefillChunkSize, _cfg.MaxNumBatchedTokens)
-                : _cfg.MaxPrefillChunkSize;
+            int soloPrefillCap = Math.Min(
+                _cfg.SoloPrefillChunkSize, _cfg.MaxNumBatchedTokens);
 
-            // -------------------------------------------------------------- 1. Run existing running set first.
-            //    This guarantees decoding sequences make forward progress even
-            //    when long-prompt waiters are vying for blocks.
-            // --------------------------------------------------------------
-            // Snapshot the order so we can mutate _runningOrder safely on preemption.
+            // Snapshot the order so block-pressure preemption may safely mutate
+            // _runningOrder below. Split the snapshot by phase: like llama.cpp,
+            // vLLM and SGLang, every runnable decoder gets its one-token slot
+            // before any long prompt is allowed to consume the remaining budget.
             var runningSnapshot = new List<SequenceState>(_runningOrder);
+            var decodeSnapshot = new List<SequenceState>(runningSnapshot.Count);
+            var prefillSnapshot = new List<SequenceState>(runningSnapshot.Count);
             foreach (var seq in runningSnapshot)
             {
-                if (tokenBudget <= 0) break;
                 if (!_running.ContainsKey(seq.RequestId)) continue;
+                int promptUncomputed = Math.Max(
+                    0, seq.PromptTokens.Count - seq.NumComputedTokens);
+                if (promptUncomputed == 0)
+                    decodeSnapshot.Add(seq);
+                else
+                    prefillSnapshot.Add(seq);
+            }
+            bool hasActiveDecode = decodeSnapshot.Count > 0;
 
-                int promptUncomputed = Math.Max(0, seq.PromptTokens.Count - seq.NumComputedTokens);
-                bool isPrefill = promptUncomputed > 0;
-                int want = isPrefill
-                    ? Math.Min(promptUncomputed, prefillCap)
-                    : 1; // decode step
-                want = Math.Min(want, tokenBudget);
-                if (isPrefill)
-                    want = AlignRecurrentPrefillBoundary(seq, want, promptUncomputed);
-                if (want <= 0) break;
-
-                // Allocate any blocks needed to host these tokens.
-                if (!TryEnsureBlocksForStep(seq, want))
-                {
-                    // Out of blocks. Try preempting a lower-priority running seq.
-                    if (!TryPreemptForBlocks(seq, want, output))
-                    {
-                        // Still can't fit: skip this seq this step.
-                        continue;
-                    }
-                }
-
-                bool isFresh = seq.FirstScheduledAt == null;
-                if (isFresh) seq.FirstScheduledAt = DateTime.UtcNow;
-
-                output.ScheduledWork.Add(new ScheduledSequenceWork(seq, want, isFresh, isPrefill));
-                tokenBudget -= want;
+            // -------------------------------------------------------------- 1. Decode first.
+            // A fixed running-order traversal can otherwise let enough prefills
+            // exhaust MaxNumBatchedTokens before a later decoder is visited.
+            // Decode work is tiny and unlocks true token-batched model paths.
+            // --------------------------------------------------------------
+            foreach (var seq in decodeSnapshot)
+            {
+                if (tokenBudget <= 0) break;
+                // A prior allocation attempt may have preempted a later entry
+                // from this snapshot to recover KV blocks.
+                if (!_running.ContainsKey(seq.RequestId)) continue;
+                TryScheduleRunningSequence(
+                    seq, want: 1, isPrefill: false, output, ref tokenBudget);
             }
 
-            // -------------------------------------------------------------- 2. Admit waiting sequences.
+            // -------------------------------------------------------------- 2. Existing prefills.
+            // With no decoder active, split the whole remaining batch budget
+            // across all runnable/admittable prompts. The old fixed per-request
+            // cap used only half of a 4096-token step for two prompts. In a mixed
+            // step retain the configured latency cap and rotate the first prefill
+            // whenever the budget is exhausted, avoiding permanent tail-request
+            // starvation (4/4/1, 4/4/1, ...).
+            // --------------------------------------------------------------
+            RotatePrefillsToResumePoint(prefillSnapshot);
+            int admissibleWaiting = Math.Min(
+                _waiting.Count,
+                Math.Max(0, _cfg.MaxNumRunningSequences - _running.Count));
+            int prefillCandidatesRemaining = prefillSnapshot.Count + admissibleWaiting;
+
+            for (int i = 0; i < prefillSnapshot.Count; i++)
+            {
+                var seq = prefillSnapshot[i];
+                if (tokenBudget <= 0)
+                {
+                    _nextPrefillRequestId = seq.RequestId;
+                    break;
+                }
+                if (!_running.ContainsKey(seq.RequestId))
+                {
+                    prefillCandidatesRemaining = Math.Max(0, prefillCandidatesRemaining - 1);
+                    continue;
+                }
+
+                int promptUncomputed = Math.Max(
+                    0, seq.PromptTokens.Count - seq.NumComputedTokens);
+                int cap = GetPrefillCap(
+                    noContention, hasActiveDecode, tokenBudget,
+                    prefillCandidatesRemaining, soloPrefillCap);
+                int desired = Math.Min(promptUncomputed, cap);
+                int want = Math.Min(desired, tokenBudget);
+                want = AlignRecurrentPrefillBoundary(seq, want, promptUncomputed);
+                if (want <= 0)
+                {
+                    _nextPrefillRequestId = seq.RequestId;
+                    break;
+                }
+
+                bool scheduled = TryScheduleRunningSequence(
+                    seq, want, isPrefill: true, output, ref tokenBudget);
+                prefillCandidatesRemaining = Math.Max(0, prefillCandidatesRemaining - 1);
+                if (!scheduled || want < desired)
+                    _nextPrefillRequestId = seq.RequestId;
+                else if (tokenBudget == 0 && i + 1 < prefillSnapshot.Count)
+                    _nextPrefillRequestId = prefillSnapshot[i + 1].RequestId;
+            }
+
+            // -------------------------------------------------------------- 3. Admit waiting sequences.
             // --------------------------------------------------------------
             while (_waiting.Count > 0 && tokenBudget > 0 && _running.Count < _cfg.MaxNumRunningSequences)
             {
                 var node = _waiting.First;
                 var seq = node.Value;
+
+                // A sequence preempted earlier in this same output must stay
+                // parked until the next iteration. Re-admitting it here would
+                // put its id in both ScheduledWork and PreemptedRequestIds: the
+                // engine would execute the new prefill and then release that
+                // now-running request's model-owned cache after the step.
+                if (output.PreemptedRequestIds.Contains(seq.RequestId))
+                    break;
 
                 // Try prefix cache lookup before allocating blocks (only for
                 // brand-new sequences; preempted ones already had their blocks
@@ -314,14 +371,14 @@ namespace TensorSharp.Runtime.Scheduling
                     }
 
                     // Retained fused-cache continuation: a finished concurrent
-                    // request's full circular KV is kept alive; if this prompt extends
-                    // it exactly, continue from that retained holder (reusing the whole
-                    // conversation prefix past the pooled window cap). Each retained
-                    // holder is independent ÔÇö no shared live cache to clobber ÔÇö so this
-                    // is NOT gated to the sole-sequence case and doesn't block
-                    // co-admitting other sequences this step. This is the path that
-                    // gives multi-turn "Þ»Àþ╗ºþ╗¡" follow-ups their prefix reuse back after
-                    // a concurrent (per-seq fused) round left nothing in the pool.
+                    // request's complete model-owned state remains alive; if this
+                    // prompt extends it exactly, continue from that holder without
+                    // reconstructing circular K/V (Gemma 4) or separating attention
+                    // K/V from recurrent GDN state (Qwen 3.5/3.6). Each retained holder
+                    // is independent ÔÇö no shared live cache to clobber ÔÇö so this is
+                    // NOT gated to the sole-sequence case and doesn't block co-admitting
+                    // other sequences this step. It restores multi-turn prefix reuse
+                    // after a concurrent fused round left nothing in the paged pool.
                     if (!plannedLiveContinuation
                         && _fusedContinuationLcp != null
                         && _fusedContinuationAdopt != null)
@@ -345,7 +402,11 @@ namespace TensorSharp.Runtime.Scheduling
                     promptUncomputed = 1;
                 }
 
-                int want = Math.Min(promptUncomputed, prefillCap);
+                int cap = GetPrefillCap(
+                    noContention, hasActiveDecode, tokenBudget,
+                    Math.Max(1, prefillCandidatesRemaining), soloPrefillCap);
+                int desired = Math.Min(promptUncomputed, cap);
+                int want = Math.Min(desired, tokenBudget);
                 want = Math.Min(want, tokenBudget);
                 want = AlignRecurrentPrefillBoundary(seq, want, promptUncomputed);
                 if (want <= 0) break;
@@ -367,6 +428,9 @@ namespace TensorSharp.Runtime.Scheduling
                 bool isPrefill = want > 1 || promptUncomputed > 0;
                 output.ScheduledWork.Add(new ScheduledSequenceWork(seq, want, true, isPrefill));
                 tokenBudget -= want;
+                prefillCandidatesRemaining = Math.Max(0, prefillCandidatesRemaining - 1);
+                if (want < desired)
+                    _nextPrefillRequestId = seq.RequestId;
 
                 // A live-cache continuation depends on the model's live cache staying
                 // intact until this sequence runs. Don't admit any other sequence this
@@ -377,6 +441,72 @@ namespace TensorSharp.Runtime.Scheduling
             }
 
             return output;
+        }
+
+        /// <summary>
+        /// Add one already-running sequence to this iteration after ensuring its
+        /// KV allocation. Returns false when block pressure prevents progress.
+        /// </summary>
+        private bool TryScheduleRunningSequence(
+            SequenceState seq,
+            int want,
+            bool isPrefill,
+            SchedulerOutput output,
+            ref int tokenBudget)
+        {
+            want = Math.Min(want, tokenBudget);
+            if (want <= 0) return false;
+
+            if (!TryEnsureBlocksForStep(seq, want)
+                && !TryPreemptForBlocks(seq, want, output))
+            {
+                return false;
+            }
+
+            bool isFresh = seq.FirstScheduledAt == null;
+            if (isFresh) seq.FirstScheduledAt = DateTime.UtcNow;
+            output.ScheduledWork.Add(
+                new ScheduledSequenceWork(seq, want, isFresh, isPrefill));
+            tokenBudget -= want;
+            return true;
+        }
+
+        /// <summary>Choose a latency cap for mixed work, or an even share of the
+        /// full device token budget when all contenders are still prefilling.</summary>
+        private int GetPrefillCap(
+            bool noContention,
+            bool hasActiveDecode,
+            int tokenBudget,
+            int candidatesRemaining,
+            int soloPrefillCap)
+        {
+            if (noContention)
+                return soloPrefillCap;
+            if (hasActiveDecode)
+                return _cfg.MaxPrefillChunkSize;
+
+            candidatesRemaining = Math.Max(1, candidatesRemaining);
+            int evenShare = tokenBudget / candidatesRemaining;
+            if (tokenBudget % candidatesRemaining != 0)
+                evenShare++;
+            return Math.Max(1, evenShare);
+        }
+
+        /// <summary>Move the prefill that received only a partial quantum last
+        /// iteration to the front, implementing a stable round-robin cursor.</summary>
+        private void RotatePrefillsToResumePoint(List<SequenceState> prefills)
+        {
+            if (prefills.Count <= 1 || string.IsNullOrEmpty(_nextPrefillRequestId))
+                return;
+            int start = prefills.FindIndex(
+                seq => string.Equals(
+                    seq.RequestId, _nextPrefillRequestId,
+                    StringComparison.Ordinal));
+            if (start <= 0) return;
+
+            var prefix = prefills.GetRange(0, start);
+            prefills.RemoveRange(0, start);
+            prefills.AddRange(prefix);
         }
 
         /// <summary>Called by the executor after the forward pass completes.
@@ -520,6 +650,13 @@ namespace TensorSharp.Runtime.Scheduling
             foreach (var s in _runningOrder)
             {
                 if (ReferenceEquals(s, needyForBlocks)) continue;
+                // Work already emitted for this iteration must retain its block
+                // table until the executor consumes the plan. Preempting it here
+                // would leave a stale ScheduledWork entry pointing at a reset
+                // sequence and could forward the wrong token positions.
+                if (output.ScheduledWork.Exists(
+                        work => ReferenceEquals(work.Sequence, s)))
+                    continue;
                 int score = -s.Priority * 1_000_000 + (int)(s.Sn & 0xfffff);
                 if (score > victimScore)
                 {

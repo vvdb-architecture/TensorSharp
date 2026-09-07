@@ -95,6 +95,12 @@ public sealed class Conversation
     [JsonPropertyName("modelId")] public string? ModelId { get; set; }
     [JsonPropertyName("think")] public bool Think { get; set; }
     [JsonPropertyName("skills")] public List<string> Skills { get; set; } = new();
+    /// <summary>
+    /// Whether <see cref="Skills"/> is a deliberate per-chat selection. An empty
+    /// list without this bit means "let skill discovery decide"; an empty list with
+    /// it means the user explicitly deselected every skill.
+    /// </summary>
+    [JsonPropertyName("skillsExplicit")] public bool SkillsExplicit { get; set; }
     [JsonPropertyName("messages")] public List<StoredMessage> Messages { get; set; } = new();
     /// <summary>Whether the engine session was reset after the last saved turn (a resumed
     /// conversation always starts with newChat=true, this records the page's own flag).</summary>

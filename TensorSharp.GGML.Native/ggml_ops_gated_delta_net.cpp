@@ -330,8 +330,8 @@ TSG_EXPORT int TSGgml_GatedDeltaNetChunkedF32(
             ggml_tensor* z = z_bind.tensor;
 
             // L2 normalize Q, K along D (ne0).
-            ggml_tensor* q_norm = ggml_l2_norm(ctx, q, eps);
-            ggml_tensor* k_norm = ggml_l2_norm(ctx, k, eps);
+            ggml_tensor* q_norm = build_gdn_l2_norm(ctx, q, eps);
+            ggml_tensor* k_norm = build_gdn_l2_norm(ctx, k, eps);
 
             // Scale Q by 1/sqrt(D).
             const float qScale = 1.0f / std::sqrt(static_cast<float>(D));

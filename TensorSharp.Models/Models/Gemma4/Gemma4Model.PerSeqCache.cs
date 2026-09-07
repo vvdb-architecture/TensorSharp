@@ -85,6 +85,8 @@ namespace TensorSharp.Models
         public bool SupportsPerSequenceFusedForward =>
             IsGgmlBackend && (_canUseFusedFullModelDecode || _numExperts > 0);
 
+        public bool SupportsRetainedFusedCache => true;
+
         public bool HasFusedSequenceCache(string requestId)
             => requestId != null && _fusedHolders != null && _fusedHolders.ContainsKey(requestId);
 
@@ -270,7 +272,10 @@ namespace TensorSharp.Models
             if (string.Equals(_activeFusedKey, requestId, StringComparison.Ordinal))
             {
                 // The released sequence's cache is the one currently checked out.
-                // Swap the primary back in so the active fields don't dangle.
+                // Capture any growth-replaced arrays before swapping the primary
+                // back in, so release disposes the live holder rather than the
+                // stale pre-checkout dictionary snapshot.
+                holder = SnapshotActiveCache();
                 _activeFusedKey = null;
                 if (_primaryHolder != null)
                 {

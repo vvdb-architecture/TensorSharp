@@ -30,6 +30,7 @@ namespace TensorSharp.Models
         private const int QK4_NL = 32;
         private const int QK_MXFP4 = 32;
         private const int QK_NVFP4 = 64;
+        private const int QK1_0 = 128;
         private const int Nvfp4BlockBytes = 4 + QK_NVFP4 / 2; // 36
         private const int QK_K = 256;
         private const int K_SCALE_SIZE = 12;
@@ -82,6 +83,7 @@ namespace TensorSharp.Models
                 GgmlTensorType.IQ3_S => true,
                 GgmlTensorType.MXFP4 => true,
                 GgmlTensorType.NVFP4 => true,
+                GgmlTensorType.Q1_0 => true,
                 _ => false,
             };
         }
@@ -1023,8 +1025,29 @@ namespace TensorSharp.Models
                 case GgmlTensorType.NVFP4:
                     DequantizeNvfp4(src, dst, numElements);
                     return;
+                case GgmlTensorType.Q1_0:
+                    DequantizeQ10(src, dst, numElements);
+                    return;
                 default:
                     throw new NotSupportedException($"Pure C# backend does not support GGUF tensor type {type}.");
+            }
+        }
+
+        private static unsafe void DequantizeQ10(byte* src, float* dst, long numElements)
+        {
+            if (numElements % QK1_0 != 0)
+                throw new NotSupportedException($"Q1_0 requires {QK1_0}-element alignment, got {numElements}.");
+
+            int blockBytes = 2 + QK1_0 / 8;
+            int nb = (int)(numElements / QK1_0);
+            for (int i = 0; i < nb; i++)
+            {
+                byte* block = src + i * blockBytes;
+                float d = HalfToSingle(ReadUInt16(block));
+                byte* qs = block + 2;
+                float* y = dst + i * QK1_0;
+                for (int j = 0; j < QK1_0; j++)
+                    y[j] = ((qs[j >> 3] >> (j & 7)) & 1) != 0 ? d : -d;
             }
         }
 
@@ -3511,4 +3534,3 @@ namespace TensorSharp.Models
         }
     }
 }
-

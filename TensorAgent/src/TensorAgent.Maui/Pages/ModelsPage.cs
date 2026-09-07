@@ -286,9 +286,21 @@ public sealed class ModelsPage : ContentPage
             return;
         }
 
+        // Downloads expose a Stop action above. Loads and local imports do not:
+        // accepting a second tap would queue another multi-gigabyte import behind the
+        // store lock or race another model load.
+        if (row.IsBusy)
+            return;
+
         if (row.IsInstalled)
         {
             Select(row);
+            return;
+        }
+
+        if (row.Model.SideloadOnly)
+        {
+            await Import(row);
             return;
         }
 
@@ -304,6 +316,36 @@ public sealed class ModelsPage : ContentPage
         }
 
         Download(row);
+    }
+
+    /// <summary>
+    /// Copy a publisher-less, hash-pinned card from the Files picker into the model
+    /// store. The store stages and verifies the whole file before replacing anything;
+    /// selecting the wrong multi-gigabyte GGUF leaves no loadable partial behind.
+    /// </summary>
+    private async Task Import(ModelRow row)
+    {
+        try
+        {
+            FileResult? picked = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = $"Choose {row.Model.Weights.FileName}",
+            });
+            if (picked is null)
+                return;
+
+            row.BeginImport();
+            await using Stream source = await picked.OpenReadAsync();
+            var progress = new Progress<long>(row.ReportImport);
+            await _app.Models.ImportAsync(row.Model, source, progress, CancellationToken.None);
+            row.Finish(_app.Models);
+            Select(row);
+        }
+        catch (Exception ex)
+        {
+            row.Failed(_app.Models, ex.Message);
+            await DisplayAlert("Could not import this model", ex.Message, "OK");
+        }
     }
 
     /// <summary>
@@ -401,8 +443,11 @@ public sealed class ModelsPage : ContentPage
     {
         if (row is null)
             return;
+        string recovery = row.Model.SideloadOnly
+            ? "You will need to choose the original local GGUF again to restore it."
+            : "It can be downloaded again.";
         if (!await DisplayAlert("Delete model",
-                $"Remove {row.Model.DisplayName} from this device? It can be downloaded again.", "Delete", "Cancel"))
+                $"Remove {row.Model.DisplayName} from this device? {recovery}", "Delete", "Cancel"))
         {
             return;
         }
@@ -446,6 +491,7 @@ public sealed class ModelRow : BindableObject
         _actionLabel = !Runnable ? "Too big"
             : VisionActivationRequired ? "Enable vision"
             : IsInstalled ? (IsSelected ? "Selected" : "Use")
+            : model.SideloadOnly ? "Import"
             : "Download";
 
         if (download is { IsRunning: true } running)
@@ -486,7 +532,8 @@ public sealed class ModelRow : BindableObject
     /// experimental entries, so most of the list was a size and nothing else.
     /// </summary>
     public string Subtitle =>
-        $"{Model.Parameters} · {Model.Quantization} · {Gb(Model.TotalBytes)} GB download"
+        $"{Model.Parameters} · {Model.Quantization} · {Gb(Model.TotalBytes)} GB "
+        + (Model.SideloadOnly ? "local file" : "download")
         + (Model.Kind == CatalogArchitectureKind.MixtureOfExperts ? " · mixture of experts" : string.Empty)
         + $"\nReads: {Reads}"
         + (Model.SupportsThinking ? " · thinks when asked" : string.Empty)
@@ -529,6 +576,19 @@ public sealed class ModelRow : BindableObject
         IsBusy = true;
         ActionLabel = "Stop";
         Status = "Starting the vision download…";
+    }
+
+    public void BeginImport()
+    {
+        IsBusy = true;
+        ActionLabel = "Importing…";
+        Status = "Copying and verifying the local GGUF…";
+    }
+
+    public void ReportImport(long bytes)
+    {
+        Fraction = Model.TotalBytes > 0 ? Math.Min(1.0, (double)bytes / Model.TotalBytes) : 0;
+        Status = $"Importing · {Gb(bytes)}/{Gb(Model.TotalBytes)} GB";
     }
 
     /// <summary>Loading the weights, which is seconds rather than instant.</summary>
@@ -575,6 +635,7 @@ public sealed class ModelRow : BindableObject
         RefreshInstallState(store);
         ActionLabel = IsInstalled
             ? (VisionActivationRequired ? "Enable vision" : IsSelected ? "Selected" : "Use")
+            : Model.SideloadOnly ? "Import"
             : "Retry";
         Status = message;
         OnPropertyChanged(nameof(CanAddVision));
@@ -597,6 +658,11 @@ public sealed class ModelRow : BindableObject
         if (VisionActivationRequired)
         {
             return $"Vision downloaded · tap Enable vision to load it · {Model.License}";
+        }
+
+        if (Model.SideloadOnly && store.StateOf(Model) != InstallState.Installed)
+        {
+            return $"Not imported · choose {Model.Weights.FileName} from Files · {Model.License}";
         }
 
         return store.StateOf(Model) switch

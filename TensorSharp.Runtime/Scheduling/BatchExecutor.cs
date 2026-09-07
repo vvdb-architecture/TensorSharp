@@ -61,15 +61,16 @@ namespace TensorSharp.Runtime.Scheduling
 
         // ---- Retained fused-cache continuation (cross-request prefix reuse) ----
         // The per-sequence fused path (concurrent N>=2 decode) keeps each request's
-        // full K/V in its own holder and never writes the shared paged blocks, so a
-        // finished concurrent request leaves nothing in the prefix-cache pool. For a
-        // sliding-window model the pool can't restore a long prefix anyway, so a
-        // multi-turn follow-up would re-prefill the whole conversation (KV reuse 0).
-        // We retain a small LRU of finished fused holders (the model keeps the K/V
-        // alive) keyed by their full token list, and re-adopt one for a later request
-        // whose prompt extends it (allowing a short generated control-token tail that
-        // history rendering omits) ÔÇö the cross-request analogue of the single-stream
-        // live-cache continuation. See ComputeFusedContinuationLcp.
+        // complete continuation state in its own holder and never writes the shared
+        // paged blocks, so a finished concurrent request leaves nothing in the
+        // prefix-cache pool. That matters both for circular K/V (Gemma 4), whose
+        // byte snapshots are window-capped, and for hybrid attention+recurrent models
+        // (Qwen 3.5/3.6), whose attention K/V is incomplete without matching GDN
+        // state. We retain a small LRU of finished fused holders keyed by their full
+        // token list, and re-adopt one for a later request whose prompt extends it
+        // (allowing a short generated control-token tail that history rendering omits)
+        // ÔÇö the cross-request analogue of the single-stream live-cache continuation.
+        // See ComputeFusedContinuationLcp.
         private sealed class RetainedFusedCache
         {
             public string RequestId;   // model holder key (retained, not active)
@@ -955,6 +956,14 @@ namespace TensorSharp.Runtime.Scheduling
             // speculative context tracks.
             _specCtx = null;
 
+            // Track every request entering this path before the token-batched
+            // fast path can return. Previously NoteFusedSequence lived only in
+            // the serial fallback loop below, so an N=1 owner adopted directly
+            // into an already-ready all-decode batch could finish with a valid
+            // holder that the release hook did not know it should retain.
+            foreach (var work in output.ScheduledWork)
+                NoteFusedSequence(work.Sequence);
+
             // ---- TRUE token-batched decode fast path ----
             // When every scheduled item is a decode step (n>=2) and the model
             // supports it, decode all N tokens in ONE fused graph (weights loaded
@@ -1091,9 +1100,6 @@ namespace TensorSharp.Runtime.Scheduling
                     continue;
                 var seq = work.Sequence;
                 int prevComputed = seq.NumComputedTokens;
-                // Track this fused sequence so a clean finish can retain its holder
-                // for cross-request prefix reuse (see TryRetainReleasedFusedCache).
-                NoteFusedSequence(seq);
                 try
                 {
                     bool freshCache = fused.BindSequenceCache(seq.RequestId);
@@ -1967,26 +1973,24 @@ namespace TensorSharp.Runtime.Scheduling
         }
 
         /// <summary>True when the loaded model serves concurrent decode through
-        /// per-request fused holders AND caps pooled prefix reuse (sliding-window /
-        /// circular cache). Only such models need retained-fused continuation ÔÇö an
-        /// uncapped pure-attention model already reuses the full prefix through the
-        /// shared pool. This targets Gemma 4 (the reported repro). Qwen 3.5/3.6 is
-        /// deliberately excluded for now: it reports MaxReusablePrefixTokens=int.MaxValue
-        /// (uncapped), and its recurrent GatedDeltaNet state can't be reconstructed
-        /// from the pool either, so enabling it would need its own correctness pass on
-        /// GDN-state reuse ÔÇö a follow-up, not part of this fix.</summary>
+        /// per-request fused holders and explicitly supports retaining/re-keying a
+        /// completed holder. Do not infer this from the pooled-prefix cap: Qwen's
+        /// byte snapshots are deliberately not cross-request reusable, but its full
+        /// request-owned attention + recurrent-state holder is.</summary>
         private bool ModelUsesRetainableFusedCache()
             => ExecutionOptions.FromEnvironment().RetainedFusedCacheEnabled
             && _model is IBatchedPagedModel f
             && f.SupportsPerSequenceFusedForward
-            && _model.MaxReusablePrefixTokens != int.MaxValue;
+            && f.SupportsRetainedFusedCache;
 
         /// <summary>Longest reusable prefix from a retained fused holder, or 0 when
         /// no retained holder applies. A short trailing control-token tail may be
         /// rewound when the rendered history intentionally omitted it.
-        /// The matched holder's K/V is the full circular cache from the finished
-        /// request, so continuing from it reuses the entire conversation prefix (past
-        /// the sliding-window cap) with no corruption ÔÇö the cross-request analogue of
+        /// The matched holder contains the finished request's complete model-owned
+        /// continuation state: circular K/V for Gemma 4, or attention K/V plus GDN
+        /// recurrent state for Qwen 3.5/3.6. Continuing from it can therefore reuse
+        /// the entire recorded prefix without reconstructing an incomplete paged
+        /// snapshot ÔÇö the cross-request analogue of
         /// <see cref="ComputeLiveContinuationLcp"/>. Invoked by the scheduler at
         /// admission (same worker thread as the executor).</summary>
         public int ComputeFusedContinuationLcp(SequenceState seq)
@@ -1998,7 +2002,7 @@ namespace TensorSharp.Runtime.Scheduling
         }
 
         /// <summary>Adopt a retained fused holder for <paramref name="seq"/>: re-key
-        /// the model's retained K/V to this request (so its first fused
+        /// the model's retained continuation state to this request (so its first fused
         /// <c>BindSequenceCache</c> continues from it), reserve placeholder blocks for
         /// accounting, and mark the reused prefix. Returns false (caller falls back to
         /// the pooled path) when the holder can't be reserved or re-keyed. Invoked by
@@ -2057,8 +2061,9 @@ namespace TensorSharp.Runtime.Scheduling
                     continue;
                 int len = entry.Tokens.Length;
                 // NB: no `len <= cap` skip. The fused path writes nothing to the shared
-                // pool, so a retained holder is the ONLY reuse source for a concurrent
-                // conversation ÔÇö even one shorter than the sliding window.
+                // pool, so a retained holder is the only reuse source for a concurrent
+                // conversation even when the paged path could otherwise represent the
+                // prefix length.
                 int lcp = 0;
                 int limit = Math.Min(len, seq.PromptTokens.Count);
                 while (lcp < limit && seq.PromptTokens[lcp] == entry.Tokens[lcp])
@@ -2125,10 +2130,11 @@ namespace TensorSharp.Runtime.Scheduling
 
         /// <summary>Called by the engine when a sequence leaves the scheduler, BEFORE
         /// the model's <see cref="IBatchedPagedModel.OnSequenceReleased"/>. When the
-        /// sequence finished cleanly on the fused path, retain its holder (the full
-        /// circular K/V) for cross-request prefix reuse instead of letting the model
-        /// dispose it. Returns true when the holder was retained (so the subsequent
-        /// model release no-ops for it).</summary>
+        /// sequence finished cleanly on the fused path, retain its complete
+        /// request-owned continuation holder for cross-request prefix reuse instead
+        /// of letting the model dispose it. This is circular K/V for Gemma 4 and
+        /// attention K/V plus GDN recurrent state for Qwen 3.5/3.6. Returns true when
+        /// the holder was retained (so the subsequent model release no-ops for it).</summary>
         public bool TryRetainReleasedFusedCache(string requestId)
         {
             if (string.IsNullOrEmpty(requestId)) return false;
@@ -2145,13 +2151,13 @@ namespace TensorSharp.Runtime.Scheduling
                 && seq.Status != SequenceStatus.FinishedLengthCapped)
                 return false;
 
-            // A retained holder represents the model's complete fused cache and
-            // cannot currently be truncated when rebound. Do not let that
-            // cache-all reuse path bypass an explicit request cache boundary.
+            // A retained holder represents the model's complete fused state. Even
+            // models that can rewind a short generated control-token tail must not let
+            // holder adoption bypass an explicit request cache boundary.
             if (seq.CacheBreakpoints != null)
                 return false;
 
-            // Snapshot exactly the tokens whose K/V is resident in the holder
+            // Snapshot exactly the tokens whose model state is resident in the holder
             // (NumComputedTokens == the model's _cacheSeqLen at finish), so a later
             // continuation's reused-prefix length matches the holder's cache extent
             // exactly. (At a clean finish this equals NumTotalTokens; clamp defends
@@ -2687,17 +2693,24 @@ namespace TensorSharp.Runtime.Scheduling
 
         // ---- Retained fused-cache continuation (cross-request prefix reuse) ----
         //
-        // The per-sequence fused path keeps each concurrent request's full K/V in
-        // its own holder and never writes the shared paged block storage, so it
-        // contributes nothing to the prefix-cache pool. For a sliding-window model
-        // the pool can't restore a long prefix anyway (only the live circular cache
-        // can), so a multi-turn follow-up ("Þ»Àþ╗ºþ╗¡") that arrives while/after other
-        // requests ran concurrently would re-prefill the whole conversation from
-        // scratch (KV-reuse ratio 0). To fix that, the executor RETAINS a finished
-        // fused request's holder and re-adopts it for a later request whose prompt
+        // The per-sequence fused path keeps each concurrent request's complete
+        // continuation state in its own holder and never writes the shared paged
+        // block storage, so it contributes nothing to the prefix-cache pool. A
+        // circular-cache model cannot reconstruct a long prefix from that pool, and
+        // a hybrid attention+recurrent model cannot reconstruct its GDN state from
+        // attention K/V alone. Without retention, a multi-turn follow-up that arrives
+        // while/after other requests ran concurrently can therefore re-prefill the
+        // whole conversation (KV-reuse ratio 0). The executor instead RETAINS a
+        // finished fused holder and re-adopts it for a later request whose prompt
         // exactly extends the retained tokens ÔÇö the cross-request analogue of the
-        // single-stream live-cache continuation. The model side just keeps the
-        // holder alive and lets it be re-keyed.
+        // single-stream live-cache continuation. The model keeps the complete holder
+        // alive and lets it be re-keyed.
+
+        /// <summary>Whether this model implements the retained-holder lifecycle
+        /// below. This is distinct from <see cref="IModelArchitecture.MaxReusablePrefixTokens"/>,
+        /// which describes byte snapshots in the shared paged pool rather than a
+        /// complete request-owned fused cache. Default false.</summary>
+        bool SupportsRetainedFusedCache => false;
 
         /// <summary>Move <paramref name="requestId"/>'s per-request fused holder out
         /// of the active set into a retained set so a later request can re-adopt it
@@ -2710,12 +2723,13 @@ namespace TensorSharp.Runtime.Scheduling
         /// <summary>Re-key a retained holder from <paramref name="retainedRequestId"/>
         /// to <paramref name="newRequestId"/>, making it that request's active fused
         /// cache (it becomes the cache the next <see cref="BindSequenceCache"/> finds,
-        /// so the new request continues from the retained K/V with no re-prefill).
+        /// so the new request continues from the retained model state with no
+        /// re-prefill).
         /// Returns false when no retained holder exists for the id. Default false.</summary>
         bool TryRebindRetainedCache(string retainedRequestId, string newRequestId) => false;
 
         /// <summary>Dispose a retained holder (LRU eviction / shutdown) and free its
-        /// buffers. Default no-op.</summary>
+        /// buffers and any recurrent state. Default no-op.</summary>
         void DiscardRetainedCache(string requestId) { }
 
         /// <summary>TRUE token-batched decode: decode ONE token for each of N
@@ -2726,8 +2740,9 @@ namespace TensorSharp.Runtime.Scheduling
         /// loads). <paramref name="requestIds"/>/<paramref name="tokens"/>/
         /// <paramref name="positions"/> are parallel arrays of length N: sequence i
         /// decodes <paramref name="tokens"/>[i] at <paramref name="positions"/>[i]
-        /// against its own per-request KV holder. On success writes each sequence's
-        /// logits into <paramref name="outLogits"/>[i] and returns true; returns
+        /// against its own per-request holder (including recurrent state for hybrid
+        /// models). On success writes each sequence's logits into
+        /// <paramref name="outLogits"/>[i] and returns true; returns
         /// false when the model can't batch this step (caller falls back to the
         /// per-sequence round-robin loop). Default false (opt-in).</summary>
         bool TryForwardBatchedFusedDecode(

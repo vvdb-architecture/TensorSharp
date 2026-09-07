@@ -97,6 +97,21 @@ namespace TensorSharp.Server.Skills
         public List<SkillToolInvocation> Invocations { get; } = new();
 
         /// <summary>
+        /// Optional, host-owned proof that a routed workflow produced its promised
+        /// deliverable. Null for every ordinary skill/code request. Kept on the plan so
+        /// the loop that decides whether an answer is final can enforce it before any
+        /// unverified success text reaches the client.
+        /// </summary>
+        internal WorkspaceArtifactCompletionRequirement CompletionRequirement { get; set; }
+
+        /// <summary>
+        /// The single artifact that passed the routed completion contract. Until this is
+        /// set, adapters must not expose files captured by guarded invocations: a partial
+        /// ZIP is useful evidence for repair, but it is not a user deliverable.
+        /// </summary>
+        internal SkillProducedFile? VerifiedArtifact { get; set; }
+
+        /// <summary>
         /// True when this plan changes nothing about the request.
         ///
         /// <para>
@@ -229,7 +244,13 @@ namespace TensorSharp.Server.Skills
                 requestedSkills = options.DefaultSkills;
 
             bool anythingRequested = requestedSkills != null && requestedSkills.Count > 0;
-            bool advertise = discovery ?? options.SkillsDiscovery;
+            // Presence is meaningful even when the list is empty: an explicit [] is
+            // the request-level "no skills" switch documented above. Advertising the
+            // full catalogue in that case still lets the model list/read/run every
+            // skill and defeats the user's deselection. Code execution remains its own
+            // capability and can still take the CodeOnly path below.
+            bool explicitlyEmpty = requestedSkills is { Count: 0 };
+            bool advertise = !explicitlyEmpty && (discovery ?? options.SkillsDiscovery);
 
             // No selection and nothing to advertise means skills are simply not part of
             // this request: no block, no tools, no behaviour change at all. That matters

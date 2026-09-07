@@ -103,6 +103,44 @@ public class SessionWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public void TryCreateFile_ReportsATargetCollisionWithoutReplacingItsBytes()
+    {
+        SessionWorkspace workspace = Manager().GetOrCreate("create-collision");
+        string target = Path.Combine(workspace.WorkDirectory, "repair.py");
+        const string existing = "print('edited repair')\n";
+        File.WriteAllText(target, existing);
+
+        bool created = workspace.TryCreateFile(
+            "repair.py", "print('bundled source')\n", out bool alreadyExists, out string? error);
+
+        Assert.False(created);
+        Assert.True(alreadyExists);
+        Assert.Contains("already exists", error!, StringComparison.Ordinal);
+        Assert.Equal(existing, File.ReadAllText(target));
+        Assert.Empty(Directory.GetFiles(
+            workspace.WorkDirectory, ".tensorsharp-create-*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void TryCreateFile_ReportsParentConstructionFailureAsAnErrorNotACollision()
+    {
+        SessionWorkspace workspace = Manager().GetOrCreate("create-parent-error");
+        string blocker = Path.Combine(workspace.WorkDirectory, "blocked");
+        const string original = "this is a file, not a directory";
+        File.WriteAllText(blocker, original);
+
+        bool created = workspace.TryCreateFile(
+            "blocked/repair.py", "print('source')\n", out bool alreadyExists, out string? error);
+
+        Assert.False(created);
+        Assert.False(alreadyExists);
+        Assert.Contains("could not be created", error!, StringComparison.Ordinal);
+        Assert.Equal(original, File.ReadAllText(blocker));
+        Assert.Empty(Directory.GetFiles(
+            workspace.WorkDirectory, ".tensorsharp-create-*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public void TheSessionEnvironment_IsImportable_EvenByACallThatInstallsNothing()
     {
         if (!HavePython) return;
@@ -250,6 +288,108 @@ public class SessionWorkspaceTests : IDisposable
         SkillToolResult second = ScriptRunner(workspace, capture).Run(checker, "scripts/tool.py", Array.Empty<string>());
         Assert.True(second.Ok, second.Content);
         Assert.Empty(second.Files);
+    }
+
+    [Fact]
+    public void AStagedPythonRepair_RunsWithTheOriginalSiblingImportsAndFileResources()
+    {
+        if (!HavePython) return;
+
+        SessionWorkspace workspace = Manager().GetOrCreate("repair-runtime-context");
+        Skill skill = MakeSkill(
+            "from pathlib import Path\n" +
+            "import helper\n" +
+            "print('sibling=' + helper.VALUE)\n" +
+            "print('asset=' + Path(__file__).with_name('asset.txt').read_text(encoding='utf-8').strip())\n" +
+            "raise RuntimeError('replace-only-this-line')\n");
+        string scripts = Path.Combine(skill.RootDirectory, "scripts");
+        File.WriteAllText(Path.Combine(scripts, "helper.py"), "VALUE = 'sibling-loaded'\n");
+        File.WriteAllText(Path.Combine(scripts, "asset.txt"), "resource-loaded\n");
+
+        SkillToolResult failed = ScriptRunner(workspace).Run(
+            skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(failed.Ok);
+        string overlay = Assert.Single(Directory.GetFiles(
+            workspace.WorkDirectory, "tool.py", SearchOption.AllDirectories));
+        string launcher = Assert.Single(Directory.GetFiles(
+            workspace.WorkDirectory, "*.tensorsharp-runner", SearchOption.AllDirectories));
+        Assert.Contains(
+            Path.GetRelativePath(workspace.WorkDirectory, launcher).Replace('\\', '/'),
+            failed.Content,
+            StringComparison.Ordinal);
+
+        string repaired = File.ReadAllText(overlay).Replace(
+            "raise RuntimeError('replace-only-this-line')",
+            "print('repair=executed')",
+            StringComparison.Ordinal);
+        File.WriteAllText(overlay, repaired);
+
+        (ShellRunner shell, _) = BuildRunner();
+        using (shell)
+        {
+            string relativeLauncher = Path.GetRelativePath(workspace.WorkDirectory, launcher)
+                .Replace('\\', '/');
+            string quotedLauncher = OperatingSystem.IsWindows()
+                ? ShellCommand.QuotePowerShell(relativeLauncher)
+                : ShellCommand.QuotePosix(relativeLauncher);
+            CodeExecResult rerun = shell.Run(
+                new ShellRequest("python " + quotedLauncher)
+                {
+                    ReadablePaths = new[] { skill.RootDirectory },
+                },
+                workspace);
+
+            Assert.True(rerun.Ok, rerun.Content);
+            Assert.Contains("sibling=sibling-loaded", rerun.Content, StringComparison.Ordinal);
+            Assert.Contains("asset=resource-loaded", rerun.Content, StringComparison.Ordinal);
+            Assert.Contains("repair=executed", rerun.Content, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("replace-only-this-line", File.ReadAllText(
+            Path.Combine(skill.RootDirectory, "scripts", "tool.py")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AHostStagedRepairOverlay_IsExcludedFromFailedScriptsCapturedOutput()
+    {
+        if (!HavePython) return;
+
+        SessionWorkspace workspace = Manager().GetOrCreate("repair-artifact-exclusion");
+        string artifacts = Path.Combine(_base, "repair-artifacts");
+        var store = new CodeArtifactStore(artifacts);
+        WorkspaceFileCapture capture = (workDir, exclude) =>
+        {
+            string runId = Guid.NewGuid().ToString("N");
+            IReadOnlyList<CodeArtifact> kept = store.Capture(
+                runId, workDir, (id, rel, _) => "/api/code/artifacts/" + id + "/" + rel,
+                out _, exclude);
+            return kept.Select(a => new SkillProducedFile(a.Path, a.Bytes, a.Pointer)).ToList();
+        };
+        Skill skill = MakeSkill(
+            "import os\n" +
+            "os.makedirs('skill-repairs/user', exist_ok=True)\n" +
+            "open('skill-repairs/user/report.txt', 'w', encoding='utf-8').write('keep this too')\n" +
+            "open('partial.txt', 'w', encoding='utf-8').write('keep me')\n" +
+            "raise RuntimeError('writer bug')\n");
+
+        SkillToolResult result = ScriptRunner(workspace, capture).Run(
+            skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.Contains(
+            "A copy of this script is now in your working directory as 'skill-repairs/",
+            result.Content,
+            StringComparison.Ordinal);
+        string repairs = Path.Combine(workspace.WorkDirectory, "skill-repairs");
+        Assert.NotEmpty(Directory.GetFiles(repairs, "*", SearchOption.AllDirectories));
+        Assert.Equal(
+            new[] { "partial.txt", "skill-repairs/user/report.txt" },
+            result.Files.Select(file => file.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Contains("[partial.txt](", result.Content, StringComparison.Ordinal);
+        Assert.Contains("[skill-repairs/user/report.txt](", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain(result.Files, file => file.Name.EndsWith("tool.py", StringComparison.Ordinal));
+        Assert.Equal(2, Directory.GetFiles(artifacts, "*", SearchOption.AllDirectories).Length);
     }
 
     [Fact]

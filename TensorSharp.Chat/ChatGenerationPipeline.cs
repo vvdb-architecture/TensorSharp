@@ -314,10 +314,57 @@ namespace TensorSharp.Server
             {
 
             var promptSw = Stopwatch.StartNew();
-            List<int> inputTokens;
             int effectiveMaxTokens;
             List<int> explicitBreakpoints = null;
             string generationPromptTrailingWhitespace;
+            List<int> inputTokens = _kvCacheRenderer.RenderToTokens(
+                model.Tokenizer, model.Config.ChatTemplate, renderHistory, arch,
+                addGenerationPrompt: true, out explicitBreakpoints,
+                out generationPromptTrailingWhitespace,
+                tools: tools, enableThinking: enableThinking);
+
+            // A raw token suffix keeps the newest tool result, but it also cuts off
+            // leading system/developer instructions. Compact complete message ranges
+            // before either text or multimodal preparation so both paths preserve the
+            // skill/edit contract, latest user task, and newest repair round.
+            int contextLimit = model.MaxContextLength;
+            if (engineContextLimit > 0 && (contextLimit <= 0 || engineContextLimit < contextLimit))
+                contextLimit = engineContextLimit;
+            int hardPromptLimit = contextLimit > 1 ? contextLimit - 1 : 0;
+            int requestedReserve = contextLimit > 1
+                ? Math.Clamp(maxTokens, 1, contextLimit - 1)
+                : 0;
+            int targetPromptLimit = contextLimit > 1
+                ? contextLimit - requestedReserve
+                : 0;
+
+            int CountPromptTokens(List<ChatMessage> candidate) =>
+                _kvCacheRenderer.RenderToTokens(
+                    model.Tokenizer, model.Config.ChatTemplate, candidate, arch,
+                    addGenerationPrompt: true, tools: tools,
+                    enableThinking: enableThinking).Count;
+
+            ContextHistoryWindow window = CompactHistoryForContextBudget(
+                renderHistory,
+                inputTokens.Count,
+                contextLimit,
+                maxTokens,
+                preserveAttachedDocuments,
+                CountPromptTokens);
+            if (window.RemovedMessages > 0)
+            {
+                renderHistory = window.History;
+                inputTokens = _kvCacheRenderer.RenderToTokens(
+                    model.Tokenizer, model.Config.ChatTemplate, renderHistory, arch,
+                    addGenerationPrompt: true, out explicitBreakpoints,
+                    out generationPromptTrailingWhitespace,
+                    tools: tools, enableThinking: enableThinking);
+                _logger.LogWarning(LogEventIds.PromptTruncated,
+                    "prompt.history_compacted from {OriginalTokens} to {KeptTokens} tokens by removing {RemovedMessages} old messages (contextLimit={ContextLimit}, requestedGenerationReserve={GenerationReserve}, sessionId={SessionId}); leading instructions, latest user task, and newest repair round were preserved",
+                    window.OriginalPromptTokens, inputTokens.Count, window.RemovedMessages,
+                    contextLimit, requestedReserve, session?.Id ?? "(none)");
+            }
+
             bool hasMultimodal = RequiresMultimodalPreparation(renderHistory);
             if (hasMultimodal)
             {
@@ -364,18 +411,101 @@ namespace TensorSharp.Server
                 // ~3-line change as for Gemma 4 and recommended.
                 lock (model.GpuComputeLock)
                 {
-                    inputTokens = _kvCacheRenderer.RenderToTokens(
-                        model.Tokenizer, model.Config.ChatTemplate, renderHistory, arch,
-                        addGenerationPrompt: true, out explicitBreakpoints,
-                        out generationPromptTrailingWhitespace,
-                        tools: tools, enableThinking: enableThinking);
+                    List<ChatMessage> historyBeforeMediaCompaction = renderHistory;
                     var unexpandedTokens = inputTokens;
+                    int unexpandedBeforeMediaCompaction = unexpandedTokens.Count;
+                    string mediaBeforeCompaction = BuildMediaFingerprint(renderHistory);
                     // ClearPreparedPromptState is safe when preparation fails
                     // before creating a bucket. Arm cleanup first so partial
                     // image/audio preparation cannot leak tensors on overflow
                     // or any other exception before engine submission.
                     injectorBucketCreated = true;
                     inputTokens = model.MultimodalInjector.ProcessPromptTokens(renderHistory, inputTokens, requestId);
+
+                    // Media placeholders expand only after the encoder runs. If that
+                    // expansion consumed the reply reserve, use the now-known overhead
+                    // to remove additional complete old turns and prepare once more.
+                    // This prevents the final token fallback from slicing off system
+                    // instructions merely because an image added thousands of tokens.
+                    int expansionOverhead = Math.Max(0, inputTokens.Count - unexpandedTokens.Count);
+                    int adjustedPromptLimit = targetPromptLimit > expansionOverhead
+                        ? targetPromptLimit - expansionOverhead
+                        : 1;
+                    if (!preserveAttachedDocuments && targetPromptLimit > 0
+                        && inputTokens.Count > targetPromptLimit
+                        && unexpandedTokens.Count > adjustedPromptLimit)
+                    {
+                        ContextHistoryWindow mediaWindow = CompactHistoryForContext(
+                            renderHistory,
+                            unexpandedTokens.Count,
+                            adjustedPromptLimit,
+                            CountPromptTokens);
+                        if (mediaWindow.RemovedMessages > 0
+                            && mediaWindow.FinalPromptTokens <= hardPromptLimit)
+                        {
+                            model.MultimodalInjector.ClearPreparedPromptState(requestId);
+                            renderHistory = mediaWindow.History;
+                            unexpandedTokens = _kvCacheRenderer.RenderToTokens(
+                                model.Tokenizer, model.Config.ChatTemplate, renderHistory, arch,
+                                addGenerationPrompt: true, out explicitBreakpoints,
+                                out generationPromptTrailingWhitespace,
+                                tools: tools, enableThinking: enableThinking);
+                            inputTokens = model.MultimodalInjector.ProcessPromptTokens(
+                                renderHistory, unexpandedTokens, requestId);
+
+                            // If the discarded prefix itself owned an old image/audio
+                            // attachment, its expansion tokens disappeared too. The
+                            // first limit conservatively charged that now-absent media
+                            // to every remaining text turn and may therefore have
+                            // removed more history than necessary. Recompute once with
+                            // the measured remaining-media overhead and recover the
+                            // largest message-boundary window that does not reintroduce
+                            // any removed media. This costs at most one additional media
+                            // preparation, only on an already-overflowing prompt.
+                            int remainingMediaOverhead = Math.Max(
+                                0, inputTokens.Count - unexpandedTokens.Count);
+                            string mediaAfterCompaction = BuildMediaFingerprint(renderHistory);
+                            if (remainingMediaOverhead < expansionOverhead
+                                && !string.Equals(
+                                    mediaBeforeCompaction,
+                                    mediaAfterCompaction,
+                                    StringComparison.Ordinal))
+                            {
+                                ContextHistoryWindow recoveredWindow = RecoverHistoryAfterRemovedMedia(
+                                    historyBeforeMediaCompaction,
+                                    unexpandedBeforeMediaCompaction,
+                                    targetPromptLimit,
+                                    hardPromptLimit,
+                                    remainingMediaOverhead,
+                                    mediaWindow,
+                                    mediaAfterCompaction,
+                                    CountPromptTokens);
+                                if (recoveredWindow.RemovedMessages < mediaWindow.RemovedMessages)
+                                {
+                                    model.MultimodalInjector.ClearPreparedPromptState(requestId);
+                                    renderHistory = recoveredWindow.History;
+                                    unexpandedTokens = _kvCacheRenderer.RenderToTokens(
+                                        model.Tokenizer, model.Config.ChatTemplate, renderHistory, arch,
+                                        addGenerationPrompt: true, out explicitBreakpoints,
+                                        out generationPromptTrailingWhitespace,
+                                        tools: tools, enableThinking: enableThinking);
+                                    inputTokens = model.MultimodalInjector.ProcessPromptTokens(
+                                        renderHistory, unexpandedTokens, requestId);
+                                    mediaWindow = recoveredWindow;
+                                    remainingMediaOverhead = Math.Max(
+                                        0, inputTokens.Count - unexpandedTokens.Count);
+                                }
+                            }
+                            _logger.LogWarning(LogEventIds.PromptTruncated,
+                                "prompt.multimodal_history_compacted from {OriginalTokens} to {KeptTokens} unexpanded tokens by removing {RemovedMessages} old messages after accounting for {MediaTokens} media-expansion tokens (contextLimit={ContextLimit}, sessionId={SessionId})",
+                                mediaWindow.OriginalPromptTokens,
+                                unexpandedTokens.Count,
+                                mediaWindow.RemovedMessages,
+                                remainingMediaOverhead,
+                                contextLimit,
+                                session?.Id ?? "(none)");
+                        }
+                    }
 
                     // ProcessPromptTokens expands each single placeholder token
                     // (<|image_pad|>, the audio equivalent) into the encoded
@@ -386,17 +516,14 @@ namespace TensorSharp.Server
                         unexpandedTokens, inputTokens, explicitBreakpoints);
                     inputTokens = TruncatePromptToContext(
                         session, inputTokens, maxTokens, out effectiveMaxTokens, requestId,
-                        preserveAttachedDocuments, engineContextLimit,
-                        explicitBreakpoints: explicitBreakpoints);
+                        preserveAllInput: true,
+                        executionContextLimit: engineContextLimit,
+                        explicitBreakpoints: explicitBreakpoints,
+                        preservedInputKind: preserveAttachedDocuments ? "document and media input" : "media input");
                 }
             }
             else
             {
-                inputTokens = _kvCacheRenderer.RenderToTokens(
-                    model.Tokenizer, model.Config.ChatTemplate, renderHistory, arch,
-                    addGenerationPrompt: true, out explicitBreakpoints,
-                    out generationPromptTrailingWhitespace,
-                    tools: tools, enableThinking: enableThinking);
                 inputTokens = TruncatePromptToContext(
                     session, inputTokens, maxTokens, out effectiveMaxTokens, null,
                     preserveAllInput: preserveAttachedDocuments,
@@ -780,11 +907,275 @@ namespace TensorSharp.Server
             }
         }
 
+        internal readonly record struct ContextHistoryWindow(
+            List<ChatMessage> History,
+            int OriginalPromptTokens,
+            int FinalPromptTokens,
+            int RemovedMessages);
+
+        /// <summary>
+        /// Apply the same context/reply budget policy used by live generation before
+        /// adopting a message-boundary compaction result. The protected minimum may
+        /// exceed the preferred reply reserve, but it must still fit the hard prompt
+        /// ceiling so the caller never swaps one silent truncation for another.
+        /// </summary>
+        internal static ContextHistoryWindow CompactHistoryForContextBudget(
+            List<ChatMessage> history,
+            int originalPromptTokens,
+            int contextLimit,
+            int requestedGenerationTokens,
+            bool preserveAllInput,
+            Func<List<ChatMessage>, int> countPromptTokens)
+        {
+            if (history == null)
+                throw new ArgumentNullException(nameof(history));
+            if (countPromptTokens == null)
+                throw new ArgumentNullException(nameof(countPromptTokens));
+            if (preserveAllInput || contextLimit <= 1)
+            {
+                return new ContextHistoryWindow(
+                    history, originalPromptTokens, originalPromptTokens, RemovedMessages: 0);
+            }
+
+            int reserve = Math.Clamp(requestedGenerationTokens, 1, contextLimit - 1);
+            int promptLimit = contextLimit - reserve;
+            ContextHistoryWindow window = CompactHistoryForContext(
+                history, originalPromptTokens, promptLimit, countPromptTokens);
+            int hardPromptLimit = contextLimit - 1;
+            if (window.FinalPromptTokens > hardPromptLimit)
+            {
+                // A raw suffix slice would make the request fit by silently deleting
+                // the very policy/task/diagnostic this compactor promises to protect.
+                // Make the overflow actionable instead. Callers may start a fresh turn
+                // or shorten the newest result, but they must never generate under a
+                // context whose higher-priority instructions were cut away.
+                throw new PromptContextOverflowException(
+                    $"The protected prompt requires {window.FinalPromptTokens} tokens after old conversation "
+                    + $"turns are removed, which exceeds the model's {contextLimit}-token context window. "
+                    + "Start a new chat or shorten the latest request/tool result; it cannot be safely truncated.");
+            }
+
+            return window.RemovedMessages > 0
+                ? window
+                : new ContextHistoryWindow(
+                    history, originalPromptTokens, originalPromptTokens, RemovedMessages: 0);
+        }
+
+        /// <summary>
+        /// Remove complete old conversation/tool rounds until a rendered prompt fits,
+        /// without mutating the caller's list. Every system/developer message, the latest
+        /// real user task, and newest assistant/tool repair round are never candidates.
+        /// Token counts come from the real renderer supplied by the caller, so chat-template
+        /// framing, tool declarations and cached raw output are included.
+        /// </summary>
+        internal static ContextHistoryWindow CompactHistoryForContext(
+            List<ChatMessage> history,
+            int originalPromptTokens,
+            int promptTokenLimit,
+            Func<List<ChatMessage>, int> countPromptTokens)
+        {
+            if (history == null)
+                throw new ArgumentNullException(nameof(history));
+            if (countPromptTokens == null)
+                throw new ArgumentNullException(nameof(countPromptTokens));
+            if (promptTokenLimit <= 0 || originalPromptTokens <= promptTokenLimit || history.Count < 2)
+            {
+                return new ContextHistoryWindow(
+                    history, originalPromptTokens, originalPromptTokens, RemovedMessages: 0);
+            }
+
+            int instructionCount = 0;
+            while (instructionCount < history.Count && IsInstructionRole(history[instructionCount]?.Role))
+                instructionCount++;
+
+            // SkillChatLoop uses role=user for tool results on families whose templates
+            // cannot render role=tool. Those messages have a stable host-authored prefix;
+            // skip them when locating the actual request that the repair still answers.
+            int latestUser = -1;
+            for (int i = history.Count - 1; i >= instructionCount; i--)
+            {
+                if (IsGenuineUserMessage(history, i))
+                {
+                    latestUser = i;
+                    break;
+                }
+            }
+
+            // With no ordinary user message, retaining the newest message is the safest
+            // analogue: it may be a one-shot prompt or a host-authored continuation.
+            int anchor = latestUser >= 0 ? latestUser : history.Count - 1;
+            var removable = new List<(int Start, int End)>();
+
+            // Completed turns before the latest request. A turn begins at a real user
+            // message and includes its assistant/tool traffic up to the next request.
+            int start = instructionCount;
+            while (start < anchor)
+            {
+                int end = start + 1;
+                while (end < anchor &&
+                       !IsGenuineUserMessage(history, end))
+                {
+                    end++;
+                }
+                removable.Add((start, end));
+                start = end;
+            }
+
+            // Within the active request, each assistant generation plus the tool results
+            // it requested is one repair round. Retain the newest round (normally the
+            // failing command and its diagnostic), and discard older rounds first.
+            var activeRounds = new List<(int Start, int End)>();
+            start = anchor + 1;
+            if (start < history.Count)
+            {
+                int roundStart = start;
+                for (int i = start + 1; i < history.Count; i++)
+                {
+                    if (IsAssistantRole(history[i]?.Role))
+                    {
+                        activeRounds.Add((roundStart, i));
+                        roundStart = i;
+                    }
+                }
+                activeRounds.Add((roundStart, history.Count));
+            }
+            for (int i = 0; i + 1 < activeRounds.Count; i++)
+                removable.Add(activeRounds[i]);
+
+            if (removable.Count == 0)
+            {
+                return new ContextHistoryWindow(
+                    history, originalPromptTokens, originalPromptTokens, RemovedMessages: 0);
+            }
+
+            List<ChatMessage> BuildCandidate(int rangeCount, out int removedMessages)
+            {
+                var removed = new bool[history.Count];
+                removedMessages = 0;
+                for (int range = 0; range < rangeCount; range++)
+                {
+                    (int rangeStart, int rangeEnd) = removable[range];
+                    for (int i = rangeStart; i < rangeEnd; i++)
+                    {
+                        // System and developer instructions are authoritative wherever
+                        // they occur. APIs may interleave a policy update between user
+                        // turns; treating only the leading block as protected silently
+                        // weakens that policy exactly when the context is under stress.
+                        if (!removed[i] && !IsInstructionRole(history[i]?.Role))
+                        {
+                            removed[i] = true;
+                            removedMessages++;
+                        }
+                    }
+                }
+
+                var candidate = new List<ChatMessage>(history.Count - removedMessages);
+                for (int i = 0; i < history.Count; i++)
+                {
+                    if (!removed[i])
+                        candidate.Add(history[i]);
+                }
+                return candidate;
+            }
+
+            // Rendering and tokenizing the whole prompt once per old turn makes this
+            // path quadratic for long chat histories. Removing additional complete
+            // ranges cannot add prompt content, so find the smallest fitting prefix of
+            // ranges with a bounded binary search. The all-ranges measurement also
+            // covers the protected minimum that may still exceed the preferred reserve.
+            int maximumRanges = removable.Count;
+            List<ChatMessage> maximum = BuildCandidate(maximumRanges, out int maximumRemoved);
+            int maximumTokens = countPromptTokens(maximum);
+            if (maximumTokens > promptTokenLimit || maximumRanges == 1)
+            {
+                return new ContextHistoryWindow(
+                    maximum, originalPromptTokens, maximumTokens, maximumRemoved);
+            }
+
+            int low = 1;
+            int high = maximumRanges - 1;
+            List<ChatMessage> compacted = maximum;
+            int finalTokens = maximumTokens;
+            int removedMessages = maximumRemoved;
+            while (low <= high)
+            {
+                int middle = low + ((high - low) / 2);
+                List<ChatMessage> candidate = BuildCandidate(middle, out int candidateRemoved);
+                int candidateTokens = countPromptTokens(candidate);
+                if (candidateTokens <= promptTokenLimit)
+                {
+                    compacted = candidate;
+                    finalTokens = candidateTokens;
+                    removedMessages = candidateRemoved;
+                    high = middle - 1;
+                }
+                else
+                {
+                    low = middle + 1;
+                }
+            }
+
+            return new ContextHistoryWindow(
+                compacted, originalPromptTokens, finalTokens, removedMessages);
+        }
+
+        private static bool IsInstructionRole(string role) =>
+            string.Equals(role, "system", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "developer", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsUserRole(string role) =>
+            string.Equals(role, "user", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsAssistantRole(string role) =>
+            string.Equals(role, "assistant", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsGenuineUserMessage(IReadOnlyList<ChatMessage> history, int index) =>
+            history != null
+            && index >= 0
+            && index < history.Count
+            && IsUserRole(history[index]?.Role)
+            && history[index] is not Skills.SkillChatLoop.HostCompletionCorrectionMessage
+            && !IsSyntheticToolResult(history, index);
+
+        private static bool IsSyntheticToolResult(IReadOnlyList<ChatMessage> history, int index)
+        {
+            if (history == null || index < 0 || index >= history.Count ||
+                !HasSyntheticToolResultPrefix(history[index]?.Content))
+                return false;
+
+            // Some model templates cannot render role=tool, so SkillChatLoop frames
+            // host results as user messages. A prefix alone is not structural evidence:
+            // a real user is allowed to begin a request with the same words. Real loop
+            // results follow an assistant message that contains the parsed calls; skip
+            // sibling result messages from the same call batch while finding it.
+            for (int previous = index - 1; previous >= 0; previous--)
+            {
+                ChatMessage message = history[previous];
+                if (IsUserRole(message?.Role) && HasSyntheticToolResultPrefix(message?.Content))
+                    continue;
+
+                return IsAssistantRole(message?.Role) && message.ToolCalls is { Count: > 0 };
+            }
+
+            return false;
+        }
+
+        private static bool HasSyntheticToolResultPrefix(string content)
+        {
+            if (string.IsNullOrEmpty(content))
+                return false;
+            return content.StartsWith(
+                       "Result of the skill lookup you requested:", StringComparison.Ordinal) ||
+                   (content.StartsWith("Result of your ", StringComparison.Ordinal) &&
+                    content.IndexOf(" call:", StringComparison.Ordinal) >= 0);
+        }
+
         /// <summary>Trim ordinary conversation history so the prompt plus
         /// generation reserve fits inside the model context. Attached text
         /// documents opt out: silently dropping their leading pages would
         /// produce a deceptively incomplete answer, so a real overflow is
-        /// reported instead. Multimodal embedding spans are not split.</summary>
+        /// reported instead. Multimodal callers can likewise preserve the complete
+        /// prepared input rather than drop leading instructions.</summary>
         public List<int> TruncatePromptToContext(
             ChatSession session,
             List<int> inputTokens,
@@ -793,7 +1184,8 @@ namespace TensorSharp.Server
             string requestId = null,
             bool preserveAllInput = false,
             int executionContextLimit = 0,
-            List<int> explicitBreakpoints = null)
+            List<int> explicitBreakpoints = null,
+            string preservedInputKind = "document")
         {
             var model = _lifecycle.Model;
             int maxCtx = model.MaxContextLength;
@@ -806,7 +1198,8 @@ namespace TensorSharp.Server
             // for maxNewTokens.
             effectiveMaxTokens = ClampGenerationReserve(maxTokens, inputCount, maxCtx);
 
-            RejectAttachedDocumentOverflow(inputCount, effectiveMaxTokens, maxCtx, preserveAllInput);
+            RejectAttachedDocumentOverflow(
+                inputCount, effectiveMaxTokens, maxCtx, preserveAllInput, preservedInputKind);
             if (maxCtx <= 0 || inputTokens == null || (long)inputCount + effectiveMaxTokens <= maxCtx)
                 return inputTokens;
 
@@ -903,7 +1296,8 @@ namespace TensorSharp.Server
             int promptTokens,
             int maxTokens,
             int modelContextLimit,
-            bool preserveAllInput)
+            bool preserveAllInput,
+            string preservedInputKind = "document")
         {
             if (!preserveAllInput || modelContextLimit <= 0 ||
                 (long)promptTokens + maxTokens <= modelContextLimit)
@@ -913,19 +1307,21 @@ namespace TensorSharp.Server
 
             if (promptTokens >= modelContextLimit)
             {
+                string attachmentGuidance = string.Equals(
+                    preservedInputKind, "document", StringComparison.Ordinal)
+                    ? "For a large CSV or table, enable code execution so the agent can analyze the complete file with tools; for other documents, attach a shorter document or configure a larger effective context limit."
+                    : "Attach less media content or configure a larger effective context limit.";
                 throw new PromptContextOverflowException(
-                    $"The complete attached document makes this prompt require {promptTokens} tokens, " +
+                    $"The complete attached {preservedInputKind} makes this prompt require {promptTokens} tokens, " +
                     $"which exceeds the effective model/engine context limit of {modelContextLimit} tokens. No " +
-                    "document content was truncated. The maxTokens/reply-length setting controls only " +
-                    "generated output and cannot enlarge the context window. For a large CSV or table, " +
-                    "enable code execution so the agent can analyze the complete file with tools; for " +
-                    "other documents, attach a shorter document or configure a larger effective context limit.");
+                    $"{preservedInputKind} content was truncated. The maxTokens/reply-length setting controls only " +
+                    "generated output and cannot enlarge the context window. " + attachmentGuidance);
             }
 
             throw new PromptContextOverflowException(
-                $"The prompt containing the complete attached document requires {promptTokens} prompt " +
+                $"The prompt containing the complete attached {preservedInputKind} requires {promptTokens} prompt " +
                 $"tokens plus a {maxTokens}-token generation reserve, but the current model/engine " +
-                $"configuration allows {modelContextLimit} context tokens. No document content was " +
+                $"configuration allows {modelContextLimit} context tokens. No {preservedInputKind} content was " +
                 "truncated. Reduce the reply length, attach a shorter document, or use a model configured " +
                 "for more context.");
         }
@@ -1013,6 +1409,51 @@ namespace TensorSharp.Server
                 }
             }
             return sb?.ToString();
+        }
+
+        /// <summary>
+        /// Reclaim text turns that a first multimodal compaction discarded only because
+        /// it charged the expansion cost of media removed with an older turn. Recovery
+        /// may not bring that media back, and the expanded result must still fit the hard
+        /// context ceiling. Kept pure so the boundary policy can be regression-tested
+        /// without running a vision encoder.
+        /// </summary>
+        internal static ContextHistoryWindow RecoverHistoryAfterRemovedMedia(
+            List<ChatMessage> originalHistory,
+            int originalUnexpandedTokens,
+            int targetPromptLimit,
+            int hardPromptLimit,
+            int remainingMediaOverhead,
+            ContextHistoryWindow currentWindow,
+            string remainingMediaFingerprint,
+            Func<List<ChatMessage>, int> countPromptTokens)
+        {
+            if (originalHistory == null)
+                throw new ArgumentNullException(nameof(originalHistory));
+            if (countPromptTokens == null)
+                throw new ArgumentNullException(nameof(countPromptTokens));
+            if (targetPromptLimit <= 0 || hardPromptLimit <= 0 || remainingMediaOverhead < 0)
+                return currentWindow;
+
+            int recoveredUnexpandedLimit = targetPromptLimit > remainingMediaOverhead
+                ? targetPromptLimit - remainingMediaOverhead
+                : 1;
+            ContextHistoryWindow recovered = CompactHistoryForContext(
+                originalHistory,
+                originalUnexpandedTokens,
+                recoveredUnexpandedLimit,
+                countPromptTokens);
+            bool sameRemainingMedia = string.Equals(
+                BuildMediaFingerprint(recovered.History),
+                remainingMediaFingerprint,
+                StringComparison.Ordinal);
+            bool fitsHardLimit =
+                (long)recovered.FinalPromptTokens + remainingMediaOverhead <= hardPromptLimit;
+            return sameRemainingMedia
+                && fitsHardLimit
+                && recovered.RemovedMessages < currentWindow.RemovedMessages
+                    ? recovered
+                    : currentWindow;
         }
 
         /// <summary>

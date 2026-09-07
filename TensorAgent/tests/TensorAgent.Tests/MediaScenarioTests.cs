@@ -48,7 +48,7 @@ internal static class LiveMedia
     /// <summary>The projector file inside it, when it is not named as the catalog names it.</summary>
     public const string ProjectorFileVariable = "TENSORAGENT_TEST_MMPROJ_FILE";
 
-    /// <summary>A directory holding the Qwen-Image-Edit DiT and its companion networks.</summary>
+    /// <summary>A directory holding a locally supplied Qwen-Image-Edit DiT and its companion networks.</summary>
     public const string ImageModelDirVariable = "TENSORAGENT_TEST_IMAGE_MODEL_DIR";
 
     /// <summary>A directory holding a Wan video DiT and its companion networks.</summary>
@@ -265,10 +265,10 @@ public sealed class VideoModelFactAttribute : FactAttribute
 ///
 /// <para>
 /// Every one of these needs weights, and they are gated separately because they need
-/// different weights: understanding is one multimodal chat model, editing is an
-/// eleven-gigabyte diffusion stack, and generating video is a checkpoint the catalog
-/// does not carry at all. A machine with one and not the others runs what it can and
-/// says what it is missing.
+/// different weights: understanding is one multimodal chat model, while editing and
+/// video generation use explicitly supplied diffusion stacks that the built-in catalog
+/// does not carry. A machine with one and not the others runs what it can and says what
+/// it is missing.
 /// </para>
 /// <para>
 /// Where an assertion can be hard it is. "The answer mentions red" is a claim about a
@@ -278,18 +278,22 @@ public sealed class VideoModelFactAttribute : FactAttribute
 /// answer is.
 /// </para>
 /// </summary>
+[Collection(ProcessEnvironmentCollection.Name)]
 public sealed class MediaScenarioTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tensoragent-scenario-" + Guid.NewGuid().ToString("N"));
     private AgentAppHost? _host;
     private LoopbackServer? _server;
     private HttpClient? _client;
+    private ModelStore? _diffusionStore;
 
     public void Dispose()
     {
         _client?.Dispose();
         _host?.Dispose();
         _server?.Dispose();
+        if (_diffusionStore is not null)
+            DiffusionCompanions.Publish(null, _diffusionStore);
         try { Directory.Delete(_root, true); } catch (Exception) { /* scratch */ }
     }
 
@@ -315,9 +319,6 @@ public sealed class MediaScenarioTests : IDisposable
         chosen.MaxTokens = 192;
         settings.Save(chosen);
 
-        // Constructed after the links exist: the host publishes the diffusion
-        // companions it can see on disk, and a file linked afterwards is one the
-        // pipeline never hears about.
         _host = new AgentAppHost(paths);
         // These scenarios deliberately load through /api/models/load below. Starting
         // the host would also launch its remembered-model background load, leaving two
@@ -329,9 +330,8 @@ public sealed class MediaScenarioTests : IDisposable
     }
 
     /// <summary>
-    /// The same routes over a model the catalog does not carry. Video generation has no
-    /// catalog entry — no video checkpoint is small enough for a phone — so there is no
-    /// selected-model path to start from, and the hosting options name the file directly.
+    /// The same routes over a model the catalog does not carry. There is no selected-model
+    /// path to start from, so the hosting options name the file directly.
     /// </summary>
     private void StartDirect(string weightsPath, string backend)
     {
@@ -362,6 +362,24 @@ public sealed class MediaScenarioTests : IDisposable
         _server.MapWebUi(chat, uploads);
         _server.Start();
         _client = Client(_server);
+    }
+
+    /// <summary>
+    /// Stage explicitly supplied image-edit files under the test fixture's role-aware
+    /// names, publish its companions, and host the DiT directly. This keeps the live
+    /// route coverage without putting a removed model back in <c>ModelCatalog.BuiltIn</c>.
+    /// </summary>
+    private CatalogModel StartImageEdit(LiveMedia.ImageEditFiles files, string backend)
+    {
+        CatalogModel model = DiffusionModelFixture.ImageEdit;
+        _diffusionStore = new ModelStore(Path.Combine(_root, "diffusion-models"));
+        Directory.CreateDirectory(_diffusionStore.DirectoryFor(model));
+        foreach ((string name, string source) in LinksFor(model, files))
+            File.CreateSymbolicLink(Path.Combine(_diffusionStore.DirectoryFor(model), name), source);
+
+        DiffusionCompanions.Publish(model, _diffusionStore, deviceMemoryGB: 16);
+        StartDirect(_diffusionStore.PathFor(model, model.Weights), backend);
+        return model;
     }
 
     private static HttpClient Client(LoopbackServer server)
@@ -685,10 +703,10 @@ public sealed class MediaScenarioTests : IDisposable
     public async Task AnEditedPictureComesBackAsARealImageAtASensibleSize()
     {
         Assert.Null(LiveMedia.UnavailableImageEdit(out LiveMedia.ImageEditFiles files));
-        CatalogModel model = ModelCatalog.BuiltIn.Single(m => m.Kind == CatalogArchitectureKind.Diffusion);
+        string backend = LiveMedia.Backend("ggml_metal");
+        CatalogModel model = StartImageEdit(files, backend);
 
-        StartApp(model, LinksFor(model, files));
-        await LoadAsync(model.Weights.FileName, LiveMedia.Backend("ggml_metal"));
+        await LoadAsync(model.Weights.FileName, backend);
 
         JsonElement upload = await UploadAsync(MediaFixtures.RedCircleOnWhitePng(512), "circle.png");
         string file = upload.GetProperty("file").GetString()!;
@@ -725,10 +743,10 @@ public sealed class MediaScenarioTests : IDisposable
     public async Task TheStreamingEditShowsItsWorkAndThenTheFinishedPicture()
     {
         Assert.Null(LiveMedia.UnavailableImageEdit(out LiveMedia.ImageEditFiles files));
-        CatalogModel model = ModelCatalog.BuiltIn.Single(m => m.Kind == CatalogArchitectureKind.Diffusion);
+        string backend = LiveMedia.Backend("ggml_metal");
+        CatalogModel model = StartImageEdit(files, backend);
 
-        StartApp(model, LinksFor(model, files));
-        await LoadAsync(model.Weights.FileName, LiveMedia.Backend("ggml_metal"));
+        await LoadAsync(model.Weights.FileName, backend);
 
         JsonElement upload = await UploadAsync(MediaFixtures.RedCircleOnWhitePng(512), "circle.png");
 
@@ -763,10 +781,9 @@ public sealed class MediaScenarioTests : IDisposable
     }
 
     /// <summary>
-    /// Map each file found on disk onto the name the catalog gives it, so the host
-    /// publishes it under the right role no matter what the local copy is called. This
-    /// is also what makes the companion wiring itself part of the test: an edit that
-    /// runs proves the VAE, the text encoder and the LoRA were all found.
+    /// Map each file found on disk onto the name the test fixture gives its role, no
+    /// matter what the local copy is called. An edit that runs then proves the VAE,
+    /// text encoder and (when supplied) LoRA were all found.
     /// </summary>
     private static Dictionary<string, string> LinksFor(CatalogModel model, LiveMedia.ImageEditFiles files)
     {
@@ -841,27 +858,24 @@ public sealed class MediaScenarioTests : IDisposable
     }
 
     /// <summary>
-    /// What one edit actually costs the GPU, against the budget of the smallest phone
-    /// the catalog offers it to.
+    /// What one edit of the reference quantization actually costs the GPU.
     ///
     /// <para>
-    /// CatalogTests checks that rule for every text model but excludes image
-    /// generators, because their files load in stages and the sum of the download is
-    /// not what is resident. That exclusion left this tier resting on an estimate
-    /// nobody had measured. This measures it: peak device allocation across a real
-    /// edit, against what the declared tier grants. A model offered to a phone that
-    /// cannot hold it is a download the user pays for and then cannot use.
+    /// Image generators load their files in stages, so the sum of the download is not
+    /// what is resident. The model is no longer offered in TensorAgent's catalog, but
+    /// retaining the measured ceiling catches a material memory regression in the
+    /// underlying Qwen-Image pipeline when explicitly supplied weights are available.
     /// </para>
     /// </summary>
     [SkippableFact]
-    public async Task AnEditFitsTheMemoryBudgetOfTheSmallestPhoneItIsOfferedTo()
+    public async Task AReferenceEditStaysWithinItsMeasuredMemoryCeiling()
     {
         string? unavailable = LiveMedia.UnavailableImageEdit(out LiveMedia.ImageEditFiles files);
         Skip.If(unavailable is not null, unavailable ?? string.Empty);
-        CatalogModel model = ModelCatalog.BuiltIn.Single(m => m.Kind == CatalogArchitectureKind.Diffusion);
+        string backend = LiveMedia.Backend("ggml_metal");
+        CatalogModel model = StartImageEdit(files, backend);
 
-        StartApp(model, LinksFor(model, files));
-        await LoadAsync(model.Weights.FileName, LiveMedia.Backend("ggml_metal"));
+        await LoadAsync(model.Weights.FileName, backend);
 
         long peak = 0;
         using var watching = new CancellationTokenSource();
@@ -895,35 +909,26 @@ public sealed class MediaScenarioTests : IDisposable
 
         // What this number is, precisely: ggml-metal reports free as
         // recommendedMaxWorkingSetSize minus currentAllocatedSize, so total-free is this
-        // process's Metal allocation. It is an UPPER BOUND on what iOS counts against
-        // the jetsam limit — an allocated MTLBuffer that is not resident still counts
-        // here — so a number over budget is a warning, not a proof of death, and a
-        // number under it IS a proof of life.
-        double budget = model.MinDeviceMemoryGB * 1e9 * (8.5 / 12.0);
-        bool catalogQuants = Path.GetFileName(files.Dit).Equals(model.Weights.FileName, StringComparison.OrdinalIgnoreCase);
+        // process's Metal allocation. It is an upper bound on what iOS counts against
+        // the jetsam limit because an allocated MTLBuffer that is not resident still
+        // counts here.
+        bool referenceQuant = Path.GetFileName(files.Dit).Equals(model.Weights.FileName, StringComparison.OrdinalIgnoreCase);
         Console.WriteLine(
-            $"media edit: peak {peak / 1e9:F2} GB Metal-allocated against a {budget / 1e9:F2} GB budget for the "
-            + $"{model.MinDeviceMemoryGB} GB tier, using {Path.GetFileName(files.Dit)}"
-            + (catalogQuants ? string.Empty : " (NOT the catalog's quant — the budget check is skipped)"));
+            $"media edit: peak {peak / 1e9:F2} GB Metal-allocated using {Path.GetFileName(files.Dit)}"
+            + (referenceQuant ? string.Empty : " (not the reference quant — the ceiling check is skipped)"));
 
         Assert.True(peak > 0, "nothing was allocated on the device, so this did not run on Metal");
 
-        // Only the catalog's own file can answer the catalog's own question. A locally
-        // available DiT of a different quantisation measures a different model, and
-        // failing the tier on its number would be measuring the wrong thing.
-        Skip.IfNot(catalogQuants,
-            $"this measured {Path.GetFileName(files.Dit)}, not the catalog's {model.Weights.FileName}; "
-            + $"peak was {peak / 1e9:F2} GB. Point {LiveMedia.ImageModelDirVariable} at the catalog's own "
-            + "files to check the tier.");
-        // Two separate claims. First, the tier the catalog advertises has to be one the
-        // measurement supports — that is the promise to the user.
-        Assert.True(peak < budget,
-            $"{model.Id} is offered at {model.MinDeviceMemoryGB} GB, which grants about {budget / 1e9:F2} GB, "
-            + $"but one edit allocated {peak / 1e9:F2} GB on the device");
+        // A different quantization measures a different model. The ceiling below was
+        // established with the fixture's Q2_K DiT, so applying it to another local copy
+        // would produce a confident answer to the wrong question.
+        Skip.IfNot(referenceQuant,
+            $"this measured {Path.GetFileName(files.Dit)}, not the reference {model.Weights.FileName}; "
+            + $"peak was {peak / 1e9:F2} GB. Point {LiveMedia.ImageModelDirVariable} at the reference files "
+            + "to check the regression ceiling.");
 
-        // Second, a regression guard on the number itself. 16.0 GB is what this costs
-        // today; a change that pushes it materially higher is worth knowing about even
-        // though no phone can run it either way.
+        // 16.0 GB is what this costs today. A change that pushes it materially higher
+        // is worth knowing about even though TensorAgent no longer offers the model.
         const double measuredCeiling = 17.5e9;
         Assert.True(peak < measuredCeiling,
             $"one edit allocated {peak / 1e9:F2} GB, above the {measuredCeiling / 1e9:F1} GB this "

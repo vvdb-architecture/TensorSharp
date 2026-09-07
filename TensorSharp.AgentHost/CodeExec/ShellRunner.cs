@@ -2230,7 +2230,7 @@ namespace TensorSharp.AgentHost.CodeExec
 
             int changedLine = LineOf(content, match.Index);
 
-            if (!TryWriteFileBytes(full, updated, newline, out string? writeError))
+            if (!TryWriteFileBytes(full, updated, newline, overwrite: true, out string? writeError))
                 return CodeExecResult.NoChange(
                     $"'{request.Path}' could not be written: {OutputPaths.Scrub(writeError!, workspace, from)}");
 
@@ -2291,7 +2291,50 @@ namespace TensorSharp.AgentHost.CodeExec
             string newline = previous is { } p && p.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
             string content = request.Content.Replace("\r\n", "\n", StringComparison.Ordinal);
 
-            if (!TryWriteFileBytes(full, content, newline, out string? writeError))
+            // Creating and replacing are materially different operations. Treating an
+            // omitted flag as permission to replace made write_file the easiest escape
+            // hatch after a failed edit: the model re-emitted every correct line, the
+            // host destroyed the old file, and only THEN explained that edit_file would
+            // have been cheaper. Refuse before touching the bytes. A genuine rewrite is
+            // still available, but it has to be named explicitly so a local repair does
+            // not silently become one.
+            if (existed && !request.Overwrite)
+            {
+                string normalizedPrevious = previous!.Replace("\r\n", "\n", StringComparison.Ordinal);
+                if (string.Equals(normalizedPrevious, content, StringComparison.Ordinal))
+                {
+                    // The model supplied every byte, so it has complete knowledge of the
+                    // current file even though no disk write is necessary. Keep the old
+                    // syntax-verification guarantee and refresh the ledger so a narrow
+                    // edit can follow without an artificial read round.
+                    workspace.Reads.Record(full, content, 1, int.MaxValue, complete: true);
+                    string? broken = _syntax.Verify(new[] { request.Path }, workspace, from);
+                    string message = $"'{request.Path}' already has exactly that content; nothing was written.";
+                    if (!string.IsNullOrEmpty(broken))
+                        message += "\n" + broken;
+                    else
+                        message += " Its syntax check passed.";
+                    return new CodeExecResult(
+                        true, message, Array.Empty<CodeArtifact>(), string.Empty);
+                }
+
+                return CodeExecResult.NoChange(
+                    $"'{request.Path}' already exists, so write_file did not replace it. "
+                    + $"For a bug fix or any local change, use {ShellTools.EditToolName} with only the exact "
+                    + "old and new text; every other byte will stay unchanged. If the old file genuinely should "
+                    + "be discarded in full, retry write_file with overwrite=true. Nothing was written.");
+            }
+
+            // Preserve the create-only promise across the small interval between the
+            // File.Exists check above and opening the destination. A background job may
+            // create the same path in that interval; CreateNew makes the kernel arbitrate
+            // the race instead of silently truncating the other writer's file.
+            if (!TryWriteFileBytes(
+                    full,
+                    content,
+                    newline,
+                    overwrite: existed || request.Overwrite,
+                    out string? writeError))
                 return CodeExecResult.NoChange(
                     $"'{request.Path}' could not be written: {OutputPaths.Scrub(writeError!, workspace, from)}");
 
@@ -2500,9 +2543,15 @@ namespace TensorSharp.AgentHost.CodeExec
         }
 
         /// <summary>Write text back in the file's own newline style and encoding.</summary>
-        private static bool TryWriteFileBytes(string full, string lfContent, string newline, out string? error)
+        internal static bool TryWriteFileBytes(
+            string full,
+            string lfContent,
+            string newline,
+            bool overwrite,
+            out string? error)
         {
             error = null;
+            string? temporary = null;
             try
             {
                 string? parent = Path.GetDirectoryName(full);
@@ -2513,14 +2562,78 @@ namespace TensorSharp.AgentHost.CodeExec
                     ? lfContent
                     : lfContent.Replace("\n", newline, StringComparison.Ordinal);
                 Encoding encoding = EncodingOf(full);
-                File.WriteAllBytes(full, Concat(encoding.GetPreamble(), encoding.GetBytes(text)));
+                byte[] bytes = Concat(encoding.GetPreamble(), encoding.GetBytes(text));
+
+                // Keep explicit replacement's established metadata behaviour: opening
+                // the existing inode with Create preserves its permissions. The atomic
+                // publication requirement below is specifically the create-only path,
+                // whose destination must not become visible until every byte is ready.
+                if (overwrite)
+                {
+                    using var replacement = new FileStream(
+                        full, FileMode.Create, FileAccess.Write, FileShare.Read);
+                    replacement.Write(bytes, 0, bytes.Length);
+                    return true;
+                }
+
+                // Build the complete replacement beside its destination, then publish
+                // it with one rename. In create-only mode, opening the destination with
+                // CreateNew made the NAME visible before the bytes were complete. A
+                // failed/short write consequently left a partial target behind, and the
+                // catch block saw that target and falsely reported that another writer
+                // had won the existence race. The temporary file keeps construction
+                // failures private; only the move below can be a target collision.
+                string temporaryDirectory = string.IsNullOrEmpty(parent)
+                    ? Directory.GetCurrentDirectory()
+                    : parent;
+                temporary = Path.Combine(
+                    temporaryDirectory,
+                    ".tensorsharp-write-" + Guid.NewGuid().ToString("N") + ".tmp");
+                using var stream = new FileStream(
+                    temporary,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None);
+                stream.Write(bytes, 0, bytes.Length);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                TryDeleteUnpublishedWrite(temporary);
+                error = ex.Message;
+                return false;
+            }
+
+            try
+            {
+                // File.Move is the publication point. With overwrite=false the kernel,
+                // not a racy File.Exists check, decides whether another writer won.
+                File.Move(temporary!, full);
+                temporary = null;
                 return true;
+            }
+            catch (IOException) when (File.Exists(full) || Directory.Exists(full))
+            {
+                error = "the path appeared after it was checked; overwrite was not authorized, "
+                    + "so the existing path was preserved and nothing was written";
+                return false;
             }
             catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 error = ex.Message;
                 return false;
             }
+            finally
+            {
+                TryDeleteUnpublishedWrite(temporary);
+            }
+        }
+
+        private static void TryDeleteUnpublishedWrite(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return;
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
 
         /// <summary>

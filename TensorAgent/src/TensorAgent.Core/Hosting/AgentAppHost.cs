@@ -225,7 +225,9 @@ public sealed class AgentAppHost : IDisposable
 
         Chat = new WebUiChatService(
             ModelService, Sessions, Options, Uploads, Skills,
-            CodeRunner!, Workspaces, Artifacts, _loggerFactory);
+            CodeRunner!, Workspaces, Artifacts, _loggerFactory,
+            WebUiChatService.DefaultArtifactUriPrefix,
+            skillRouter: TensorAgentSkillRouter.Route);
 
         // A turn the user just took has to survive the app being closed, and the Web
         // UI page keeps its history only in memory. This is the hook the chat service

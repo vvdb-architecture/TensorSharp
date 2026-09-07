@@ -62,6 +62,10 @@ namespace TensorSharp.Models
             public IntPtr ConvScratch;
             public bool FdStateResident;
             public bool GdnHostDirty;
+            // True when the slot-stable batched arena (rather than the normal
+            // host/cacheable-buffer path) owns the newest KV + GDN bytes. It can
+            // outlive the request id while this holder is retained and re-keyed.
+            public bool ArenaStateResident;
             // Reusable full-vocab logits buffer for the arena batched decode:
             // owned by the holder so a SequenceState.LastLogits reference stays
             // valid however the batch composition churns.
@@ -70,20 +74,105 @@ namespace TensorSharp.Models
 
         // Per-request fused-decode holders, keyed by RequestId.
         private Dictionary<string, Qwen35KvCacheHolder> _fusedHolders;
-        // Freelist of released holders. Parking keeps their host pointers (and
-        // therefore the native decode-graph pools, resident copies, and arena
-        // slot keys) warm; disposing a holder per completed request fired the
-        // InvalidateHostBuffer chain that tears the whole arena pool down every
-        // completion. Reused holders are re-zeroed by ResetHolderForReuse.
+        // Finished holders kept intact for exact-prefix continuations. Unlike a
+        // paged Qwen snapshot, each holder owns both its attention K/V and the
+        // matching GDN recurrent state, so it can be re-keyed without rebuilding
+        // either half of the hybrid cache.
+        private Dictionary<string, Qwen35KvCacheHolder> _retainedFusedHolders;
+        // Freelist of released holders. Parking keeps the host allocations and
+        // their stable pointer identities reusable; completed arena mappings are
+        // retired explicitly, and Metal's aliased state mirrors are evicted at
+        // reassignment. Disposing a holder per completed request would fire the
+        // broader InvalidateHostBuffer teardown on every completion. Reused
+        // holders are re-zeroed by ResetHolderForReuse.
         private List<Qwen35KvCacheHolder> _holderPool;
         private const int HolderPoolMax = 64;
 
+        private void DiscardArenaSlotForHolder(Qwen35KvCacheHolder h)
+        {
+            if (h == null)
+                return;
+
+            if (!IsGgmlBackend || h.K == null || _isRecurrent == null)
+            {
+                h.ArenaStateResident = false;
+                return;
+            }
+
+            for (int l = 0; l < h.K.Length && l < _isRecurrent.Length; l++)
+            {
+                if (_isRecurrent[l] || h.K[l] == null)
+                    continue;
+
+                // The first attention-K pointer is the native registry key for
+                // the complete holder slot (attention KV plus recurrent state).
+                GgmlBasicOps.Qwen35ArenaDiscardHostPointer(
+                    TensorComputePrimitives.GetStoragePointer(h.K[l]));
+                break;
+            }
+            // Clear the managed ownership bit even for a malformed/no-attention
+            // holder. Once this method returns, recycle/disposal must never treat
+            // an old native arena slot as authoritative for this object.
+            h.ArenaStateResident = false;
+        }
+
+        private void InvalidateHolderDeviceCopiesForReuse(Qwen35KvCacheHolder h)
+        {
+            // The stale alias is specific to Metal's in-place GDN layout: its
+            // state view and allocation base are separate native cache keys.
+            // Keep CUDA's established holder/graph-retention path unchanged;
+            // evicting one CUDA mirror also resets every persistent graph.
+            if (_backend != BackendType.GgmlMetal || h == null)
+                return;
+
+            // A pooled holder keeps stable host pointers, so GGML may still have
+            // resident copies and persistent graphs keyed by them. The next
+            // request rewrites those host buffers during reset/prefill; evict the
+            // old mirrors first so it cannot inherit the completed request's KV
+            // or recurrent state. This is paid once per holder reassignment, not
+            // per generated token.
+            if (h.K != null)
+                foreach (Tensor t in h.K)
+                    InvalidateTensorDeviceCache(t);
+            if (h.V != null)
+                foreach (Tensor t in h.V)
+                    InvalidateTensorDeviceCache(t);
+            if (h.DeltaState != null)
+                foreach (Tensor t in h.DeltaState)
+                    if (t != null)
+                        InvalidateGdnDeltaStateDeviceCaches(t);
+
+            if (h.ConvScratch == IntPtr.Zero || _isRecurrent == null)
+                return;
+            int convDim = _convKernel - 1;
+            int qkvDim = _headKDim * _numKHeads * 2 + _headVDim * _numVHeads;
+            long layerBytes = (long)Math.Max(0, convDim) * qkvDim * sizeof(float);
+            int recurrentSlot = 0;
+            for (int l = 0; l < _isRecurrent.Length; l++)
+            {
+                if (!_isRecurrent[l]) continue;
+                if (layerBytes > 0)
+                {
+                    GgmlBasicOps.InvalidateHostBuffer(new IntPtr(
+                        h.ConvScratch.ToInt64() + recurrentSlot * layerBytes));
+                }
+                recurrentSlot++;
+            }
+        }
+
         private void ResetHolderForReuse(Qwen35KvCacheHolder h)
         {
+            // A completed arena decode can leave newer KV/GDN state resident in
+            // its native slot. Retire that mapping before zeroing the host-side
+            // holder for another request; a later prefill touch must never flush
+            // the previous request over the newly initialized state.
+            DiscardArenaSlotForHolder(h);
+            InvalidateHolderDeviceCopiesForReuse(h);
             h.CacheSeqLen = 0;
             h.KvHostDirty = false;
             h.GdnHostDirty = false;
             h.FdStateResident = false;
+            h.ArenaStateResident = false;
             if (h.ConvState != null)
                 for (int l = 0; l < h.ConvState.Length; l++)
                 {
@@ -95,14 +184,15 @@ namespace TensorSharp.Models
                     if (t != null) Ops.Fill(t, 0);
             // KV rows beyond the written prefix are mask-bounded on every read
             // path, so stale bytes there are safe (same rule as the GPT-OSS
-            // holder pool). The arena slot (if any) is retired by the prefill
-            // verify hook the moment the new request's first chunk runs.
+            // holder pool). The old arena slot was discarded before reset.
         }
         // RequestId whose holder is currently checked out into the active model
         // fields, or null when the primary cache is active.
         private string _activeFusedKey;
         // Snapshot of the primary cache, saved while a fused holder is checked out.
         private Qwen35KvCacheHolder _primaryHolder;
+        // Checked-out counterpart of Qwen35KvCacheHolder.ArenaStateResident.
+        private bool _arenaStateResident;
 
         /// <summary>The per-sequence fused forward is the path the engine
         /// dispatches for concurrent (N&gt;=2) requests: each request decodes
@@ -132,6 +222,8 @@ namespace TensorSharp.Models
             && ((_backend == BackendType.GgmlCuda && _fullDecodeEnabled && !_fdUnsupported)
                 || _backend == BackendType.GgmlMetal);
 
+        public bool SupportsRetainedFusedCache => true;
+
         public bool HasFusedSequenceCache(string requestId)
             => requestId != null && _fusedHolders != null && _fusedHolders.ContainsKey(requestId);
 
@@ -148,6 +240,7 @@ namespace TensorSharp.Models
             ConvScratch = _fdConvScratch,
             FdStateResident = _fdStateResident,
             GdnHostDirty = _gdnStateHostDirty,
+            ArenaStateResident = _arenaStateResident,
         };
 
         private void LoadCacheHolder(Qwen35KvCacheHolder h)
@@ -170,6 +263,7 @@ namespace TensorSharp.Models
             _fdConvScratch = h.ConvScratch;
             _fdStateResident = h.FdStateResident;
             _gdnStateHostDirty = h.GdnHostDirty;
+            _arenaStateResident = h.ArenaStateResident;
             // TryFullModelDecode keys its descriptor cache on these storage and
             // conv-scratch pointers, so switching holders refreshes bindings once.
             // The native g_q35dc_pool selects the captured graph by the same first
@@ -235,6 +329,7 @@ namespace TensorSharp.Models
                 ConvScratch = convScratch,
                 FdStateResident = false,
                 GdnHostDirty = false,
+                ArenaStateResident = false,
             };
         }
 
@@ -331,8 +426,10 @@ namespace TensorSharp.Models
             if (string.Equals(_activeFusedKey, requestId, StringComparison.Ordinal))
             {
                 // The released sequence's cache is currently checked out. Swap the
-                // primary back in so the active fields don't dangle, then the
-                // released holder's arrays are distinct and safe to free below.
+                // primary back in so the active fields don't dangle. Snapshot
+                // first: growth or state reseeding may have replaced fields since
+                // this holder was loaded, making the dictionary entry stale.
+                holder = SnapshotActiveCache();
                 _activeFusedKey = null;
                 if (_primaryHolder != null)
                 {
@@ -342,6 +439,87 @@ namespace TensorSharp.Models
             }
 
             _fusedHolders.Remove(requestId);
+            RecycleHolder(holder);
+        }
+
+        /// <summary>Move a cleanly-finished request's complete attention + GDN
+        /// holder out of the active set without touching its state. A dirty native
+        /// arena slot intentionally remains registered: it is keyed by the holder's
+        /// stable storage pointer, so a later rebind can continue in place; normal
+        /// arena eviction flushes it back to the same holder before retiring it.</summary>
+        public bool RetainSequenceCache(string requestId)
+        {
+            if (_fusedHolders == null || string.IsNullOrEmpty(requestId))
+                return false;
+            if (!_fusedHolders.TryGetValue(requestId, out var holder))
+                return false;
+            if (_retainedFusedHolders != null && _retainedFusedHolders.ContainsKey(requestId))
+                return false;
+
+            if (string.Equals(_activeFusedKey, requestId, StringComparison.Ordinal))
+            {
+                // Capture replacements caused by growth/reseeding before checking
+                // the holder in, then restore the primary model cache. Do not flush
+                // or discard the arena slot: it may contain the newest KV/GDN state.
+                holder = SnapshotActiveCache();
+                _activeFusedKey = null;
+                if (_primaryHolder != null)
+                {
+                    LoadCacheHolder(_primaryHolder);
+                    _primaryHolder = null;
+                }
+            }
+
+            _fusedHolders.Remove(requestId);
+            _retainedFusedHolders ??=
+                new Dictionary<string, Qwen35KvCacheHolder>(StringComparer.Ordinal);
+            _retainedFusedHolders.Add(requestId, holder);
+            return true;
+        }
+
+        /// <summary>Re-key a retained complete holder for a new request. The next
+        /// BindSequenceCache observes it as non-fresh and forwards only the new
+        /// prompt suffix. Qwen advertises no cache truncation, so the executor only
+        /// calls this when the holder's entire token run is an exact prompt prefix.</summary>
+        public bool TryRebindRetainedCache(string retainedRequestId, string newRequestId)
+        {
+            if (_retainedFusedHolders == null
+                || string.IsNullOrEmpty(retainedRequestId)
+                || string.IsNullOrEmpty(newRequestId))
+                return false;
+            if (!_retainedFusedHolders.TryGetValue(retainedRequestId, out var holder))
+                return false;
+
+            _fusedHolders ??= new Dictionary<string, Qwen35KvCacheHolder>(StringComparer.Ordinal);
+            if (_fusedHolders.ContainsKey(newRequestId))
+                return false;
+
+            _retainedFusedHolders.Remove(retainedRequestId);
+            _fusedHolders.Add(newRequestId, holder);
+            return true;
+        }
+
+        /// <summary>Release an unclaimed retained holder (LRU eviction/reset).
+        /// Its state is no longer observable, so an arena-only tail is discarded
+        /// before the stable host pointers can be pooled or freed.</summary>
+        public void DiscardRetainedCache(string requestId)
+        {
+            if (_retainedFusedHolders == null || string.IsNullOrEmpty(requestId))
+                return;
+            if (!_retainedFusedHolders.TryGetValue(requestId, out var holder))
+                return;
+
+            _retainedFusedHolders.Remove(requestId);
+            RecycleHolder(holder);
+        }
+
+        private void RecycleHolder(Qwen35KvCacheHolder holder)
+        {
+            if (holder == null) return;
+            // The sequence is complete and not retained, so its device-only arena
+            // state is no longer observable. Retire the mapping before this stable
+            // pointer can be reassigned to another request.
+            DiscardArenaSlotForHolder(holder);
             _holderPool ??= new List<Qwen35KvCacheHolder>(HolderPoolMax);
             if (_holderPool.Count < HolderPoolMax)
             {
@@ -431,12 +609,19 @@ namespace TensorSharp.Models
                 }
                 _fusedHolders.Clear();
                 _fusedHolders = null;
+            }
+            if (_retainedFusedHolders != null)
+            {
+                foreach (var holder in _retainedFusedHolders.Values)
+                    DisposeHolder(holder);
+                _retainedFusedHolders.Clear();
+                _retainedFusedHolders = null;
+            }
             if (_holderPool != null)
             {
                 foreach (var h in _holderPool)
                     DisposeHolder(h);
                 _holderPool = null;
-            }
             }
             if (_primaryHolder != null)
             {

@@ -618,7 +618,7 @@ Unix IPC 并非完整隔离边界：macOS 为兼容性保留共享临时目录�
 | `--sampling-precedence <config\|request>` | 当请求同时携带了你在上面配置过的采样参数时，以谁为准。`config`（默认）保留你的配置值 —— VS Code Copilot Chat 等客户端会把 `temperature`/`top_p` 硬编码进每一次请求，否则就会静默覆盖你的配置；你**没有**配置过的参数仍然取请求中的值。`request` 恢复“客户端优先”。环境变量：`TENSORSHARP_SAMPLING_PRECEDENCE`。 |
 | `--kv-cache-dtype <type>` | 托管模型的 KV 缓存精度：`f32`、`f16`、`q8_0` 或 `q4_0`（量化缓存以微小数值漂移换取内存节省；各档位的取舍见上文 CLI 参数表）。默认：自动 —— 由后端 / 模型决定。环境变量：`KV_CACHE_DTYPE`。 |
 | `--continuous-batching` / `--no-continuous-batching` | 启用（默认）或关闭迭代级分页批处理。启用时服务会在批内动态加入 / 抢占序列，并在实现了 `IBatchedPagedModel` 的模型上将多个序列打包到一次前向中执行。`--no-continuous-batching` 会让所有模型回退到按序列 KV 交换。别名：`--paged-batching` / `--no-paged-batching`。 |
-| `--prefill-chunk-size <N>` | 存在竞争时的分块 prefill 粒度 —— 有其他请求同时运行时，每个调度步最多处理的 prefill token 数；块越小，并行 decode 请求越容易频繁轮到 GPU（默认：`1024`）。环境变量：`TS_SCHED_PREFILL_CHUNK`。 |
+| `--prefill-chunk-size <N>` | 混合 prefill+decode 步中每个请求的 prefill 上限，使活跃输出流更频繁地轮到 GPU（默认：`256`）；仅有 prefill 时仍会公平用满设备 token 预算。环境变量：`TS_SCHED_PREFILL_CHUNK`。 |
 | `--spec` / `--no-spec` | 启用投机解码（默认关闭）。`--spec` 是内嵌在主干检查点里的草稿器（Qwen 3.6 与 GLM 5.2 的 NextN 块）的显式开关——因为加载它们要把额外的权重调入显存；以独立 GGUF 发布的草稿器只需 `--draft-model` 即可启用，显式的 `--no-spec` 则对两者都是否决。仅对单序列（无并发）请求生效：草稿头每步最多提议 `--spec-draft` 个 token，主干网络用一次批量前向完成验证；起草与验证均由该请求自己的采样器（含惩罚项）驱动，输出与标准 decode 一致。仅在有收益处自动启用：Qwen 3.6 的内嵌 NextN 块在所有后端上都被认为有收益，而 Gemma 4 的独立草稿头只在各 ggml 后端与 Direct `cuda` 后端上启用；CPU / GGML CPU / MLX 走标准 decode。环境变量：`TS_SPEC`（旧写法 `TS_MTP_SPEC`）。 |
 | `--spec-type <name>` | 投机算法：`auto`（默认）/ `draft-head` / `block` / `ngram`。`ngram` 不需要任何训练权重，对所有模型都能用——它在上文里找最近几个 token 曾经出现过的位置，把当时紧随其后的内容拿来当草稿，因此凡是答案大量引用输入的场景都很强。环境变量：`TS_SPEC_TYPE`。 |
 | `--spec-draft <N>` | 每个投机步最多起草的 token 数（默认 `8`；块级草稿器会把它夹到自己训练时的块大小以内，在那里默认也是该块大小）。环境变量：`TS_SPEC_DRAFT`（或 `TS_MTP_DRAFT`）。 |
@@ -696,7 +696,7 @@ Unix IPC 并非完整隔离边界：macOS 为兼容性保留共享临时目录�
 | `TS_SCHED_DISABLE_BATCHED` | `1` 会即使模型实现了 `IBatchedPagedModel`，也强制回退到按序列 KV 交换。CLI 快捷方式是 `--no-continuous-batching`。 |
 | `TS_SCHED_MAX_BATCHED_TOKENS` | 调度器每步 token 预算（默认：`4096`）。 |
 | `TS_SCHED_MAX_RUNNING_SEQS` | 同时在执行的最大序列数（默认：`16`）。 |
-| `TS_SCHED_PREFILL_CHUNK` | 多个请求争用时每步最大 prefill token 数（默认：`1024`）。 |
+| `TS_SCHED_PREFILL_CHUNK` | 混合 prefill+decode 步中每请求的 prefill 上限（默认：`256`）；仅 prefill 的步骤会公平用满批 token 预算。 |
 | `TS_SCHED_SOLO_PREFILL_CHUNK` | SOLO（无争用）prompt 全新部分（start_pos = 0）的 prefill 分块大小——单个无争用请求会以大分块走融合 prefill 路径（默认：`8192`）。 |
 | `TS_SCHED_NUM_BLOCKS` | 引擎块池的物理块数（默认：`256`）。 |
 | `TS_SCHED_BLOCK_SIZE` | 引擎侧每块的 token 数（默认：`256`）。 |

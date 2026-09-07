@@ -44,8 +44,8 @@ DiffusionGemma 当前不属于已注册的 TestMatrix 功能目录：还没有 d
 | `TS_BATCHED_N1_FAST_PATH` | 全部 | solo 序列走融合 N=1 快速路径 decode；`0` 强制这些步骤走完全批处理路径 | 启用 | `0`, `1` | 是 |
 | `TS_PER_SEQ_FUSED` | fused 能力模型（Gemma 4、Qwen 3.5/3.6、DeepSeek V4、GLM 5.x） | 并发（N>=2）序列走 per-request 融合 Forward；`0` 强制逐算子批处理分页路径 | 启用 | `0`, `1` | 否 |
 | `TS_BATCHED_FUSED_DECODE` | fused 能力模型 | per-seq fused 路径内的真正 token 批量融合 decode（一张图跑全部 N 个序列）。在 GLM 5.x 上 4 个并发请求可得合计 1.81× decode。批处理会改变 GEMM 形状，2 bit MoE 可能把这点差别放大成不同的专家选择；设为 `0` 可做串行路径 A/B。 | 开启 | `0`, `1` | 否 |
-| `TS_RETAINED_FUSED_CACHE` | fused 能力的滑窗模型（Gemma 4） | 保留已完成 fused KV holder 用于跨请求前缀复用 | 启用 | `0`, `1` | 否 |
-| `TS_RETAINED_FUSED_CACHE_MAX` | fused 能力的滑窗模型 | 保留 fused holder 的 LRU 预算（限 VRAM） | `4` | 不适用 | 否 |
+| `TS_RETAINED_FUSED_CACHE` | 具有可保留 request-owned fused holder 的模型（Gemma 4、Qwen 3.5/3.6） | 保留已完成请求的 holder，用于精确前缀续接；Qwen holder 同时包含 attention K/V 与匹配的 GatedDeltaNet 递归状态 | 启用 | `0`, `1` | 否 |
+| `TS_RETAINED_FUSED_CACHE_MAX` | 具有可保留 request-owned fused holder 的模型 | 保留 holder 的 LRU 预算（限制 VRAM；适用时包含递归状态） | `4` | 不适用 | 否 |
 | `TS_SCHED_DISABLE_BATCHED` | 全部 | 全局按序列 KV-swap 回退 | 关闭 | `0`, `1` | 是 |
 
 本节所有 executor 级开关都通过 `ExecutionOptions.FromEnvironment()` 统一读取，

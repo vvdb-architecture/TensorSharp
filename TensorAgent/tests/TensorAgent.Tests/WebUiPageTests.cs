@@ -495,6 +495,41 @@ public sealed class WebUiPageTests : IDisposable
         Assert.Equal("photo.pdf", assistant.GetProperty("artifacts")[0].GetProperty("name").GetString());
     }
 
+    [Fact]
+    public void AGuardedArtifactAppearsOnlyWhenItsDedicatedVerifiedFrameArrives()
+    {
+        JsonElement result = Run("""
+            R['/api/chat'] = { __sse: [
+              { skill_step: 'skills_run', skill: 'documents', detail: 'scripts/make_pptx.py',
+                ok: true, files: null },
+              { tool_progress: 'finished', tool: 'skills_run', seconds: 3 },
+              { artifact_verified: true,
+                files: [{ name: 'apple-report.pptx', bytes: 15569,
+                          url: '/api/code/artifacts/verified/apple-report.pptx' }] },
+              { token: 'Done.' },
+              { done: true, truncated: false }
+            ] };
+            """, """
+            __page.byId['text'].value = 'make the Apple report';
+            __page.byId['send'].dispatch('click');
+            return settle(30).then(function () {
+              return { transcript: __page.transcript(), history: window.TensorAgent.history() };
+            });
+            """);
+
+        JsonElement turns = result.GetProperty("transcript");
+        JsonElement answer = turns[turns.GetArrayLength() - 1];
+        Assert.Contains(answer.GetProperty("media").EnumerateArray(),
+            item => item.GetProperty("src").GetString()
+                == "/api/code/artifacts/verified/apple-report.pptx");
+
+        JsonElement history = result.GetProperty("history");
+        JsonElement assistant = history[history.GetArrayLength() - 1];
+        JsonElement artifact = Assert.Single(assistant.GetProperty("artifacts").EnumerateArray());
+        Assert.Equal("apple-report.pptx", artifact.GetProperty("name").GetString());
+        Assert.Equal(15569, artifact.GetProperty("bytes").GetInt32());
+    }
+
     // =====================================================================================
     // reopening a saved chat
     // =====================================================================================
@@ -828,6 +863,7 @@ public sealed class WebUiPageTests : IDisposable
         Assert.Equal(2, after.GetArrayLength());
         Assert.False(after[1].TryGetProperty("skills", out _),
             "the message after the switch went off still named a skill");
+        Assert.False(after[1].GetProperty("skills_discovery").GetBoolean());
         Assert.Equal(0, result.GetProperty("chips").GetInt32());
         Assert.Contains("off", result.GetProperty("listClass").GetString()!, StringComparison.Ordinal);
     }
@@ -857,7 +893,144 @@ public sealed class WebUiPageTests : IDisposable
         Assert.Equal(1, result.GetProperty("sent").GetArrayLength());
         Assert.False(result.GetProperty("sent")[0].TryGetProperty("skills", out _),
             "a saved chat re-selected a skill after the feature was switched off");
+        Assert.False(result.GetProperty("sent")[0].GetProperty("skills_discovery").GetBoolean());
         Assert.Equal(0, result.GetProperty("chips").GetInt32());
+    }
+
+    [Fact]
+    public void DeselectingEverySkillSendsAnExplicitEmptySelection()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/settings'] = {
+              thinkByDefault: false, defaultSkills: ['documents'], skillsEnabled: true, maxTokens: 2048
+            };
+            """, """
+            window.TensorAgent.setSkills([]);
+            __page.byId['text'].value = 'search something and create a PowerPoint report';
+            __page.byId['send'].dispatch('click');
+            return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            """);
+
+        JsonElement request = Assert.Single(result.GetProperty("sent").EnumerateArray());
+        Assert.True(request.TryGetProperty("skills", out JsonElement skills));
+        Assert.Equal(JsonValueKind.Array, skills.ValueKind);
+        Assert.Empty(skills.EnumerateArray());
+        Assert.False(request.GetProperty("skills_discovery").GetBoolean());
+    }
+
+    [Fact]
+    public void RoutedNetworkPreflightRestoresThePromptAndOffersTheSettingInline()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/settings'] = function (call) {
+              return call.method === 'POST' ? call.body
+                : { thinkByDefault: false, defaultSkills: [], skillsEnabled: true,
+                    allowNetwork: false, maxTokens: 2048 };
+            };
+            R['/api/chat'] = { __status: 503,
+              body: { code: 'network_disabled',
+                      error: 'network access is disabled by the user for this research workflow' } };
+            """, """
+            var prompt = '搜索apple M6的信息，并对比M5芯片，然后生成pptx报告';
+            __page.byId['text'].value = prompt;
+            __page.byId['send'].dispatch('click');
+            return settle(20).then(function () {
+              var action = __page.byId['chat'].querySelector('.notice-action');
+              var label = action && action.textContent;
+              if (action) action.dispatch('click');
+              return settle(10).then(function () {
+                return {
+                  prompt: __page.byId['text'].value,
+                  history: window.TensorAgent.history(),
+                  label: label,
+                  saved: __page.requests('/api/agent/settings')
+                    .filter(function (c) { return c.method === 'POST'; })
+                    .map(function (c) { return c.body; })
+                };
+              });
+            });
+            """);
+
+        Assert.Equal("搜索apple M6的信息，并对比M5芯片，然后生成pptx报告",
+            result.GetProperty("prompt").GetString());
+        Assert.Empty(result.GetProperty("history").EnumerateArray());
+        Assert.Equal("Turn on Network", result.GetProperty("label").GetString());
+        JsonElement saved = Assert.Single(result.GetProperty("saved").EnumerateArray());
+        Assert.True(saved.GetProperty("allowNetwork").GetBoolean());
+    }
+
+    [Fact]
+    public void RoutedSetupPreflightRestoresThePromptAndAttachmentsAndOpensSettings()
+    {
+        JsonElement result = Run("""
+            R['/api/chat'] = { __status: 503,
+              body: { code: 'routed_workflow_unavailable',
+                      error: 'This routed workflow cannot start: skills_run is unavailable.' } };
+            """, """
+            window.TensorAgent.addAttachment({ ok: true, file: 'a5.md', fileName: 'notes.md',
+                                               mediaType: 'text', url: '/uploads/a5.md',
+                                               textContent: 'existing notes' });
+            var prompt = '搜索apple M6的信息，并对比M5芯片，然后生成pptx报告';
+            __page.byId['text'].value = prompt;
+            __page.byId['send'].dispatch('click');
+            return settle(20).then(function () {
+              var action = __page.byId['chat'].querySelector('.notice-action');
+              var label = action && action.textContent;
+              if (action) action.dispatch('click');
+              return settle(10).then(function () {
+                return {
+                  prompt: __page.byId['text'].value,
+                  attachments: window.TensorAgent.attachmentCount(),
+                  history: window.TensorAgent.history(),
+                  label: label,
+                  routes: __page.requests('/api/agent/events').map(function (c) { return c.body; })
+                };
+              });
+            });
+            """);
+
+        Assert.Equal("搜索apple M6的信息，并对比M5芯片，然后生成pptx报告",
+            result.GetProperty("prompt").GetString());
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+        Assert.Empty(result.GetProperty("history").EnumerateArray());
+        Assert.Equal("Open Settings", result.GetProperty("label").GetString());
+        Assert.Contains(result.GetProperty("routes").EnumerateArray(), route =>
+            route.TryGetProperty("type", out JsonElement type) && type.GetString() == "open-route"
+            && route.TryGetProperty("route", out JsonElement name) && name.GetString() == "settings");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReopenedChatPreservesWhetherAnEmptySkillSelectionWasExplicit(bool explicitSelection)
+    {
+        string explicitLiteral = explicitSelection ? "true" : "false";
+        JsonElement result = Run($$"""
+            R['/api/agent/conversations'] = {
+              conversations: [{ id: 'saved', title: 'Old', updatedAt: '2026-09-01T10:00:00Z', messageCount: 1 }]
+            };
+            R['/api/sessions?conversation=saved'] = {
+              sessionId: 's9', conversationId: 'saved', think: false, skills: [],
+              skillsExplicit: {{explicitLiteral}},
+              messages: [{ role: 'user', content: 'hello' }]
+            };
+            """, """
+            __page.byId['text'].value = 'search Apple M6 and compare M5, then make a pptx';
+            __page.byId['send'].dispatch('click');
+            return { sent: __page.requests('/api/chat').map(function (c) { return c.body; }) };
+            """);
+
+        JsonElement request = Assert.Single(result.GetProperty("sent").EnumerateArray());
+        if (explicitSelection)
+        {
+            Assert.True(request.TryGetProperty("skills", out JsonElement skills));
+            Assert.Empty(skills.EnumerateArray());
+        }
+        else
+        {
+            Assert.False(request.TryGetProperty("skills", out _),
+                "an untouched saved chat disabled host-side skill discovery");
+        }
     }
 
     // =====================================================================================

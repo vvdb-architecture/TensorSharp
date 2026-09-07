@@ -447,9 +447,10 @@ public class ShellToolDeclarationTests : IDisposable
 
         ToolFunction write = ShellTools.DeclareWrite();
         Assert.Equal(
-            new[] { "content", "path" },
+            new[] { "content", "overwrite", "path" },
             write.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray());
         Assert.Equal(new[] { "path", "content" }, write.Required.ToArray());
+        Assert.Equal("boolean", write.Parameters["overwrite"].Type);
     }
 
     [Fact]

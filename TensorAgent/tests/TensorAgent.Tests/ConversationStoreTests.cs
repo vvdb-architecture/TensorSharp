@@ -43,6 +43,7 @@ public sealed class ConversationStoreTests : IDisposable
         Assert.Equal("hmm", loaded.Messages[1].Thinking);
         Assert.True(loaded.Think);
         Assert.Equal(new[] { "pdf" }, loaded.Skills);
+        Assert.True(loaded.SkillsExplicit);
         Assert.Equal("gemma-4-e4b-iq4xs", loaded.ModelId);
 
         var refs = store.ReferencedUploads();
@@ -80,6 +81,27 @@ public sealed class ConversationStoreTests : IDisposable
         Conversation loaded = Assert.IsType<Conversation>(store.Load(conversation.Id));
         StoredAttachment attachment = Assert.Single(Assert.Single(loaded.Messages).Attachments!);
         Assert.True(attachment.FileBacked);
+    }
+
+    [Fact]
+    public void RecorderPersistsTheDifferenceBetweenDiscoveryAndDeselectAll()
+    {
+        var store = new ConversationStore(_dir);
+        Conversation conversation = store.Create();
+        var recorder = new ConversationRecorder(store);
+        recorder.Bind("engine-session", conversation.Id);
+
+        recorder.Record("engine-session", JsonSerializer.Deserialize<JsonElement>(
+            """{"messages":[{"role":"user","content":"discover for me"}]}"""));
+        Conversation discovered = Assert.IsType<Conversation>(store.Load(conversation.Id));
+        Assert.Empty(discovered.Skills);
+        Assert.False(discovered.SkillsExplicit);
+
+        recorder.Record("engine-session", JsonSerializer.Deserialize<JsonElement>(
+            """{"messages":[{"role":"user","content":"no tools"}],"skills":[]}"""));
+        Conversation deselected = Assert.IsType<Conversation>(store.Load(conversation.Id));
+        Assert.Empty(deselected.Skills);
+        Assert.True(deselected.SkillsExplicit);
     }
 
     [Fact]

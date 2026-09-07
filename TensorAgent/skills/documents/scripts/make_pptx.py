@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -26,6 +27,21 @@ from ooxml import CONTENT_TYPES, NS, Package, emu, esc, validate_package
 
 SLIDE_W_IN, SLIDE_H_IN = 13.333, 7.5  # 16:9, the shape every deck since 2013 uses
 MARGIN_IN = 0.75
+
+SLIDE_FIELDS = {
+    "title": {"layout", "title", "subtitle"},
+    "bullets": {"layout", "title", "bullets"},
+    "table": {"layout", "title", "columns", "rows"},
+    "image": {"layout", "title", "image", "caption"},
+    "text": {"layout", "title", "text"},
+}
+BULLET_FIELDS = {"text", "level", "size", "bold", "bullet", "date", "url"}
+SOURCE_FIELDS = {"title", "date", "url"}
+SOURCE_SLIDE_TITLES = {
+    "source", "sources", "references", "citations", "data sources",
+    "来源", "资料来源", "信息来源", "数据来源", "参考资料", "参考来源",
+}
+MAX_BULLETS = 512
 
 THEME_COLORS = [
     ("dk1", '<a:sysClr val="windowText" lastClr="000000"/>'),
@@ -245,6 +261,388 @@ def fit(path: str, max_w: float, max_h: float) -> "tuple[float, float]":
     return pixel_w * scale, pixel_h * scale
 
 
+def slide_error(number: int, layout: str, message: str) -> None:
+    """Fail with enough schema context for an agent to repair one slide."""
+    accepted = SLIDE_FIELDS.get(layout, {"layout", "title"})
+    raise SystemExit(
+        f"make_pptx: slide {number} (layout {layout!r}) {message} "
+        f"Accepted fields for this layout: {', '.join(sorted(accepted))}. "
+        f"Accepted layouts: {', '.join(sorted(SLIDE_FIELDS))}."
+    )
+
+
+def has_text(value: object) -> bool:
+    return value is not None and bool(str(value).strip())
+
+
+def flatten_bullets(raw: object, slide_number: int) -> object:
+    """Normalize the common {text, bullets:[...]} tree into DrawingML levels."""
+    if not isinstance(raw, list):
+        return raw  # validate_slide owns the canonical type diagnostic
+
+    flattened: list = []
+
+    def append(item: object, inherited_level: "int | None" = None, depth: int = 0) -> None:
+        if depth > 8:
+            slide_error(slide_number, "bullets", "nests bullets more than 8 levels deep.")
+        if len(flattened) >= MAX_BULLETS:
+            slide_error(slide_number, "bullets", f"contains more than {MAX_BULLETS} bullet items.")
+
+        if isinstance(item, list):
+            slide_error(slide_number, "bullets", "contains a nested array; nest with an object's 'bullets' field.")
+
+        if not isinstance(item, dict):
+            if inherited_level is None:
+                flattened.append(item)
+            else:
+                flattened.append({"text": "" if item is None else item, "level": inherited_level})
+            return
+
+        normalized = dict(item)
+        children = normalized.pop("bullets", None) if "bullets" in normalized else None
+        if inherited_level is not None and "level" not in normalized:
+            normalized["level"] = inherited_level
+        flattened.append(normalized)
+
+        if children is None:
+            return
+        if not isinstance(children, list):
+            slide_error(slide_number, "bullets", "has a bullet object's 'bullets' field that is not an array.")
+
+        try:
+            parent_level = int(normalized.get("level", inherited_level or 0))
+        except (TypeError, ValueError):
+            # validate_slide will issue the canonical parent-level diagnostic; the
+            # inherited child value here is never rendered after that failure.
+            parent_level = inherited_level or 0
+        child_level = min(max(parent_level + 1, 0), 2)
+        for child in children:
+            append(child, child_level, depth + 1)
+
+    for bullet in raw:
+        append(bullet)
+    return flattened
+
+
+def validate_slide(spec: dict, number: int, layout: str) -> None:
+    """Reject fields or shapes that would otherwise render as an empty slide."""
+    if layout not in SLIDE_FIELDS:
+        raise SystemExit(
+            f"make_pptx: slide {number} has unknown layout {layout!r}. "
+            f"Accepted layouts: {', '.join(sorted(SLIDE_FIELDS))}."
+        )
+
+    if "notes" in spec:
+        # Speaker notes need a notesSlide part and a notesMaster; this writer has
+        # neither, so saying nothing here would silently drop the text.
+        slide_error(
+            number, layout,
+            "has unsupported key 'notes' (a notesSlide needs a notesMaster part that is not built here); "
+            "put the text on the slide or remove that key."
+        )
+
+    unknown = sorted(key for key in spec if key not in SLIDE_FIELDS[layout])
+    if unknown:
+        noun = "key" if len(unknown) == 1 else "keys"
+        slide_error(
+            number, layout,
+            f"has unknown {noun} {', '.join(repr(key) for key in unknown)}."
+        )
+
+    if layout == "title":
+        if not has_text(spec.get("title")):
+            slide_error(number, layout, "needs a non-empty 'title'.")
+        return
+
+    if layout == "text":
+        if not has_text(spec.get("text")):
+            slide_error(number, layout, "needs non-empty 'text' body content.")
+        return
+
+    if layout == "image":
+        image = spec.get("image")
+        if not isinstance(image, str) or not image.strip():
+            slide_error(number, layout, "needs a non-empty string 'image' path.")
+        return
+
+    if layout == "bullets":
+        bullets = spec.get("bullets")
+        if not isinstance(bullets, list) or not bullets:
+            slide_error(number, layout, "needs a non-empty 'bullets' array.")
+
+        visible = False
+        for item_number, item in enumerate(bullets, start=1):
+            if isinstance(item, dict):
+                unknown_item = sorted(key for key in item if key not in BULLET_FIELDS)
+                if unknown_item:
+                    slide_error(
+                        number, layout,
+                        f"bullet {item_number} has unknown "
+                        f"{'key' if len(unknown_item) == 1 else 'keys'} "
+                        f"{', '.join(repr(key) for key in unknown_item)}; bullet objects accept: "
+                        f"{', '.join(sorted(BULLET_FIELDS))}."
+                    )
+                if "level" in item:
+                    try:
+                        level = int(item["level"])
+                    except (TypeError, ValueError):
+                        slide_error(number, layout, f"bullet {item_number} has a non-integer 'level'.")
+                    if level < 0 or level > 2:
+                        slide_error(number, layout, f"bullet {item_number} needs 'level' between 0 and 2.")
+                if "size" in item:
+                    try:
+                        size = float(item["size"])
+                    except (TypeError, ValueError):
+                        slide_error(number, layout, f"bullet {item_number} has a non-numeric 'size'.")
+                    if not math.isfinite(size) or size <= 0:
+                        slide_error(number, layout, f"bullet {item_number} needs a finite positive 'size'.")
+                if "url" in item and not isinstance(item.get("url"), str):
+                    slide_error(number, layout, f"bullet {item_number} needs 'url' to be text when present.")
+                visible = visible or any(
+                    has_text(item.get(field)) for field in ("text", "date", "url")
+                )
+            elif isinstance(item, list):
+                slide_error(number, layout, f"bullet {item_number} must be text or an object, not an array.")
+            else:
+                # Empty strings and nulls are accepted as intentional visual separators,
+                # but at least one item on the slide must carry visible text.
+                visible = visible or has_text(item)
+        if not visible:
+            slide_error(number, layout, "has no visible text in its 'bullets' array.")
+        return
+
+    columns = spec.get("columns", [])
+    rows = spec.get("rows", [])
+    if not isinstance(columns, list):
+        slide_error(number, layout, "needs 'columns' to be an array when present.")
+    if not isinstance(rows, list):
+        slide_error(number, layout, "needs 'rows' to be an array when present.")
+    if not columns and not rows:
+        slide_error(number, layout, "needs a non-empty 'columns' or 'rows' array.")
+    for row_number, row in enumerate(rows, start=1):
+        if not isinstance(row, list):
+            slide_error(number, layout, f"row {row_number} must be an array of cells.")
+    width = len(columns) if columns else (len(rows[0]) if rows else 0)
+    if width == 0:
+        slide_error(number, layout, "has zero table columns.")
+    too_wide = next((i for i, row in enumerate(rows, start=1) if len(row) > width), None)
+    if too_wide is not None:
+        slide_error(
+            number, layout,
+            f"row {too_wide} has more cells than the table's {width} columns; no cell may be silently dropped."
+        )
+    if not any(has_text(value) for value in columns) and not any(
+        has_text(value) for row in rows for value in row
+    ):
+        slide_error(number, layout, "has no visible table cell content.")
+
+
+def normalize_slide(raw: object, number: int) -> dict:
+    if not isinstance(raw, dict):
+        raise SystemExit(
+            f"make_pptx: slide {number} must be a JSON object, not a {type(raw).__name__}. "
+            f"Accepted layouts: {', '.join(sorted(SLIDE_FIELDS))}."
+        )
+
+    spec = dict(raw)
+    layout = str(spec.get("layout", "bullets")).strip().lower()
+
+    # The measured live failure used title + content[] on every slide. That shape
+    # is unambiguously a bullets slide, so normalize it instead of spending a model
+    # round on a mechanical rename. Other uses of `content` remain errors: guessing
+    # whether it means table rows, image bytes or title text would lose information.
+    if "content" in spec and layout == "bullets":
+        if "bullets" in spec:
+            slide_error(number, layout, "has both alias 'content' and canonical field 'bullets'; keep only 'bullets'.")
+        if not isinstance(spec["content"], list):
+            slide_error(number, layout, "uses alias 'content', but that alias must be an array; use 'bullets'.")
+        spec["bullets"] = spec.pop("content")
+
+    # Models often choose `text` for a short Sources introduction and then add a
+    # canonical bullets array below it. Nothing is ambiguous here: retain the intro
+    # as the first bullet and render the slide using the richer bullets layout.
+    if layout == "text" and "bullets" in spec:
+        if not isinstance(spec["bullets"], list):
+            slide_error(number, layout, "has 'bullets', but that field must be an array.")
+        bullets = list(spec["bullets"])
+        if has_text(spec.get("text")):
+            bullets.insert(0, {"text": spec["text"], "bullet": False})
+        spec.pop("text", None)
+        spec["bullets"] = bullets
+        spec["layout"] = layout = "bullets"
+
+    if layout == "bullets" and "bullets" in spec:
+        spec["bullets"] = flatten_bullets(spec["bullets"], number)
+
+    spec["layout"] = layout
+    validate_slide(spec, number, layout)
+    return spec
+
+
+def source_bullet(raw: object, number: int) -> str:
+    if isinstance(raw, str):
+        if raw.strip():
+            return raw.strip()
+        raise SystemExit(f"make_pptx: source {number} is empty; provide a URL or a title/date/url object")
+    if not isinstance(raw, dict):
+        raise SystemExit(
+            f"make_pptx: source {number} must be a URL string or an object with: "
+            f"{', '.join(sorted(SOURCE_FIELDS))}"
+        )
+
+    unknown = sorted(key for key in raw if key not in SOURCE_FIELDS)
+    if unknown:
+        raise SystemExit(
+            f"make_pptx: source {number} has unknown "
+            f"{'key' if len(unknown) == 1 else 'keys'} {', '.join(repr(key) for key in unknown)}. "
+            f"Accepted source fields: {', '.join(sorted(SOURCE_FIELDS))}."
+        )
+    url = raw.get("url")
+    if not isinstance(url, str) or not url.strip():
+        raise SystemExit(
+            f"make_pptx: source {number} needs a non-empty 'url'. "
+            f"Accepted source fields: {', '.join(sorted(SOURCE_FIELDS))}."
+        )
+    parts = [str(raw[key]).strip() for key in ("title", "date") if has_text(raw.get(key))]
+    parts.append(url.strip())
+    return " — ".join(parts)
+
+
+def is_sources_only_slide(raw: dict) -> bool:
+    """Return whether a slide is only a placeholder for its ``sources`` field.
+
+    Agents commonly spell the documented per-slide compatibility form as a
+    bullets slide titled "Sources", but omit ``bullets`` because ``sources`` is
+    its body.  Once the caller extracts that field, validating the remainder as
+    an authored slide would turn a valid request into an empty-slide error.  An
+    explicitly empty body has the same unambiguous meaning.  Non-empty content,
+    unsupported layouts, and extra fields remain ordinary authored slides and
+    therefore still receive the strict schema diagnostics.
+    """
+    layout = str(raw.get("layout", "bullets")).strip().lower()
+    if layout not in ("bullets", "text"):
+        return False
+
+    allowed = {"layout", "title"}
+    if layout == "bullets":
+        allowed.update(("bullets", "content"))
+        for field in ("bullets", "content"):
+            if field in raw and raw[field] != []:
+                return False
+    else:
+        allowed.update(("text", "bullets"))
+        if has_text(raw.get("text")):
+            return False
+        if "bullets" in raw and raw["bullets"] != []:
+            return False
+
+    return all(key in allowed for key in raw)
+
+
+def authored_source_entries(raw: dict) -> "list | None":
+    """Extract a visibly authored Sources slide without duplicating it later.
+
+    Small models sometimes ignore the canonical root ``sources`` shape and also
+    author a localized bullets slide whose every item is a citation.  Keeping
+    that slide and appending the normalized root sources produces two Sources
+    slides.  Only an unmistakable source title whose every non-empty bullet has
+    a URL is folded; ordinary bullets slides are left untouched.
+    """
+    title = str(raw.get("title", "")).strip()
+    if title.casefold() not in SOURCE_SLIDE_TITLES:
+        return None
+    if str(raw.get("layout", "bullets")).strip().lower() != "bullets":
+        return None
+
+    bullets = raw.get("bullets")
+    if not isinstance(bullets, list) or not bullets:
+        return None
+
+    entries = []
+    allowed = BULLET_FIELDS | {"title"}
+    for bullet in bullets:
+        if isinstance(bullet, str):
+            text = bullet.strip()
+            if "http://" not in text and "https://" not in text:
+                return None
+            entries.append(text)
+            continue
+        if not isinstance(bullet, dict) or any(key not in allowed for key in bullet):
+            return None
+        url = bullet.get("url")
+        if not isinstance(url, str) or not url.strip():
+            return None
+        source = {"url": url.strip()}
+        source_title = bullet.get("title", bullet.get("text"))
+        if has_text(source_title):
+            source["title"] = str(source_title).strip()
+        if has_text(bullet.get("date")):
+            source["date"] = str(bullet["date"]).strip()
+        entries.append(source)
+    return entries
+
+
+def normalized_slides(spec: dict) -> list:
+    raw_slides = spec.get("slides")
+    if not isinstance(raw_slides, list) or not raw_slides:
+        raise SystemExit("make_pptx: the spec needs a non-empty 'slides' array; a deck with no slides will not open")
+
+    gathered_sources: list = []
+    if "sources" in spec:
+        sources = spec["sources"]
+        if not isinstance(sources, list):
+            raise SystemExit(
+                "make_pptx: top-level 'sources' must be an array of URL strings or title/date/url objects"
+            )
+        gathered_sources.extend(sources)
+
+    slides = []
+    sources_title = "Sources"
+    for number, raw in enumerate(raw_slides, start=1):
+        normalized_raw = raw
+        if isinstance(raw, dict) and "sources" in raw:
+            slide_sources = raw["sources"]
+            if not isinstance(slide_sources, list):
+                raise SystemExit(
+                    f"make_pptx: slide {number} field 'sources' must be an array of URL strings "
+                    "or title/date/url objects"
+                )
+            normalized_raw = dict(raw)
+            normalized_raw.pop("sources")
+            gathered_sources.extend(slide_sources)
+            if is_sources_only_slide(normalized_raw):
+                if has_text(normalized_raw.get("title")):
+                    sources_title = str(normalized_raw["title"]).strip()
+                continue
+        if isinstance(normalized_raw, dict):
+            authored_sources = authored_source_entries(normalized_raw)
+            if authored_sources is not None:
+                sources_title = str(normalized_raw["title"]).strip()
+                gathered_sources.extend(authored_sources)
+                continue
+        slides.append(normalize_slide(normalized_raw, number))
+
+    if gathered_sources:
+        # Convert and de-duplicate before validation, preserving first-seen order.
+        # The same citation is often present both at the root and on its claim
+        # slide; rendering it twice wastes space without adding evidence.
+        source_bullets = list(dict.fromkeys(
+            source_bullet(source, i)
+            for i, source in enumerate(gathered_sources, start=1)
+        ))
+        slides.append(normalize_slide({
+            "layout": "bullets",
+            "title": sources_title,
+            "bullets": source_bullets,
+        }, len(slides) + 1))
+    elif not slides:
+        raise SystemExit(
+            "make_pptx: a sources-only slide needs at least one source; "
+            "a deck with no visible slides will not open"
+        )
+    return slides
+
+
 def build_slide(spec: dict, package: Package, number: int, images: list) -> str:
     layout = str(spec.get("layout", "bullets")).lower()
     slide_part = f"ppt/slides/slide{number}.xml"
@@ -281,15 +679,29 @@ def build_slide(spec: dict, package: Package, number: int, images: list) -> str:
         paragraphs = []
         for item in spec.get("bullets", []):
             if isinstance(item, dict):
+                citation_parts = [
+                    str(item[field]).strip()
+                    for field in ("text", "date", "url")
+                    if has_text(item.get(field))
+                ]
+                item_text = " — ".join(citation_parts)
                 paragraphs.append({
-                    "text": str(item.get("text", "")),
+                    "text": item_text,
                     "level": int(item.get("level", 0)),
                     "size": item.get("size", 20),
                     "bold": bool(item.get("bold")),
                     "bullet": item.get("bullet", "•"),
                 })
             else:
-                paragraphs.append({"text": str(item), "level": 0, "size": 20, "bullet": "•"})
+                # Validation permits null as an intentional visual separator. Keep
+                # it empty instead of leaking Python's spelling ("None") into the
+                # user's slide.
+                paragraphs.append({
+                    "text": "" if item is None else str(item),
+                    "level": 0,
+                    "size": 20,
+                    "bullet": "•",
+                })
         shapes.append(shape(
             index, "Content", MARGIN_IN, content_top, SLIDE_W_IN - 2 * MARGIN_IN,
             SLIDE_H_IN - content_top - MARGIN_IN, text_body(paragraphs),
@@ -339,13 +751,6 @@ def build_slide(spec: dict, package: Package, number: int, images: list) -> str:
     elif layout != "title":
         raise SystemExit(f"make_pptx: unknown slide layout {layout!r}; see SKILL.md for the list")
 
-    if spec.get("notes"):
-        # Speaker notes need a notesSlide part and a notesMaster; this writer has
-        # neither, so saying nothing here would silently drop the text.
-        raise SystemExit(f"make_pptx: slide {number} has 'notes', which this writer does not support "
-                         "(a notesSlide needs a notesMaster part that is not built here); "
-                         "put the text on the slide or drop the field")
-
     xml = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         f"<p:sld {PPT_ROOT_NS}>"
@@ -357,9 +762,7 @@ def build_slide(spec: dict, package: Package, number: int, images: list) -> str:
 
 
 def build(spec: dict, out_path: str) -> dict:
-    slides = list(spec.get("slides", []))
-    if not slides:
-        raise SystemExit("make_pptx: the spec has no 'slides'; a deck with no slides will not open")
+    slides = normalized_slides(spec)
 
     package = Package()
     package.core_properties(
@@ -429,7 +832,7 @@ def main() -> int:
     args = parser.parse_args()
 
     spec = specs.load(args.spec, "make_pptx")
-    specs.check_keys(spec, "make_pptx", {"title", "subtitle", "author", "subject", "slides"}, "slides")
+    specs.check_keys(spec, "make_pptx", {"title", "subtitle", "author", "subject", "slides", "sources"}, "slides")
     result = build(spec, args.out)
     print(json.dumps(result, indent=2))
     if not result["valid"]:

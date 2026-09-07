@@ -302,8 +302,8 @@ TSG_EXPORT int TSGgml_Qwen35GdnLayerTP(
             ggml_tensor* v_part = ggml_cont(ctx, ggml_view_2d(ctx, conv_out, v_dim, N, conv_out->nb[1],
                 static_cast<std::size_t>(2 * qk_dim) * f32));
 
-            ggml_tensor* q_hn = ggml_l2_norm(ctx, ggml_reshape_2d(ctx, q_part, head_k_dim, num_k_heads * N), eps);
-            ggml_tensor* k_hn = ggml_l2_norm(ctx, ggml_reshape_2d(ctx, k_part, head_k_dim, num_k_heads * N), eps);
+            ggml_tensor* q_hn = build_gdn_l2_norm(ctx, ggml_reshape_2d(ctx, q_part, head_k_dim, num_k_heads * N), eps);
+            ggml_tensor* k_hn = build_gdn_l2_norm(ctx, ggml_reshape_2d(ctx, k_part, head_k_dim, num_k_heads * N), eps);
             ggml_tensor* q_3d = ggml_reshape_3d(ctx, q_hn, head_k_dim, num_k_heads, N);
             ggml_tensor* k_3d = ggml_reshape_3d(ctx, k_hn, head_k_dim, num_k_heads, N);
 

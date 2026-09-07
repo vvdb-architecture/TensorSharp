@@ -197,6 +197,10 @@ namespace TensorSharp.AgentHost.Skills
         internal const string DirectoryPrefix = "ts-session-";
 
         private readonly HashSet<string> _installedPackages = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _hostRepairArtifacts = new(
+            SkillPathGuard.PathComparison == StringComparison.Ordinal
+                ? StringComparer.Ordinal
+                : StringComparer.OrdinalIgnoreCase);
         private readonly object _gate = new();
         private readonly object _executionGate = new();
         private int _activeOperations;
@@ -330,6 +334,42 @@ namespace TensorSharp.AgentHost.Skills
         {
             Monitor.Enter(_executionGate);
             return new ExecutionLease(_executionGate);
+        }
+
+        /// <summary>
+        /// Record exact workspace paths that this host created solely to repair a bundled
+        /// skill script. Artifact capture excludes these paths, but must not exclude a
+        /// directory merely because a user happened to call it <c>skill-repairs</c>.
+        /// </summary>
+        internal void MarkHostRepairArtifacts(params string[] relativePaths)
+        {
+            if (relativePaths == null)
+                return;
+
+            lock (_gate)
+            {
+                foreach (string relativePath in relativePaths)
+                {
+                    if (!TryResolve(relativePath, out string full, out _)
+                        || !File.Exists(full))
+                    {
+                        continue;
+                    }
+
+                    string normalized = Path.GetRelativePath(WorkDirectory, full).Replace('\\', '/');
+                    _hostRepairArtifacts.Add(normalized);
+                }
+            }
+        }
+
+        /// <summary>True only for an exact path proven host-created by the method above.</summary>
+        internal bool IsHostRepairArtifact(string? relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+                return false;
+            string normalized = relativePath.Replace('\\', '/');
+            lock (_gate)
+                return _hostRepairArtifacts.Contains(normalized);
         }
 
         private sealed class ExecutionLease : IDisposable
@@ -482,6 +522,97 @@ namespace TensorSharp.AgentHost.Skills
                 error = $"'{relativePath}' could not be written: {ex.Message}";
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Create a workspace file without replacing an existing path. Used for
+        /// host-staged repair copies whose prior, model-edited contents must survive a
+        /// repeated failure. <paramref name="alreadyExists"/> distinguishes that safe
+        /// collision from an unrelated filesystem error.
+        /// </summary>
+        public bool TryCreateFile(
+            string relativePath,
+            string content,
+            out bool alreadyExists,
+            out string? error)
+        {
+            return TryCreateFile(
+                relativePath,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content),
+                out alreadyExists,
+                out error);
+        }
+
+        /// <summary>
+        /// Byte-preserving form used when the host copies an existing file into the
+        /// workspace. Kept internal because model-facing text writes should continue
+        /// through the string overload above.
+        /// </summary>
+        internal bool TryCreateFile(
+            string relativePath,
+            byte[] content,
+            out bool alreadyExists,
+            out string? error)
+        {
+            alreadyExists = false;
+            error = null;
+            if (!TryResolve(relativePath, out string full, out error))
+                return false;
+
+            string? temporary = null;
+            try
+            {
+                string? parent = Path.GetDirectoryName(full);
+                if (!string.IsNullOrEmpty(parent))
+                    Directory.CreateDirectory(parent);
+
+                // Finish the potentially fallible write before publishing the target.
+                // If construction, writing or disposal fails, no partial destination
+                // exists that a later call could mistake for a pre-existing repair.
+                temporary = Path.Combine(
+                    parent!, ".tensorsharp-create-" + Guid.NewGuid().ToString("N") + ".tmp");
+                using var stream = new FileStream(
+                    temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                stream.Write(content, 0, content.Length);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                TryDeleteTemporary(temporary);
+                error = $"'{relativePath}' could not be created: {ex.Message}";
+                return false;
+            }
+
+            try
+            {
+                // File.Move without overwrite is the atomic publication point. Only an
+                // error here can truthfully mean that the requested target collided.
+                File.Move(temporary!, full);
+                temporary = null;
+                return true;
+            }
+            catch (IOException) when (File.Exists(full) || Directory.Exists(full))
+            {
+                alreadyExists = true;
+                error = $"'{relativePath}' already exists in this conversation's working directory.";
+                return false;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                error = $"'{relativePath}' could not be created: {ex.Message}";
+                return false;
+            }
+            finally
+            {
+                TryDeleteTemporary(temporary);
+            }
+        }
+
+        private static void TryDeleteTemporary(string? path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return;
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
 
         /// <summary>

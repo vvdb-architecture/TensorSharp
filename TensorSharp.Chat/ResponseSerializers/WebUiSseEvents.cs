@@ -85,6 +85,20 @@ namespace TensorSharp.Server.ResponseSerializers
         };
 
         /// <summary>
+        /// The one routed deliverable that passed host-side structural/content checks.
+        /// This is separate from <c>skill_step</c>: provisional files remain hidden while
+        /// preserving the UI's established step/finished frame adjacency.
+        /// </summary>
+        public static object VerifiedArtifact(SkillProducedFile artifact) => new
+        {
+            artifact_verified = true,
+            files = new[]
+            {
+                new { name = artifact.Name, bytes = artifact.Bytes, url = artifact.Url },
+            },
+        };
+
+        /// <summary>
         /// Live progress through an in-process tool call's two silent stretches:
         /// <c>writing</c> while the model generates the call (with the new body text),
         /// <c>running</c> while the host executes it (with elapsed seconds, one frame a

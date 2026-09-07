@@ -285,6 +285,52 @@ public sealed class ChatTurnTests
             store.Load(id)!.Messages.LastOrDefault(m => m.Role == "assistant")?.Content ?? "(nothing)";
     }
 
+    /// <summary>
+    /// The background owner, not the page, closes a turn. It must therefore understand
+    /// the completion guard's dedicated artifact frame itself: the earlier file reported
+    /// by a successful writer call is still provisional and must not survive a reload.
+    /// </summary>
+    [Fact]
+    public async Task BackgroundCompletionPersistsOnlyTheHostVerifiedArtifactAcrossReload()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "turn-artifacts-" + Guid.NewGuid().ToString("N")[..8]);
+        string conversationRoot = Path.Combine(root, "conversations");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var store = new ConversationStore(conversationRoot);
+            Conversation conversation = store.Create();
+            conversation.Messages.Add(new StoredMessage { Role = "user", Content = "make the report" });
+            store.Save(conversation);
+
+            var recorder = new ConversationRecorder(store);
+            recorder.Bind("session-artifacts", conversation.Id);
+            using var turns = new ChatTurnManager(recorder);
+
+            string turnId = turns.Start(
+                conversation.Id,
+                _ => ArtifactFrames("session-artifacts"));
+            await WaitFor(() => !turns.StatusOfId(turnId)!.IsRunning);
+
+            // Load through a fresh store instance: this is the same disk/history path a
+            // relaunched WebView takes, rather than an assertion on in-memory objects.
+            Conversation reloaded = Assert.IsType<Conversation>(
+                new ConversationStore(conversationRoot).Load(conversation.Id));
+            StoredMessage assistant = Assert.Single(reloaded.Messages, message => message.Role == "assistant");
+            Assert.Equal("The report is ready.", assistant.Content);
+            StoredArtifact artifact = Assert.Single(assistant.Artifacts!);
+            Assert.Equal("apple-m5-m6-verified.pptx", artifact.Name);
+            Assert.Equal(15_569, artifact.Bytes);
+            Assert.Equal("/api/code/artifacts/verified/apple-m5-m6.pptx", artifact.Url);
+            Assert.DoesNotContain(assistant.Artifacts!, item =>
+                item.Url.Contains("provisional", StringComparison.Ordinal));
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch (IOException) { }
+        }
+    }
+
     [Fact]
     public async Task BusyFollowsTheTurnAndNotTheReader()
     {
@@ -450,6 +496,67 @@ public sealed class ChatTurnTests
     {
         await Task.Yield();
         yield return new { token = text };
+        yield return new { done = true, sessionId };
+    }
+
+    private static async IAsyncEnumerable<object> ArtifactFrames(string sessionId)
+    {
+        await Task.Yield();
+        yield return new
+        {
+            skill_step = "skills_run",
+            files = new[]
+            {
+                new
+                {
+                    name = "apple-m5-m6-provisional.pptx",
+                    bytes = 12_000L,
+                    url = "/api/code/artifacts/provisional/apple-m5-m6.pptx",
+                },
+            },
+        };
+        yield return new
+        {
+            artifact_verified = false,
+            files = new[]
+            {
+                new
+                {
+                    name = "also-provisional.pptx",
+                    bytes = 13_000L,
+                    url = "/api/code/artifacts/provisional/also.pptx",
+                },
+            },
+        };
+        yield return new
+        {
+            artifact_verified = true,
+            files = new[]
+            {
+                new
+                {
+                    name = "apple-m5-m6-verified.pptx",
+                    bytes = 15_569L,
+                    url = "/api/code/artifacts/verified/apple-m5-m6.pptx",
+                },
+            },
+        };
+        // Duplicate verified frames can be seen by a reconnecting reader, but the pump
+        // consumes the source once; retaining this duplicate pins URL de-duplication too.
+        yield return new
+        {
+            artifact_verified = true,
+            files = new[]
+            {
+                new
+                {
+                    name = "duplicate-name.pptx",
+                    bytes = 99_999L,
+                    url = "/api/code/artifacts/verified/apple-m5-m6.pptx",
+                },
+            },
+        };
+        yield return new { token = "The report is ready." };
         yield return new { done = true, sessionId };
     }
 

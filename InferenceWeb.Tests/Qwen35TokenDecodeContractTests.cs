@@ -66,6 +66,222 @@ public class Qwen35TokenDecodeContractTests
     }
 
     [Fact]
+    public void Bonsai27BMetalPrefillChunk_DefaultIsNarrowlyScopedToExactGeometry()
+    {
+        Assert.True(Qwen35Model.ShouldUseBonsai27BMetalPrefillChunk(
+            BackendType.GgmlMetal,
+            numLayers: 64,
+            hiddenSize: 5120,
+            numHeads: 24,
+            numKvHeads: 4,
+            headKDim: 128,
+            headVDim: 128,
+            numKHeads: 16,
+            numVHeads: 48));
+
+        Assert.False(Qwen35Model.ShouldUseBonsai27BMetalPrefillChunk(
+            BackendType.GgmlCuda,
+            numLayers: 64,
+            hiddenSize: 5120,
+            numHeads: 24,
+            numKvHeads: 4,
+            headKDim: 128,
+            headVDim: 128,
+            numKHeads: 16,
+            numVHeads: 48));
+
+        Assert.False(Qwen35Model.ShouldUseBonsai27BMetalPrefillChunk(
+            BackendType.GgmlMetal,
+            numLayers: 63,
+            hiddenSize: 5120,
+            numHeads: 24,
+            numKvHeads: 4,
+            headKDim: 128,
+            headVDim: 128,
+            numKHeads: 16,
+            numVHeads: 48));
+    }
+
+    [Theory]
+    [InlineData(512, 512, 512)]
+    [InlineData(513, 512, 511)]
+    [InlineData(514, 512, 512)]
+    [InlineData(1025, 512, 512)]
+    [InlineData(2, 512, 2)]
+    [InlineData(1, 512, 1)]
+    [InlineData(2, 1, 1)]
+    public void RefillChunkLength_NeverStrandsFinalToken(
+        int remaining,
+        int chunkSize,
+        int expected)
+    {
+        Assert.Equal(expected, Qwen35Model.ComputeRefillChunkLength(remaining, chunkSize));
+    }
+
+    [Theory]
+    [InlineData(0, 512)]
+    [InlineData(512, 0)]
+    public void RefillChunkLength_RejectsInvalidInputs(int remaining, int chunkSize)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Qwen35Model.ComputeRefillChunkLength(remaining, chunkSize));
+    }
+
+    [Fact]
+    public void HostPrefillFallback_DrainsDeviceStateBeforeReadingHostMirrors()
+    {
+        var calls = new List<string>();
+
+        Qwen35Model.PrepareHostPrefillFallback(
+            () => calls.Add("drain-device-state"),
+            () => calls.Add("sync-kv"),
+            () => calls.Add("sync-fused-decode-state"),
+            () => calls.Add("invalidate-decode-bindings"));
+
+        Assert.Equal(
+            new[]
+            {
+                "drain-device-state",
+                "sync-kv",
+                "sync-fused-decode-state",
+                "invalidate-decode-bindings",
+            },
+            calls);
+    }
+
+    [Fact]
+    public void HostPrefillFallback_DrainFailureDoesNotEnterHostPath()
+    {
+        var calls = new List<string>();
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            Qwen35Model.PrepareHostPrefillFallback(
+                () => throw new InvalidOperationException("device state unavailable"),
+                () => calls.Add("sync-kv"),
+                () => calls.Add("sync-fused-decode-state"),
+                () => calls.Add("invalidate-decode-bindings")));
+
+        Assert.Equal("device state unavailable", error.Message);
+        Assert.Empty(calls);
+    }
+
+    [Theory]
+    [InlineData(
+        "Qwen35Model.Speculative.cs",
+        "if (TryFusedVerifyTrunk(hidden, startPos, seqLen, hAllOut, logitsOut, allLogitsRows))")]
+    [InlineData(
+        "Qwen35Model.DFlash.cs",
+        "private unsafe void DFlashSpecForwardPerOp(")]
+    public void FailedVerifyPerOpRoutes_CrossTheSharedHostFallbackBarrier(
+        string fileName,
+        string routeStartMarker)
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "TensorSharp.Models",
+            "Models",
+            "Qwen35",
+            fileName));
+
+        int routeStart = source.IndexOf(routeStartMarker, StringComparison.Ordinal);
+        Assert.True(routeStart >= 0, $"Fallback route not found in {fileName}.");
+        int layerLoop = source.IndexOf(
+            "for (int layer = 0; layer < Config.NumLayers; layer++)",
+            routeStart,
+            StringComparison.Ordinal);
+        Assert.True(layerLoop > routeStart, $"Per-op layer loop not found in {fileName}.");
+        string transition = source[routeStart..layerLoop];
+
+        Assert.Contains("PrepareHostPrefillFallback();", transition);
+        Assert.DoesNotContain("EnsureKvCacheHostSynchronized();", transition);
+        Assert.DoesNotContain("EnsureFusedDecodeStateHostSynchronized();", transition);
+    }
+
+    [Fact]
+    public void VerifyDispose_DiscardsManagedStateBeforeNativeReset()
+    {
+        var calls = new List<string>();
+
+        Qwen35Model.DiscardVerifyStateForDispose(
+            () => calls.Add("discard-managed-state"),
+            () => calls.Add("reset-native-state"));
+
+        Assert.Equal(
+            new[] { "discard-managed-state", "reset-native-state" },
+            calls);
+    }
+
+    [Fact]
+    public void VerifyDispose_NativeResetFailureStillLeavesStateDiscarded()
+    {
+        bool managedStateDiscarded = false;
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            Qwen35Model.DiscardVerifyStateForDispose(
+                () => managedStateDiscarded = true,
+                () => throw new InvalidOperationException("native reset failed")));
+
+        Assert.True(managedStateDiscarded);
+        Assert.Equal("native reset failed", error.Message);
+    }
+
+    [Fact]
+    public void NativeDecodePools_AreLockedAcrossUseAndTeardown()
+    {
+        string source = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot(),
+            "TensorSharp.GGML.Native",
+            "ggml_ops_qwen35_decode.cpp"));
+        const string lockLine =
+            "std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());";
+
+        string Slice(string startMarker, string endMarker)
+        {
+            int start = source.IndexOf(startMarker, StringComparison.Ordinal);
+            Assert.True(start >= 0, $"Native marker not found: {startMarker}");
+            int end = source.IndexOf(endMarker, start + startMarker.Length, StringComparison.Ordinal);
+            Assert.True(end > start, $"Native marker not found after {startMarker}: {endMarker}");
+            return source[start..end];
+        }
+
+        Assert.Contains("std::recursive_mutex& q35_decode_mutex()", source);
+
+        string solo = Slice(
+            "int qwen35_model_decode_impl(",
+            "TSG_EXPORT int TSGgml_Qwen35ModelDecode(");
+        int arenaTouch = solo.IndexOf("tsg_q35arena::on_external_touch", StringComparison.Ordinal);
+        int soloLock = solo.IndexOf(lockLine, StringComparison.Ordinal);
+        int soloPool = solo.IndexOf("g_q35dc_pool.find", StringComparison.Ordinal);
+        Assert.True(arenaTouch >= 0 && soloLock > arenaTouch && soloPool > soloLock,
+            "Solo decode must preserve arena->pool lock ordering and lock before its first retained-pool access.");
+
+        string attention = Slice(
+            "TSG_EXPORT int TSGgml_Qwen35AttentionLayerDecode(",
+            "// ============================================================================\n// Qwen3.5/3.6 FULL-MODEL decode");
+        Assert.Contains(lockLine, attention);
+
+        string dropAndReset = Slice(
+            "void tsg_q35_drop_decode_graphs_for_kv(",
+            "// ============================================================================\n// TSGgml_Qwen35ModelDecodeBatched");
+        Assert.Equal(2, dropAndReset.Split(lockLine, StringSplitOptions.None).Length - 1);
+
+        string batched = source[source.IndexOf(
+            "TSG_EXPORT int TSGgml_Qwen35ModelDecodeBatched(",
+            StringComparison.Ordinal)..];
+        int batchedLock = batched.IndexOf(lockLine, StringComparison.Ordinal);
+        int batchedPool = batched.IndexOf("qwen35_model_decode_batched_impl(", StringComparison.Ordinal);
+        int resetStart = batched.IndexOf(
+            "TSG_EXPORT void TSGgml_Qwen35ResetBatchedDecodeCache()",
+            StringComparison.Ordinal);
+        int resetLock = batched.IndexOf(lockLine, resetStart, StringComparison.Ordinal);
+        int resetPool = batched.IndexOf("g_q35bdc.reset();", resetStart, StringComparison.Ordinal);
+        Assert.True(batchedLock >= 0 && batchedPool > batchedLock,
+            "Batched decode must lock before entering the retained-pool implementation.");
+        Assert.True(resetStart >= 0 && resetLock > resetStart && resetPool > resetLock,
+            "Batched reset must lock before freeing the retained graph.");
+    }
+
+    [Fact]
     public void MetalGdnInplaceStateLayout_UsesOneAttentionRowAsBackingPrefix()
     {
         const int numVHeads = 3;
@@ -139,6 +355,22 @@ public class Qwen35TokenDecodeContractTests
             hasMRoPEPositions,
             tokenId,
             vocabSize));
+    }
+
+    [Fact]
+    public void ArenaGraphFailure_FailsClosedInsteadOfAllowingSerialFallback()
+    {
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            Qwen35Model.ThrowIfArenaDecodeStateUnrecoverable(
+                status: -1,
+                nativeError: "Qwen3.5 arena batched decode: graph execution failed."));
+
+        Assert.Contains("partially advanced recurrent state", error.Message);
+        Assert.Contains("serial fallback would use stale host state", error.Message);
+
+        // Zero is a safe pre-compute shape/capability decline; success is one.
+        Qwen35Model.ThrowIfArenaDecodeStateUnrecoverable(0, "safe decline");
+        Qwen35Model.ThrowIfArenaDecodeStateUnrecoverable(1, string.Empty);
     }
 
     [Theory]
@@ -244,5 +476,18 @@ public class Qwen35TokenDecodeContractTests
         Assert.Equal(
             int64Start + 48L * sizeof(long),
             Marshal.OffsetOf<Qwen35LayerDecodeArgs>(nameof(Qwen35LayerDecodeArgs.FfnGateNe0)).ToInt64());
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "TensorSharp.sln"))
+                || File.Exists(Path.Combine(dir.FullName, "TensorSharp.slnx")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException("Could not locate the TensorSharp repository root.");
     }
 }

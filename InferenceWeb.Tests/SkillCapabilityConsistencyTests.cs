@@ -167,6 +167,37 @@ public class SkillCapabilityConsistencyTests
     }
 
     [Fact]
+    public void AnExplicitEmptySelectionDisablesDiscoveryAndAllSkillTools()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "ts-empty-selection-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string skill = Path.Combine(dir, "acme");
+            Directory.CreateDirectory(skill);
+            File.WriteAllText(Path.Combine(skill, "SKILL.md"),
+                "---\nname: acme\ndescription: Formats ACME invoices.\n---\nDo it.\n");
+
+            var registry = new SkillRegistry(new SkillRegistryOptions { Roots = new[] { dir } });
+            ServerHostingOptions options = ServerOptionsBuilder.Build(
+                new[] { "--model", "x.gguf", "--skills-dir", dir }, dir);
+            Assert.True(options.SkillsDiscovery);
+
+            SkillRequestPlan plan = SkillRequestPlan.Create(
+                registry, Array.Empty<string>(), discovery: null, clientTools: null,
+                architecture: "qwen35", contextTokens: 32768, options,
+                out IReadOnlyList<string> unknown);
+
+            Assert.Empty(unknown);
+            Assert.Null(plan);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+        }
+    }
+
+    [Fact]
     public void Mistral_KeepsItsExistingOptOut()
     {
         Assert.False(SkillCapabilities.For("mistral3").ToolsRendered);

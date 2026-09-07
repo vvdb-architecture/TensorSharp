@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp;
 using TensorSharp.Runtime;
+using TensorSharp.Runtime.Paged;
 using TensorSharp.Runtime.Scheduling;
 using Xunit;
 
@@ -67,6 +68,149 @@ public class RetainedFusedCacheTests
         double pctB = 100.0 * onB.PrefixCacheReusedTokens / onB.PromptTokenCount;
         Assert.True(pctA >= 80.0, $"follow-up A reuse {pctA:F1}% too low");
         Assert.True(pctB >= 80.0, $"follow-up B reuse {pctB:F1}% too low");
+    }
+
+    [Fact]
+    public async Task ExplicitCapability_AllowsQwenLikeExactRetainedPrefix()
+    {
+        // Qwen 3.5/3.6 cannot share its block snapshots across requests and its
+        // recurrent state cannot rewind. Its complete request-owned holder can
+        // nevertheless be re-keyed when the next prompt extends it EXACTLY. In
+        // particular, MaxReusablePrefixTokens is unrelated to that holder and
+        // must not be used as the retained-cache capability gate.
+        var (a, b) = await RunTwoRoundsAsync(
+            retentionEnabled: true,
+            createModel: () => new FusedStubModel(
+                supportsKvCacheTruncation: false,
+                supportsCrossSequenceKvReuse: false,
+                maxReusablePrefixTokens: int.MaxValue,
+                supportsRetainedFusedCache: true));
+
+        Assert.Equal(a.PromptTokenCount - SuffixLen, a.PrefixCacheReusedTokens);
+        Assert.Equal(b.PromptTokenCount - SuffixLen, b.PrefixCacheReusedTokens);
+        Assert.True(a.PrefixCacheReusedTokens > Cap);
+        Assert.True(b.PrefixCacheReusedTokens > Cap);
+    }
+
+    [Fact]
+    public async Task QwenLikeNonTruncatableHolder_RejectsOmittedTail()
+    {
+        // EOS is forwarded into the holder but omitted from rendered history.
+        // Gemma may rewind that one-token tail; a Qwen-like recurrent holder may
+        // not. The retained candidate must be declined rather than rebound and
+        // then passed to the model's unsupported TruncateKVCache path.
+        var model = new FusedStubModel(
+            peakIsEos: true,
+            supportsKvCacheTruncation: false,
+            supportsCrossSequenceKvReuse: false,
+            maxReusablePrefixTokens: int.MaxValue,
+            supportsRetainedFusedCache: true);
+        var (a, b) = await RunTwoRoundsAsync(
+            retentionEnabled: true,
+            followUpSuffixToken: PeakToken + 1,
+            createModel: () => model);
+
+        Assert.Equal(0, a.PrefixCacheReusedTokens);
+        Assert.Equal(0, b.PrefixCacheReusedTokens);
+        Assert.Empty(model.TruncationTargets);
+    }
+
+    [Fact]
+    public async Task FiniteSnapshotCap_WithoutExplicitCapability_DoesNotRetain()
+    {
+        // The old gate inferred retained-holder support from a finite pooled
+        // snapshot cap. Keep the two concepts independent: a model must opt in
+        // to the retain/re-key/discard lifecycle explicitly.
+        var (a, b) = await RunTwoRoundsAsync(
+            retentionEnabled: true,
+            createModel: () => new FusedStubModel(supportsRetainedFusedCache: false));
+
+        Assert.Equal(0, a.PrefixCacheReusedTokens);
+        Assert.Equal(0, b.PrefixCacheReusedTokens);
+    }
+
+    [Fact]
+    public void AllDecodeBatchedEarlyReturn_StillTracksSequencesForRetention()
+    {
+        string previousRetention = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
+        string previousBudget = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX");
+        string previousBatched = Environment.GetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED");
+        string previousPerSeq = Environment.GetEnvironmentVariable("TS_PER_SEQ_FUSED");
+        string previousTokenBatch = Environment.GetEnvironmentVariable("TS_BATCHED_FUSED_DECODE");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "1");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", "4");
+        Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", "0");
+        Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
+        Environment.SetEnvironmentVariable("TS_BATCHED_FUSED_DECODE", "1");
+        try
+        {
+            var model = new FusedStubModel(
+                supportsKvCacheTruncation: false,
+                supportsCrossSequenceKvReuse: false,
+                maxReusablePrefixTokens: int.MaxValue,
+                supportsRetainedFusedCache: true,
+                batchedFusedDecodeSucceeds: true);
+            var cfg = Config();
+            var pool = new BlockPool(
+                cfg.NumBlocks, cfg.BlockSize, model.ComputeKVBlockByteSize(cfg.BlockSize));
+            var scheduler = new ContinuousBatchScheduler(
+                cfg,
+                pool,
+                model.KVStateFingerprint,
+                NullLogger.Instance,
+                supportsCrossSequenceKvReuse: model.SupportsCrossSequenceKvReuse,
+                maxReusablePrefixTokens: model.MaxReusablePrefixTokens);
+            var executor = new BatchExecutor(model, pool, scheduler, NullLogger.Instance);
+
+            SequenceState PrimeDecodeSequence(string requestId, int promptToken)
+            {
+                var prompt = Enumerable.Repeat(promptToken, PromptLen).ToList();
+                var seq = new SequenceState(
+                    requestId, prompt, maxNewTokens: 1, BlockSize, SamplingConfig.Greedy);
+                // Include the one-token decode scheduled below; unlike the real
+                // scheduler, this direct executor test must reserve that capacity.
+                var blocks = pool.AllocateNew((PromptLen + 1 + BlockSize - 1) / BlockSize)
+                    ?? throw new InvalidOperationException("test block pool exhausted");
+                foreach (var block in blocks)
+                    seq.BlockTable.AppendBlock(block);
+
+                Assert.True(model.BindSequenceCache(requestId));
+                seq.LastLogits = model.Forward(prompt.ToArray());
+                seq.AdvanceComputedTokens(PromptLen);
+                seq.Status = SequenceStatus.Running;
+                return seq;
+            }
+
+            var a = PrimeDecodeSequence("batched-retain-a", 1);
+            var b = PrimeDecodeSequence("batched-retain-b", 2);
+            model.RestorePrimaryCache();
+
+            var step = new SchedulerOutput();
+            step.ScheduledWork.Add(new ScheduledSequenceWork(a, 1, isNewAdmission: false, isPrefill: false));
+            step.ScheduledWork.Add(new ScheduledSequenceWork(b, 1, isNewAdmission: false, isPrefill: false));
+
+            var results = executor.ExecuteStep(step);
+
+            Assert.Equal(2, results.Count);
+            Assert.All(results, result => Assert.Null(result.Error));
+            Assert.Equal(1, model.SuccessfulBatchedFusedDecodeCalls);
+
+            // ExecuteStepPerSequenceFused returns immediately when the whole
+            // decode set succeeds in one batched call. Tracking must happen
+            // before that return or clean release cannot retain either holder.
+            a.Status = SequenceStatus.FinishedLengthCapped;
+            b.Status = SequenceStatus.FinishedLengthCapped;
+            Assert.True(executor.TryRetainReleasedFusedCache(a.RequestId));
+            Assert.True(executor.TryRetainReleasedFusedCache(b.RequestId));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", previousRetention);
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", previousBudget);
+            Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", previousBatched);
+            Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", previousPerSeq);
+            Environment.SetEnvironmentVariable("TS_BATCHED_FUSED_DECODE", previousTokenBatch);
+        }
     }
 
     [Fact]
@@ -369,13 +513,21 @@ public class RetainedFusedCacheTests
         int? followUpCacheBoundary = null,
         int? firstRoundCacheBoundary = null,
         string firstRoundMediaFingerprint = null,
-        string followUpMediaFingerprint = null)
+        string followUpMediaFingerprint = null,
+        int followUpSuffixToken = PeakToken,
+        Func<FusedStubModel> createModel = null)
     {
-        string prev = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
+        string previousRetention = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
+        string previousBudget = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX");
+        string previousBatched = Environment.GetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED");
+        string previousPerSeq = Environment.GetEnvironmentVariable("TS_PER_SEQ_FUSED");
         Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", retentionEnabled ? "1" : "0");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", "4");
+        Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", "0");
+        Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
         try
         {
-            var model = new FusedStubModel();
+            var model = createModel?.Invoke() ?? new FusedStubModel();
             using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
 
             // ---- Round 1: two distinct conversations, submitted in parallel. ----
@@ -404,10 +556,10 @@ public class RetainedFusedCacheTests
             // ---- Round 2: "请继续" — each follow-up extends its own conversation. ----
             var followA = new List<int>(promptA);
             followA.AddRange(outA1);
-            followA.AddRange(Enumerable.Repeat(PeakToken, SuffixLen));
+            followA.AddRange(Enumerable.Repeat(followUpSuffixToken, SuffixLen));
             var followB = new List<int>(promptB);
             followB.AddRange(outB1);
-            followB.AddRange(Enumerable.Repeat(PeakToken, SuffixLen));
+            followB.AddRange(Enumerable.Repeat(followUpSuffixToken, SuffixLen));
 
             var followUpBoundaries = followUpCacheBoundary.HasValue
                 ? new List<int> { followUpCacheBoundary.Value }
@@ -427,7 +579,10 @@ public class RetainedFusedCacheTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", prev);
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", previousRetention);
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", previousBudget);
+            Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", previousBatched);
+            Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", previousPerSeq);
         }
     }
 
@@ -485,15 +640,32 @@ public class RetainedFusedCacheTests
         private readonly List<string> _discardedRetainedRequestIds = new();
         private readonly object _lifecycleLock = new();
         private readonly int _forwardDelayMs;
+        private readonly bool _supportsKvCacheTruncation;
+        private readonly bool _supportsCrossSequenceKvReuse;
+        private readonly int _maxReusablePrefixTokens;
+        private readonly bool _supportsRetainedFusedCache;
+        private readonly bool _batchedFusedDecodeSucceeds;
         private string _activeKey;            // null => primary active
         private Holder _primary = new();
 
         private Holder Active => _activeKey == null ? _primary : _holders[_activeKey];
 
-        public FusedStubModel(bool peakIsEos = false, int forwardDelayMs = 0)
+        public FusedStubModel(
+            bool peakIsEos = false,
+            int forwardDelayMs = 0,
+            bool supportsKvCacheTruncation = true,
+            bool supportsCrossSequenceKvReuse = true,
+            int maxReusablePrefixTokens = Cap,
+            bool supportsRetainedFusedCache = true,
+            bool batchedFusedDecodeSucceeds = false)
         {
             Tokenizer = new StubTokenizer(peakIsEos);
             _forwardDelayMs = forwardDelayMs;
+            _supportsKvCacheTruncation = supportsKvCacheTruncation;
+            _supportsCrossSequenceKvReuse = supportsCrossSequenceKvReuse;
+            _maxReusablePrefixTokens = maxReusablePrefixTokens;
+            _supportsRetainedFusedCache = supportsRetainedFusedCache;
+            _batchedFusedDecodeSucceeds = batchedFusedDecodeSucceeds;
         }
 
         public IReadOnlyList<string> DiscardedRetainedRequestIds
@@ -515,8 +687,9 @@ public class RetainedFusedCacheTests
         public ITokenizer Tokenizer { get; }
         public IMultimodalInjector MultimodalInjector => null;
         public IBackendExecutionPlan ExecutionPlan => null;
-        public bool SupportsKVCacheTruncation => true;
+        public bool SupportsKVCacheTruncation => _supportsKvCacheTruncation;
         public List<int> TruncationTargets { get; } = new();
+        public int SuccessfulBatchedFusedDecodeCalls { get; private set; }
 
         // The fused path never reads paged storage, but the engine still sizes the
         // block pool from this, so it must be > 0.
@@ -535,15 +708,18 @@ public class RetainedFusedCacheTests
         public void ResetKVCache() => Active.SeqLen = 0;
         public void TruncateKVCache(int tokenCount)
         {
+            if (!_supportsKvCacheTruncation)
+                throw new InvalidOperationException("non-truncatable fused holder was truncated");
             TruncationTargets.Add(tokenCount);
             Active.SeqLen = Math.Min(Active.SeqLen, tokenCount);
         }
         public void Dispose() { }
 
-        // Sliding-window model: snapshot fine for own decode, capped cross-seq reuse.
+        // Snapshot/cross-request block reuse and retained-holder reuse are
+        // deliberately configurable independently.
         public bool SupportsKVStateSnapshot => true;
-        public bool SupportsCrossSequenceKvReuse => true;
-        public int MaxReusablePrefixTokens => Cap;
+        public bool SupportsCrossSequenceKvReuse => _supportsCrossSequenceKvReuse;
+        public int MaxReusablePrefixTokens => _maxReusablePrefixTokens;
         public string KVStateFingerprint => "fused-stub";
         public bool TryExtractKVBlock(int startToken, int tokenCount, Span<byte> destination)
         {
@@ -554,6 +730,7 @@ public class RetainedFusedCacheTests
 
         // ---- IBatchedPagedModel: per-sequence fused forward + retention ----
         public bool SupportsPerSequenceFusedForward => true;
+        public bool SupportsRetainedFusedCache => _supportsRetainedFusedCache;
 
         public IReadOnlyList<float[]> ForwardBatch(BatchedForwardContext ctx)
             => throw new NotSupportedException("fused stub only serves the per-sequence fused path");
@@ -583,6 +760,31 @@ public class RetainedFusedCacheTests
         }
 
         public bool HasFusedSequenceCache(string requestId) => _holders.ContainsKey(requestId);
+
+        public bool CanBatchDecode(string requestId, int position)
+            => _batchedFusedDecodeSucceeds && _holders.ContainsKey(requestId);
+
+        public bool TryForwardBatchedFusedDecode(
+            IReadOnlyList<string> requestIds, int[] tokens, int[] positions, float[][] outLogits)
+        {
+            if (!_batchedFusedDecodeSucceeds || requestIds.Count != tokens.Length
+                || requestIds.Count != positions.Length || requestIds.Count != outLogits.Length)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < requestIds.Count; i++)
+            {
+                if (!_holders.TryGetValue(requestIds[i], out var holder))
+                    return false;
+                holder.SeqLen = positions[i] + 1;
+                var logits = new float[VocabSize];
+                logits[PeakToken] = 10.0f;
+                outLogits[i] = logits;
+            }
+            SuccessfulBatchedFusedDecodeCalls++;
+            return true;
+        }
 
         public void OnSequenceReleased(string requestId)
         {

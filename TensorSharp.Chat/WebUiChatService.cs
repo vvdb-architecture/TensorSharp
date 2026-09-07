@@ -95,7 +95,13 @@ namespace TensorSharp.Chat
         private readonly CodeArtifactStore _codeArtifacts;
         private readonly ILoggerFactory _loggerFactory;
         private readonly string _artifactUriPrefix;
+        private readonly Func<IReadOnlyList<ChatMessage>, IReadOnlyList<string>, SkillRegistry, WebUiSkillRoute> _skillRouter;
 
+        /// <summary>
+        /// Construct the generic Web UI service without host-specific intent routing.
+        /// Keep this exact signature for already-compiled TensorSharp.Chat consumers;
+        /// optional parameters provide source compatibility, not binary compatibility.
+        /// </summary>
         public WebUiChatService(
             ModelService svc,
             SessionManager sessions,
@@ -107,6 +113,25 @@ namespace TensorSharp.Chat
             CodeArtifactStore codeArtifacts,
             ILoggerFactory loggerFactory,
             string artifactUriPrefix = DefaultArtifactUriPrefix)
+            : this(
+                svc, sessions, options, uploads, skills, codeRunner, workspaces,
+                codeArtifacts, loggerFactory, artifactUriPrefix, skillRouter: null)
+        {
+        }
+
+        /// <summary>Construct a host service with an explicit narrow intent router.</summary>
+        public WebUiChatService(
+            ModelService svc,
+            SessionManager sessions,
+            ServerHostingOptions options,
+            UploadStoragePolicy uploads,
+            SkillRegistry skills,
+            ICodeRunner codeRunner,
+            SessionWorkspaceManager workspaces,
+            CodeArtifactStore codeArtifacts,
+            ILoggerFactory loggerFactory,
+            string artifactUriPrefix,
+            Func<IReadOnlyList<ChatMessage>, IReadOnlyList<string>, SkillRegistry, WebUiSkillRoute> skillRouter)
         {
             _svc = svc ?? throw new ArgumentNullException(nameof(svc));
             _sessions = sessions ?? throw new ArgumentNullException(nameof(sessions));
@@ -118,6 +143,7 @@ namespace TensorSharp.Chat
             _codeArtifacts = codeArtifacts;
             _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             _artifactUriPrefix = string.IsNullOrWhiteSpace(artifactUriPrefix) ? DefaultArtifactUriPrefix : artifactUriPrefix;
+            _skillRouter = skillRouter;
         }
 
         /// <summary>
@@ -1480,9 +1506,22 @@ namespace TensorSharp.Chat
             if (body.TryGetProperty("tools", out var uiToolsEl) && uiToolsEl.ValueKind == JsonValueKind.Array)
                 uiTools = ToolFunctionParser.ParseOllama(body);
 
-            var requestedSkills = SkillSelectionParser.Parse(body);
-
             var messages = ChatMessageParser.ParseWebUi(messagesEl);
+            var requestedSkills = SkillSelectionParser.Parse(body);
+            bool? requestedDiscovery = SkillSelectionParser.ParseDiscovery(body);
+            WebUiSkillRoute inferredSkillRoute = null;
+
+            // TensorSharp's generic Web UI has no opinion about prompt intent. A host
+            // may opt into one narrow deterministic route for a workflow it owns. An
+            // explicit discovery=false remains an opt-out, just like an explicit skill
+            // selection remains scoped by the router itself.
+            if (_skillRouter != null
+                && MayInferSkillRoute(_options.SkillsEnabled, requestedDiscovery, uiTools))
+            {
+                inferredSkillRoute = _skillRouter(messages, requestedSkills, _skills);
+                if (inferredSkillRoute?.Skills is { Count: > 0 })
+                    requestedSkills = inferredSkillRoute.Skills.ToList();
+            }
 
             string attachmentError = ChatMessageParser.ResolveAttachmentPaths(messages, _options.UploadDirectory);
             if (attachmentError != null)
@@ -1551,7 +1590,7 @@ namespace TensorSharp.Chat
             IReadOnlyList<CodeInputFile> codeInputFiles = ReadableCodeInputFiles(sourceCodeInputFiles);
             SessionWorkspace workspace = WorkspaceFor(chatSession);
             var skillPlan = SkillRequestPlan.Create(
-                _skills, requestedSkills, SkillSelectionParser.ParseDiscovery(body), uiTools,
+                _skills, requestedSkills, requestedDiscovery, uiTools,
                 _svc.Architecture, _svc.ContextTokens, _options, out var unknownSkills, codeRunner: _codeRunner,
                 codeInputFiles: codeInputFiles,
                 workspace: workspace,
@@ -1566,6 +1605,28 @@ namespace TensorSharp.Chat
                 {
                     error = $"No skill called '{unknownSkills[0]}' is installed.",
                 });
+            }
+
+            // This is the first point at which the loaded model's tool channel and the
+            // host's script runner are both known. Reject before staging attachments or
+            // starting generation so an impossible route is cheap and actionable.
+            if (inferredSkillRoute != null)
+            {
+                string routedCapabilityError = RoutedWorkflowPreflightError(
+                    inferredSkillRoute, skillPlan, _options);
+                if (routedCapabilityError != null)
+                {
+                    webUiLogger.LogWarning(LogEventIds.HttpRequestRejected,
+                        "/api/chat rejected: routed workflow capability unavailable: {Reason}",
+                        routedCapabilityError);
+                    throw new WebUiRequestRejectedException(503, new
+                    {
+                        code = inferredSkillRoute.RequiresNetwork && !_options.SkillsAllowNetwork
+                            ? "network_disabled"
+                            : "routed_workflow_unavailable",
+                        error = routedCapabilityError,
+                    });
+                }
             }
 
             // CSV is structured data, not prose. Replace the browser's huge inline copy
@@ -1653,9 +1714,44 @@ namespace TensorSharp.Chat
                 });
             }
 
+            // A host-routed deliverable is complete only when the loop can prove the
+            // file a tool reported is the same immutable artifact its URL downloads.
+            // Snapshot after attachments have been staged: an attached deck already
+            // exists at this point and must not masquerade as current-turn output after
+            // a model merely touches it. Ordinary and explicitly selected skill
+            // requests have no required artifact and retain their existing behavior.
+            if (inferredSkillRoute?.ArtifactRequirement != null)
+            {
+                if (skillPlan is not { ToolsOffered: true }
+                    || workspace == null
+                    || _codeArtifacts == null
+                    || uiTools is { Count: > 0 }
+                    || !WorkspaceArtifactCompletionRequirement.TryCreate(
+                        inferredSkillRoute.ArtifactRequirement,
+                        workspace,
+                        _codeArtifacts,
+                        _artifactUriPrefix,
+                        out WorkspaceArtifactCompletionRequirement completionRequirement))
+                {
+                    webUiLogger.LogWarning(LogEventIds.HttpRequestRejected,
+                        "/api/chat rejected: routed artifact workflow is unavailable");
+                    throw new WebUiRequestRejectedException(503, new
+                    {
+                        code = "routed_workflow_unavailable",
+                        error = "This routed PowerPoint workflow requires host tools, a private session workspace, "
+                            + "and durable artifact downloads. Start a named chat session on a host with code "
+                            + "execution enabled, without caller-owned tools, and retry.",
+                    });
+                }
+
+                skillPlan.CompletionRequirement = completionRequirement;
+            }
+
             if (skillPlan != null)
             {
                 messages = skillPlan.Apply(messages);
+                if (!string.IsNullOrWhiteSpace(inferredSkillRoute?.Instructions))
+                    messages = SkillPrompt.Apply(messages, inferredSkillRoute.Instructions);
                 uiTools = skillPlan.Tools;
                 webUiLogger.LogInformation(LogEventIds.SkillSelected,
                     "/api/chat skills: session={SessionId} selected={Selected} announced={Announced} inlined={Inlined} catalog={Catalog} tools={ToolsOffered}",
@@ -1674,6 +1770,7 @@ namespace TensorSharp.Chat
             // receive is a chance to flush whatever is new — which is what turns a
             // multi-second skill lookup into visible progress rather than a hang.
             int reportedInvocations = 0;
+            bool reportedVerifiedArtifact = false;
             bool alwaysNeedsParsing = OutputParserFactory.IsAlwaysRequired(_svc.Architecture);
             bool useUiParser = uiThink || (uiTools != null && uiTools.Count > 0) || alwaysNeedsParsing;
 
@@ -1741,10 +1838,20 @@ namespace TensorSharp.Chat
                         break;
                     }
 
+                    // Keep the established skill_step -> tool_progress:finished pairing:
+                    // the phone UI uses that adjacency to render one durable trace line.
+                    // Guarded steps are streamed too, but DrainSkillTrace removes their
+                    // provisional files. Once the loop proves one artifact, it travels in
+                    // a separate one-shot frame and can safely be rendered/persisted.
                     var trace = DrainSkillTrace(skillPlan, reportedInvocations);
                     reportedInvocations = trace.Reported;
                     foreach (SkillToolInvocation invocation in trace.Pending)
                         yield return WebUiSseEvents.SkillStep(invocation);
+                    if (TakeVerifiedArtifact(skillPlan, ref reportedVerifiedArtifact)
+                        is { } verifiedArtifact)
+                    {
+                        yield return WebUiSseEvents.VerifiedArtifact(verifiedArtifact);
+                    }
 
                     if (update.Done)
                     {
@@ -1995,6 +2102,77 @@ namespace TensorSharp.Chat
         }
 
         /// <summary>
+        /// Host inference must remain an optional convenience. An operator-level skills
+        /// opt-out, a request-level discovery opt-out, or caller-owned tools leaves the
+        /// request on its established path instead of turning a valid request into a
+        /// routed-workflow 503 later in preflight.
+        /// </summary>
+        internal static bool MayInferSkillRoute(
+            bool skillsEnabled,
+            bool? requestedDiscovery,
+            IReadOnlyCollection<ToolFunction> clientTools) =>
+            skillsEnabled
+            && requestedDiscovery != false
+            && clientTools is not { Count: > 0 };
+
+        /// <summary>
+        /// Refuse a deterministic routed workflow before generation when its required
+        /// execution channel is not usable. Network remains deny-by-default: a route
+        /// can require the permission, but this check never grants or mutates it.
+        /// </summary>
+        internal static string RoutedWorkflowPreflightError(
+            WebUiSkillRoute route,
+            SkillRequestPlan plan,
+            ServerHostingOptions options)
+        {
+            if (route == null || options == null)
+                return null;
+
+            var unavailable = new List<string>();
+            bool requiresSkillRuns = route.ArtifactRequirement?.RequiredRuns is { Count: > 0 };
+
+            if (requiresSkillRuns)
+            {
+                if (!options.SkillsAllowScripts)
+                {
+                    unavailable.Add(
+                        "the host-owned skills_run tool is disabled; enable skill-script/code execution in host settings");
+                }
+                else
+                {
+                    bool hostRunDeclared = plan is { ToolsOffered: true }
+                        && plan.ToolContext?.ScriptRunner != null
+                        && plan.Tools.Any(tool => string.Equals(
+                            tool?.Name, SkillTools.RunToolName, StringComparison.Ordinal))
+                        && !plan.ClientTools.Any(tool => string.Equals(
+                            tool?.Name, SkillTools.RunToolName, StringComparison.OrdinalIgnoreCase));
+                    if (!hostRunDeclared)
+                    {
+                        unavailable.Add(
+                            "the host-owned skills_run tool is unavailable; use a tool-capable chat model and a host that supports skill scripts");
+                    }
+                    else if (plan.ToolContext.ScriptRunner is SkillScriptRunner runner && !runner.CanRun)
+                    {
+                        unavailable.Add(
+                            "skills_run is configured but its required safety sandbox is unavailable; "
+                            + "configure a script backend that confines filesystem writes and network access");
+                    }
+                }
+            }
+
+            if (route.RequiresNetwork && !options.SkillsAllowNetwork)
+            {
+                unavailable.Add(
+                    "network access is disabled by the user (network access for skill scripts is disabled); "
+                    + "enable it in host settings for the web-research step");
+            }
+
+            return unavailable.Count == 0
+                ? null
+                : "This routed workflow cannot start: " + string.Join("; ", unavailable) + ". Then retry.";
+        }
+
+        /// <summary>
         /// Downgrade visual inputs to ordinary file attachments for a text-only model,
         /// but only after every referenced image is known to exist in the host tool's
         /// workspace. Validation is a separate pass so a failure never half-mutates
@@ -2189,7 +2367,9 @@ namespace TensorSharp.Chat
         /// </para>
         /// </summary>
         /// <returns>The pending invocations and the new watermark, to pass back on the next call.</returns>
-        private static (SkillToolInvocation[] Pending, int Reported) DrainSkillTrace(SkillRequestPlan plan, int reported)
+        internal static (SkillToolInvocation[] Pending, int Reported) DrainSkillTrace(
+            SkillRequestPlan plan,
+            int reported)
         {
             if (plan == null)
                 return (Array.Empty<SkillToolInvocation>(), reported);
@@ -2198,9 +2378,31 @@ namespace TensorSharp.Chat
             {
                 if (plan.Invocations.Count <= reported)
                     return (Array.Empty<SkillToolInvocation>(), reported);
-                SkillToolInvocation[] pending = plan.Invocations.GetRange(reported, plan.Invocations.Count - reported).ToArray();
+                SkillToolInvocation[] pending = plan.Invocations
+                    .GetRange(reported, plan.Invocations.Count - reported)
+                    .ToArray();
+
+                if (plan.CompletionRequirement != null)
+                {
+                    for (int index = 0; index < pending.Length; index++)
+                        pending[index] = pending[index] with
+                        {
+                            Files = Array.Empty<SkillProducedFile>(),
+                        };
+                }
+
                 return (pending, plan.Invocations.Count);
             }
+        }
+
+        internal static SkillProducedFile? TakeVerifiedArtifact(
+            SkillRequestPlan plan,
+            ref bool reported)
+        {
+            if (reported || plan?.VerifiedArtifact is not { } artifact)
+                return null;
+            reported = true;
+            return artifact;
         }
 
         private static IEnumerable<object> FinalFrames(

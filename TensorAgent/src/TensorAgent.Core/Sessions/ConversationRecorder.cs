@@ -211,6 +211,15 @@ public sealed class ConversationRecorder
                 foreach (JsonElement skill in skills.EnumerateArray())
                     if (skill.GetString() is { Length: > 0 } skillName)
                         conversation.Skills.Add(skillName);
+                conversation.SkillsExplicit = true;
+            }
+            else
+            {
+                // The page omits `skills` only for an untouched selection, where the
+                // host is free to infer a route. Do not turn an inferred skill into a
+                // sticky user choice when this conversation is reopened.
+                conversation.Skills.Clear();
+                conversation.SkillsExplicit = false;
             }
 
             _store.Save(conversation);

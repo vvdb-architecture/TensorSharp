@@ -36,6 +36,10 @@ namespace TensorSharp.Runtime.Scheduling
         private readonly BatchExecutor _executor;
 
         private readonly ConcurrentDictionary<string, InferenceRequestHandle> _handles = new();
+        // SubmitRequest is callable from multiple client threads. Serialize the
+        // short admission critical section so an in-flight RequestId is reserved
+        // before another submit can construct/queue a replacement handle.
+        private readonly object _submissionGate = new();
         private readonly Channel<EngineCommand> _commands = Channel.CreateUnbounded<EngineCommand>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         private readonly Thread _worker;
@@ -66,7 +70,8 @@ namespace TensorSharp.Runtime.Scheduling
                 _executor.ComputeLiveContinuationLcp,
                 _executor.TryAdoptLiveCache);
             // Cross-request prefix reuse for concurrent (per-seq fused) decode:
-            // re-adopt a finished request's retained KV holder for a follow-up turn.
+            // re-adopt a finished request's complete retained holder (K/V and,
+            // for hybrid models, recurrent state) for a follow-up turn.
             _scheduler.AttachFusedCacheContinuation(
                 _executor.ComputeFusedContinuationLcp,
                 _executor.TryAdoptFusedContinuation);
@@ -108,16 +113,41 @@ namespace TensorSharp.Runtime.Scheduling
         public InferenceRequestHandle SubmitRequest(SequenceState seq, CancellationToken ct = default)
         {
             if (seq == null) throw new ArgumentNullException(nameof(seq));
-            var handle = new InferenceRequestHandle(seq, this, ct);
-            _handles[seq.RequestId] = handle;
-            Interlocked.Increment(ref _totalSubmitted);
-
-            _commands.Writer.TryWrite(new EngineCommand
+            lock (_submissionGate)
             {
-                Kind = EngineCommandKind.Submit,
-                Sequence = seq,
-            });
-            return handle;
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_handles.ContainsKey(seq.RequestId))
+                {
+                    throw new InvalidOperationException(
+                        $"Sequence {seq.RequestId} is already submitted.");
+                }
+
+                var handle = new InferenceRequestHandle(seq, this, ct);
+                if (!_handles.TryAdd(seq.RequestId, handle))
+                {
+                    // All submitters take _submissionGate, so this is defensive
+                    // against a future registry writer outside this method.
+                    var ex = new InvalidOperationException(
+                        $"Sequence {seq.RequestId} is already submitted.");
+                    handle.CompleteWithError(ex);
+                    throw ex;
+                }
+
+                if (!_commands.Writer.TryWrite(new EngineCommand
+                    {
+                        Kind = EngineCommandKind.Submit,
+                        Sequence = seq,
+                    }))
+                {
+                    _handles.TryRemove(seq.RequestId, out _);
+                    var ex = new ObjectDisposedException(nameof(InferenceEngine));
+                    handle.CompleteWithError(ex);
+                    throw ex;
+                }
+
+                Interlocked.Increment(ref _totalSubmitted);
+                return handle;
+            }
         }
 
         /// <summary>Cancel a submitted request. Idempotent.</summary>
@@ -132,10 +162,13 @@ namespace TensorSharp.Runtime.Scheduling
 
         public void Dispose()
         {
-            if (_disposed) return;
-            _disposed = true;
-            _shutdownCts.Cancel();
-            _commands.Writer.TryComplete();
+            lock (_submissionGate)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                _shutdownCts.Cancel();
+                _commands.Writer.TryComplete();
+            }
             try { _worker.Join(2000); } catch { /* best effort */ }
         }
 
@@ -397,9 +430,9 @@ namespace TensorSharp.Runtime.Scheduling
                 if (retainFusedCache)
                 {
                     // Give the executor first refusal: a fused sequence that finished
-                    // cleanly has its per-request KV holder RETAINED (re-keyed out of the
-                    // active set) for cross-request prefix reuse, so the model release
-                    // below no-ops for it instead of disposing the still-useful K/V.
+                    // cleanly has its complete per-request state holder RETAINED
+                    // (re-keyed out of the active set) for cross-request prefix reuse,
+                    // so the model release below no-ops instead of disposing it.
                     _executor.TryRetainReleasedFusedCache(requestId);
                 }
                 else

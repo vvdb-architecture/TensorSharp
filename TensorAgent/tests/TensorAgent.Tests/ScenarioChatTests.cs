@@ -409,6 +409,126 @@ public sealed class ScenarioChatTests : LiveModelHarness
     }
 
     /// <summary>
+    /// The reported whole workflow, using the user's prompt verbatim: discover the
+    /// research and document skills, collect current information, compare the two
+    /// chips, and leave behind a real downloadable PowerPoint deck.  Assertions stay
+    /// on the observable work rather than the model's prose so a promise of a deck can
+    /// never pass for one.
+    /// </summary>
+    [LiveNetworkCodeFact]
+    public async Task AppleM6ResearchComparisonProducesARealPowerPointEndToEnd()
+    {
+        Assert.Null(Unavailable(out _, out _));
+        CatalogModel model = ModelCatalog.BuiltIn.Single(candidate =>
+            candidate.Family == CatalogFamily.Qwen35
+            && string.Equals(candidate.Parameters, "9B", StringComparison.Ordinal));
+        string modelDirectory = Environment.GetEnvironmentVariable(ModelDirVariable)!;
+        string modelFile = Environment.GetEnvironmentVariable(ModelFileVariable)
+            ?? model.Weights.FileName;
+        string weights = Path.Combine(modelDirectory, modelFile);
+        Assert.True(File.Exists(weights),
+            $"the Apple M6 scenario needs {weights}; set {ModelFileVariable} to the local Qwen3.5 9B GGUF name");
+
+        Start(model, weights, skills: true, interpreter: true, maxTokens: 2048);
+        AppSettings settings = Host.Settings.Load();
+        settings.AllowNetwork = true;
+        Host.Settings.Save(settings);
+        Host.ApplySettings(settings);
+        await LoadAsync(model);
+
+        JsonElement session = await OpenSessionAsync();
+        string sessionId = session.GetProperty("sessionId").GetString()!;
+        string workspace = WorkspaceOf(sessionId);
+
+        var clock = Stopwatch.StartNew();
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId,
+            messages = new[]
+            {
+                new { role = "user", content = "搜索apple M6的信息，并对比M5芯片，然后生成pptx报告" },
+            },
+            maxTokens = 2048,
+            think = false,
+            temperature = 0.0,
+        });
+        clock.Stop();
+
+        string answer = TextOf(frames);
+        List<SkillStep> steps = StepsOf(frames);
+        List<Progress> progress = ProgressOf(frames);
+        string toolDrafts = string.Concat(frames
+            .Where(frame => Text(frame, "tool_progress") == "writing")
+            .Select(frame => Text(frame, "text")));
+        string toolOutput = string.Concat(frames
+            .Where(frame => Text(frame, "tool_progress") == "running")
+            .Select(frame => Text(frame, "text")));
+        Console.WriteLine(
+            $"scenario Apple M6 deck ({clock.Elapsed.TotalSeconds:0.0}s, {steps.Count} tool calls): "
+            + $"{Describe(steps)} | {Describe(progress)}\n"
+            + $"Generated calls:\n{toolDrafts}\nTool output:\n{toolOutput}\n{answer}");
+
+        string diagnostic = $"Steps: {Describe(steps)}\nProgress: {Describe(progress)}\n"
+            + $"Generated calls:\n{toolDrafts}\nTool output:\n{toolOutput}\n"
+            + $"Workspace:\n  {Listing(workspace)}\nAnswer:\n{answer}";
+        Assert.Contains(steps, step => step.Skill == "research" && step.Ok);
+        Assert.Contains(steps, step => step.Skill == DocumentsSkillId && step.Ok);
+        List<SkillStep> writerSteps = steps.Where(step =>
+            step.Skill == DocumentsSkillId
+            && string.Equals(step.Detail, "scripts/make_pptx.py", StringComparison.Ordinal)).ToList();
+        Assert.InRange(writerSteps.Count, 1, 3);
+        Assert.True(writerSteps[^1].Ok, "the final document-writer attempt must succeed");
+        Assert.Equal(writerSteps[^1], steps[^1]);
+        SkillStep specWrite = Assert.Single(steps, step => step.Tool == "write_file");
+        if (writerSteps.Any(step => !step.Ok && step.Round > specWrite.Round))
+        {
+            Assert.Contains("<function=edit_file>", toolDrafts, StringComparison.Ordinal);
+        }
+        Assert.Single(Regex.Matches(
+            toolDrafts,
+            "<function=write_file>",
+            RegexOptions.CultureInvariant));
+        Assert.DoesNotContain("<parameter=overwrite>", toolDrafts, StringComparison.Ordinal);
+
+        string notes = Assert.Single(
+            Directory.GetFiles(workspace, "notes.md", SearchOption.AllDirectories));
+        string evidence = File.ReadAllText(notes);
+        Assert.Contains("M5", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("M6", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("http", evidence, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.GetFiles(workspace, "skill_*", SearchOption.AllDirectories));
+
+        string deck = Assert.Single(
+            Directory.GetFiles(workspace, "*.pptx", SearchOption.AllDirectories));
+        Assert.True(StartsWith(deck, ZipMagic),
+            $"the generated report is not a PowerPoint ZIP package. {diagnostic}");
+
+        using (var archive = System.IO.Compression.ZipFile.OpenRead(deck))
+        {
+            List<System.IO.Compression.ZipArchiveEntry> slides = archive.Entries
+                .Where(entry => entry.FullName.StartsWith("ppt/slides/slide", StringComparison.Ordinal)
+                    && entry.FullName.EndsWith(".xml", StringComparison.Ordinal))
+                .ToList();
+            Assert.True(slides.Count >= 4,
+                $"the report has only {slides.Count} slides; the routed workflow requires a concise four-slide deck");
+            string slideText = string.Join("\n", slides.Select(entry =>
+                {
+                    using var reader = new StreamReader(entry.Open());
+                    return reader.ReadToEnd();
+                }));
+            Assert.Contains("M5", slideText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("M6", slideText, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("http", slideText, StringComparison.OrdinalIgnoreCase);
+        }
+
+        string artifactUrl = Assert.Single(
+            ArtifactUrlsOf(frames), url => url.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase));
+        using HttpResponseMessage download = await Client.GetAsync(artifactUrl);
+        Assert.True(download.IsSuccessStatusCode,
+            $"the generated deck exists but its download link returned {(int)download.StatusCode}. {diagnostic}");
+    }
+
+    /// <summary>
     /// Catches the whole code path being broken in any of the places it can break,
     /// and does it in one conversation rather than five.
     ///

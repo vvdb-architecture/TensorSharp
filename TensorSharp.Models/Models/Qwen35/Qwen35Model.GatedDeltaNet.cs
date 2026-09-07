@@ -1090,7 +1090,8 @@ namespace TensorSharp.Models
         /// or it operates on pre-arena bytes.</summary>
         internal void FlushArenaSlotForActiveHolder()
         {
-            if (_backend != BackendType.GgmlCuda || _kvCacheK == null || _isRecurrent == null)
+            if ((_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal) ||
+                _kvCacheK == null || _isRecurrent == null)
                 return;
             for (int l = 0; l < Config.NumLayers && l < _kvCacheK.Length; l++)
             {
@@ -1099,6 +1100,22 @@ namespace TensorSharp.Models
                     TensorComputePrimitives.GetStoragePointer(_kvCacheK[l]));
                 break;   // one registered pointer retires the whole slot
             }
+
+            if (_arenaStateResident && _useMetalGdnInplaceState && _deltaStateTensor != null)
+            {
+                // The arena writes the current delta bytes through the state-slice
+                // (offset) host key. Metal's normal in-place decode graph caches the
+                // encompassing [attention output | state] allocation by its BASE
+                // pointer; that older mirror is a distinct key. Evict it only at
+                // this arena-to-managed boundary, after the authoritative bytes were
+                // flushed, or a later SyncHostBuffer(base) can overwrite the fresh
+                // state with the pre-arena version.
+                foreach (Tensor state in _deltaStateTensor)
+                    if (state != null && state.StorageOffset != 0)
+                        GgmlBasicOps.InvalidateHostBuffer(
+                            GdnDeltaStateBackingPointer(state));
+            }
+            _arenaStateResident = false;
         }
 
         private unsafe void EnsureFusedDecodeStateHostSynchronized()
@@ -1190,11 +1207,13 @@ namespace TensorSharp.Models
         internal void InvalidateVerifyCache()
         {
             // The device-resident verify state lives in the same buffers; a KV reset/grow
-            // invalidates it, so re-seed on the next verify.
+            // invalidates it, so preserve an in-flight prefill chain before dropping
+            // the native slice metadata, then re-seed on the next verify.
+            DrainDeviceRecurrentState();
             _fvStateResident = false;
             if (_backend == BackendType.GgmlCuda || _backend == BackendType.GgmlVulkan
                 || _backend == BackendType.GgmlMetal)
-                GgmlBasicOps.Qwen35ResetVerifyCache();
+                GgmlBasicOps.Qwen35ResetVerifyCache(_verifyOwnerId);
         }
 
         // MTP/spec interleaves the per-op verify/draft (which read/write the HOST
@@ -1348,6 +1367,11 @@ namespace TensorSharp.Models
             if (_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal
                 && _backend != BackendType.GgmlVulkan)
                 return FdBail($"backend {_backend} has no fused whole-model decode graph");
+            // Interior Metal prefill chunks can leave GDN state in the verify
+            // ping-pong buffer. The decode graph owns different resident-state
+            // bindings, so synchronize the authoritative verify state before its
+            // first reseed (normally avoided by keeping the final refill chunk >1).
+            DrainDeviceRecurrentState();
             if (_fdUnsupported)
                 return false;
             if (!tokenInput &&
@@ -1797,12 +1821,16 @@ namespace TensorSharp.Models
         {
             if (!_fvDeviceStateCurrent)
                 return;
-            _fvDeviceStateCurrent = false;
             if (!PrepareRecurrentStatePointers())
-                return;
-            if (!GgmlBasicOps.Qwen35DrainDeviceState(_fvSnapConvPtrs, _fvSnapDeltaPtrs, _fvRecurrentLayers.Length))
-                return;
+                throw new InvalidOperationException(
+                    "Qwen3.5 recurrent state is device-authoritative, but its host drain buffers are unavailable.");
+            if (!GgmlBasicOps.Qwen35DrainDeviceState(
+                    _fvSnapConvPtrs, _fvSnapDeltaPtrs, _fvRecurrentLayers.Length, _verifyOwnerId))
+                throw new InvalidOperationException(
+                    "Qwen3.5 recurrent state is device-authoritative, but the native drain failed: " +
+                    GgmlBasicOps.LastNativeError("no current verify state"));
             UnpackRecurrentStateFromNative();
+            _fvDeviceStateCurrent = false;
         }
 
         private static readonly bool _fvSnapshotsEnabled =
@@ -1816,7 +1844,7 @@ namespace TensorSharp.Models
             !string.Equals(Environment.GetEnvironmentVariable("TS_Q35_VERIFY_DEFER_STATE"), "0", StringComparison.Ordinal);
 
         internal unsafe bool TryFullModelVerify(Tensor hidden, int startPos, int seqLen, float[] normedOut, float[] logitsOut, int nLogitRows = -1, int rowOffset = 0,
-            float[] captureData = null, int[] captureLayers = null)
+            float[] captureData = null, int[] captureLayers = null, bool keepDeviceState = false)
         {
             // Run one whole-model prefill/verify graph on every GGML GPU backend.
             // CUDA and Vulkan use per-head set_rows KV writes. Metal uses contiguous
@@ -1848,6 +1876,13 @@ namespace TensorSharp.Models
             // switching graph families.
             if (_fdStateResident)
                 InvalidateFullDecodeState();
+            // A non-persist prefill may leave its current state in either half of
+            // the shared ping-pong buffer. Persistent verify graphs always bind
+            // their live input to half 0, so settle that state into the host mirror
+            // before crossing graph families; the ordinary final prefill chunk
+            // (last-row logits, seqLen > 1) remains zero-copy chained.
+            if (_fvDeviceStateCurrent && (seqLen == 1 || nLogitRows <= 0))
+                DrainDeviceRecurrentState();
 
             int n = Config.NumLayers;
             int headDim = Config.HeadDim;
@@ -2097,10 +2132,13 @@ namespace TensorSharp.Models
             // interleaves with it. Those plain steps used to break the device-state
             // chain: each one downloaded 151 MB and forced the NEXT verify to upload
             // it again, which on an MTP run (46 plain steps of 125) was most of the
-            // gap to the captured decode. A prefill chunk (0 < nLogitRows < seqLen)
-            // is not persisted and keeps the host path.
-            bool deferState = _fvSnapshotsEnabled && _fvDeferStateEnabled && !residentThisCall
-                && (nLogitRows <= 0 || seqLen == 1);
+            // gap to the captured decode. Interior Metal prefill chunks are also
+            // non-persisted, but keepDeviceState lets their two shared state halves
+            // ping-pong until the final chunk downloads the result.
+            bool deferState = (_fvSnapshotsEnabled && _fvDeferStateEnabled && !residentThisCall
+                    && (nLogitRows <= 0 || seqLen == 1))
+                || (keepDeviceState && _fvDeferStateEnabled && !residentThisCall
+                    && _backend == BackendType.GgmlMetal && nLogitRows > 0 && nLogitRows < seqLen);
             int snapshotsUsed = 1;
             // The live state is already correct on the device exactly when the last
             // step committed a snapshot into it and nothing has drained it since.
@@ -2112,28 +2150,32 @@ namespace TensorSharp.Models
             fixed (float* np = normedOut)
             fixed (float* cp = captureData)
             {
-                ok2 = GgmlBasicOps.Qwen35ModelVerify(
-                    _fvLayers, n,
-                    (IntPtr)(GetFloatPtr(hidden) + (long)rowOffset * Config.HiddenSize), Config.HiddenSize, startPos, seqLen,
-                    Config.NumHeads, Config.NumKVHeads, headDim, cacheSize,
-                    // rope_n_dims: partial rotary (rope.dimension_count, e.g. 64 of 256).
-                    // Must match the decode path and the KV cache; see TryFullModelDecode.
-                    _ropeDimCount > 0 ? _ropeDimCount : headDim, 2, kvCacheType,
-                    _convKernel, _headKDim, _headVDim, _numKHeads, _numVHeads,
-                    Config.Eps, Config.RopeBase, 1.0f / Config.RopeScale,
-                    _numExperts, _numExpertsUsed, _expertFfnLength, _sharedExpertFfnLength,
-                    _normTopKProb ? 1 : 0, 1.0f,
-                    (IntPtr)lp, Config.VocabSize,
-                    lmh.ptr, lmh.type, lmh.ne0, lmh.ne1, lmh.bytes,
-                    finalNormPtr, normedOut != null ? (IntPtr)np : IntPtr.Zero, nLogitRows,
-                    mropePos, mropeSecs, tpDegree: 1, tpPlanOut: null,
-                    captureData: capCount > 0 ? (IntPtr)cp : IntPtr.Zero,
-                    captureLayers: capCount > 0 ? captureLayers : null,
-                    captureCount: capCount,
-                    stateSnapshots: requestedSnapshots,
-                    stateSnapshotsUsed: (IntPtr)(&snapshotsUsed),
-                    deviceStateCurrent: deviceStateCurrent,
-                    deferStateDownload: deferState);
+                lock (_verifyTpPlanLock)
+                {
+                    ok2 = GgmlBasicOps.Qwen35ModelVerify(
+                        _fvLayers, n,
+                        (IntPtr)(GetFloatPtr(hidden) + (long)rowOffset * Config.HiddenSize), Config.HiddenSize, startPos, seqLen,
+                        Config.NumHeads, Config.NumKVHeads, headDim, cacheSize,
+                        // rope_n_dims: partial rotary (rope.dimension_count, e.g. 64 of 256).
+                        // Must match the decode path and the KV cache; see TryFullModelDecode.
+                        _ropeDimCount > 0 ? _ropeDimCount : headDim, 2, kvCacheType,
+                        _convKernel, _headKDim, _headVDim, _numKHeads, _numVHeads,
+                        Config.Eps, Config.RopeBase, 1.0f / Config.RopeScale,
+                        _numExperts, _numExpertsUsed, _expertFfnLength, _sharedExpertFfnLength,
+                        _normTopKProb ? 1 : 0, 1.0f,
+                        (IntPtr)lp, Config.VocabSize,
+                        lmh.ptr, lmh.type, lmh.ne0, lmh.ne1, lmh.bytes,
+                        finalNormPtr, normedOut != null ? (IntPtr)np : IntPtr.Zero, nLogitRows,
+                        mropePos, mropeSecs, tpDegree: 1, tpPlanOut: null,
+                        captureData: capCount > 0 ? (IntPtr)cp : IntPtr.Zero,
+                        captureLayers: capCount > 0 ? captureLayers : null,
+                        captureCount: capCount,
+                        stateSnapshots: requestedSnapshots,
+                        stateSnapshotsUsed: (IntPtr)(&snapshotsUsed),
+                        deviceStateCurrent: deviceStateCurrent,
+                        deferStateDownload: deferState,
+                        ownerId: _verifyOwnerId);
+                }
             }
             if (!ok2)
             {
@@ -2144,6 +2186,19 @@ namespace TensorSharp.Models
                 // ~50x slower on a 2K chunk).
                 _fvUnsupported = true;
                 return FvBail(GgmlBasicOps.LastNativeError("the native kernel declined"));
+            }
+
+            if (snapshotsUsed == -1)
+            {
+                // An interior Metal prefill chunk left its post-window state in one
+                // half of the shared device slices. The next chunk binds that half
+                // as input directly; the final chunk downloads its result normally.
+                _fvDeviceStateCurrent = true;
+                _fvSnapshotRows = 0;
+                _fvStateResident = false;
+                _kvCacheHostDirty = true;
+                _gdnStateHostDirty = true;
+                return true;
             }
 
             if (snapshotsUsed > 1)
@@ -2313,7 +2368,8 @@ namespace TensorSharp.Models
             if (!PrepareRecurrentStatePointers())
                 return false;
 
-            if (GgmlBasicOps.Qwen35CommitStateSnapshot(slot, _fvRecurrentLayers.Length))
+            if (GgmlBasicOps.Qwen35CommitStateSnapshot(
+                    slot, _fvRecurrentLayers.Length, _verifyOwnerId))
             {
                 _fvDeviceStateCurrent = true;
                 _gdnStateHostDirty = true;   // the host mirror is now behind
@@ -2326,7 +2382,7 @@ namespace TensorSharp.Models
             // entry), so report failure rather than read a slot that is not there.
             if (slot < 0
                 || !GgmlBasicOps.Qwen35FetchStateSnapshot(slot, _fvSnapConvPtrs, _fvSnapDeltaPtrs,
-                        _fvRecurrentLayers.Length))
+                        _fvRecurrentLayers.Length, _verifyOwnerId))
             {
                 return false;
             }
@@ -2407,19 +2463,23 @@ namespace TensorSharp.Models
             fixed (float* lp = logitsOut)
             fixed (float* np = normedOut)
             {
-                ok = GgmlBasicOps.Qwen35ModelVerify(
-                    _mtpDraftLayer, 1,
-                    (IntPtr)GetFloatPtr(x), Config.HiddenSize, startPos, seqLen,
-                    Config.NumHeads, Config.NumKVHeads, headDim, cacheSize,
-                    _ropeDimCount > 0 ? _ropeDimCount : headDim, 2, kvCacheType,
-                    _convKernel, _headKDim, _headVDim, _numKHeads, _numVHeads,
-                    Config.Eps, Config.RopeBase, 1.0f / Config.RopeScale,
-                    _numExperts, _numExpertsUsed, _expertFfnLength, _sharedExpertFfnLength,
-                    _normTopKProb ? 1 : 0, 1.0f,
-                    (IntPtr)lp, Config.VocabSize,
-                    lmh.ptr, lmh.type, lmh.ne0, lmh.ne1, lmh.bytes,
-                    finalNormPtr, normedOut != null ? (IntPtr)np : IntPtr.Zero, nLogitRows,
-                    null, null);
+                lock (_verifyTpPlanLock)
+                {
+                    ok = GgmlBasicOps.Qwen35ModelVerify(
+                        _mtpDraftLayer, 1,
+                        (IntPtr)GetFloatPtr(x), Config.HiddenSize, startPos, seqLen,
+                        Config.NumHeads, Config.NumKVHeads, headDim, cacheSize,
+                        _ropeDimCount > 0 ? _ropeDimCount : headDim, 2, kvCacheType,
+                        _convKernel, _headKDim, _headVDim, _numKHeads, _numVHeads,
+                        Config.Eps, Config.RopeBase, 1.0f / Config.RopeScale,
+                        _numExperts, _numExpertsUsed, _expertFfnLength, _sharedExpertFfnLength,
+                        _normTopKProb ? 1 : 0, 1.0f,
+                        (IntPtr)lp, Config.VocabSize,
+                        lmh.ptr, lmh.type, lmh.ne0, lmh.ne1, lmh.bytes,
+                        finalNormPtr, normedOut != null ? (IntPtr)np : IntPtr.Zero, nLogitRows,
+                        null, null,
+                        ownerId: _verifyOwnerId);
+                }
             }
             if (ok)
                 _kvCacheHostDirty = true;

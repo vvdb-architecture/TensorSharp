@@ -6,8 +6,9 @@
 以及迭代级连续批处理的实现参考。服务端默认通过这套引擎执行推理；旧的
 单请求 FIFO 队列对象只作为队列状态 / 事件形状的 no-op 兼容 shim 保留。
 
-请把本文当作实现参考，而不是性能承诺：分页 K/V 池目前驻留在主机内存，实测表明
-当前没有任何一条路径能把并发转化为总吞吐；真正可用的是正确、公平的并发服务。
+请把本文当作实现参考，而不是对所有路径的性能承诺。通用分页 K/V 池目前驻留在
+主机内存中，仍是瓶颈；受支持的模型 / 后端组合则可以改走设备驻留的 token 批量
+融合 decode。因此吞吐取决于实际选中且被模型接受的执行路径。
 参见[并发实测表现](#并发实测表现)。
 
 ## 当前状态
@@ -21,31 +22,32 @@
 | 回退执行 | 路径选择集中在 `ExecutionPlanner`：模型+后端能力（`ExecutionCapabilities`）、运维覆盖（`ExecutionOptions`）与每步请求特征共同产出 `ExecutionPlan`（选中路径、回退链、被拒原因）。模型仍可对某个具体 batch 抛出 `NotSupportedException`，该步会落入计划中的下一个候选，最终止于按序列 KV-swap 路径。 |
 | 原生注意力 | `TSGgml_PagedAttentionForward` 在 C++ 中聚合分页 K/V 并派发 `ggml_flash_attn_ext`；GPT OSS 使用 `TSGgml_PagedAttentionForwardWithSinks`。 |
 | 投机解码 | 可选的 MTP / NextN 草稿头加速单序列（无并发）请求。`BatchExecutor` 为实现了 `IBatchedSpeculativeTarget` 的模型（Qwen 3.6 内嵌 NextN；Gemma 4 独立 `gemma4-assistant` 草稿 GGUF）驱动共享的 `SpeculativeExecution` 起草 / 验证 / 回滚核心。默认关闭；服务端 `--spec`。详见 [投机解码（MTP / NextN）](#投机解码mtp--nextn)。 |
-| 并发吞吐 | **当前没有任何路径能随并发扩展。** 无论同时有多少序列在跑，`BatchedPaged` 路径都会在约 **69 tok/s** 处饱和，因为分页 KV cache 驻留在主机内存。按序列 slot 与迭代级调度本身确实有效。参见[并发实测表现](#并发实测表现)。 |
+| 并发吞吐 | 通用的主机驻留 `BatchedPaged` 路径本身不能扩展合计 decode 吞吐；Gemma 4 的一次测量在约 **69 tok/s** 处饱和。模型实现 `TryForwardBatchedFusedDecode` 时，per-sequence-fused 路径会先尝试用一张设备图处理活跃 decode 子集，仅在该批次不满足条件或被拒绝时才按请求回退。参见[并发实测表现](#并发实测表现)。 |
 | 设备驻留分页池 | **已实现，但未接入。** `TSGgml_PagedKvPool*`（`TensorSharp.GGML.Native/ggml_ops_paged_kv_pool.cpp`）与其托管封装 `DevicePagedKvCache`（`TensorSharp.Models/Paged/DevicePagedKvCache.cs`）都已存在，但没有任何模型或 executor 调用它们，因此它还不是已交付的功能。 |
 | 队列 API | `InferenceQueue` 是 no-op 兼容层。`/api/queue/status` 与队列位置事件形状保留给依赖这些字段的客户端，不再承担请求串行化。 |
 | 扩散模型 | DiffusionGemma 不进入这套自回归 `ForwardBatch` 契约。CLI 生成使用 `DiffusionGemmaSampler`；Web UI 使用 `DiffusionBatchScheduler` 在 block 边界批处理去噪工作。 |
 
 ## 并发实测表现
 
-本文描述的机制都存在且正确，但它们原本要换取的吞吐还没有兑现；下文任何内容都
-不应被读成对吞吐的承诺。
+下列结果与具体路径、模型相关：它们解释了通用的主机驻留分页路径为何仍然较慢，
+并不代表成功进入 token 批量融合 decode 的模型 / 后端组合。
 
-- **当前没有任何路径能把并发转化为总吞吐。** 在 gemma-4-E4B / 1x Blackwell 上
-  通过服务端 chat 接口实测，无论同时有多少序列在跑，`BatchedPaged` 路径都会在
-  约 **69 tok/s** 处饱和。
+- **实测的主机分页路径没有把并发转化为总吞吐。** 在 gemma-4-E4B / 1x Blackwell
+  上通过服务端 chat 接口实测，无论同时有多少序列在跑，`BatchedPaged` 路径都会
+  在约 **69 tok/s** 处饱和。
 - **原因在于 K/V 放在哪里。** `PagedKvStorage` 是托管主机内存，因此批处理路径在
   每一步的每一层都要把序列历史从主机内存聚合出来并推过总线。即便是原生内核也
   只对 Q 与 OUT 做零拷贝——`ggml_ops_paged_attention.cpp` 里就写着 "K and V are
   still passed as host scratch arrays (the caller gathers …)"。相对按序列 fused
   decode，这大约是 **7.7 倍的每 token 开销**，而且随总历史长度增长。
-- **默认的并发路径并不是批处理路径。** 对声明了 `SupportsPerSequenceFusedForward`
-  的模型，`ExecutionPlanner` 在 N >= 2 时选择 `PerSequenceFused`，也就是跑 N 次
-  独立的 fused 前向：单请求既正确又快，但权重读取从未在整批上摊薄——而这正是
-  连续批处理存在的意义。
-- **确实有效的部分。** 迭代级调度、块哈希前缀共享、抢占、按序列原生 slot 与
-  per-request fused holder。并发请求能被正确且公平地服务；没有随 N 提升的是合计
-  tok/s。
+- **默认并发路径由能力决定。** 对声明了 `SupportsPerSequenceFusedForward` 的模型，
+  `ExecutionPlanner` 在 N >= 2 时选择 `PerSequenceFused`。executor 会先把满足条件的
+  decode 子集交给 `TryForwardBatchedFusedDecode`，让一张图摊薄权重读取（包括 Qwen
+  3.5/3.6 在 GGML CUDA/Metal 上的 slot-stable arena）；模型拒绝时，同一步再回退为
+  N 个相互隔离的 fused 前向。
+- **确实有效的部分。** 迭代级调度、块哈希前缀共享、抢占、按序列原生 slot、
+  per-request fused holder，以及按能力启用的 token 批量融合 decode。批次被拒绝时
+  仍保持正确性与公平性，但吞吐可能回到 round-robin 上限。
 - **已实现但未接入。** 设备驻留的分页 K/V 池已经存在
   （`TensorSharp.GGML.Native/ggml_ops_paged_kv_pool.cpp`，托管封装为
   `TensorSharp.Models/Paged/DevicePagedKvCache.cs`）：池本身是后端张量，一步的
@@ -247,19 +249,28 @@ GPT OSS 可用 `TS_GPTOSS_PAGED_ATTN_MANAGED=1` 强制走托管 sinks 路径。
 | 模型家族 | 批处理 / 分页状态 | 关闭 / 子开关 |
 |---|---|---|
 | Mistral 3 | 默认 `ForwardBatch` 路径。使用分页 K/V、YaRN 感知位置、原生分页注意力，并在 prompt 准备后注入视觉 embedding。已在 Ministral-3-14B 上验证；长上下文原生分页注意力比旧按序列 GGML 路径快约 21%。 | `TS_PAGED_ATTN_KERNEL` 选择 `native`、`tensor` 或 `managed`。 |
-| Gemma 4 | 密集文本负载默认走批处理路径，覆盖逐层 SWA / 全局注意力、可变 head dim、PLE、KV donor 层别名。当前回退场景包括待注入多模态 embedding、MoE 层与块量化 KV cache。可选地通过独立 `gemma4-assistant` 草稿 GGUF 做 MTP 投机解码。 | `TS_GEMMA4_BATCHED=0` 强制按序列回退。服务端只需 `--draft-model` 即可启用投机（显式 `--no-spec` 可否决）；`TS_GMTP_*` 为草稿路径 A/B 开关。 |
-| Qwen 3.5 / 3.6 family | 默认批处理路径。支持 FullAttention 层、通过每槽位状态池处理 GatedDeltaNet 递归层、MoE 变体、视觉注入与多模态 RoPE 表。Qwen 3.6 还通过其内嵌 NextN 块支持 MTP 投机解码（GDN 递归状态快照 / 回滚）。 | `TS_QWEN35_BATCHED=0`；`TS_QWEN35_BATCHED_GDN_NATIVE=1` 启用原生批处理 GDN 内核；服务端 `--spec` 在 Qwen 3.6 上启用投机。 |
+| Gemma 4 | 密集文本负载默认走批处理路径，覆盖逐层 SWA / 全局注意力、可变 head dim、PLE、KV donor 层别名。当前回退场景包括待注入多模态 embedding、MoE 层与块量化 KV cache。已完成请求的 request-owned fused K/V holder 可被保留，用于精确前缀续接。可选地通过独立 `gemma4-assistant` 草稿 GGUF 做 MTP 投机解码。 | `TS_GEMMA4_BATCHED=0` 强制按序列回退；`TS_RETAINED_FUSED_CACHE=0` 关闭 retained-holder 续接。服务端只需 `--draft-model` 即可启用投机（显式 `--no-spec` 可否决）；`TS_GMTP_*` 为草稿路径 A/B 开关。 |
+| Qwen 3.5 / 3.6 family | 默认批处理路径。支持 FullAttention 层、通过每槽位状态池处理 GatedDeltaNet 递归层、MoE 变体、视觉注入与多模态 RoPE 表。其 request-owned fused holder 会把 attention K/V 与匹配的 GDN 递归状态保存在一起；正常结束的 holder 可被保留并重新绑定，用于精确前缀续接。Qwen 3.6 还通过其内嵌 NextN 块支持 MTP 投机解码（GDN 递归状态快照 / 回滚）。 | `TS_QWEN35_BATCHED=0`；`TS_QWEN35_BATCHED_GDN_NATIVE=1` 启用原生批处理 GDN 内核；`TS_RETAINED_FUSED_CACHE=0` 关闭 retained-holder 续接；服务端 `--spec` 在 Qwen 3.6 上启用投机。 |
 | GPT OSS | 默认批处理路径。支持 Q/K/V/O bias、YaRN RoPE、滑窗层、attention sinks、MXFP4 MoE expert 与原生 sinks 注意力。已与旧路径做贪心正确性验证；性能仍主要受逐层图构建限制。 | `TS_GPTOSS_BATCHED=0`；`TS_GPTOSS_PAGED_ATTN_MANAGED=1`。 |
 | Nemotron-H | 默认批处理路径。Attention 层使用分页 K/V；Mamba2 层使用每槽位 conv/SSM 状态池；MoE 层使用批处理 expert 内核；准备好的图像 / 音频 embedding 可注入到批处理 hidden state。 | `TS_NEMOTRON_BATCHED=0`；`TS_NEMOTRON_MAMBA2_BATCHED_NATIVE=1` 启用原生批处理 Mamba2 step。 |
 | GLM 5.x | 没有 `ForwardBatch`：MLA 每个 token 只存一行压缩表示，DSA indexer 又要对同一段连续历史打分，没有分页 KV 布局可批。并发改由原生**序列 slot** 承担（`TSGgml_GlmSlotAlloc` / `SetActiveSlot` / `SlotFree`）——绑定请求只是切换活动 slot，不搬运 KV 字节，每个 slot 的计算图独立缓存与捕获。在此之上默认启用批量融合 decode（一张图、每序列一个 token，整批只读一遍权重）：4 个并发请求时合计 decode 提速 1.81×。批处理会改变 GEMM 形状，而 2 bit MoE 可能把这点差别放大成不同的专家选择。 | `TS_BATCHED_FUSED_DECODE=0` 关闭批量 decode；`TS_GLM_BATCHED_DECODE=0` 让原生侧拒绝它。 |
 | DiffusionGemma | 独立文本扩散路径。`Forward(int[] tokens)` 刻意不支持；生成会迭代去噪固定长度 canvas block。Web UI 请求共享 `DiffusionBatchScheduler`，在 block 之间接纳并发请求，并可选择批处理活跃 canvas。 | `DIFFUSION_STEPS`、`DIFFUSION_MAX_BATCH`、`DIFFUSION_BATCHED_FORWARD`；`DIFFUSION_NO_FUSED_DECODE=1` 关闭 GGML 融合整模型 diffusion decode。 |
+
+### 保留 fused holder 的续接
+
+这与共享的分页前缀缓存不同。模型可能无法从按字节保存的分页快照重建完整续接
+状态，但仍可拥有自包含的 per-request fused holder。模型声明
+`SupportsRetainedFusedCache` 后，executor 可以把正常结束的 holder 保存在一个小型
+LRU 中；后续请求精确扩展已记录的 token 前缀时，再把该 holder 重新绑定给新请求。
+Gemma 4 保留其环形 attention K/V；Qwen 3.5/3.6 则把 attention K/V 与匹配的
+GatedDeltaNet 递归状态作为一个混合 holder 一起保留。未声明该能力的模型会忽略这组设置。
 
 ## 测试覆盖
 
 | 范围 | 测试 |
 |---|---|
 | 调度器 / 块池 | `ContinuousBatchSchedulerTests`、`PagedKvCacheTests`、`PagedKvCacheCodecTests` |
-| 批处理执行原语 | `BatchedExecutorTests`，覆盖托管分页注意力正确性与多序列 logits 路由 |
+| 批处理执行原语 | `BatchedExecutorTests`，覆盖托管分页注意力正确性与多序列 logits 路由；`RetainedFusedCacheTests` 覆盖按能力启用的 holder 保留 / 重新绑定与 LRU 清理 |
 | 按模型正确性 | `Qwen35BatchedCorrectnessTests`、`Mistral3BatchedForwardTests`、`Gemma4BatchedForwardTests`、`GptOssBatchedCorrectnessTests`、`NemotronBatchedCorrectnessTests` |
 | MTP 投机解码 | `SpeculativeExecutionTests`（起草 / 验证 / 回滚核心）、可选端到端 `Qwen36SpeculativeTests`（`TS_MTP_E2E=1`）与 `Gemma4SpeculativeTests`（`TS_GMTP_E2E=1`），需真实 GGUF |
 | 按模型性能探针 | `Gemma4BatchedPerfBench`、`Qwen35BatchedPerfBench`、`GptOssBatchedPerfBench`、`NemotronBatchedPerfBench` |
@@ -274,7 +285,7 @@ GPT OSS 可用 `TS_GPTOSS_PAGED_ATTN_MANAGED=1` 强制走托管 sinks 路径。
 | `TS_SCHED_DISABLE_BATCHED` | `0` | 设为 `1` 后，即使模型实现了 `IBatchedPagedModel` 也强制按序列 KV-swap 回退。 |
 | `TS_SCHED_MAX_BATCHED_TOKENS` | `4096` | 每步 token 预算。 |
 | `TS_SCHED_MAX_RUNNING_SEQS` | `16` | 最大同时执行序列数。 |
-| `TS_SCHED_PREFILL_CHUNK` | `1024` | 多个请求争用时每步最多调度的 prefill token 数（公平性分块）。服务端参数：`--prefill-chunk-size N`。 |
+| `TS_SCHED_PREFILL_CHUNK` | `256` | 存在活跃 decode 时每请求的 prefill 上限；仅 prefill 的步骤会公平分配完整 token 预算。服务端参数：`--prefill-chunk-size N`。 |
 | `TS_SCHED_SOLO_PREFILL_CHUNK` | `8192` | solo（无争用）请求的每步 prefill 上限——以大分块把 prompt 送入融合整图 prefill 路径。受 `TS_SCHED_MAX_BATCHED_TOKENS` 约束。 |
 | `TS_SCHED_NUM_BLOCKS` | `256` | 引擎块池物理块数。 |
 | `TS_SCHED_BLOCK_SIZE` | `256` | 每块 token 数。 |
@@ -283,8 +294,8 @@ GPT OSS 可用 `TS_GPTOSS_PAGED_ATTN_MANAGED=1` 强制走托管 sinks 路径。
 | `TS_BATCHED_N1_FAST_PATH` | `1` | solo 单序列步骤走融合 N=1 快速路径 decode；设为 `0` 可强制这些步骤走完全批处理路径（A/B 测试）。 |
 | `TS_PER_SEQ_FUSED` | `1` | fused 能力模型上的并发（N≥2）序列走 per-request 融合 Forward；设为 `0` 强制走逐算子批处理分页路径（A/B 测试）。 |
 | `TS_BATCHED_FUSED_DECODE` | `1` | `0` 在 per-seq fused 路径内关闭真正的 token 批量融合 decode（一张图同时 decode 全部 N 个序列）。 |
-| `TS_RETAINED_FUSED_CACHE` | `1` | 保留已完成 fused 请求的 KV holder 用于跨请求前缀复用；`0` 关闭（限 VRAM / A/B）。 |
-| `TS_RETAINED_FUSED_CACHE_MAX` | `4` | 保留 fused holder 的 LRU 预算（每个各占一份 per-request KV cache）。 |
+| `TS_RETAINED_FUSED_CACHE` | `1` | 对声明支持的模型，保留已完成请求的 request-owned fused holder，用于精确前缀续接；`0` 关闭（限 VRAM / A/B）。支持的 holder 包括 Gemma 4 K/V，以及 Qwen 3.5/3.6 的 attention K/V 与 GDN 递归状态。 |
+| `TS_RETAINED_FUSED_CACHE_MAX` | `4` | 保留 fused holder 的 LRU 预算（每个 holder 都会占用模型完整的 per-request 续接状态）。 |
 | `TS_KV_PAGED_QUANT_BITS` | `0` | 可选 TurboQuant 分页 KV 块编码位数（`2`、`4` 或 `8`）；带递归状态的模型可能回退到 passthrough。 |
 | `TS_MTP_SPEC` | `0` | `1` 为单序列启用 MTP / NextN 投机解码（服务端 `--spec`）。 |
 | `TS_MTP_DRAFT` | `8` | 每个投机步最多起草的 token 数（服务端 `--spec-draft`）。 |

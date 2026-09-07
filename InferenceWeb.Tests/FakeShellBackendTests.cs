@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
 
@@ -616,6 +617,21 @@ public sealed class SkillScriptRunnerBackendTests : IDisposable
         return new SkillRegistry(new SkillRegistryOptions { Roots = new[] { root } }).Skills.Single();
     }
 
+    private Skill MakeSkill(string relativePath, string source)
+    {
+        string root = Path.Combine(_base, "skill-" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(root, "tester");
+        string full = Path.Combine(dir, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+        File.WriteAllText(Path.Combine(dir, "SKILL.md"),
+            "---\nname: tester\ndescription: a skill whose script runs through the seam\n---\nBody.");
+        File.WriteAllText(full, source);
+        return new SkillRegistry(new SkillRegistryOptions { Roots = new[] { root } }).Skills.Single();
+    }
+
+    private static string[] RepairCopies(SessionWorkspace workspace) =>
+        Directory.GetFiles(workspace.WorkDirectory, "*.py", SearchOption.AllDirectories);
+
     [Fact]
     public void AScriptIsAnArgvLaunch_WithTheInterpreterFirst_AndTheSessionEnvironmentImportable()
     {
@@ -770,7 +786,7 @@ public sealed class SkillScriptRunnerBackendTests : IDisposable
     }
 
     [Fact]
-    public void AFailingScript_IsNotOk_AndIsStagedForRepair_FromTheBackendsAnswer()
+    public void AMissingPackageFailure_IsNotMisrepresentedAsABrokenSkillScript()
     {
         var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
         SessionWorkspace workspace = Workspace("b");
@@ -779,14 +795,481 @@ public sealed class SkillScriptRunnerBackendTests : IDisposable
             Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
         });
         Skill skill = MakeSkill();
-        backend.Answer = _ => FakeShellBackend.Ok(string.Empty, "ModuleNotFoundError: No module named 'lxml'\n", exitCode: 1);
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{scriptPath}\", line 1, in <module>\n"
+            + "ModuleNotFoundError: No module named 'lxml'\n",
+            exitCode: 1);
 
         SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
 
         Assert.False(result.Ok);
         Assert.Contains("(exit code 1, sandbox: fake)", result.Content, StringComparison.Ordinal);
         Assert.Contains("pip install lxml", result.Content, StringComparison.Ordinal);
-        Assert.True(File.Exists(Path.Combine(workspace.WorkDirectory, "skill_tester_tool.py")));
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnInvalidWorkspaceJsonSpec_IsExcerptedAndAuthorized_InsteadOfStagingTheSkillScript(
+        bool joinedOption)
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace(joinedOption ? "bad-json-equals" : "bad-json-pair");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+
+        string directory = Path.Combine(workspace.WorkDirectory, "reports");
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "apple-chips.json");
+        const string spec = """
+            {
+              "title": "Apple M6 vs M5",
+              "slides": [
+                {"layout": "title", "title": "Apple M6 vs M5"},
+                {"layout": "table", "rows": [["M5", "known"], ["M6", "reported"]]},
+              ]
+            }
+            """;
+        File.WriteAllText(path, spec);
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            "make_pptx: the spec is not valid JSON — Expecting value at line 6, column 3\n",
+            exitCode: 1);
+
+        string[] arguments = joinedOption
+            ? new[] { "--spec=reports/apple-chips.json", "--out", "apple-chips.pptx" }
+            : new[] { "--spec", "reports/apple-chips.json", "--out", "apple-chips.pptx" };
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", arguments);
+
+        Assert.False(result.Ok);
+        Assert.Contains("input file 'reports/apple-chips.json'", result.Content, StringComparison.Ordinal);
+        Assert.Contains("not from the bundled skill script", result.Content, StringComparison.Ordinal);
+        Assert.Contains("Apple M6 vs M5", result.Content, StringComparison.Ordinal);
+        Assert.Contains("with `edit_file`", result.Content, StringComparison.Ordinal);
+        Assert.Contains("Do not use `write_file` or re-type the whole spec", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
+
+        FileLedger.ReadState seen = workspace.Reads.Check(
+            path, spec.Replace("\r\n", "\n", StringComparison.Ordinal));
+        Assert.Equal(ReadFreshness.Partial, seen.Freshness);
+        Assert.True(seen.Covers(6, 6),
+            $"the invalid line was shown but not authorized: {seen.FirstLine}-{seen.LastLine}");
+    }
+
+    [Fact]
+    public void AValidJsonSpec_DoesNotHideAGenuineSkillScriptFailure()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("valid-json-script-failure");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        File.WriteAllText(Path.Combine(workspace.WorkDirectory, "deck.json"),
+            "{\"title\":\"Apple M6 vs M5\",\"slides\":[]}");
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{scriptPath}\", line 1\nRuntimeError: writer bug\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(
+            skill, "scripts/tool.py", new[] { "--spec", "deck.json", "--out", "deck.pptx" });
+
+        Assert.False(result.Ok);
+        Assert.Contains("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Contains("edit_file", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("apply_patch", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("input file 'deck.json'", result.Content, StringComparison.Ordinal);
+        string overlay = Assert.Single(RepairCopies(workspace));
+        Assert.Equal(File.ReadAllBytes(scriptPath), File.ReadAllBytes(overlay));
+    }
+
+    [Fact]
+    public void ARepeatedScriptFailure_DoesNotOverwriteAnExistingRepairCopy()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("existing-script-overlay");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{scriptPath}\", line 1\nRuntimeError: writer bug\n",
+            exitCode: 1);
+
+        SkillToolResult first = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+        Assert.False(first.Ok);
+        string overlay = Assert.Single(RepairCopies(workspace));
+        const string repaired = "print('my local repair')\n";
+        File.WriteAllText(overlay, repaired);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.Equal(repaired, File.ReadAllText(overlay));
+        Assert.Single(RepairCopies(workspace));
+        Assert.Contains("editable repair copy already exists", result.Content, StringComparison.Ordinal);
+        Assert.Contains("was not overwritten", result.Content, StringComparison.Ordinal);
+        Assert.Contains("edit_file", result.Content, StringComparison.Ordinal);
+        Assert.Contains("Do not rewrite the complete file", result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnUnprovenOverlayCollision_StagesVerifiedBytesAtAFreshPath()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("unproven-script-overlay");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        string occupied = Path.Combine(
+            workspace.WorkDirectory, "skill-repairs", "tester", "scripts", "tool.py");
+        Directory.CreateDirectory(Path.GetDirectoryName(occupied)!);
+        const string unrelated = "print('unrelated workspace file')\n";
+        File.WriteAllText(occupied, unrelated);
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{scriptPath}\", line 1\nRuntimeError: writer bug\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.Equal(unrelated, File.ReadAllText(occupied));
+        string staged = Assert.Single(RepairCopies(workspace), path => path != occupied);
+        Assert.Equal(File.ReadAllBytes(scriptPath), File.ReadAllBytes(staged));
+        Assert.Contains(
+            Path.GetRelativePath(workspace.WorkDirectory, staged).Replace('\\', '/'),
+            result.Content,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("already exists", result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SameNamedScriptsInDifferentResourceDirectories_GetTheirOwnExactRepairCopies()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("same-basename-overlays");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string firstPath = Path.Combine(skill.RootDirectory, "first", "tool.py");
+        string secondPath = Path.Combine(skill.RootDirectory, "second", "tool.py");
+        Directory.CreateDirectory(Path.GetDirectoryName(firstPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(secondPath)!);
+        byte[] firstSource = new byte[] { 0xef, 0xbb, 0xbf }
+            .Concat(Encoding.UTF8.GetBytes("print('first')\n"))
+            .ToArray();
+        byte[] secondSource = Encoding.UTF8.GetBytes("print('second')\n");
+        File.WriteAllBytes(firstPath, firstSource);
+        File.WriteAllBytes(secondPath, secondSource);
+        backend.Answer = launch => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{launch.Argv![1]}\", line 1\nRuntimeError: writer bug\n",
+            exitCode: 1);
+
+        Assert.False(runner.Run(skill, "first/tool.py", Array.Empty<string>()).Ok);
+        Assert.False(runner.Run(skill, "second/tool.py", Array.Empty<string>()).Ok);
+
+        string[] copies = RepairCopies(workspace);
+        Assert.Equal(2, copies.Length);
+        Assert.Contains(copies, path => File.ReadAllBytes(path).SequenceEqual(firstSource));
+        Assert.Contains(copies, path => File.ReadAllBytes(path).SequenceEqual(secondSource));
+    }
+
+    [Fact]
+    public void PythonTracebackPathContainingParentheses_StillStagesTheAttributedScript()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("parenthesized-python-path");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts (dev)", "tool.py");
+        Directory.CreateDirectory(Path.GetDirectoryName(scriptPath)!);
+        File.WriteAllText(scriptPath, "raise RuntimeError('writer bug')\n");
+        backend.Answer = launch => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{launch.Argv![1]}\", line 1\nRuntimeError: writer bug\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(
+            skill, "scripts (dev)/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.Contains("A copy of this script", result.Content, StringComparison.Ordinal);
+        string overlay = Assert.Single(RepairCopies(workspace));
+        Assert.Equal(File.ReadAllBytes(scriptPath), File.ReadAllBytes(overlay));
+    }
+
+    [Fact]
+    public void AnOrdinaryPythonSyntaxDefect_IsStagedEvenOnAnOldInterpreter()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("ordinary-python-syntax");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"  File \"{scriptPath}\", line 1\n    print(\n         ^\n"
+            + "SyntaxError: '(' was never closed\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.Contains("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("host's Python", result.Content, StringComparison.Ordinal);
+        Assert.Single(RepairCopies(workspace));
+    }
+
+    [Fact]
+    public void AFrameAppendedInsideAnExceptionMessage_CannotForgeEntryPointAttribution()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("forged-python-frame");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        string helperPath = Path.Combine(skill.RootDirectory, "scripts", "helper.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            "Traceback (most recent call last):\n"
+            + $"  File \"{helperPath}\", line 8, in parse\n"
+            + "ValueError: rejected workspace text follows\n"
+            + $"  File \"{scriptPath}\", line 1, in <module>\n"
+            + "RuntimeError: wrapper message\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
+    }
+
+    [Theory]
+    [InlineData("scripts (dev)/tool.js")]
+    [InlineData("scripts (dev)/tool.mjs")]
+    [InlineData("scripts (dev)/tool.sh")]
+    [InlineData("scripts (dev)/tool.bash")]
+    public void ARelocatedNonPythonEntryPoint_IsNotStagedWithChangedSiblingSemantics(
+        string relativePath)
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("non-python-repair-" + Guid.NewGuid().ToString("N"));
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill(relativePath, "broken entry point\n");
+        string scriptPath = Path.Combine(
+            skill.RootDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            relativePath.EndsWith(".js", StringComparison.Ordinal)
+                || relativePath.EndsWith(".mjs", StringComparison.Ordinal)
+                ? $"Error: entry bug\n    at main ({scriptPath}:1:1)\n"
+                : $"{scriptPath}: line 1: syntax error\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, relativePath, Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(Path.Combine(workspace.WorkDirectory, "skill-repairs")));
+    }
+
+    [Fact]
+    public void NodeMalformedJsonDiagnostic_PointsToTheWorkspaceSpec()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("node-invalid-json");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill("scripts/writer.mjs", "JSON.parse('{}')\n");
+        const string spec = "{\n  \"title\": \"Apple M6 vs M5\",\n  \"slides\": [],\n}\n";
+        File.WriteAllText(Path.Combine(workspace.WorkDirectory, "deck.json"), spec);
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            "SyntaxError: Unexpected token } in JSON at position 54\n"
+            + "    at JSON.parse (<anonymous>)\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(
+            skill,
+            "scripts/writer.mjs",
+            new[] { "--spec", "deck.json", "--out", "deck.pptx" });
+
+        Assert.False(result.Ok);
+        Assert.Contains("input file 'deck.json'", result.Content, StringComparison.Ordinal);
+        Assert.Contains("with `edit_file`", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task ConcurrentFailuresConvergeOnOneProvenRepairOverlay()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("concurrent-script-overlay");
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{scriptPath}\", line 1\n"
+            + "RuntimeError: writer bug\n",
+            exitCode: 1);
+        SkillScriptRunner MakeRunner() => new(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+
+        System.Threading.Tasks.Task<SkillToolResult> first = System.Threading.Tasks.Task.Run(
+            () => MakeRunner().Run(skill, "scripts/tool.py", Array.Empty<string>()));
+        System.Threading.Tasks.Task<SkillToolResult> second = System.Threading.Tasks.Task.Run(
+            () => MakeRunner().Run(skill, "scripts/tool.py", Array.Empty<string>()));
+        SkillToolResult[] results = await System.Threading.Tasks.Task.WhenAll(first, second);
+
+        Assert.All(results, result => Assert.False(result.Ok));
+        Assert.Single(RepairCopies(workspace));
+        Assert.Single(Directory.GetFiles(
+            Path.Combine(workspace.StateDirectory, "skill-repair-overlays"),
+            "*.path",
+            SearchOption.TopDirectoryOnly));
+        Assert.Equal(1, results.Count(result => result.Content.Contains(
+            "A copy of this script is now", StringComparison.Ordinal)));
+        Assert.Equal(1, results.Count(result => result.Content.Contains(
+            "editable repair copy already exists", StringComparison.Ordinal)));
+    }
+
+    [Theory]
+    [InlineData("usage: tool.py [-h] --spec SPEC\ntool.py: error: the following arguments are required: --spec\n")]
+    [InlineData("Traceback (most recent call last):\n  File \"{script}\", line 4, in <module>\nFileNotFoundError: [Errno 2] No such file or directory: 'input.csv'\n")]
+    public void ArgumentAndInputFailures_DoNotStageTheBundledScript(string diagnosticTemplate)
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("skill-input-" + Guid.NewGuid().ToString("N"));
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        string diagnostic = diagnosticTemplate.Replace("{script}", scriptPath, StringComparison.Ordinal);
+        backend.Answer = _ => FakeShellBackend.Ok(string.Empty, diagnostic, exitCode: 2);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
+    }
+
+    [Fact]
+    public void ATracebackWhoseDeepestFrameIsAHelper_DoesNotStageTheEntryScript()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("skill-helper-failure");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        string helperPath = Path.Combine(skill.RootDirectory, "scripts", "helper.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n"
+            + $"  File \"{scriptPath}\", line 1, in <module>\n"
+            + $"  File \"{helperPath}\", line 8, in build\n"
+            + "RuntimeError: helper bug\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
+    }
+
+    [Theory]
+    [InlineData("ValueError: invalid slide specification")]
+    [InlineData("KeyError: 'title'")]
+    [InlineData("PIL.UnidentifiedImageError: cannot identify image file 'cover.bin'")]
+    public void WorkspaceDataExceptionsAtTheEntryPoint_DoNotStageTrustedSkillCode(
+        string terminalException)
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("skill-data-" + Guid.NewGuid().ToString("N"));
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Traceback (most recent call last):\n  File \"{scriptPath}\", line 9, in <module>\n"
+            + terminalException + "\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
+    }
+
+    [Fact]
+    public void FrameShapedInputTextWithoutATraceback_DoesNotStageTheEntryScript()
+    {
+        var backend = new FakeShellBackend { Sandbox = new InProcessSandbox(Honest) };
+        SessionWorkspace workspace = Workspace("skill-echoed-frame");
+        var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
+        {
+            Sandbox = SkillSandboxMode.Required, Backend = backend, Workspace = workspace,
+        });
+        Skill skill = MakeSkill();
+        string scriptPath = Path.Combine(skill.RootDirectory, "scripts", "tool.py");
+        backend.Answer = _ => FakeShellBackend.Ok(
+            string.Empty,
+            $"Rejected input text: File \"{scriptPath}\", line 1\n",
+            exitCode: 1);
+
+        SkillToolResult result = runner.Run(skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.DoesNotContain("A copy of this script", result.Content, StringComparison.Ordinal);
+        Assert.Empty(RepairCopies(workspace));
     }
 
     [Fact]

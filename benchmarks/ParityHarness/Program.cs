@@ -17,6 +17,17 @@
 //       prompts are comma-separated token ids; each runs on its own sequence
 //       slot serially first, then all together through the fused batched
 //       decode; the two must agree token for token.
+//   parity <model.gguf> --arena-zero-reuse <backend> [cycles] [dirty_steps]
+//                                            [probe_token] [survivor_token]
+//       repeatedly replaces one lane of a live two-sequence arena batch with a
+//       fresh position-zero holder. Its first logits must match a clean solo
+//       position-zero reference even though the physical arena slot is dirty.
+//   parity <model.gguf> --retained-continuation <backend> [round1_steps]
+//                         [follow_steps] [promptA] [promptB] [suffix]
+//       runs two concurrent conversations and then two concurrent exact-prefix
+//       follow-ups. Each retained follow-up must report full-prefix reuse and
+//       reproduce a retention-disabled full-prefill run token for token. Optional
+//       prompts/suffix are comma-separated token ids; text defaults are provided.
 //   parity <model.gguf> <tok0,tok1,...> [n_predict] [backend]   raw greedy
 //   parity <model.gguf> --raw-step <tok0,tok1,...> [backend]
 //       raw logits with the prompt fed one token at a time (decode path)
@@ -32,6 +43,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using TensorSharp;
 using TensorSharp.Models;
 using TensorSharp.Runtime;
@@ -49,6 +61,7 @@ public static class Program
     private static BackendType ResolveBackend(string s) => s switch
     {
         "ggmlcuda" or "ggml_cuda" => BackendType.GgmlCuda,
+        "ggmlmetal" or "ggml_metal" => BackendType.GgmlMetal,
         "ggmlcpu" or "ggml_cpu" => BackendType.GgmlCpu,
         "ggmlvulkan" or "ggml_vulkan" => BackendType.GgmlVulkan,
         "cuda" => BackendType.Cuda,
@@ -71,6 +84,11 @@ public static class Program
 
     public static int Main(string[] args)
     {
+        // Match CLI/server startup so raw parity and benchmark runs can exercise
+        // the exact cache dtype selected by KV_CACHE_DTYPE (not just the model's
+        // automatic F16 default).
+        KvCacheDtypeConfig.ConfigureFromEnvironment();
+
         if (args.Length < 2)
         {
             Console.Error.WriteLine("usage: parity <model.gguf> --ref|--bench|--batched|<tokens> ...");
@@ -81,6 +99,9 @@ public static class Program
         if (args[1] == "--ref") return RunReference(modelPath, args);
         if (args[1] == "--bench") return RunBench(modelPath, args);
         if (args[1] == "--batched") return RunBatched(modelPath, args);
+        if (args[1] == "--arena-zero-reuse") return RunArenaZeroReuse(modelPath, args);
+        if (args[1] == "--retained-continuation")
+            return RunRetainedContinuation(modelPath, args).GetAwaiter().GetResult();
         if (args[1] == "--ppl") return RunPerplexity(modelPath, args);
         if (args[1] == "--raw-step") return RunRawStepped(modelPath, args);
         return RunRaw(modelPath, args);
@@ -291,18 +312,29 @@ public static class Program
 
         {
             double best = 0;
-            var prompt = new int[32];
-            for (int i = 0; i < 32; i++) prompt[i] = 1000 + rng.Next(vocab - 1000);
+            // llama-bench's test_gen feeds random tokens and times
+            // llama_decode+synchronize; it does not scan the returned vocabulary
+            // for an argmax. Precompute the same style of inputs so this number is
+            // model-decode throughput rather than decode plus a 150k-element C#
+            // sampler pass on every token.
+            var decodeTokens = new int[tg];
+            for (int i = 0; i < tg; i++) decodeTokens[i] = 1000 + rng.Next(vocab - 1000);
+            var tokenBox = new int[1];
+
+            // Match llama-bench's one-token warm-up followed by memory_clear:
+            // the measured generation begins at position zero, rather than after
+            // an unrelated 32-token prompt with a larger attention window.
+            model.ResetKVCache();
+            tokenBox[0] = decodeTokens[0];
+            model.Forward(tokenBox);
             for (int r = 0; r < reps; r++)
             {
                 model.ResetKVCache();
-                float[] logits = model.ForwardRefill(prompt);
-                int tok = ArgMax(logits);
                 var t = Stopwatch.StartNew();
                 for (int i = 0; i < tg; i++)
                 {
-                    logits = model.Forward(new[] { tok });
-                    tok = ArgMax(logits);
+                    tokenBox[0] = decodeTokens[i];
+                    model.Forward(tokenBox);
                 }
                 t.Stop();
                 best = Math.Max(best, tg / t.Elapsed.TotalSeconds);
@@ -415,5 +447,341 @@ public static class Program
         Console.WriteLine($"[batched] fused steps={fusedSteps} fallback steps={fallbackSteps}");
         Console.WriteLine(allMatch ? "[batched] CONCURRENT_MATCH" : "[batched] CONCURRENT_DIFFERS");
         return allMatch ? 0 : 2;
+    }
+
+    private sealed class EngineRun
+    {
+        public InferenceCompletion Completion { get; init; }
+        public List<int> Tokens { get; init; }
+    }
+
+    private static int[] ParseTokenList(string value)
+        => value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => int.Parse(t.Trim(), CultureInfo.InvariantCulture))
+                .ToArray();
+
+    private static async Task<EngineRun> DrainEngineRun(InferenceRequestHandle handle)
+    {
+        var tokens = new List<int>();
+        await foreach (int token in handle.Tokens.ReadAllAsync())
+            tokens.Add(token);
+        return new EngineRun
+        {
+            Completion = await handle.Completion,
+            Tokens = tokens,
+        };
+    }
+
+    private static async Task<(EngineRun A, EngineRun B)> RunEnginePair(
+        InferenceEngine engine,
+        SchedulerConfig config,
+        string phase,
+        IReadOnlyList<int> promptA,
+        IReadOnlyList<int> promptB,
+        int maxNewTokens)
+    {
+        // Submit both handles before awaiting either one. The engine drains its
+        // multi-writer command queue between scheduler steps and admits these as
+        // one two-sequence workload.
+        var a = new SequenceState(
+            $"retained-parity-{phase}-a", promptA, maxNewTokens,
+            config.BlockSize, SamplingConfig.Greedy);
+        var b = new SequenceState(
+            $"retained-parity-{phase}-b", promptB, maxNewTokens,
+            config.BlockSize, SamplingConfig.Greedy);
+        InferenceRequestHandle handleA = engine.SubmitRequest(a);
+        InferenceRequestHandle handleB = engine.SubmitRequest(b);
+        Task<EngineRun> runA = DrainEngineRun(handleA);
+        Task<EngineRun> runB = DrainEngineRun(handleB);
+        await Task.WhenAll(runA, runB);
+        return (await runA, await runB);
+    }
+
+    private static void RequireLengthCapped(string label, EngineRun run, int expected)
+    {
+        if (run.Completion.Status != SequenceStatus.FinishedLengthCapped
+            || run.Tokens.Count != expected)
+        {
+            throw new InvalidOperationException(
+                $"{label} stopped before the fixed greedy sample ({run.Completion.FinishReason}, " +
+                $"{run.Tokens.Count}/{expected} tokens). Choose prompts that do not emit EOS this early.");
+        }
+    }
+
+    private static void RequireExactTokens(string label, List<int> expected, List<int> actual)
+    {
+        int limit = Math.Min(expected.Count, actual.Count);
+        int firstDiff = -1;
+        for (int i = 0; i < limit; i++)
+            if (expected[i] != actual[i]) { firstDiff = i; break; }
+        if (firstDiff < 0 && expected.Count != actual.Count)
+            firstDiff = limit;
+        if (firstDiff < 0)
+            return;
+
+        throw new InvalidOperationException(
+            $"{label} differs at token {firstDiff}: expected=[{string.Join(' ', expected)}], " +
+            $"actual=[{string.Join(' ', actual)}]");
+    }
+
+    /// <summary>End-to-end retained-holder regression over the real scheduler and
+    /// request lifecycle. First collect a retention-disabled, necessarily
+    /// full-prefill golden for two follow-ups. Then repeat the same concurrent
+    /// round one with retention enabled and require each exact-extension follow-up
+    /// to adopt all prompt+output tokens from its own holder and reproduce the
+    /// golden stream exactly.</summary>
+    private static async Task<int> RunRetainedContinuation(string modelPath, string[] args)
+    {
+        BackendType backend = ResolveBackend(args.Length > 2 ? args[2] : "ggmlmetal");
+        int round1Steps = args.Length > 3
+            ? int.Parse(args[3], CultureInfo.InvariantCulture)
+            : 8;
+        int followSteps = args.Length > 4
+            ? int.Parse(args[4], CultureInfo.InvariantCulture)
+            : 8;
+        if (round1Steps < 2 || followSteps < 1)
+        {
+            Console.Error.WriteLine("[retained] round1_steps must be >=2 and follow_steps must be positive");
+            return 1;
+        }
+
+        string[] optionNames =
+        {
+            "TS_RETAINED_FUSED_CACHE",
+            "TS_RETAINED_FUSED_CACHE_MAX",
+            "TS_SCHED_DISABLE_BATCHED",
+            "TS_PER_SEQ_FUSED",
+            "TS_BATCHED_FUSED_DECODE",
+            "TS_QWEN35_BATCHED_ARENA",
+        };
+        var previousOptions = optionNames.ToDictionary(
+            name => name,
+            Environment.GetEnvironmentVariable,
+            StringComparer.Ordinal);
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "0");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", "4");
+        Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", "0");
+        Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
+        Environment.SetEnvironmentVariable("TS_BATCHED_FUSED_DECODE", "1");
+        Environment.SetEnvironmentVariable("TS_QWEN35_BATCHED_ARENA", "1");
+
+        try
+        {
+            var load = Stopwatch.StartNew();
+            using var model = ModelBase.Create(modelPath, backend, ResolveTp());
+            load.Stop();
+            if (model is not IBatchedPagedModel fused
+                || !fused.SupportsPerSequenceFusedForward
+                || !fused.SupportsRetainedFusedCache)
+            {
+                Console.Error.WriteLine(
+                    "[retained] model/backend does not expose per-sequence retained fused holders");
+                return 1;
+            }
+
+            int[] promptA = args.Length > 5
+                ? ParseTokenList(args[5])
+                : model.Tokenizer.Encode(
+                    "User: Reply with the word apple and then count upward.\nAssistant:",
+                    addSpecial: true).ToArray();
+            int[] promptB = args.Length > 6
+                ? ParseTokenList(args[6])
+                : model.Tokenizer.Encode(
+                    "User: Reply with the word metal and then count upward.\nAssistant:",
+                    addSpecial: true).ToArray();
+            int[] suffix = args.Length > 7
+                ? ParseTokenList(args[7])
+                : model.Tokenizer.Encode("\nContinue:", addSpecial: false).ToArray();
+            if (promptA.Length == 0 || promptB.Length == 0 || suffix.Length == 0)
+            {
+                Console.Error.WriteLine("[retained] prompts and suffix must be non-empty");
+                return 1;
+            }
+
+            var config = new SchedulerConfig
+            {
+                MaxNumBatchedTokens = 256,
+                MaxNumRunningSequences = 4,
+                MaxPrefillChunkSize = 32,
+                SoloPrefillChunkSize = 256,
+                NumBlocks = 512,
+                BlockSize = 8,
+                EnablePrefixCaching = true,
+                DecodeQuantumTokens = 1,
+            };
+            using var engine = new InferenceEngine(model, config);
+            Console.WriteLine(
+                $"[retained] loaded in {load.Elapsed.TotalSeconds:F1}s, backend={backend}, " +
+                $"prompt={promptA.Length}/{promptB.Length}, suffix={suffix.Length}");
+
+            // Retention-disabled control: the two second-round prompts are fully
+            // prefilled, so their streams are the ground truth for this engine.
+            var controlRound1 = await RunEnginePair(
+                engine, config, "control-r1", promptA, promptB, round1Steps);
+            RequireLengthCapped("control round1 A", controlRound1.A, round1Steps);
+            RequireLengthCapped("control round1 B", controlRound1.B, round1Steps);
+
+            int[] controlFollowA = promptA.Concat(controlRound1.A.Tokens).Concat(suffix).ToArray();
+            int[] controlFollowB = promptB.Concat(controlRound1.B.Tokens).Concat(suffix).ToArray();
+            var controlFollow = await RunEnginePair(
+                engine, config, "control-r2", controlFollowA, controlFollowB, followSteps);
+            RequireLengthCapped("control follow-up A", controlFollow.A, followSteps);
+            RequireLengthCapped("control follow-up B", controlFollow.B, followSteps);
+            if (controlFollow.A.Completion.PrefixCacheReusedTokens != 0
+                || controlFollow.B.Completion.PrefixCacheReusedTokens != 0)
+            {
+                throw new InvalidOperationException(
+                    "retention-disabled control unexpectedly reused a prefix; it is not a full-prefill golden");
+            }
+
+            // Repeat round one with holder retention enabled. Its deterministic
+            // streams must match the control before they are used as prefixes.
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "1");
+            var retainedRound1 = await RunEnginePair(
+                engine, config, "enabled-r1", promptA, promptB, round1Steps);
+            RequireLengthCapped("retained round1 A", retainedRound1.A, round1Steps);
+            RequireLengthCapped("retained round1 B", retainedRound1.B, round1Steps);
+            RequireExactTokens("round1 A", controlRound1.A.Tokens, retainedRound1.A.Tokens);
+            RequireExactTokens("round1 B", controlRound1.B.Tokens, retainedRound1.B.Tokens);
+
+            int[] retainedFollowA = promptA.Concat(retainedRound1.A.Tokens).Concat(suffix).ToArray();
+            int[] retainedFollowB = promptB.Concat(retainedRound1.B.Tokens).Concat(suffix).ToArray();
+            var retainedFollow = await RunEnginePair(
+                engine, config, "enabled-r2", retainedFollowA, retainedFollowB, followSteps);
+            RequireLengthCapped("retained follow-up A", retainedFollow.A, followSteps);
+            RequireLengthCapped("retained follow-up B", retainedFollow.B, followSteps);
+
+            int expectedReuseA = promptA.Length + retainedRound1.A.Tokens.Count;
+            int expectedReuseB = promptB.Length + retainedRound1.B.Tokens.Count;
+            if (retainedFollow.A.Completion.PrefixCacheReusedTokens != expectedReuseA
+                || retainedFollow.B.Completion.PrefixCacheReusedTokens != expectedReuseB)
+            {
+                throw new InvalidOperationException(
+                    "retained prefix metric mismatch: " +
+                    $"A={retainedFollow.A.Completion.PrefixCacheReusedTokens}/{expectedReuseA}, " +
+                    $"B={retainedFollow.B.Completion.PrefixCacheReusedTokens}/{expectedReuseB}");
+            }
+            RequireExactTokens("follow-up A", controlFollow.A.Tokens, retainedFollow.A.Tokens);
+            RequireExactTokens("follow-up B", controlFollow.B.Tokens, retainedFollow.B.Tokens);
+
+            static double TtftMs(EngineRun run) => run.Completion.FirstTokenAt.HasValue
+                ? (run.Completion.FirstTokenAt.Value - run.Completion.SubmittedAt).TotalMilliseconds
+                : double.NaN;
+            Console.WriteLine(
+                $"[retained] reuse A={expectedReuseA}/{retainedFollowA.Length}, " +
+                $"B={expectedReuseB}/{retainedFollowB.Length}");
+            Console.WriteLine(
+                $"[retained] follow-up TTFT full={TtftMs(controlFollow.A):F1}/{TtftMs(controlFollow.B):F1}ms " +
+                $"retained={TtftMs(retainedFollow.A):F1}/{TtftMs(retainedFollow.B):F1}ms");
+            Console.WriteLine("[retained] PASS: both exact-extension streams reused their complete holder and match full-prefill goldens");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[retained] FAIL: {ex.Message}");
+            return 2;
+        }
+        finally
+        {
+            foreach (var entry in previousOptions)
+                Environment.SetEnvironmentVariable(entry.Key, entry.Value);
+        }
+    }
+
+    /// <summary>Regression for arena-slot reuse at position zero. A slot's KV
+    /// prefix is empty at position zero, but its complete recurrent state must
+    /// still be seeded. Keep one sequence resident, repeatedly dirty and replace
+    /// the other lane without releasing its holder (which avoids request-pool
+    /// invalidation masking the native slot-reuse edge), and compare every fresh
+    /// lane's first argmax with a clean solo reference.</summary>
+    private static int RunArenaZeroReuse(string modelPath, string[] args)
+    {
+        BackendType backend = ResolveBackend(args.Length > 2 ? args[2] : "ggmlmetal");
+        int cycles = args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 8;
+        int dirtySteps = args.Length > 4 ? int.Parse(args[4], CultureInfo.InvariantCulture) : 8;
+        int probeToken = args.Length > 5 ? int.Parse(args[5], CultureInfo.InvariantCulture) : 1;
+        int survivorToken = args.Length > 6 ? int.Parse(args[6], CultureInfo.InvariantCulture) : 2;
+        if (cycles < 1 || dirtySteps < 1)
+        {
+            Console.Error.WriteLine("[arena-zero] cycles and dirty_steps must be positive");
+            return 1;
+        }
+
+        using var model = ModelBase.Create(modelPath, backend, ResolveTp());
+        if (model is not IBatchedPagedModel seq || !seq.SupportsPerSequenceFusedForward)
+        {
+            Console.Error.WriteLine("[arena-zero] model has no per-sequence fused slots");
+            return 1;
+        }
+
+        // Warm the model's descriptor table and establish the position-zero gold.
+        const string referenceId = "arena-zero-reference";
+        seq.BindSequenceCache(referenceId);
+        int expectedProbeNext = ArgMax(model.Forward(new[] { probeToken }));
+        seq.OnSequenceReleased(referenceId);
+
+        const string survivorId = "arena-zero-survivor";
+        string replaceId = "arena-zero-probe-0";
+        var allIds = new List<string> { survivorId, replaceId };
+        seq.BindSequenceCache(replaceId);
+        seq.BindSequenceCache(survivorId);
+
+        var ids = new[] { replaceId, survivorId };
+        var tokens = new[] { probeToken, survivorToken };
+        var positions = new[] { 0, 0 };
+        var logits = new float[2][];
+        int survivorNext = survivorToken;
+        int survivorPos = 0;
+
+        bool StepAndCheckProbe(int cycle, bool checkProbe)
+        {
+            if (!seq.TryForwardBatchedFusedDecode(ids, tokens, positions, logits))
+            {
+                Console.Error.WriteLine($"[arena-zero] fused arena declined at cycle {cycle}, positions={positions[0]},{positions[1]}");
+                return false;
+            }
+            int probeNext = ArgMax(logits[0]);
+            survivorNext = ArgMax(logits[1]);
+            if (checkProbe && probeNext != expectedProbeNext)
+            {
+                Console.Error.WriteLine($"[arena-zero] cycle {cycle}: probe DIFF, expected {expectedProbeNext}, got {probeNext}");
+                return false;
+            }
+            tokens[0] = probeNext;
+            tokens[1] = survivorNext;
+            positions[0]++;
+            positions[1]++;
+            survivorPos = positions[1];
+            return true;
+        }
+
+        if (!StepAndCheckProbe(0, checkProbe: true)) return 2;
+        for (int step = 1; step < dirtySteps; step++)
+            if (!StepAndCheckProbe(0, checkProbe: false)) return 2;
+
+        for (int cycle = 1; cycle <= cycles; cycle++)
+        {
+            // Do not release the displaced holder yet. That would route through
+            // the managed reuse invalidation and rebuild the arena, hiding this
+            // native dirty-slot reuse condition.
+            replaceId = $"arena-zero-probe-{cycle}";
+            allIds.Add(replaceId);
+            seq.BindSequenceCache(replaceId);
+            ids[0] = replaceId;
+            tokens[0] = probeToken;
+            tokens[1] = survivorNext;
+            positions[0] = 0;
+            positions[1] = survivorPos;
+
+            if (!StepAndCheckProbe(cycle, checkProbe: true)) return 2;
+            for (int step = 1; step < dirtySteps; step++)
+                if (!StepAndCheckProbe(cycle, checkProbe: false)) return 2;
+            Console.WriteLine($"[arena-zero] cycle {cycle}/{cycles}: MATCH");
+        }
+
+        foreach (string id in allIds)
+            seq.OnSequenceReleased(id);
+        Console.WriteLine($"[arena-zero] PASS ({cycles} dirty-slot replacements, {dirtySteps} steps each)");
+        return 0;
     }
 }

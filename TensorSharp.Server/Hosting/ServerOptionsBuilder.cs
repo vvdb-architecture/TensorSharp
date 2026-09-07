@@ -337,11 +337,11 @@ namespace TensorSharp.Server.Hosting
                     changed = true;
                     continue;
                 }
-                // Tune chunked-prefill granularity. Each prefill chunk runs
+                // Tune mixed-step chunked-prefill granularity. Each prefill chunk runs
                 // as a single ExecuteStep that holds ModelBase.GpuComputeLock
                 // for the duration of its forward pass, so smaller chunks
                 // give parallel decode requests more frequent turns at the
-                // GPU. Default 1024 (see SchedulerConfig.MaxPrefillChunkSize).
+                // GPU. Default 256 (see SchedulerConfig.MaxPrefillChunkSize).
                 if (TryReadOption(args, ref i, "--prefill-chunk-size", out string chunkOpt))
                 {
                     if (!int.TryParse(chunkOpt, out int chunk) || chunk <= 0)

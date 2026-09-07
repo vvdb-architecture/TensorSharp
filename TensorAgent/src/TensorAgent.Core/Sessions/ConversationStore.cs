@@ -121,7 +121,10 @@ public sealed class ConversationStore
     {
         var conversation = new Conversation { ModelId = modelId, Think = think };
         if (skills is not null)
+        {
             conversation.Skills.AddRange(skills);
+            conversation.SkillsExplicit = true;
+        }
         conversation.Title = Conversation.DeriveTitle(conversation.Messages, conversation.CreatedAt);
         Save(conversation);
         return conversation;

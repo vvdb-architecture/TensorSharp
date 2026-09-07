@@ -13,6 +13,9 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
 
 using namespace tsg;
 
@@ -62,6 +65,8 @@ namespace
     struct Q35VerifyCache
     {
         bool valid = false;
+        std::uint64_t owner_id = 0;
+        int rank = 0;
         int n = 0, window = 0, num_layers = 0, out_vocab = 0, n_logits = 0;
         bool has_normed = false;
         const void* sig = nullptr;
@@ -96,6 +101,20 @@ namespace
         /// step of a speculative session, single-row plain steps included - which is
         /// the point: the 151 MB state then never crosses PCIe at all.
         bool deferred_state = false;
+        /// Geometry of the owner-private recurrent-state buffer this graph binds.
+        /// Kept with the graph so committing a snapshot can publish a durable live
+        /// state descriptor even if this cache entry is evicted before the state is
+        /// eventually drained.
+        std::size_t conv_bytes = 0;
+        std::size_t delta_bytes = 0;
+        std::size_t state_stride = 0;
+        std::size_t delta_slice_bytes = 0;
+        std::size_t conv_slice_bytes = 0;
+        int state_input_side = 0;
+        /// Host identities whose cacheable device copies are pinned by this graph.
+        /// Arena/host-buffer invalidation uses these to retire only the affected
+        /// model's entries instead of destroying another live owner's snapshots.
+        std::vector<const void*> host_bindings;
         std::size_t buffer_bytes = 0;
         std::uint64_t lru = 0;
         void reset()
@@ -108,21 +127,20 @@ namespace
             conv_snaps.clear(); delta_snaps.clear();
             conv_snap_slots.clear(); delta_snap_slots.clear(); n_snapshots = 0;
             deferred_state = false;
+            conv_bytes = delta_bytes = state_stride = 0;
+            delta_slice_bytes = conv_slice_bytes = 0;
+            state_input_side = 0;
+            host_bindings.clear();
             capture_out.clear(); capture_count = 0;
+            owner_id = 0; rank = 0;
             n = window = num_layers = out_vocab = n_logits = 0; has_normed = false; sig = nullptr;
             buffer_bytes = 0;
         }
     };
     Q35VerifyCache g_q35vc[16];
     std::uint64_t g_q35vc_clock = 0;
-
-    // The entry whose snapshots are live, i.e. the one the most recent verify
-    // computed or replayed. TSGgml_Qwen35FetchStateSnapshot reads from it, and it
-    // is cleared whenever a call runs without snapshots so a stale fetch cannot
-    // silently return the wrong sequence's state.
-    Q35VerifyCache* g_q35vc_last_snap = nullptr;
-    std::size_t g_q35vc_snap_conv_bytes = 0;
-    std::size_t g_q35vc_snap_delta_bytes = 0;
+    void reset_q35v_cache_entry(Q35VerifyCache& cache);
+    bool q35v_cache_has_uncommitted_snapshot(const Q35VerifyCache& cache);
 
     // Total-VRAM budget for the resident persist verify graphs. Each entry is a
     // whole-model graph in its own alloc_ctx buffer (own slots, needed for CUDA-graph
@@ -164,11 +182,11 @@ namespace
             Q35VerifyCache* victim = nullptr;
             for (auto& c : g_q35vc)
             {
-                if (!c.valid || &c == keep) continue;
+                if (!c.valid || &c == keep || q35v_cache_has_uncommitted_snapshot(c)) continue;
                 if (victim == nullptr || c.lru < victim->lru) victim = &c;
             }
             if (victim == nullptr) break; // nothing else evictable
-            victim->reset();
+            reset_q35v_cache_entry(*victim);
         }
     }
 
@@ -188,12 +206,18 @@ namespace
     // graph on its own backend, and a single shared buffer keyed to one
     // backend would be freed out from under rank 0 the moment rank 1 builds
     // (the backend-swap check below). Non-TP runs always use slot 0.
-    ggml_backend_buffer_t g_q35v_state_bufs[TSG_MAX_DEVICES] = {};
-    std::size_t g_q35v_state_buf_sizes[TSG_MAX_DEVICES] = {};
-    ggml_backend_t g_q35v_state_backends[TSG_MAX_DEVICES] = {};
-#define g_q35v_state_buf      (g_q35v_state_bufs[::tsg::g_active_rank])
-#define g_q35v_state_buf_size (g_q35v_state_buf_sizes[::tsg::g_active_rank])
-#define g_q35v_state_backend  (g_q35v_state_backends[::tsg::g_active_rank])
+    struct Q35VerifyChainedState
+    {
+        bool valid = false;
+        const void* sig = nullptr;
+        int count = 0;
+        std::size_t conv_bytes = 0;
+        std::size_t delta_bytes = 0;
+        std::size_t state_stride = 0;
+        std::size_t delta_slice_bytes = 0;
+        std::size_t conv_slice_bytes = 0;
+        int current_side = 0;
+    };
 
     // Resources a tensor-parallel verify graph borrows between "build" and
     // "execute" (the same shape as gemma4's G4VerifyTpPending): the TP prefill
@@ -214,39 +238,95 @@ namespace
             context = PooledContextHandle();
         }
     };
-    Q35VerifyTpPending g_q35v_tp[TSG_MAX_DEVICES];
+    struct Q35VerifyOwnerRankState
+    {
+        ggml_backend_buffer_t state_buf = nullptr;
+        std::size_t state_buf_size = 0;
+        ggml_backend_t state_backend = nullptr;
+        Q35VerifyChainedState live_state;
+        Q35VerifyTpPending tp;
+    };
+
+    struct Q35VerifyOwnerState
+    {
+        Q35VerifyCache* last_snap = nullptr;
+        Q35VerifyOwnerRankState ranks[TSG_MAX_DEVICES];
+    };
+
+    // C# gives every Qwen35 model instance a stable, non-zero owner id. Keeping
+    // buffers, deferred snapshot authority, and parked TP plans under that id is
+    // what makes two live models safe to interleave. Owner 0 remains a compatibility
+    // bucket for older direct callers of GgmlBasicOps.
+    std::unordered_map<std::uint64_t, std::unique_ptr<Q35VerifyOwnerState>> g_q35v_owners;
+
+    // ggml's backend globals and the fixed verify graph cache are process-global too.
+    // Serialize complete verify/snapshot operations so an owner cannot be released
+    // while another thread is still executing or downloading from its graph.
+    std::recursive_mutex& q35v_mutex()
+    {
+        static std::recursive_mutex mutex;
+        return mutex;
+    }
+
+    Q35VerifyOwnerState* find_q35v_owner(std::uint64_t owner_id)
+    {
+        auto it = g_q35v_owners.find(owner_id);
+        return it == g_q35v_owners.end() ? nullptr : it->second.get();
+    }
+
+    Q35VerifyOwnerState& get_q35v_owner(std::uint64_t owner_id)
+    {
+        auto& owner = g_q35v_owners[owner_id];
+        if (!owner)
+            owner = std::make_unique<Q35VerifyOwnerState>();
+        return *owner;
+    }
+
+    bool q35v_cache_has_uncommitted_snapshot(const Q35VerifyCache& cache)
+    {
+        Q35VerifyOwnerState* owner = find_q35v_owner(cache.owner_id);
+        return cache.valid && owner != nullptr && owner->last_snap == &cache;
+    }
 
     // Ensure the shared GDN state buffer covers `needed` bytes. Any resize would
     // move slices pinned by cached graphs, so the caller must reset the verify
     // cache before growing (only happens on a model-shape change).
-    bool ensure_q35v_state_buf(std::size_t needed)
+    bool ensure_q35v_state_buf(std::uint64_t owner_id, Q35VerifyOwnerState& owner,
+        int rank, std::size_t needed)
     {
-        if (g_q35v_state_backend != g_backend)
+        Q35VerifyOwnerRankState& state = owner.ranks[rank];
+        if (state.state_backend != g_backend)
         {
             // Backend swapped (model reload): the old backend already freed its
             // buffers on teardown, so drop the stale handle rather than freeing
             // through it.
-            g_q35v_state_buf = nullptr;
-            g_q35v_state_buf_size = 0;
-            g_q35v_state_backend = g_backend;
+            state.state_buf = nullptr;
+            state.state_buf_size = 0;
+            state.state_backend = g_backend;
+            state.live_state = {};
         }
-        if (g_q35v_state_buf != nullptr && g_q35v_state_buf_size >= needed)
+        if (state.state_buf != nullptr && state.state_buf_size >= needed)
             return true;
-        for (auto& c : g_q35vc) c.reset();
-        if (g_q35v_state_buf != nullptr)
+        // Growing moves addresses embedded in every persist graph for this owner,
+        // but another model's graphs and uncommitted snapshots remain independent.
+        for (auto& c : g_q35vc)
+            if (c.valid && c.owner_id == owner_id) reset_q35v_cache_entry(c);
+        owner.last_snap = nullptr;
+        state.live_state = {};
+        if (state.state_buf != nullptr)
         {
-            ggml_backend_buffer_free(g_q35v_state_buf);
-            g_q35v_state_buf = nullptr;
-            g_q35v_state_buf_size = 0;
+            ggml_backend_buffer_free(state.state_buf);
+            state.state_buf = nullptr;
+            state.state_buf_size = 0;
         }
         ggml_backend_buffer_type_t buft = ggml_backend_get_default_buffer_type(g_backend);
         if (buft == nullptr)
             return false;
-        g_q35v_state_buf = ggml_backend_buft_alloc_buffer(buft, needed);
-        if (g_q35v_state_buf == nullptr)
+        state.state_buf = ggml_backend_buft_alloc_buffer(buft, needed);
+        if (state.state_buf == nullptr)
             return false;
-        ggml_backend_buffer_set_usage(g_q35v_state_buf, GGML_BACKEND_BUFFER_USAGE_COMPUTE);
-        g_q35v_state_buf_size = needed;
+        ggml_backend_buffer_set_usage(state.state_buf, GGML_BACKEND_BUFFER_USAGE_COMPUTE);
+        state.state_buf_size = needed;
         if (vram_log_enabled())
             vram_log("q35-verify-state-buf", static_cast<std::int64_t>(needed));
         return true;
@@ -282,7 +362,7 @@ namespace
         int tp_degree, void** tp_plan_out,
         float* capture_data, const int* capture_layers, int capture_count,
         int state_snapshots, int* state_snapshots_used, int device_state_current,
-        int defer_state_download)
+        int defer_state_download, std::uint64_t owner_id)
     {
         if (state_snapshots_used != nullptr)
             *state_snapshots_used = 1;
@@ -304,6 +384,13 @@ namespace
             set_last_error("Qwen3.5 model verify: head_k_dim != head_v_dim unsupported.");
             return 0;
         }
+        if (g_active_rank < 0 || g_active_rank >= TSG_MAX_DEVICES)
+        {
+            set_last_error("Qwen3.5 model verify: active rank is out of range.");
+            return 0;
+        }
+        Q35VerifyOwnerState& owner_state = get_q35v_owner(owner_id);
+        Q35VerifyOwnerRankState& owner_rank = owner_state.ranks[g_active_rank];
 
         // Tensor parallelism — the prefill sibling of qwen35_model_decode_impl's
         // tp_mode: the caller drives one rank at a time (SetActiveRank); this
@@ -323,7 +410,7 @@ namespace
             *tp_plan_out = nullptr;
             // Recycle this rank's previous parked graph — the caller finished
             // executing it before asking for another.
-            g_q35v_tp[g_active_rank].reset();
+            owner_rank.tp.reset();
         }
         const int tp_rank = tp_mode ? g_active_rank : 0;
         // Cluster degree, not this process's - see ggml_ops_qwen35_decode.cpp.
@@ -347,6 +434,9 @@ namespace
         const int key_dim = head_k_dim * num_k_heads;
         const int value_dim = head_v_dim * num_v_heads;
         const int conv_dim = 2 * key_dim + value_dim;
+        int gdn_count = 0;
+        for (int l = 0; l < num_layers; ++l)
+            if (layers[l].is_recurrent != 0) ++gdn_count;
         const ggml_type kvType = static_cast<ggml_type>(kv_cache_type);
         if (convDim <= 0 || totalSeqLen > cache_size)
         {
@@ -367,6 +457,7 @@ namespace
         // so a 2048-token prefill writes vocab*1 floats (not vocab*2048 ~ 2 GB) and
         // skips the lm_head matmul over the first N-1 tokens. <=0 or >=N => all N.
         const int n_logits = (n_logit_rows > 0 && n_logit_rows < N) ? n_logit_rows : N;
+        tsg::PhaseTimer phase_timer("Qwen3.5 model verify");
 
         // Persistent per-(N,window) graph cache (build amortization + CUDA-graph
         // capture). DEFAULT ON: the earlier reuse access-violation (0xC0000005) was the
@@ -476,28 +567,47 @@ namespace
         // the call, which is exactly the persist path; resident mode has nothing to
         // defer (it updates the state in place).
         const bool defer_state = fv_snapshots_cfg && defer_state_download != 0 && fv_persist && !resident_state;
+        // Consecutive Metal prefill chunks can carry the recurrent state through the
+        // shared device slices. The two in/out halves ping-pong: the next non-persist
+        // graph binds its input to the previous graph's output half, avoiding both a
+        // device copy and the 151 MB host round trip. This is only a prefill contract
+        // (last-row logits), never the non-persist MTP-draft path.
+        const bool chain_state = defer_state_download != 0 && n_logits < N && !fv_persist
+            && !resident_state && g_backend_type == BACKEND_TYPE_METAL;
         const int n_snap = (defer_state && state_snapshots > 1 && state_snapshots <= N)
             ? state_snapshots : 1;
         // What the caller has to do next, and getting it wrong silently decodes from
         // a stale recurrent state:
+        //   -1 -> non-persist prefill committed its post-window state into live slices
         //    0 -> deferred with no snapshots; commit slot -1 (the post-window state)
         //    1 -> downloaded, as it always used to be; nothing to do
         //   >1 -> deferred with N snapshots; commit slot (N-1-accepted)
         if (state_snapshots_used != nullptr)
-            *state_snapshots_used = defer_state ? (n_snap > 1 ? n_snap : 0) : 1;
+            *state_snapshots_used = chain_state ? -1 : (defer_state ? (n_snap > 1 ? n_snap : 0) : 1);
 
         // ===== Persist reuse fast-path: upload the per-call inputs + replay =====
         if (fv_persist)
         {
             for (auto& c : g_q35vc)
             {
-                if (!c.valid || c.n != N || c.window != window || c.sig != sig ||
+                if (!c.valid || c.owner_id != owner_id || c.rank != g_active_rank ||
+                    c.n != N || c.window != window || c.sig != sig ||
                     c.num_layers != num_layers || c.out_vocab != vocab_size ||
                     c.n_logits != n_logits ||
                     c.has_normed != (normed_out != nullptr) ||
                     c.capture_count != cap_count ||
                     c.n_snapshots != n_snap ||
                     c.deferred_state != defer_state)
+                    continue;
+                // A cached graph permanently binds one side of this owner's
+                // ping-pong buffer as its input. If a non-persist prefill left the
+                // authoritative state on the opposite side, rebuilding is required;
+                // replaying this otherwise shape-compatible graph would read stale
+                // state from a different side of the same allocation.
+                if (gdn_count > 0 && !resident_state && device_state_current != 0 &&
+                    (!owner_rank.live_state.valid ||
+                     owner_rank.live_state.sig != sig ||
+                     owner_rank.live_state.current_side != c.state_input_side))
                     continue;
                 // llama.cpp pattern (llama-context.cpp): before re-setting the inputs of
                 // a REUSED graph we must fully synchronize, else we overwrite input
@@ -534,7 +644,11 @@ namespace
                 // Profiled (a plain compute unless TS_GGML_NODE_PROFILE is set): this
                 // is the hot path - every warm speculative verify replays here - and
                 // it was the one graph the node profiler could not see.
-                if (tsg::graph_compute_profiled(g_backend, c.graph, "qwen35 verify replay") != GGML_STATUS_SUCCESS) { c.reset(); break; }
+                if (tsg::graph_compute_profiled(g_backend, c.graph, "qwen35 verify replay") != GGML_STATUS_SUCCESS)
+                {
+                    reset_q35v_cache_entry(c);
+                    break;
+                }
                 if (!resident_state && !c.deferred_state)
                 {
                     int gi = 0;
@@ -547,9 +661,8 @@ namespace
                     }
                 }
                 // Deferred: the state stays on the device until the caller commits it.
-                g_q35vc_last_snap = c.deferred_state ? &c : nullptr;
-                g_q35vc_snap_conv_bytes = convStateBytes;
-                g_q35vc_snap_delta_bytes = deltaStateBytes;
+                if (gdn_count > 0)
+                    owner_state.last_snap = c.deferred_state ? &c : nullptr;
                 if (normed_out != nullptr && c.normed_out != nullptr)
                     finalize_compute_with_download(c.normed_out, normed_out, static_cast<std::size_t>(H) * N * sizeof(float));
                 for (int ci = 0; ci < c.capture_count; ci++)
@@ -561,6 +674,27 @@ namespace
                 }
                 finalize_compute_with_download(c.logits_out, logits_data, static_cast<std::size_t>(vocab_size) * n_logits * sizeof(float));
                 host_read_barrier();
+                // This persistent graph now owns the newest recurrent state; any
+                // older non-persist ping-pong marker must no longer win a drain.
+                if (gdn_count > 0 && c.deferred_state)
+                {
+                    // Until Commit chooses an output/snapshot, the untouched input
+                    // side remains the rollback authority. Keeping its descriptor
+                    // makes a graph invalidation between Verify and Commit recoverable.
+                    owner_rank.live_state.valid = true;
+                    owner_rank.live_state.sig = c.sig;
+                    owner_rank.live_state.count = gdn_count;
+                    owner_rank.live_state.conv_bytes = c.conv_bytes;
+                    owner_rank.live_state.delta_bytes = c.delta_bytes;
+                    owner_rank.live_state.state_stride = c.state_stride;
+                    owner_rank.live_state.delta_slice_bytes = c.delta_slice_bytes;
+                    owner_rank.live_state.conv_slice_bytes = c.conv_slice_bytes;
+                    owner_rank.live_state.current_side = c.state_input_side;
+                }
+                else if (gdn_count > 0)
+                {
+                    owner_rank.live_state.valid = false;
+                }
                 c.lru = ++g_q35vc_clock;
                 clear_last_error();
                 return 1;
@@ -648,11 +782,9 @@ namespace
         std::uint8_t* state_base = nullptr;
         std::size_t delta_slice_bytes = 0;
         std::size_t conv_slice_bytes = 0;
+        int state_input_side = 0;
         if (!resident_state)
         {
-            int gdn_count = 0;
-            for (int l = 0; l < num_layers; l++)
-                if (layers[l].is_recurrent != 0) gdn_count++;
             if (gdn_count > 0)
             {
                 ggml_backend_buffer_type_t buft = ggml_backend_get_default_buffer_type(g_backend);
@@ -662,13 +794,42 @@ namespace
                 delta_slice_bytes = align_up(deltaStateBytes);
                 conv_slice_bytes = align_up(convStateBytes);
                 state_stride = 2 * delta_slice_bytes + 2 * conv_slice_bytes;
-                if (!ensure_q35v_state_buf(static_cast<std::size_t>(gdn_count) * state_stride))
+                if (!ensure_q35v_state_buf(owner_id, owner_state, g_active_rank,
+                    static_cast<std::size_t>(gdn_count) * state_stride))
                 {
                     set_last_error("Qwen3.5 model verify: failed to allocate the shared GDN state buffer.");
                     if (fv_persist) ggml_free(ctx);
                     return 0;
                 }
-                state_base = static_cast<std::uint8_t*>(ggml_backend_buffer_get_base(g_q35v_state_buf));
+                state_base = static_cast<std::uint8_t*>(ggml_backend_buffer_get_base(owner_rank.state_buf));
+                const bool matching_chain = device_state_current != 0
+                    && owner_rank.live_state.valid
+                    && owner_rank.live_state.sig == sig
+                    && owner_rank.live_state.count == gdn_count
+                    && owner_rank.live_state.conv_bytes == convStateBytes
+                    && owner_rank.live_state.delta_bytes == deltaStateBytes
+                    && owner_rank.live_state.state_stride == state_stride
+                    && owner_rank.live_state.delta_slice_bytes == delta_slice_bytes
+                    && owner_rank.live_state.conv_slice_bytes == conv_slice_bytes;
+                const bool matching_persistent_live = device_state_current != 0
+                    && owner_state.last_snap != nullptr
+                    && owner_state.last_snap->valid
+                    && owner_state.last_snap->owner_id == owner_id
+                    && owner_state.last_snap->rank == g_active_rank
+                    && owner_state.last_snap->deferred_state
+                    && owner_state.last_snap->sig == sig
+                    && static_cast<int>(owner_state.last_snap->conv_in.size()) == gdn_count
+                    && static_cast<int>(owner_state.last_snap->delta_in.size()) == gdn_count
+                    && owner_state.last_snap->conv_bytes == convStateBytes
+                    && owner_state.last_snap->delta_bytes == deltaStateBytes;
+                if (device_state_current != 0 && !matching_chain && !matching_persistent_live)
+                {
+                    set_last_error("Qwen3.5 model verify: caller marked device state current, but no matching live state exists.");
+                    if (fv_persist) ggml_free(ctx);
+                    return 0;
+                }
+                state_input_side = matching_chain ? owner_rank.live_state.current_side
+                    : (matching_persistent_live ? owner_state.last_snap->state_input_side : 0);
             }
         }
 
@@ -723,18 +884,26 @@ namespace
                 }
                 else
                 {
-                    // Host mode: bind the four state tensors (delta in/out + conv
-                    // in/out) into per-slot slices of the shared state buffer. The
-                    // graph reads *_state_in (uploaded each call) and writes
-                    // *_state_out (downloaded each call) — no in-place, so the
-                    // persist replay's CUDA-graph capture stays valid.
+                    // Host mode: bind the four state tensors into the two halves of
+                    // each shared-buffer slot. Consecutive Metal prefill chunks swap
+                    // which half is input/output, so the previous output is consumed
+                    // in place without a D2D or host round trip. Ordinary calls use
+                    // half 0 as input and half 1 as output, preserving the persist
+                    // replay layout validated on CUDA.
                     std::uint8_t* slice = state_base + static_cast<std::size_t>(state_slot) * state_stride;
+                    const std::size_t delta_in_offset = state_input_side == 0 ? 0 : delta_slice_bytes;
+                    const std::size_t delta_out_offset = state_input_side == 0 ? delta_slice_bytes : 0;
+                    const std::size_t conv_base_offset = 2 * delta_slice_bytes;
+                    const std::size_t conv_in_offset = conv_base_offset
+                        + (state_input_side == 0 ? 0 : conv_slice_bytes);
+                    const std::size_t conv_out_offset = conv_base_offset
+                        + (state_input_side == 0 ? conv_slice_bytes : 0);
                     t.delta_state_out = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, head_k_dim, head_v_dim, num_v_heads);
                     t.conv_state_out = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, convDim, conv_dim);
-                    if (ggml_backend_tensor_alloc(g_q35v_state_buf, t.delta_state_in, slice) != GGML_STATUS_SUCCESS ||
-                        ggml_backend_tensor_alloc(g_q35v_state_buf, t.delta_state_out, slice + delta_slice_bytes) != GGML_STATUS_SUCCESS ||
-                        ggml_backend_tensor_alloc(g_q35v_state_buf, t.conv_state_in, slice + 2 * delta_slice_bytes) != GGML_STATUS_SUCCESS ||
-                        ggml_backend_tensor_alloc(g_q35v_state_buf, t.conv_state_out, slice + 2 * delta_slice_bytes + conv_slice_bytes) != GGML_STATUS_SUCCESS)
+                    if (ggml_backend_tensor_alloc(owner_rank.state_buf, t.delta_state_in, slice + delta_in_offset) != GGML_STATUS_SUCCESS ||
+                        ggml_backend_tensor_alloc(owner_rank.state_buf, t.delta_state_out, slice + delta_out_offset) != GGML_STATUS_SUCCESS ||
+                        ggml_backend_tensor_alloc(owner_rank.state_buf, t.conv_state_in, slice + conv_in_offset) != GGML_STATUS_SUCCESS ||
+                        ggml_backend_tensor_alloc(owner_rank.state_buf, t.conv_state_out, slice + conv_out_offset) != GGML_STATUS_SUCCESS)
                     {
                         set_last_error("Qwen3.5 model verify: failed to bind GDN state slices.");
                         if (fv_persist) ggml_free(ctx);
@@ -1133,8 +1302,8 @@ namespace
                         ggml_row_size(conv_out->type, head_v_dim),
                         token_stride, sequence_stride,
                         ggml_row_size(conv_out->type, 2 * key_dim));
-                    q4 = ggml_l2_norm(ctx, q_view, eps);
-                    k4 = ggml_l2_norm(ctx, k_view, eps);
+                    q4 = build_gdn_l2_norm(ctx, q_view, eps);
+                    k4 = build_gdn_l2_norm(ctx, k_view, eps);
                 }
                 else
                 {
@@ -1144,9 +1313,9 @@ namespace
                         key_dim, N, conv_out->nb[1], static_cast<std::size_t>(key_dim) * sizeof(float)));
                     ggml_tensor* v_part = ggml_cont(ctx, ggml_view_2d(ctx, conv_out,
                         value_dim, N, conv_out->nb[1], static_cast<std::size_t>(2 * key_dim) * sizeof(float)));
-                    ggml_tensor* q_hn = ggml_l2_norm(ctx,
+                    ggml_tensor* q_hn = build_gdn_l2_norm(ctx,
                         ggml_reshape_2d(ctx, q_part, head_k_dim, num_k_heads * N), eps);
-                    ggml_tensor* k_hn = ggml_l2_norm(ctx,
+                    ggml_tensor* k_hn = build_gdn_l2_norm(ctx,
                         ggml_reshape_2d(ctx, k_part, head_k_dim, num_k_heads * N), eps);
                     q4 = ggml_reshape_4d(ctx, q_hn, head_k_dim, num_k_heads, N, 1);
                     k4 = ggml_reshape_4d(ctx, k_hn, head_k_dim, num_k_heads, N, 1);
@@ -1477,15 +1646,19 @@ namespace
             if (fv_persist) ggml_free(ctx);
             return 0;
         }
+        phase_timer.mark("build");
 
         // --- bind tensors ---
         ggml_backend_dev_t dev = ggml_backend_get_device(g_backend);
         struct HostBinding { ggml_tensor* tensor; void* data; std::size_t bytes; };
         std::vector<HostBinding> upload_list;
         std::vector<BufferHandle> ephemeral_bufs;
+        std::vector<const void*> graph_host_bindings;
         auto bind_or_mark = [&](ggml_tensor* tgt, void* data, std::size_t bytes, bool cacheable,
                                 enum ggml_backend_buffer_usage usage = GGML_BACKEND_BUFFER_USAGE_WEIGHTS) {
             if (tgt == nullptr || data == nullptr) return;
+            if (cacheable && fv_persist)
+                graph_host_bindings.push_back(data);
             if (cacheable && bytes >= 4096)
             {
                 ggml_backend_buffer_t buf = nullptr; void* addr = nullptr; bool needs_upload = false;
@@ -1581,6 +1754,7 @@ namespace
         }
         bind_or_mark(lm_head_t, const_cast<void*>(lm_head_data), static_cast<std::size_t>(lm_head_bytes), true);
         bind_or_mark(final_norm_t, const_cast<void*>(final_norm_data), static_cast<std::size_t>(H) * sizeof(float), true);
+        phase_timer.mark("bind");
 
         // The TP driver and the host-MoE seams below execute this graph as ordered
         // slices of its node array, and a reorder would move work across a seam
@@ -1588,6 +1762,7 @@ namespace
         // reorder below and the one inside alloc_graph_reuse_gallocr.
         SuppressGraphReorder keep_order(tp_mode || !host_moe.empty());
         optimize_graph_for_metal(graph);
+        phase_timer.mark("optimize");
 
         // Persist: give every still-unbound tensor (intermediates, inputs, outputs,
         // small weights) its OWN stable slot via alloc_ctx_tensors. Own slots (no
@@ -1654,6 +1829,7 @@ namespace
             if (fv_persist) ggml_free(ctx);
             return 0;
         }
+        phase_timer.mark("alloc");
         host_read_barrier();
         for (auto& u : upload_list)
             ggml_backend_tensor_set(u.tensor, resolve_upload_source(u.data), 0, u.bytes);
@@ -1689,6 +1865,7 @@ namespace
             ggml_backend_tensor_set(ep_lut, ep_lut_data.data(), 0, ep_lut_data.size() * sizeof(std::int32_t));
             ggml_backend_tensor_set(ep_mask, ep_mask_data.data(), 0, ep_mask_data.size() * sizeof(float));
         }
+        phase_timer.mark("upload");
 
         // Tensor-parallel mode: every input is staged; hand the caller a
         // segmented plan instead of computing. The graph, its pooled context
@@ -1697,7 +1874,7 @@ namespace
         // logits slice and the post-window GDN states after the final sync.
         if (tp_mode)
         {
-            auto& pending = g_q35v_tp[g_active_rank];
+            auto& pending = owner_rank.tp;
             pending.plan.clear();
             pending.plan.graph = graph;
             pending.plan.ar_tensor = tp_partial;
@@ -1762,7 +1939,8 @@ namespace
             // single synchronization point.
             status =
                 g_backend_type == BACKEND_TYPE_METAL &&
-                g_async_compute_enabled.load(std::memory_order_acquire)
+                g_async_compute_enabled.load(std::memory_order_acquire) &&
+                !tsg::graph_node_profile_enabled()
                     ? ggml_backend_graph_compute_async(g_backend, graph)
                     : tsg::graph_compute_profiled(g_backend, graph, "qwen35 model verify");
         }
@@ -1774,6 +1952,7 @@ namespace
                 set_last_error("Qwen3.5 model verify: graph execution failed.");
             return 0;
         }
+        phase_timer.mark("submit");
         if (vram_log_enabled())
         {
             tsg::sync_backend(g_backend);
@@ -1786,7 +1965,7 @@ namespace
         // mode skips the state download (it stays device-resident, updated in-place);
         // so does snapshot mode, where the caller fetches exactly one slot once it
         // knows how much of the draft the sampler accepted.
-        if (!resident_state && !defer_state)
+        if (!resident_state && !defer_state && !chain_state)
         {
             for (int l = 0; l < num_layers; l++)
             {
@@ -1806,6 +1985,38 @@ namespace
                 static_cast<std::size_t>(H) * N * sizeof(float));
         finalize_compute_with_download(logits_out_t, logits_data, static_cast<std::size_t>(vocab_size) * n_logits * sizeof(float));
         host_read_barrier();
+        if (chain_state)
+        {
+            owner_rank.live_state.valid = true;
+            owner_rank.live_state.sig = sig;
+            owner_rank.live_state.count = gdn_count;
+            owner_rank.live_state.conv_bytes = convStateBytes;
+            owner_rank.live_state.delta_bytes = deltaStateBytes;
+            owner_rank.live_state.state_stride = state_stride;
+            owner_rank.live_state.delta_slice_bytes = delta_slice_bytes;
+            owner_rank.live_state.conv_slice_bytes = conv_slice_bytes;
+            owner_rank.live_state.current_side = 1 - state_input_side;
+        }
+        else if (defer_state && gdn_count > 0)
+        {
+            // The deferred output is not authoritative until Commit. Preserve the
+            // pre-verify input side as a rollback/drain fallback if the cache entry
+            // must be invalidated in that small inter-call window.
+            owner_rank.live_state.valid = true;
+            owner_rank.live_state.sig = sig;
+            owner_rank.live_state.count = gdn_count;
+            owner_rank.live_state.conv_bytes = convStateBytes;
+            owner_rank.live_state.delta_bytes = deltaStateBytes;
+            owner_rank.live_state.state_stride = state_stride;
+            owner_rank.live_state.delta_slice_bytes = delta_slice_bytes;
+            owner_rank.live_state.conv_slice_bytes = conv_slice_bytes;
+            owner_rank.live_state.current_side = state_input_side;
+        }
+        else if (gdn_count > 0)
+        {
+            owner_rank.live_state.valid = false;
+        }
+        phase_timer.mark("compute+download");
 
 
         // Persist: keep ctx/graph/buffer alive + record tensor handles so later steps
@@ -1816,11 +2027,38 @@ namespace
             for (auto& c : g_q35vc) { if (!c.valid) { slot = &c; break; } }
             if (slot == nullptr)
             {
-                slot = &g_q35vc[0];
-                for (auto& c : g_q35vc) if (c.lru < slot->lru) slot = &c;
-                slot->reset();
+                for (auto& c : g_q35vc)
+                {
+                    if (q35v_cache_has_uncommitted_snapshot(c)) continue;
+                    if (slot == nullptr || c.lru < slot->lru) slot = &c;
+                }
+                if (slot == nullptr)
+                {
+                    // More than sixteen owners simultaneously have an outstanding
+                    // verify result. Never overwrite one owner's rollback state for
+                    // another. Restore the caller's prior device authority marker so
+                    // its managed fallback can drain/recompute safely.
+                    if (device_state_current != 0 && gdn_count > 0)
+                    {
+                        owner_rank.live_state.valid = true;
+                        owner_rank.live_state.sig = sig;
+                        owner_rank.live_state.count = gdn_count;
+                        owner_rank.live_state.conv_bytes = convStateBytes;
+                        owner_rank.live_state.delta_bytes = deltaStateBytes;
+                        owner_rank.live_state.state_stride = state_stride;
+                        owner_rank.live_state.delta_slice_bytes = delta_slice_bytes;
+                        owner_rank.live_state.conv_slice_bytes = conv_slice_bytes;
+                        owner_rank.live_state.current_side = state_input_side;
+                    }
+                    if (persist_buf != nullptr) ggml_backend_buffer_free(persist_buf);
+                    ggml_free(ctx);
+                    set_last_error("Qwen3.5 model verify: all persistent slots have uncommitted owner snapshots.");
+                    return 0;
+                }
+                reset_q35v_cache_entry(*slot);
             }
             slot->valid = true;
+            slot->owner_id = owner_id; slot->rank = g_active_rank;
             slot->n = N; slot->window = window; slot->sig = sig;
             slot->num_layers = num_layers; slot->out_vocab = vocab_size;
             slot->n_logits = n_logits;
@@ -1829,6 +2067,13 @@ namespace
             slot->capture_out = capture_out;
             slot->n_snapshots = n_snap;
             slot->deferred_state = defer_state;
+            slot->conv_bytes = convStateBytes;
+            slot->delta_bytes = deltaStateBytes;
+            slot->state_stride = state_stride;
+            slot->delta_slice_bytes = delta_slice_bytes;
+            slot->conv_slice_bytes = conv_slice_bytes;
+            slot->state_input_side = state_input_side;
+            slot->host_bindings = std::move(graph_host_bindings);
             slot->conv_snaps.clear(); slot->delta_snaps.clear();
             slot->conv_snap_slots.clear(); slot->delta_snap_slots.clear();
             if (n_snap > 1)
@@ -1860,29 +2105,161 @@ namespace
                 slot->delta_out.push_back(lt[l].delta_state_out);
             }
             slot->lru = ++g_q35vc_clock;
-            g_q35vc_last_snap = defer_state ? slot : nullptr;
-            g_q35vc_snap_conv_bytes = convStateBytes;
-            g_q35vc_snap_delta_bytes = deltaStateBytes;
+            if (gdn_count > 0)
+                owner_state.last_snap = defer_state ? slot : nullptr;
             // Bound the resident persist-graph total: evict LRU entries (never the one
             // just built) so the cache never re-overcommits VRAM across many N shapes.
             q35_verify_cache_evict_to_budget(0, slot);
         }
-        else if (defer_state)
+        else
         {
-            // A deferring call that did not persist cannot be committed from.
-            g_q35vc_last_snap = nullptr;
+            // A non-persist call owns the newest state now, so an older persistent
+            // verify entry must never be selected by Fetch/Commit/Drain. Chained
+            // prefill state is tracked separately in g_q35v_chained_state.
+            if (gdn_count > 0)
+                owner_state.last_snap = nullptr;
         }
         clear_last_error();
         return 1;
     }
 
-    void reset_qwen35_verify_cache()
+    void reset_q35v_cache_entry(Q35VerifyCache& cache)
     {
-        g_q35vc_last_snap = nullptr;
-        for (auto& c : g_q35vc) c.reset();
+        if (cache.valid)
+        {
+            if (Q35VerifyOwnerState* owner = find_q35v_owner(cache.owner_id);
+                owner != nullptr && owner->last_snap == &cache)
+                owner->last_snap = nullptr;
+        }
+        cache.reset();
+    }
+
+    /// Drop only graphs owned by one model. `clear_live_state` is used after the
+    /// managed model has drained (or intentionally discarded) its authority; host
+    /// pointer invalidation keeps owner-private live slices recoverable.
+    void reset_qwen35_verify_cache_owner(std::uint64_t owner_id, bool clear_live_state)
+    {
+        if (Q35VerifyOwnerState* owner = find_q35v_owner(owner_id))
+        {
+            owner->last_snap = nullptr;
+            if (clear_live_state)
+                for (auto& rank : owner->ranks) rank.live_state = {};
+        }
+        for (auto& cache : g_q35vc)
+            if (cache.valid && cache.owner_id == owner_id)
+                reset_q35v_cache_entry(cache);
+    }
+
+    void reset_qwen35_verify_cache_for_host(const void* host_ptr)
+    {
+        if (host_ptr == nullptr) return;
+        for (auto& cache : g_q35vc)
+        {
+            if (!cache.valid) continue;
+            if (std::find(cache.host_bindings.begin(), cache.host_bindings.end(), host_ptr)
+                != cache.host_bindings.end())
+                reset_q35v_cache_entry(cache);
+        }
+    }
+
+    void reset_qwen35_verify_cache(bool clear_live_state)
+    {
+        for (auto& owner_pair : g_q35v_owners)
+        {
+            owner_pair.second->last_snap = nullptr;
+            if (clear_live_state)
+                for (auto& rank : owner_pair.second->ranks) rank.live_state = {};
+        }
+        for (auto& cache : g_q35vc) reset_q35v_cache_entry(cache);
+    }
+
+    void reset_qwen35_verify_tp_plans()
+    {
+        for (auto& owner_pair : g_q35v_owners)
+        {
+            for (int r = 0; r < TSG_MAX_DEVICES; ++r)
+            {
+                ScopedRank rank(r);
+                owner_pair.second->ranks[r].tp.reset();
+            }
+        }
+    }
+
+    void release_qwen35_verify_owner(std::uint64_t owner_id)
+    {
+        Q35VerifyOwnerState* owner = find_q35v_owner(owner_id);
+        if (owner == nullptr) return;
+        reset_qwen35_verify_cache_owner(owner_id, /*clear_live_state=*/true);
+        for (int r = 0; r < TSG_MAX_DEVICES; ++r)
+        {
+            ScopedRank rank(r);
+            Q35VerifyOwnerRankState& state = owner->ranks[r];
+            state.tp.reset();
+            if (state.state_buf != nullptr)
+                ggml_backend_buffer_free(state.state_buf);
+            state.state_buf = nullptr;
+            state.state_buf_size = 0;
+            state.state_backend = nullptr;
+            state.live_state = {};
+        }
+        g_q35v_owners.erase(owner_id);
     }
 }
 
+TSG_EXPORT int TSGgml_Qwen35ModelVerifyOwned(
+    const TSGgmlQwen35LayerDesc* layers, int num_layers,
+    void* hidden_data, int hidden_size, int start_pos, int num_tokens,
+    int num_heads, int num_kv_heads, int head_dim, int cache_size,
+    int rope_n_dims, int rope_mode, int kv_cache_type,
+    int conv_kernel, int head_k_dim, int head_v_dim, int num_k_heads, int num_v_heads,
+    float eps, float rope_base, float rope_freq_scale,
+    int num_experts, int num_experts_used, int expert_ff, int shared_ff,
+    int norm_topk, float expert_weights_scale,
+    void* logits_data, int vocab_size,
+    const void* lm_head_data, int lm_head_type, std::int64_t lm_head_ne0, std::int64_t lm_head_ne1, std::int64_t lm_head_bytes,
+    const void* final_norm_data, void* normed_out, int n_logit_rows,
+    const std::int32_t* mrope_pos, const std::int32_t* mrope_sections,
+    int tp_degree, void** tp_plan_out,
+    float* capture_data, const int* capture_layers, int capture_count,
+    int state_snapshots, int* state_snapshots_used, int device_state_current,
+    int defer_state_download, std::uint64_t owner_id)
+{
+    try
+    {
+        // Arena coherence: prefill/verify writes go to the resident copies;
+        // flush + retire any arena slots holding these caches/state first.
+        if (layers != nullptr)
+        {
+            for (int l = 0; l < num_layers; l++)
+            {
+                tsg_q35arena::on_external_touch(layers[l].k_cache);
+                tsg_q35arena::on_external_touch(layers[l].conv_state_in);
+                tsg_q35arena::on_external_touch(layers[l].delta_state_in);
+            }
+        }
+        std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+        int r = qwen35_model_verify_impl(
+            layers, num_layers, hidden_data, hidden_size, start_pos, num_tokens,
+            num_heads, num_kv_heads, head_dim, cache_size,
+            rope_n_dims, rope_mode, kv_cache_type,
+            conv_kernel, head_k_dim, head_v_dim, num_k_heads, num_v_heads,
+            eps, rope_base, rope_freq_scale,
+            num_experts, num_experts_used, expert_ff, shared_ff,
+            norm_topk, expert_weights_scale,
+            logits_data, vocab_size,
+            lm_head_data, lm_head_type, lm_head_ne0, lm_head_ne1, lm_head_bytes,
+            final_norm_data, normed_out, n_logit_rows, mrope_pos, mrope_sections,
+            tp_degree, tp_plan_out, capture_data, capture_layers, capture_count,
+            state_snapshots, state_snapshots_used, device_state_current,
+            defer_state_download, owner_id);
+        return r;
+    }
+    catch (const std::exception& ex) { set_last_error(ex.what()); return 0; }
+    catch (...) { set_last_error("Unknown error in Qwen3.5 model verify."); return 0; }
+}
+
+// ABI-compatible owner-0 entry point retained for existing native consumers.
+// TensorSharp's managed Qwen35 model uses the Owned variant above.
 TSG_EXPORT int TSGgml_Qwen35ModelVerify(
     const TSGgmlQwen35LayerDesc* layers, int num_layers,
     void* hidden_data, int hidden_size, int start_pos, int num_tokens,
@@ -1901,37 +2278,21 @@ TSG_EXPORT int TSGgml_Qwen35ModelVerify(
     int state_snapshots, int* state_snapshots_used, int device_state_current,
     int defer_state_download)
 {
-    try
-    {
-        // Arena coherence: prefill/verify writes go to the resident copies;
-        // flush + retire any arena slots holding these caches/state first.
-        if (layers != nullptr)
-        {
-            for (int l = 0; l < num_layers; l++)
-            {
-                tsg_q35arena::on_external_touch(layers[l].k_cache);
-                tsg_q35arena::on_external_touch(layers[l].conv_state_in);
-                tsg_q35arena::on_external_touch(layers[l].delta_state_in);
-            }
-        }
-        int r = qwen35_model_verify_impl(
-            layers, num_layers, hidden_data, hidden_size, start_pos, num_tokens,
-            num_heads, num_kv_heads, head_dim, cache_size,
-            rope_n_dims, rope_mode, kv_cache_type,
-            conv_kernel, head_k_dim, head_v_dim, num_k_heads, num_v_heads,
-            eps, rope_base, rope_freq_scale,
-            num_experts, num_experts_used, expert_ff, shared_ff,
-            norm_topk, expert_weights_scale,
-            logits_data, vocab_size,
-            lm_head_data, lm_head_type, lm_head_ne0, lm_head_ne1, lm_head_bytes,
-            final_norm_data, normed_out, n_logit_rows, mrope_pos, mrope_sections,
-            tp_degree, tp_plan_out, capture_data, capture_layers, capture_count,
-            state_snapshots, state_snapshots_used, device_state_current,
-            defer_state_download);
-        return r;
-    }
-    catch (const std::exception& ex) { set_last_error(ex.what()); return 0; }
-    catch (...) { set_last_error("Unknown error in Qwen3.5 model verify."); return 0; }
+    return TSGgml_Qwen35ModelVerifyOwned(
+        layers, num_layers, hidden_data, hidden_size, start_pos, num_tokens,
+        num_heads, num_kv_heads, head_dim, cache_size,
+        rope_n_dims, rope_mode, kv_cache_type,
+        conv_kernel, head_k_dim, head_v_dim, num_k_heads, num_v_heads,
+        eps, rope_base, rope_freq_scale,
+        num_experts, num_experts_used, expert_ff, shared_ff,
+        norm_topk, expert_weights_scale,
+        logits_data, vocab_size,
+        lm_head_data, lm_head_type, lm_head_ne0, lm_head_ne1, lm_head_bytes,
+        final_norm_data, normed_out, n_logit_rows,
+        mrope_pos, mrope_sections, tp_degree, tp_plan_out,
+        capture_data, capture_layers, capture_count,
+        state_snapshots, state_snapshots_used, device_state_current,
+        defer_state_download, /*owner_id=*/0);
 }
 
 // Fetch ONE per-token recurrent-state snapshot from the verify that just ran.
@@ -1948,13 +2309,16 @@ TSG_EXPORT int TSGgml_Qwen35ModelVerify(
 // Returns 0 when there is nothing to fetch (no snapshotting verify has run, a
 // non-persist call intervened, or the slot is out of range), and the caller keeps
 // the old restore-and-re-forward path.
-TSG_EXPORT int TSGgml_Qwen35FetchStateSnapshot(
-    int slot, void** conv_out_arr, void** delta_out_arr, int num_recurrent_layers)
+TSG_EXPORT int TSGgml_Qwen35FetchStateSnapshotOwned(
+    int slot, void** conv_out_arr, void** delta_out_arr, int num_recurrent_layers,
+    std::uint64_t owner_id)
 {
     try
     {
-        Q35VerifyCache* c = g_q35vc_last_snap;
-        if (c == nullptr || !c->valid || c->n_snapshots <= 1)
+        std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+        Q35VerifyOwnerState* owner = find_q35v_owner(owner_id);
+        Q35VerifyCache* c = owner != nullptr ? owner->last_snap : nullptr;
+        if (c == nullptr || !c->valid || c->owner_id != owner_id || c->n_snapshots <= 1)
             return 0;
         if (slot < 0 || slot >= c->n_snapshots)
             return 0;
@@ -1975,22 +2339,32 @@ TSG_EXPORT int TSGgml_Qwen35FetchStateSnapshot(
             if (conv_out_arr[i] != nullptr)
             {
                 ggml_backend_tensor_get(c->conv_snaps[i], conv_out_arr[i],
-                    static_cast<std::size_t>(slot) * g_q35vc_snap_conv_bytes,
-                    g_q35vc_snap_conv_bytes);
+                    static_cast<std::size_t>(slot) * c->conv_bytes,
+                    c->conv_bytes);
             }
             if (delta_out_arr[i] != nullptr)
             {
                 ggml_backend_tensor_get(c->delta_snaps[i], delta_out_arr[i],
-                    static_cast<std::size_t>(slot) * g_q35vc_snap_delta_bytes,
-                    g_q35vc_snap_delta_bytes);
+                    static_cast<std::size_t>(slot) * c->delta_bytes,
+                    c->delta_bytes);
             }
         }
         host_read_barrier();
+        owner->last_snap = nullptr;
+        if (c->rank >= 0 && c->rank < TSG_MAX_DEVICES)
+            owner->ranks[c->rank].live_state = {};
         clear_last_error();
         return 1;
     }
     catch (const std::exception& ex) { set_last_error(ex.what()); return 0; }
     catch (...) { set_last_error("Unknown error in Qwen3.5 state snapshot fetch."); return 0; }
+}
+
+TSG_EXPORT int TSGgml_Qwen35FetchStateSnapshot(
+    int slot, void** conv_out_arr, void** delta_out_arr, int num_recurrent_layers)
+{
+    return TSGgml_Qwen35FetchStateSnapshotOwned(
+        slot, conv_out_arr, delta_out_arr, num_recurrent_layers, /*owner_id=*/0);
 }
 
 namespace
@@ -2019,12 +2393,16 @@ namespace
 //
 // `slot` counts back from the end of the verified batch: 0 is the post-window
 // state, (N-1-accepted) the state the accepted prefix ends in.
-TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshot(int slot, int num_recurrent_layers)
+TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshotOwned(
+    int slot, int num_recurrent_layers, std::uint64_t owner_id)
 {
     try
     {
-        Q35VerifyCache* c = g_q35vc_last_snap;
-        if (c == nullptr || !c->valid || !c->deferred_state)
+        std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+        Q35VerifyOwnerState* owner = find_q35v_owner(owner_id);
+        Q35VerifyCache* c = owner != nullptr ? owner->last_snap : nullptr;
+        if (c == nullptr || !c->valid || c->owner_id != owner_id ||
+            c->rank < 0 || c->rank >= TSG_MAX_DEVICES || !c->deferred_state)
             return 0;
         // slot -1 is the post-window state in the *_state_out slices, which is what a
         // single-row step (and a fully-accepted verify with no snapshots) commits.
@@ -2040,6 +2418,13 @@ TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshot(int slot, int num_recurrent_laye
                     || static_cast<int>(c->delta_snap_slots.size()) != num_recurrent_layers * c->n_snapshots)))
         {
             set_last_error("Qwen3.5 state commit: recurrent layer count mismatch.");
+            return 0;
+        }
+        Q35VerifyOwnerRankState& state = owner->ranks[c->rank];
+        if (state.state_buf == nullptr || c->state_stride == 0 ||
+            c->conv_bytes == 0 || c->delta_bytes == 0)
+        {
+            set_last_error("Qwen3.5 state commit: owner state buffer is unavailable.");
             return 0;
         }
 
@@ -2061,6 +2446,19 @@ TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshot(int slot, int num_recurrent_laye
             ggml_backend_tensor_copy(csrc, c->conv_in[i]);
             ggml_backend_tensor_copy(dsrc, c->delta_in[i]);
         }
+        state.live_state.valid = true;
+        state.live_state.sig = c->sig;
+        state.live_state.count = num_recurrent_layers;
+        state.live_state.conv_bytes = c->conv_bytes;
+        state.live_state.delta_bytes = c->delta_bytes;
+        state.live_state.state_stride = c->state_stride;
+        state.live_state.delta_slice_bytes = c->delta_slice_bytes;
+        state.live_state.conv_slice_bytes = c->conv_slice_bytes;
+        state.live_state.current_side = c->state_input_side;
+        // The durable live descriptor above no longer depends on this cache slot.
+        // Clearing the pointer prevents an unrelated LRU reuse from ever looking
+        // like this owner's current snapshot.
+        owner->last_snap = nullptr;
         clear_last_error();
         return 1;
     }
@@ -2068,38 +2466,89 @@ TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshot(int slot, int num_recurrent_laye
     catch (...) { set_last_error("Unknown error in Qwen3.5 state commit."); return 0; }
 }
 
+TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshot(int slot, int num_recurrent_layers)
+{
+    return TSGgml_Qwen35CommitStateSnapshotOwned(
+        slot, num_recurrent_layers, /*owner_id=*/0);
+}
+
 // Read the LIVE recurrent state back to the host. The device copy is authoritative
 // while a speculative session keeps committing snapshots into it; anything that has
 // to run the op-by-op recurrent path (a prefill chunk, an unsupported shape, a
 // backend without the fused verify) needs the host mirror to catch up first.
-TSG_EXPORT int TSGgml_Qwen35DrainDeviceState(
-    void** conv_out_arr, void** delta_out_arr, int num_recurrent_layers)
+TSG_EXPORT int TSGgml_Qwen35DrainDeviceStateOwned(
+    void** conv_out_arr, void** delta_out_arr, int num_recurrent_layers,
+    std::uint64_t owner_id)
 {
     try
     {
-        Q35VerifyCache* c = g_q35vc_last_snap;
-        if (c == nullptr || !c->valid)
-            return 0;
+        std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
         if (conv_out_arr == nullptr || delta_out_arr == nullptr)
             return 0;
-        if (static_cast<int>(c->conv_in.size()) != num_recurrent_layers
-            || static_cast<int>(c->delta_in.size()) != num_recurrent_layers)
+        Q35VerifyOwnerState* owner = find_q35v_owner(owner_id);
+        if (owner == nullptr)
+            return 0;
+
+        // Both a chained non-persist prefill and a committed persistent snapshot
+        // publish the authoritative side into the owner-private long-lived buffer.
+        // Locate that rank and rebuild two tiny descriptors per recurrent layer;
+        // the graph/cache entry itself is deliberately not required to survive.
+        int live_rank = -1;
+        for (int r = 0; r < TSG_MAX_DEVICES; ++r)
         {
-            set_last_error("Qwen3.5 state drain: recurrent layer count mismatch.");
+            if (!owner->ranks[r].live_state.valid) continue;
+            if (live_rank >= 0)
+            {
+                set_last_error("Qwen3.5 state drain: multiple owner ranks claim live recurrent state.");
+                return 0;
+            }
+            live_rank = r;
+        }
+        if (live_rank < 0)
+            return 0;
+
+        Q35VerifyOwnerRankState& state = owner->ranks[live_rank];
+        const Q35VerifyChainedState chain = state.live_state;
+        if (chain.count != num_recurrent_layers || state.state_buf == nullptr)
+        {
+            set_last_error("Qwen3.5 state drain: recurrent layer count/buffer mismatch.");
             return 0;
         }
-
+        ScopedRank rank(live_rank);
         host_read_barrier();
+        std::uint8_t* base = static_cast<std::uint8_t*>(ggml_backend_buffer_get_base(state.state_buf));
         for (int i = 0; i < num_recurrent_layers; i++)
         {
-            if (c->conv_in[i] == nullptr || c->delta_in[i] == nullptr)
+            ggml_init_params ip = { ggml_tensor_overhead() * 2, nullptr, /*no_alloc=*/true };
+            ContextHandle tmp(ggml_init(ip));
+            if (tmp.value == nullptr)
+            {
+                set_last_error("Qwen3.5 state drain: failed to create tensor descriptors.");
                 return 0;
+            }
+            ggml_tensor* delta = ggml_new_tensor_1d(tmp.value, GGML_TYPE_F32,
+                chain.delta_bytes / sizeof(float));
+            ggml_tensor* conv = ggml_new_tensor_1d(tmp.value, GGML_TYPE_F32,
+                chain.conv_bytes / sizeof(float));
+            std::uint8_t* slice = base + static_cast<std::size_t>(i) * chain.state_stride;
+            const std::size_t delta_offset = chain.current_side == 0 ? 0 : chain.delta_slice_bytes;
+            const std::size_t conv_offset = 2 * chain.delta_slice_bytes
+                + (chain.current_side == 0 ? 0 : chain.conv_slice_bytes);
+            if (ggml_backend_tensor_alloc(state.state_buf, delta, slice + delta_offset) != GGML_STATUS_SUCCESS
+                || ggml_backend_tensor_alloc(state.state_buf, conv,
+                    slice + conv_offset) != GGML_STATUS_SUCCESS)
+            {
+                set_last_error("Qwen3.5 state drain: failed to bind tensor descriptors.");
+                return 0;
+            }
             if (conv_out_arr[i] != nullptr)
-                ggml_backend_tensor_get(c->conv_in[i], conv_out_arr[i], 0, g_q35vc_snap_conv_bytes);
+                ggml_backend_tensor_get(conv, conv_out_arr[i], 0, chain.conv_bytes);
             if (delta_out_arr[i] != nullptr)
-                ggml_backend_tensor_get(c->delta_in[i], delta_out_arr[i], 0, g_q35vc_snap_delta_bytes);
+                ggml_backend_tensor_get(delta, delta_out_arr[i], 0, chain.delta_bytes);
         }
         host_read_barrier();
+        state.live_state = {};
+        owner->last_snap = nullptr;
         clear_last_error();
         return 1;
     }
@@ -2107,28 +2556,29 @@ TSG_EXPORT int TSGgml_Qwen35DrainDeviceState(
     catch (...) { set_last_error("Unknown error in Qwen3.5 state drain."); return 0; }
 }
 
-// Release every rank's parked tensor-parallel prefill graph. The C# side calls
-// this when the model is torn down (the parked contexts hold pooled memory and
-// the plans reference per-rank gallocr buffers).
+TSG_EXPORT int TSGgml_Qwen35DrainDeviceState(
+    void** conv_out_arr, void** delta_out_arr, int num_recurrent_layers)
+{
+    return TSGgml_Qwen35DrainDeviceStateOwned(
+        conv_out_arr, delta_out_arr, num_recurrent_layers, /*owner_id=*/0);
+}
+
+// Process-wide shutdown hook. Per-model teardown uses Qwen35ReleaseVerifyOwner
+// below so destroying model B cannot free model A's buffers or parked plans.
 TSG_EXPORT void TSGgml_Qwen35ReleaseVerifyTpGraphs()
 {
-    // This is the model-teardown hook for both TP and single-device Qwen35.
-    // Drop graphs before their shared recurrent-state buffer so Metal residency
-    // sets do not retain a live allocation past backend destruction.
-    reset_qwen35_verify_cache();
-    for (int r = 0; r < TSG_MAX_DEVICES; ++r)
-    {
-        tsg::ScopedRank rank(r);
-        if (g_q35v_tp[r].plan.graph != nullptr || g_q35v_tp[r].context.value != nullptr)
-            g_q35v_tp[r].reset();
-        if (g_q35v_state_bufs[r] != nullptr)
-        {
-            ggml_backend_buffer_free(g_q35v_state_bufs[r]);
-            g_q35v_state_bufs[r] = nullptr;
-            g_q35v_state_buf_sizes[r] = 0;
-            g_q35v_state_backends[r] = nullptr;
-        }
-    }
+    std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+    while (!g_q35v_owners.empty())
+        release_qwen35_verify_owner(g_q35v_owners.begin()->first);
+    // Entries should already have been released owner by owner. Also clear any
+    // orphan left by a failed/legacy owner-0 build before backend destruction.
+    for (auto& cache : g_q35vc) reset_q35v_cache_entry(cache);
+}
+
+TSG_EXPORT void TSGgml_Qwen35ReleaseVerifyOwner(std::uint64_t owner_id)
+{
+    std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+    release_qwen35_verify_owner(owner_id);
 }
 
 // Drop the persistent verify-graph cache. Called from C# whenever the attention KV
@@ -2136,5 +2586,31 @@ TSG_EXPORT void TSGgml_Qwen35ReleaseVerifyTpGraphs()
 // the cached graphs pin those addresses.
 TSG_EXPORT void TSGgml_Qwen35ResetVerifyCache()
 {
-    reset_qwen35_verify_cache();
+    std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+    // Graph-only global invalidation: host-buffer cache clears may affect every
+    // model's weights, but owner-private committed recurrent state remains valid
+    // and lets each surviving model rebuild without losing sequence authority.
+    reset_qwen35_verify_cache(/*clear_live_state=*/false);
+}
+
+TSG_EXPORT void TSGgml_Qwen35ReleaseVerifyGraphsPreserveState()
+{
+    std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+    reset_qwen35_verify_cache(/*clear_live_state=*/false);
+    reset_qwen35_verify_tp_plans();
+}
+
+TSG_EXPORT void TSGgml_Qwen35ResetVerifyCacheOwner(std::uint64_t owner_id)
+{
+    std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+    reset_qwen35_verify_cache_owner(owner_id, /*clear_live_state=*/true);
+}
+
+// Used by host-buffer/arena invalidation, which knows the freed host identity but
+// not its managed owner id. Only matching graphs are retired; live recurrent slices
+// stay owner-private and drainable.
+TSG_EXPORT void TSGgml_Qwen35ResetVerifyCacheForHostPointer(const void* host_ptr)
+{
+    std::lock_guard<std::recursive_mutex> lock(q35v_mutex());
+    reset_qwen35_verify_cache_for_host(host_ptr);
 }

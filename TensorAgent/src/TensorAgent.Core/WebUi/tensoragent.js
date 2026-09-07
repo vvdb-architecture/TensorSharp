@@ -23,6 +23,7 @@
     history: [],            // {role, content, attachments}
     attachments: [],        // /api/upload responses
     skills: [],             // selected skill names
+    skillSelectionExplicit: false, // distinguishes untouched discovery from deselect-all
     catalogSkills: [],
     conversations: [],      // the saved chats, for the menu
     generating: false,
@@ -649,6 +650,8 @@
       // setting, which is the wrong way round.
       state.skills = !skillsOn() ? []
         : (!fresh && Array.isArray(s.skills) ? s.skills.slice() : defaultSkills());
+      state.skillSelectionExplicit = !skillsOn() || state.skills.length > 0
+        || (!fresh && s.skillsExplicit === true);
       paintSkillChips();
       if (!fresh) {
         renderMessages(msgs);
@@ -798,7 +801,12 @@
       think: !!state.think,
     };
     if (state.session) body.sessionId = state.session;
-    if (skillsOn() && state.skills.length) body.skills = state.skills;
+    if (!skillsOn()) body.skills_discovery = false;
+    else if (state.skills.length) body.skills = state.skills;
+    else if (state.skillSelectionExplicit) {
+      body.skills = [];
+      body.skills_discovery = false;
+    }
 
     stream(body, { text: t, attachments: atts, message: msg, turn: userView.turn });
   }
@@ -947,7 +955,10 @@
     // POST, and a selected skill may turn out not to own a host file reader. The
     // server is the final authority; on its vision refusal, put the exact draft back
     // instead of consuming an image that was never processed.
-    if (e && e.code === 'vision_not_ready' && sentDraft) {
+    var routedSetupRefusal = e && e.status === 503
+      && e.code === 'routed_workflow_unavailable';
+    if (e && (e.code === 'vision_not_ready' || e.code === 'network_disabled' || routedSetupRefusal) && sentDraft) {
+      var networkRefusal = e.code === 'network_disabled';
       state.turn = null;
       if (view && view.turn && view.turn.parentNode) view.turn.remove();
       if (sentDraft.turn && sentDraft.turn.parentNode) sentDraft.turn.remove();
@@ -967,9 +978,17 @@
       });
       autoGrow(); paintChips();
       noticeWithAction(
-        e.message || 'The loaded model cannot process this image.',
-        'Open Models',
-        function () { openRoute('models'); return true; });
+        e.message || (networkRefusal
+          ? 'This workflow needs network access before it can start.'
+          : routedSetupRefusal
+            ? 'This workflow needs additional host setup before it can start.'
+            : 'The loaded model cannot process this image.'),
+        networkRefusal ? 'Turn on Network' : routedSetupRefusal ? 'Open Settings' : 'Open Models',
+        networkRefusal
+          ? turnNetworkOn
+          : routedSetupRefusal
+            ? function () { openRoute('settings'); return true; }
+          : function () { openRoute('models'); return true; });
       setGenerating(false);
       state.liveView = null;
       return;
@@ -981,6 +1000,11 @@
     if (state.turn) {
       setGenerating(false);
       setTimeout(resumeTurn, 800);
+      return;
+    }
+    if (offerNetworkIfRefused((e && e.message) || '', false)) {
+      setGenerating(false);
+      state.liveView = null;
       return;
     }
     notice((e && e.message) || 'The request failed.', 'error');
@@ -1169,6 +1193,12 @@
         steps += ' ' + f.error;
         offered = offerNetworkIfRefused(String(f.error), offered);
         if (!offered) notice(String(f.error), 'error');
+      }
+      // Guarded deliverables arrive only after the host has proved their package and
+      // visible content. They intentionally do not masquerade as a late skill_step,
+      // because that frame belongs immediately before its tool's `finished` update.
+      if (f.artifact_verified && f.files) {
+        f.files.forEach(function (file) { fileLine(view, file); });
       }
       if (f.files) f.files.forEach(function (file) {
         if (!file || !file.url || madeSeen[file.url]) return;
@@ -1423,13 +1453,18 @@
     // Painted from the intent first: the round trip is a loopback POST, but the
     // switch must not sit in its old position while it happens.
     state.settings = next;
+    state.skillSelectionExplicit = !on;
     if (!on) { state.skills = []; paintSkillChips(); }
     paintSkillsMaster();
     return post('/api/agent/settings', next)
       .then(function (r) { return r.json(); })
       .then(function (saved) {
         state.settings = saved || next;
-        if (!skillsOn()) { state.skills = []; paintSkillChips(); }
+        if (!skillsOn()) {
+          state.skills = [];
+          state.skillSelectionExplicit = true;
+          paintSkillChips();
+        }
         paintSkillsMaster();
       })
       .catch(function (e) { notice('That setting could not be saved: ' + e, 'error'); });
@@ -1488,6 +1523,7 @@
       var i = state.skills.indexOf(s.name);
       if (on.checked && i < 0) state.skills.push(s.name);
       if (!on.checked && i >= 0) state.skills.splice(i, 1);
+      state.skillSelectionExplicit = true;
       paintSkillChips();
     };
 
@@ -1496,7 +1532,11 @@
         .then(function (r) { return r.json(); })
         .then(function () {
           var i = state.skills.indexOf(s.name);
-          if (i >= 0) { state.skills.splice(i, 1); paintSkillChips(); }
+          if (i >= 0) {
+            state.skills.splice(i, 1);
+            state.skillSelectionExplicit = true;
+            paintSkillChips();
+          }
           closeSheets();
           notice(s.name + ' was removed.');
         })
@@ -1724,11 +1764,15 @@
       if (seed) {
         state.think = thinkDefault();
         state.skills = defaultSkills();
+        state.skillSelectionExplicit = state.skills.length > 0;
       }
       // Not only on seed: the setting can be changed from the native Settings
       // screen, and a page that came back with skills still chipped under the
       // composer would be showing something that is no longer true.
-      if (!skillsOn() && state.skills.length) state.skills = [];
+      if (!skillsOn()) {
+        state.skills = [];
+        state.skillSelectionExplicit = true;
+      }
       paintSkillChips();
       paintSkillsMaster();
       paintLang();
@@ -1846,7 +1890,11 @@
       loadConversations().then(paintNavChats);
       return true;
     },
-    setSkills: function (n) { state.skills = skillsOn() ? (n || []).slice() : []; paintSkillChips(); },
+    setSkills: function (n) {
+      state.skills = skillsOn() ? (n || []).slice() : [];
+      state.skillSelectionExplicit = true;
+      paintSkillChips();
+    },
     /** Whether the skills feature is on at all, for the app's own checks. */
     skillsEnabled: skillsOn,
     history: function () { return state.history; },

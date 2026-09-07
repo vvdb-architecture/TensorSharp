@@ -6,6 +6,22 @@ namespace TensorAgent.Tests;
 public sealed class CatalogTests
 {
     [Fact]
+    public void BuiltInContainsExactlyTheApprovedModelIds()
+    {
+        string[] expected =
+        {
+            "gemma-4-e2b-q8",
+            "gemma-4-e4b-iq4xs",
+            "gemma-4-12b-iq2m",
+            "bonsai-8b-q1-0",
+            "bonsai-27b-q1-0",
+            "qwen3.5-9b-iq4xs",
+        };
+
+        Assert.Equal(expected, ModelCatalog.BuiltIn.Select(m => m.Id).ToArray());
+    }
+
+    [Fact]
     public void EveryEntryIsWellFormed()
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -19,15 +35,22 @@ public sealed class CatalogTests
             Assert.False(m.Weights.Optional, $"{m.Id}: weights cannot be optional");
             foreach (CatalogFile f in m.Files)
             {
-                Assert.StartsWith("https://huggingface.co/", f.Url);
-                Assert.EndsWith("/resolve/main/" + f.Url.Split("/resolve/main/")[1], f.Url);
+                if (m.SideloadOnly)
+                {
+                    Assert.Empty(f.Url);
+                }
+                else
+                {
+                    Assert.StartsWith("https://huggingface.co/", f.Url);
+                    Assert.EndsWith("/resolve/main/" + f.Url.Split("/resolve/main/")[1], f.Url);
+                }
                 Assert.True(f.Bytes > 1_000_000, $"{m.Id}/{f.FileName}: size {f.Bytes}");
                 Assert.Matches("^[0-9a-f]{64}$", f.Sha256);
                 Assert.False(f.FileName.Contains('/'), $"{m.Id}: file names are bare ({f.FileName})");
             }
-            // 24 is not a phone that exists; it is how an entry says "no current device
-            // grants enough memory for this", which is a measured fact about
-            // Qwen-Image-Edit rather than a placeholder. ForDevice then never offers it.
+            // Keep the recognized tiers narrow so a typo cannot silently expose an
+            // entry on an unintended device class. A future 24 GB entry would remain
+            // hidden from current phones while still using the same gating mechanism.
             Assert.Contains(m.MinDeviceMemoryGB, new[] { 6, 8, 12, 16, 24 });
             Assert.NotEmpty(m.License);
         }
@@ -73,11 +96,9 @@ public sealed class CatalogTests
     /// that "Metal wires the mmap'd weights, so resident memory is roughly the GGUF".
     /// That premise is wrong, and measurably so. Weights are a file mapping, and Darwin
     /// charges mapped clean pages essentially nothing; ggml-metal wraps them with
-    /// newBufferWithBytesNoCopy and the residency set does not fault them in. MEASURED on
-    /// this repo, ggml_metal, Qwen3.6-35B-A3B UD-IQ2_XXS -- an 11,272 MB model at
-    /// ctx=8192: peak RSS 1,211 MB, peak phys_footprint 1,090 MB. The old model
-    /// overstated that entry by roughly ten times, and gated two MoE entries to 16 GB
-    /// that a 12 GB phone holds with ~7 GB to spare.
+    /// newBufferWithBytesNoCopy and the residency set does not fault them in. Measurements
+    /// on this repo showed that treating the entire weights file as anonymous memory can
+    /// overstate the charged footprint by roughly an order of magnitude.
     /// </para>
     ///
     /// <para>
@@ -85,8 +106,7 @@ public sealed class CatalogTests
     /// tensor and once for the Metal-side buffer, since the zero-copy wrap is refused for
     /// read-write tensors), the projector's dequantized copies (about twice its file),
     /// and the runtime plus graph scratch. 64 KiB/token is the per-token KV rate measured
-    /// for Qwen3.5 9B and is used here as an upper bound; the 35B-A3B hybrids are cheaper
-    /// still, at 40 KiB/token, because only 10 of their 40 layers hold a KV cache.
+    /// for Qwen3.5 9B and is used here as a conservative upper bound.
     /// </para>
     /// </summary>
     private static double EstimatedAnonymous(CatalogModel model) =>
@@ -148,20 +168,15 @@ public sealed class CatalogTests
     }
 
     [Fact]
-    public void DeviceTiersGateTheLargeEntries()
+    public void DeviceTiersHideTheCatalogBelowTwelveGbAndExposeItAtTwelveGb()
     {
         Assert.Empty(ModelCatalog.ForDevice(8));
-        Assert.Contains(ModelCatalog.ForDevice(12), m => m.Id == "qwen3.8-27b-iq1s");
-        // A 12 GB phone IS now offered the mixture-of-experts entries. It was not, on the
-        // premise that Metal wires the mapped weights; measurement says otherwise (see
-        // EstimatedAnonymous), and both MoE entries charge about 0.8 GB of anonymous
-        // memory against the ~8.5 GB such a phone grants. They stay Experimental and
-        // their Notes say plainly that the weights will page from flash.
-        Assert.Contains(ModelCatalog.ForDevice(12), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);
-        Assert.Contains(ModelCatalog.ForDevice(16), m => m.Kind == CatalogArchitectureKind.MixtureOfExperts);
-        Assert.Contains(ModelCatalog.BuiltIn, m => m.Family == CatalogFamily.Gemma4 && m.Kind == CatalogArchitectureKind.Dense);
-        Assert.Contains(ModelCatalog.BuiltIn, m => m.Family == CatalogFamily.Qwen38 && m.Kind == CatalogArchitectureKind.Dense);
-        Assert.Contains(ModelCatalog.BuiltIn, m => m.IsImageGenerator);
+        Assert.Equal(
+            ModelCatalog.BuiltIn.Select(m => m.Id),
+            ModelCatalog.ForDevice(12).Select(m => m.Id));
+        Assert.Equal(
+            ModelCatalog.BuiltIn.Select(m => m.Id),
+            ModelCatalog.ForDevice(16).Select(m => m.Id));
     }
 
     [Theory]
@@ -239,7 +254,12 @@ public sealed class CatalogTests
         {
             var store = new ModelStore(root);
             CatalogModel offered = ModelCatalog.ForDevice(12)[0];
-            CatalogModel gatedOff = ModelCatalog.BuiltIn.First(m => m.MinDeviceMemoryGB > 12);
+            CatalogModel gatedOff = offered with
+            {
+                Id = "synthetic-16gb-entry",
+                MinDeviceMemoryGB = 16,
+            };
+            CatalogModel[] wholeCatalog = { offered, gatedOff };
 
             foreach (string id in new[] { offered.Id, gatedOff.Id, "gemma-4-12b-iq3xxs" })
             {
@@ -247,7 +267,7 @@ public sealed class CatalogTests
                 File.WriteAllBytes(Path.Combine(root, id, "weights.gguf"), new byte[2048]);
             }
 
-            long freed = store.SweepOrphanedModels();
+            long freed = store.SweepOrphanedModels(wholeCatalog);
 
             Assert.Equal(2048, freed);
             Assert.True(Directory.Exists(Path.Combine(root, offered.Id)));

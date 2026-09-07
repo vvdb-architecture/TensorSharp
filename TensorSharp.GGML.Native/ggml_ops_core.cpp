@@ -3025,9 +3025,12 @@ extern "C" void TSGgml_Gemma4MoEReleaseVerifyTpGraphs();
 extern "C" void TSGgml_Gemma4MoEResetDecodeCache();
 extern "C" void TSGgml_Gemma4ResetDecodeCache();
 extern "C" void TSGgml_Qwen35ReleaseVerifyTpGraphs();
+extern "C" void TSGgml_Qwen35ReleaseVerifyGraphsPreserveState();
 extern "C" void TSGgml_Qwen35ResetDecodeCache();
 extern "C" void TSGgml_Qwen35ResetBatchedDecodeCache();
 extern "C" void TSGgml_Qwen35ResetVerifyCache();
+extern "C" void TSGgml_Qwen35ResetVerifyCacheForHostPointer(const void* host_ptr);
+extern "C" void TSGgml_Qwen3ResetDecodeCache();
 extern "C" void TSGgml_Gemma4ResetBatchedDecodeCache();
 extern "C" void TSGgml_Gemma4ResetMoEBatchedDecodeCache();
 extern "C" void TSGgml_GptOssResetDecodeCache();
@@ -3054,8 +3057,13 @@ TSG_EXPORT void TSGgml_ClearHostBufferCache()
     TSGgml_QwenImageResetForwardCache();
     TSGgml_WanResetForwardCache();
     TSGgml_Qwen35ResetDecodeCache();
+    TSGgml_Qwen3ResetDecodeCache();
     TSGgml_Qwen35ResetBatchedDecodeCache();
-    TSGgml_Qwen35ReleaseVerifyTpGraphs();
+    // A process-global host-weight eviction must retire every verify graph/TP
+    // plan, but another live Qwen35 model may still own the only current copy of
+    // its recurrent state. Preserve those owner-private state buffers so its next
+    // call can rebuild safely.
+    TSGgml_Qwen35ReleaseVerifyGraphsPreserveState();
     TSGgml_Qwen35ReleaseAttentionTpGraphs();
     TSGgml_Qwen35GdnDropTpGraphs();
     // The vendor convolution library holds a handle, its engine tables and a
@@ -3113,6 +3121,7 @@ TSG_EXPORT void TSGgml_Shutdown()
     // pinned staging buffers that reference every rank's backend.
     tp_comm_free();
     TSGgml_Qwen35ResetDecodeCache();
+    TSGgml_Qwen3ResetDecodeCache();
     TSGgml_Qwen35ResetBatchedDecodeCache();
     TSGgml_Qwen35ReleaseVerifyTpGraphs();
     forget_cache_keys();
@@ -3400,7 +3409,8 @@ TSG_EXPORT void TSGgml_InvalidateHostBuffer(void* ptr)
     TSGgml_Qwen4ExpArenaResetBatchedDecodeCache();
     TSGgml_Qwen35ResetDecodeCache();
     TSGgml_Qwen35ResetBatchedDecodeCache();
-    TSGgml_Qwen35ResetVerifyCache();
+    TSGgml_Qwen35ResetVerifyCacheForHostPointer(ptr);
+    TSGgml_Qwen3ResetDecodeCache();
 }
 
 TSG_EXPORT int TSGgml_SyncHostBuffer(void* ptr, size_t size)

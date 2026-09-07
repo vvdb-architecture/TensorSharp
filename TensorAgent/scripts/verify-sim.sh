@@ -146,12 +146,30 @@ fi
 if (( API )); then
 # 5. The app's own surface: the catalog, the saved chats, the sandbox switches.
 CATALOG="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/catalog")"
-for FAMILY in Gemma4 Qwen38 QwenImage; do
-    grep -q "\"family\":\"${FAMILY}\"" <<<"${CATALOG}" || fail "the catalog is missing the ${FAMILY} family"
-done
-for KIND in Dense MixtureOfExperts Diffusion; do
-    grep -q "\"kind\":\"${KIND}\"" <<<"${CATALOG}" || fail "the catalog is missing a ${KIND} entry"
-done
+python3 - "${CATALOG}" <<'PYCHECK' || fail "the catalog does not match the approved reduced model list"
+import json, sys
+models = json.loads(sys.argv[1])['models']
+expected_ids = [
+    'gemma-4-e2b-q8',
+    'gemma-4-e4b-iq4xs',
+    'gemma-4-12b-iq2m',
+    'bonsai-8b-q1-0',
+    'bonsai-27b-q1-0',
+    'qwen3.5-9b-iq4xs',
+]
+actual_ids = [model['id'] for model in models]
+if actual_ids != expected_ids:
+    print(f'catalog ids are {actual_ids}, expected {expected_ids}', file=sys.stderr)
+    sys.exit(1)
+families = {model['family'] for model in models}
+kinds = {model['kind'] for model in models}
+if families != {'Gemma4', 'Qwen35', 'Bonsai'}:
+    print(f'catalog families are {families}', file=sys.stderr)
+    sys.exit(1)
+if kinds != {'Dense'}:
+    print(f'catalog architectures are {kinds}', file=sys.stderr)
+    sys.exit(1)
+PYCHECK
 # The two sandbox switches must be PRESENT and readable; their values are the user's,
 # not a default. This container is reused between runs and the settings file survives,
 # so asserting "network is off" here failed the day someone turned it on in the app —
@@ -167,7 +185,7 @@ DOWNLOADS="$(curl -fsS "${AUTH[@]}" "${BASE}api/agent/downloads")"
 grep -q '"downloads"' <<<"${DOWNLOADS}" || fail "/api/agent/downloads shape: ${DOWNLOADS}"
 SKILLS="$(curl -fsS "${AUTH[@]}" "${BASE}api/skills")"
 grep -q '"skills"' <<<"${SKILLS}" || fail "/api/skills shape: ${SKILLS}"
-echo "ok  catalog covers both families and all three architectures; the switches and the download list answer"
+echo "ok  catalog contains the six approved dense models; the switches and the download list answer"
 
 else
     skip_api "the app's own routes"

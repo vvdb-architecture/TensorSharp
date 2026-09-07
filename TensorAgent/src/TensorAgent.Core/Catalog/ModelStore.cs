@@ -8,6 +8,8 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using System.Buffers;
+using System.Security.Cryptography;
 using TensorAgent.Core.Downloads;
 
 namespace TensorAgent.Core.Catalog;
@@ -144,6 +146,12 @@ public sealed class ModelStore
         IReadOnlyCollection<CatalogFileRole>? optionalRoles = null)
     {
         ArgumentNullException.ThrowIfNull(model);
+        if (model.SideloadOnly)
+        {
+            throw new InvalidOperationException(
+                $"{model.DisplayName} has no verified publisher download URL. Import " +
+                $"the hash-pinned {model.Weights.FileName} file from the Models page instead.");
+        }
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -179,6 +187,96 @@ public sealed class ModelStore
         }
         finally
         {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Import the exact local artifact described by a sideload-only catalog card.
+    /// Bytes are copied to a same-directory staging file, checked for both length and
+    /// SHA-256, and only then atomically replace the loadable destination. A wrong pick,
+    /// cancellation, or read error therefore cannot damage a previously imported model.
+    /// </summary>
+    public async Task ImportAsync(
+        CatalogModel model,
+        Stream source,
+        IProgress<long>? progress = null,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(source);
+        if (!model.SideloadOnly)
+            throw new InvalidOperationException($"{model.DisplayName} is downloaded by the catalog, not imported.");
+        if (!source.CanRead)
+            throw new ArgumentException("The selected model file cannot be read.", nameof(source));
+
+        CatalogFile weights = model.Weights;
+        string directory = DirectoryFor(model);
+        string destination = PathFor(model, weights);
+        string staging = destination + ".import-" + Guid.NewGuid().ToString("N");
+
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        byte[]? buffer = null;
+        try
+        {
+            buffer = ArrayPool<byte>.Shared.Rent(1024 * 1024);
+            Directory.CreateDirectory(directory);
+            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            long copied = 0;
+            await using (var target = new FileStream(
+                staging, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                bufferSize: 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                while (true)
+                {
+                    int read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+
+                    copied = checked(copied + read);
+                    if (copied > weights.Bytes)
+                    {
+                        throw new InvalidDataException(
+                            $"{Path.GetFileName(weights.FileName)} is larger than the expected " +
+                            $"{weights.Bytes:N0} bytes and is not the pinned catalog artifact.");
+                    }
+
+                    hash.AppendData(buffer, 0, read);
+                    await target.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                    progress?.Report(copied);
+                }
+                await target.FlushAsync(ct).ConfigureAwait(false);
+                target.Flush(flushToDisk: true);
+            }
+
+            if (copied != weights.Bytes)
+            {
+                throw new InvalidDataException(
+                    $"The selected file is {copied:N0} bytes; {weights.FileName} must be " +
+                    $"exactly {weights.Bytes:N0} bytes.");
+            }
+
+            string actualHash = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+            if (!string.Equals(actualHash, weights.Sha256, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"The selected file's SHA-256 is {actualHash}, not the pinned {weights.Sha256}. " +
+                    "Choose the exact GGUF named on the card.");
+            }
+
+            File.Move(staging, destination, overwrite: true);
+            Notify(destination);
+        }
+        finally
+        {
+            if (buffer is not null)
+                ArrayPool<byte>.Shared.Return(buffer);
+            try { if (File.Exists(staging)) File.Delete(staging); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // An abandoned staging file is never loadable and must not mask the
+                // validation/read error that caused this cleanup path.
+            }
             _gate.Release();
         }
     }

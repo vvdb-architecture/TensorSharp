@@ -57,10 +57,13 @@ namespace TensorSharp.Runtime
         /// It is distinct from <see cref="SupportsKVStateSnapshot"/> (which only gates
         /// whether the paged engine can run at all): a model may snapshot fine for its
         /// own continuous decode yet be unable to faithfully restore a snapshot into a
-        /// fresh cache. Gemma 4's sliding-window / circular cache is exactly that case —
-        /// the byte-level restore does not reproduce a fresh prefill, so reusing it
-        /// produces corrupted output. Such models return false to force a correct
-        /// re-prefill. Defaults to <see cref="SupportsKVStateSnapshot"/>.
+        /// fresh cache. Gemma 4 caps this byte-snapshot path because its local K/V is
+        /// circular. Qwen 3.5/3.6 opts out because attention K/V alone is not a
+        /// complete cross-request continuation without the matching GatedDeltaNet
+        /// recurrent state; it may instead retain a complete request-owned fused
+        /// holder through <see cref="IBatchedPagedModel.SupportsRetainedFusedCache"/>.
+        /// Such models return false to force a correct re-prefill when no complete
+        /// holder applies. Defaults to <see cref="SupportsKVStateSnapshot"/>.
         /// </summary>
         bool SupportsCrossSequenceKvReuse => SupportsKVStateSnapshot;
 
@@ -70,7 +73,8 @@ namespace TensorSharp.Runtime
         /// can reuse an unbounded prefix. Sliding-window / circular-cache models (Gemma 4)
         /// can only reliably restore the last window's worth of positions, so they cap
         /// this at the window size; the engine reuses up to the cap and re-prefills the
-        /// rest. Defaults to unbounded.
+        /// rest. This describes byte snapshots, not the separate complete-holder
+        /// retention contract. Defaults to unbounded.
         /// </summary>
         int MaxReusablePrefixTokens => int.MaxValue;
 

@@ -68,18 +68,18 @@ public sealed class AgentAppHostTests : IDisposable
     /// A remembered model the picker would not offer this device is not loaded either.
     ///
     /// <para>
-    /// The Models list is built from <c>ForDevice</c> and the startup load looks the id
-    /// up in the whole catalog, so the two disagreed: an entry that was offered at 12 GB
-    /// when it was chosen, and has since been gated to 16, still auto-loaded on the
-    /// phone -- into a model measured unusable there, with no row in the list to explain
-    /// it or take it back. gpt-oss-20b is exactly that entry.
+    /// The Models list is built from <c>ForDevice</c>, while startup can find a saved id
+    /// in the whole catalog. Without a second device-tier check, a choice restored from
+    /// a larger device could auto-load with no row in the list to explain or undo it.
+    /// The retained catalog starts at 12 GB, so an 8 GB device exercises that boundary
+    /// with a real catalog entry.
     /// </para>
     /// </summary>
     [Fact]
     public void AModelGatedAboveThisDeviceIsNotLoadedAtStartupAndTheChoiceIsCleared()
     {
-        CatalogModel tooBig = ModelCatalog.BuiltIn.First(m => m.MinDeviceMemoryGB > 12);
-        AgentPaths paths = Paths with { DeviceMemoryGB = 12 };
+        CatalogModel tooBig = ModelCatalog.BuiltIn.First(m => m.MinDeviceMemoryGB > 8);
+        AgentPaths paths = Paths with { DeviceMemoryGB = 8 };
         paths.EnsureCreated();
         var settings = new SettingsStore(paths.SettingsFile);
         AppSettings chosen = settings.Load();

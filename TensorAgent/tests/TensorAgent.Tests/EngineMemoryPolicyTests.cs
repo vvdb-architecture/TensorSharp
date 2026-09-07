@@ -56,13 +56,17 @@ public sealed class EngineMemoryPolicyTests : IDisposable
     [Fact]
     public void AnEntryThatStatesNoContextLeavesTheGgufsOwnValueAlone()
     {
-        // The diffusion entries hold no KV cache and set ContextLength = 0. Applying a
-        // budget there would be meaningless; what matters is that a STALE variable from
-        // a previous load does not leak into this one.
+        // Some architectures hold no KV cache and state ContextLength = 0. The reduced
+        // built-in list currently has no such entry, so use a synthetic one to preserve
+        // the engine-policy boundary without requiring an unrelated catalog card.
         Environment.SetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable, "8192");
-        CatalogModel diffusion = ModelCatalog.BuiltIn.First(m => m.ContextLength == 0);
+        CatalogModel noContext = Entry("qwen3.5-9b-iq4xs") with
+        {
+            Id = "synthetic-no-context",
+            ContextLength = 0,
+        };
 
-        Assert.Equal(0, EngineMemoryPolicy.Apply(diffusion, new AppSettings()));
+        Assert.Equal(0, EngineMemoryPolicy.Apply(noContext, new AppSettings()));
         Assert.Null(Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable));
     }
 
@@ -72,15 +76,16 @@ public sealed class EngineMemoryPolicyTests : IDisposable
         EngineMemoryPolicy.Apply(Entry("qwen3.5-9b-iq4xs"), new AppSettings());
         string? first = Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable);
 
-        EngineMemoryPolicy.Apply(Entry("qwen3.8-27b-iq1s"), new AppSettings());
+        EngineMemoryPolicy.Apply(Entry("gemma-4-e2b-q8"), new AppSettings());
         string? second = Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable);
 
         // Against the catalog, not literals: the point of the test is that switching
         // REPLACES the budget, and hardcoding the numbers only breaks it when a
         // context is legitimately retuned.
         Assert.Equal(Entry("qwen3.5-9b-iq4xs").ContextLength.ToString(), first);
-        Assert.Equal(Entry("qwen3.8-27b-iq1s").ContextLength.ToString(), second);
+        Assert.Equal(Entry("gemma-4-e2b-q8").ContextLength.ToString(), second);
         Assert.NotNull(first);
+        Assert.NotEqual(first, second);
     }
 
     /// <summary>
@@ -171,11 +176,11 @@ public sealed class EngineMemoryPolicyTests : IDisposable
     /// <para>
     /// Gemma 4 declines a block-quantized cache (Gemma4Model.SupportsBlockQuantizedKvCache):
     /// its sliding-window layers use a CIRCULAR cache whose managed helpers are float-only,
-    /// and the 26B-A4B MoE reaches them on an ordinary prompt. Setting q8_0 on a Gemma entry
-    /// therefore did not merely fall back -- before the load-time refusal it crashed the app
+    /// and an ordinary prompt can reach them. Setting q8_0 on a Gemma entry therefore
+    /// does not merely fall back -- before the load-time refusal it crashed the app
     /// with "Requires a Float32 tensor, but found Q8_0" out of CopyToCacheCircular the moment
-    /// a user typed. Qwen3.5/3.6 take the fused graph, whose native side is dtype-generic,
-    /// and keep the memory win.
+    /// a user typed. Qwen3.5 takes the fused graph, whose native side is dtype-generic,
+    /// and keeps the memory win.
     /// </para>
     /// </summary>
     [Fact]
@@ -199,18 +204,17 @@ public sealed class EngineMemoryPolicyTests : IDisposable
     /// memory win is not quietly reverted along with a Gemma fix.
     /// </summary>
     [Fact]
-    public void TheQwenEntriesStillAskForTheQuantizedCache()
+    public void TheQwenEntryStillAsksForTheQuantizedCache()
     {
         List<CatalogModel> qwen = ModelCatalog.BuiltIn
-            .Where(m => m.Family is CatalogFamily.Qwen35 or CatalogFamily.Qwen36 or CatalogFamily.Qwen38)
-            .Where(m => m.Kind != CatalogArchitectureKind.Diffusion)
+            .Where(m => m.Family == CatalogFamily.Qwen35)
             .ToList();
 
         Assert.NotEmpty(qwen);
         foreach (CatalogModel m in qwen)
         {
             Assert.True(m.KvCacheDtype == "q8_0",
-                $"{m.Id} is on {m.KvCacheDtype}: Qwen3.5/3.6 run the fused graph, which reads a "
+                $"{m.Id} is on {m.KvCacheDtype}: Qwen3.5 runs the fused graph, which reads a "
                 + "block-quantized cache at decode parity for ~46% less KV memory");
         }
     }

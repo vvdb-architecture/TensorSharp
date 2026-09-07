@@ -387,6 +387,403 @@ public sealed class DocumentSkillTests
     private static readonly byte[] ZipMagic = [0x50, 0x4B, 0x03, 0x04];
 
     /// <summary>
+    /// A small but semantically checkable deck fixture for the reported workflow.
+    /// It deliberately distinguishes established M5 material from M6 research so a
+    /// writer that drops either side of the comparison cannot pass on ZIP magic alone.
+    /// </summary>
+    private const string AppleChipDeckSpec = """
+        {
+          "title": "Apple M6 vs M5",
+          "author": "TensorAgent",
+          "slides": [
+            {"layout":"title","title":"Apple M6 vs M5","subtitle":"Evidence-backed comparison"},
+            {"layout":"table","title":"M5 and M6 at a glance",
+             "columns":["Chip","Status","Scope"],
+             "rows":[["M5","Established baseline","Published capabilities"],
+                     ["M6","Research subject","Confirmed facts and clearly labeled reports"]]},
+            {"layout":"bullets","title":"Reporting rules",
+             "bullets":["Cite every M5 fact","Keep M6 reports separate from confirmed information"]}
+          ]
+        }
+        """;
+
+    private static void AssertDeckContainsBothChips(string path)
+    {
+        using var archive = System.IO.Compression.ZipFile.OpenRead(path);
+        string slideXml = string.Join("\n", archive.Entries
+            .Where(entry => entry.FullName.StartsWith("ppt/slides/slide", StringComparison.Ordinal)
+                && entry.FullName.EndsWith(".xml", StringComparison.Ordinal))
+            .Select(entry =>
+            {
+                using var reader = new StreamReader(entry.Open());
+                return reader.ReadToEnd();
+            }));
+
+        Assert.Contains("M5", slideXml, StringComparison.Ordinal);
+        Assert.Contains("M6", slideXml, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The live M5/M6 run produced a coherent but non-canonical shape: every slide
+    /// used <c>content: []</c> without a layout and citations lived in root
+    /// <c>sources</c>. Both fields used to be ignored/rejected, leaving empty slides
+    /// and another expensive model repair round. Their meaning is unambiguous, so the
+    /// writer normalizes them and must put every claim and URL into slide XML.
+    /// </summary>
+    [LiveStagedPythonFact]
+    public void PptxContentAndSourcesAliasesRenderVisibleSlidesOnTheFirstRun()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-pptx-alias-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("aliases");
+            string work = workspace.WorkDirectory;
+            IShellBackend backend = new InProcessShellBackend(python);
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+            string script = Path.Combine(Scripts, "make_pptx.py");
+
+            ConfinedResult Run(string name, string spec)
+            {
+                File.WriteAllText(Path.Combine(work, name + ".json"), spec);
+                return backend.Run(new ShellLaunch
+                {
+                    Command = $"python3 '{script}' --spec {name}.json --out {name}.pptx",
+                    Session = session,
+                    WorkingDirectory = work,
+                    WriteDirectory = work,
+                    ReadOnlyDirectory = Scripts,
+                    Timeout = TimeSpan.FromSeconds(30),
+                });
+            }
+
+            File.WriteAllBytes(
+                Path.Combine(work, "pixel.png"),
+                Convert.FromBase64String(
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+
+            const string aliasSpec = """
+                {
+                  "title": "Apple M6 vs M5",
+                  "slides": [
+                    {"title":"Overview","content":["M5_BASELINE_VISIBLE",null,{"text":null},"  - M6_RESEARCH_VISIBLE",
+                      {"text":"NESTED_HEADING_VISIBLE","bullets":["NESTED_DETAIL_VISIBLE",
+                        {"text":"NESTED_CITATION_VISIBLE","date":"2026-09-04","url":"https://example.com/nested"}]}]},
+                    {"title":"M5","content":["M5_ARCHITECTURE_VISIBLE"]},
+                    {"title":"M6","content":["M6_REPORTS_VISIBLE"],
+                      "sources":[{"title":"Slide-local source","date":"2026-09-03","url":"https://example.com/local"}]},
+                    {"title":"Comparison","content":["M5_M6_COMPARISON_VISIBLE",
+                      {"text":"INLINE_CITATION_VISIBLE","date":"2026-09-05","url":"https://example.com/inline"}]},
+                    {"layout":"text","title":"Narrative","text":"TEXT_LAYOUT_VISIBLE"},
+                    {"layout":"text","title":"Mixed sources","text":"MIXED_INTRO_VISIBLE",
+                      "bullets":[{"text":"MIXED_SOURCE_VISIBLE","url":"https://example.com/mixed"}]},
+                    {"layout":"image","title":"Evidence image","image":"pixel.png","caption":"IMAGE_LAYOUT_VISIBLE"}
+                  ],
+                  "sources": [
+                    {"url":"https://example.com/apple-m5","date":"2025-03-05","title":"M5 source"},
+                    {"url":"https://example.com/apple-m6","date":"2026-08-25","title":"M6 source"},
+                    {"url":"https://example.com/comparison","date":"2026-09-01","title":"Comparison source"}
+                  ]
+                }
+                """;
+
+            ConfinedResult alias = Run("aliases", aliasSpec);
+            Assert.True(alias.Ok && alias.ExitCode == 0,
+                $"the common aliases should succeed on their first run.{Environment.NewLine}"
+                + $"stdout: {alias.Stdout}{Environment.NewLine}stderr: {alias.Stderr}");
+
+            string deck = Path.Combine(work, "aliases.pptx");
+            Assert.True(File.Exists(deck), "the alias spec reported success but produced no deck");
+            using (var archive = System.IO.Compression.ZipFile.OpenRead(deck))
+            {
+                var entries = archive.Entries
+                    .Where(entry => entry.FullName.StartsWith("ppt/slides/slide", StringComparison.Ordinal)
+                        && entry.FullName.EndsWith(".xml", StringComparison.Ordinal))
+                    .ToList();
+                Assert.Equal(8, entries.Count); // seven requested slides plus the normalized Sources slide
+                string xml = string.Join("\n", entries.Select(entry =>
+                {
+                    using var reader = new StreamReader(entry.Open());
+                    return reader.ReadToEnd();
+                }));
+
+                foreach (string visible in new[]
+                {
+                    "M5_BASELINE_VISIBLE", "M6_RESEARCH_VISIBLE", "M5_ARCHITECTURE_VISIBLE",
+                    "M6_REPORTS_VISIBLE", "M5_M6_COMPARISON_VISIBLE", "TEXT_LAYOUT_VISIBLE",
+                    "MIXED_INTRO_VISIBLE", "MIXED_SOURCE_VISIBLE", "https://example.com/mixed",
+                    "NESTED_HEADING_VISIBLE", "NESTED_DETAIL_VISIBLE", "NESTED_CITATION_VISIBLE",
+                    "2026-09-04", "https://example.com/nested",
+                    "INLINE_CITATION_VISIBLE", "2026-09-05", "https://example.com/inline",
+                    "IMAGE_LAYOUT_VISIBLE", "Sources",
+                    "M5 source", "2025-03-05", "https://example.com/apple-m5",
+                    "M6 source", "2026-08-25", "https://example.com/apple-m6",
+                    "Comparison source", "2026-09-01", "https://example.com/comparison",
+                    "Slide-local source", "2026-09-03", "https://example.com/local",
+                })
+                {
+                    Assert.Contains(visible, xml, StringComparison.Ordinal);
+                }
+                Assert.Contains("<a:t></a:t>", xml, StringComparison.Ordinal);
+                Assert.DoesNotContain(">None<", xml, StringComparison.Ordinal);
+                Assert.Contains(archive.Entries, entry => entry.FullName == "ppt/media/image1.png");
+            }
+
+            // The existing canonical fixture remains valid under the stricter schema.
+            ConfinedResult canonical = Run("canonical", AppleChipDeckSpec);
+            Assert.True(canonical.Ok && canonical.ExitCode == 0,
+                $"canonical slide fields regressed.{Environment.NewLine}"
+                + $"stdout: {canonical.Stdout}{Environment.NewLine}stderr: {canonical.Stderr}");
+            AssertDeckContainsBothChips(Path.Combine(work, "canonical.pptx"));
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// A slide-local <c>sources</c> array can be the complete body of a Sources
+    /// slide. The writer must replace that placeholder with one real slide, not
+    /// validate an empty remainder and not append a duplicate Sources slide.
+    /// Synthesized source bullets must also take the ordinary normalization path,
+    /// including its bounded-list check, before any package is written.
+    /// </summary>
+    [LiveStagedPythonFact]
+    public void PptxSourcesOnlySlideIsReplacedOnceAndObeysBulletLimits()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-pptx-sources-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("sources");
+            string work = workspace.WorkDirectory;
+            IShellBackend backend = new InProcessShellBackend(python);
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+            string script = Path.Combine(Scripts, "make_pptx.py");
+
+            ConfinedResult Run(string name, object spec)
+            {
+                File.WriteAllText(Path.Combine(work, name + ".json"), JsonSerializer.Serialize(spec));
+                return backend.Run(new ShellLaunch
+                {
+                    Command = $"python3 '{script}' --spec {name}.json --out {name}.pptx",
+                    Session = session,
+                    WorkingDirectory = work,
+                    WriteDirectory = work,
+                    ReadOnlyDirectory = Scripts,
+                    Timeout = TimeSpan.FromSeconds(30),
+                });
+            }
+
+            const string repeatedUrl = "https://example.com/shared-source";
+            var sourcesOnly = new
+            {
+                title = "Evidence deck",
+                slides = new object[]
+                {
+                    new { layout = "title", title = "Evidence deck" },
+                    new
+                    {
+                        layout = "bullets",
+                        title = "References",
+                        sources = new object[]
+                        {
+                            new { title = "Shared evidence", date = "2026-09-05", url = repeatedUrl },
+                            new { title = "Second source", date = "2026-09-04", url = "https://example.com/second" },
+                        },
+                    },
+                },
+                // An identical root citation is common after merging research
+                // notes; it should not consume a second line on the final slide.
+                sources = new object[]
+                {
+                    new { title = "Shared evidence", date = "2026-09-05", url = repeatedUrl },
+                },
+            };
+
+            ConfinedResult valid = Run("sources-only", sourcesOnly);
+            Assert.True(valid.Ok && valid.ExitCode == 0,
+                $"a sources-only placeholder should succeed on its first run.{Environment.NewLine}"
+                + $"stdout: {valid.Stdout}{Environment.NewLine}stderr: {valid.Stderr}");
+
+            using (var archive = System.IO.Compression.ZipFile.OpenRead(Path.Combine(work, "sources-only.pptx")))
+            {
+                var entries = archive.Entries
+                    .Where(entry => entry.FullName.StartsWith("ppt/slides/slide", StringComparison.Ordinal)
+                        && entry.FullName.EndsWith(".xml", StringComparison.Ordinal))
+                    .ToList();
+                Assert.Equal(2, entries.Count); // title plus one replacement References slide
+                string xml = string.Join("\n", entries.Select(entry =>
+                {
+                    using var reader = new StreamReader(entry.Open());
+                    return reader.ReadToEnd();
+                }));
+                Assert.Single(Regex.Matches(xml, ">References<", RegexOptions.CultureInvariant).Cast<Match>());
+                Assert.Single(Regex.Matches(xml, Regex.Escape(repeatedUrl), RegexOptions.CultureInvariant).Cast<Match>());
+                Assert.Contains("Second source", xml, StringComparison.Ordinal);
+            }
+
+            // The exact Chinese workflow can redundantly author a localized
+            // citation-bullets slide as well as the canonical root sources. Fold
+            // those citations into one final localized slide instead of keeping
+            // the authored copy and appending another English Sources slide.
+            var localizedSources = new
+            {
+                slides = new object[]
+                {
+                    new { layout = "title", title = "芯片对比" },
+                    new
+                    {
+                        layout = "bullets",
+                        title = "来源",
+                        bullets = new object[]
+                        {
+                            new { text = "Shared evidence", date = "2026-09-05", url = repeatedUrl },
+                            new { text = "Second source", date = "2026-09-04", url = "https://example.com/second" },
+                        },
+                    },
+                },
+                sources = new object[]
+                {
+                    new { title = "Shared evidence", date = "2026-09-05", url = repeatedUrl },
+                },
+            };
+            ConfinedResult localized = Run("localized-sources", localizedSources);
+            Assert.True(localized.Ok && localized.ExitCode == 0,
+                $"a localized authored Sources slide should normalize once.{Environment.NewLine}"
+                + $"stdout: {localized.Stdout}{Environment.NewLine}stderr: {localized.Stderr}");
+            using (var archive = System.IO.Compression.ZipFile.OpenRead(Path.Combine(work, "localized-sources.pptx")))
+            {
+                var entries = archive.Entries
+                    .Where(entry => entry.FullName.StartsWith("ppt/slides/slide", StringComparison.Ordinal)
+                        && entry.FullName.EndsWith(".xml", StringComparison.Ordinal))
+                    .ToList();
+                Assert.Equal(2, entries.Count);
+                string xml = string.Join("\n", entries.Select(entry =>
+                {
+                    using var reader = new StreamReader(entry.Open());
+                    return reader.ReadToEnd();
+                }));
+                Assert.Single(Regex.Matches(xml, ">来源<", RegexOptions.CultureInvariant).Cast<Match>());
+                Assert.Single(Regex.Matches(xml, Regex.Escape(repeatedUrl), RegexOptions.CultureInvariant).Cast<Match>());
+                Assert.Single(Regex.Matches(xml, "https://example.com/second", RegexOptions.CultureInvariant).Cast<Match>());
+            }
+
+            // MAX_BULLETS is 512 in make_pptx.py. The generated Sources slide
+            // previously bypassed flatten_bullets/validate_slide entirely.
+            var tooManySources = new
+            {
+                slides = new object[]
+                {
+                    new { layout = "title", title = "Bounded sources" },
+                    new
+                    {
+                        layout = "bullets",
+                        title = "Sources",
+                        sources = Enumerable.Range(1, 513)
+                            .Select(i => $"https://example.com/source-{i}")
+                            .ToArray(),
+                    },
+                },
+            };
+            ConfinedResult bounded = Run("too-many-sources", tooManySources);
+            string diagnostic = bounded.Stdout + Environment.NewLine + bounded.Stderr;
+            Assert.False(bounded.Ok, "a synthesized slide with 513 source bullets unexpectedly succeeded");
+            Assert.Contains("slide 2", diagnostic, StringComparison.Ordinal);
+            Assert.Contains("contains more than 512 bullet items", diagnostic, StringComparison.Ordinal);
+            Assert.Contains("Accepted fields for this layout:", diagnostic, StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(work, "too-many-sources.pptx")),
+                "source limits were checked only after writing a deceptive deck");
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Ambiguous or misspelled fields must fail before a valid-looking ZIP is
+    /// written. Each error names the exact slide and enough of the schema for the
+    /// model to repair that one object rather than regenerate the entire deck.
+    /// </summary>
+    [LiveStagedPythonFact]
+    public void PptxInvalidSlideFieldsNameTheBrokenSlideAndItsAcceptedSchema()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-pptx-schema-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("invalid");
+            string work = workspace.WorkDirectory;
+            IShellBackend backend = new InProcessShellBackend(python);
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+            string script = Path.Combine(Scripts, "make_pptx.py");
+
+            var cases = new[]
+            {
+                ("unknown-content", """{"slides":[{"layout":"table","title":"Bad","content":["lost"]}]}""",
+                    "unknown key 'content'"),
+                ("nested-content", """{"slides":[{"layout":"bullets","bullets":[{"content":"lost"}]}]}""",
+                    "bullet 1 has unknown key 'content'"),
+                ("scalar-alias", """{"slides":[{"title":"Bad","content":"not an array"}]}""",
+                    "alias 'content', but that alias must be an array"),
+                ("title", """{"slides":[{"layout":"title","subtitle":"No heading"}]}""",
+                    "needs a non-empty 'title'"),
+                ("bullets", """{"slides":[{"layout":"bullets","title":"No body","bullets":[]}]}""",
+                    "needs a non-empty 'bullets' array"),
+                ("bullet-level", """{"slides":[{"layout":"bullets","bullets":[{"text":"Too deep","level":3}]}]}""",
+                    "needs 'level' between 0 and 2"),
+                ("bullet-size", """{"slides":[{"layout":"bullets","bullets":[{"text":"Huge","size":1e309}]}]}""",
+                    "needs a finite positive 'size'"),
+                ("table", """{"slides":[{"layout":"table","title":"No cells"}]}""",
+                    "needs a non-empty 'columns' or 'rows' array"),
+                ("image", """{"slides":[{"layout":"image","title":"No picture"}]}""",
+                    "needs a non-empty string 'image' path"),
+                ("text", """{"slides":[{"layout":"text","title":"No body","text":"   "}]}""",
+                    "needs non-empty 'text' body content"),
+            };
+
+            foreach ((string name, string spec, string expected) in cases)
+            {
+                File.WriteAllText(Path.Combine(work, name + ".json"), spec);
+                ConfinedResult result = backend.Run(new ShellLaunch
+                {
+                    Command = $"python3 '{script}' --spec {name}.json --out {name}.pptx",
+                    Session = session,
+                    WorkingDirectory = work,
+                    WriteDirectory = work,
+                    ReadOnlyDirectory = Scripts,
+                    Timeout = TimeSpan.FromSeconds(30),
+                });
+                string diagnostic = result.Stdout + Environment.NewLine + result.Stderr;
+
+                Assert.False(result.Ok, $"{name} unexpectedly succeeded:{Environment.NewLine}{diagnostic}");
+                Assert.Contains("slide 1", diagnostic, StringComparison.Ordinal);
+                Assert.Contains(expected, diagnostic, StringComparison.Ordinal);
+                Assert.Contains("Accepted fields for this layout:", diagnostic, StringComparison.Ordinal);
+                Assert.Contains("Accepted layouts: bullets, image, table, text, title.", diagnostic,
+                    StringComparison.Ordinal);
+                Assert.False(File.Exists(Path.Combine(work, name + ".pptx")),
+                    $"{name} failed validation only after writing a deceptive deck");
+            }
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>
     /// A Windows CSV is not necessarily UTF-8. The real election-results file that
     /// exposed this contained two otherwise ordinary names with an <c>0xE9</c> byte;
     /// the analyzer read 64 KiB as UTF-8 and stopped before it could report a row.
@@ -562,6 +959,7 @@ public sealed class DocumentSkillTests
                   {"type":"table","columns":["Region","Units","Revenue"],
                    "rows":[["Northgate",12,4180],["Ravensworth",7,2650],["Bellhaven",19,7310]]}]}
                 """);
+            File.WriteAllText(Path.Combine(work, "deck-spec.json"), AppleChipDeckSpec);
 
             string scripts = Path.Combine(Skill, "scripts");
             foreach ((string command, string output, byte[] magic) in new[]
@@ -569,6 +967,7 @@ public sealed class DocumentSkillTests
                 ($"python3 '{scripts}/make_pdf.py' --spec spec.json --out report.pdf", "report.pdf", PdfMagic),
                 ($"python3 '{scripts}/make_xlsx.py' --csv sales.csv --out book.xlsx", "book.xlsx", ZipMagic),
                 ($"python3 '{scripts}/make_docx.py' --spec spec.json --out report.docx", "report.docx", ZipMagic),
+                ($"python3 '{scripts}/make_pptx.py' --spec deck-spec.json --out comparison.pptx", "comparison.pptx", ZipMagic),
                 ($"python3 '{scripts}/analyze_table.py' sales.csv", string.Empty, Array.Empty<byte>()),
             })
             {
@@ -597,6 +996,8 @@ public sealed class DocumentSkillTests
                     Assert.Equal(magic.Length, stream.Read(head, 0, magic.Length));
                 Assert.True(head.SequenceEqual(magic),
                     $"{output} does not start with the bytes its format requires, so it is not one");
+                if (output.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase))
+                    AssertDeckContainsBothChips(produced);
             }
         }
         finally
@@ -645,6 +1046,7 @@ public sealed class DocumentSkillTests
                   {"type":"table","columns":["Region","Units","Revenue"],
                    "rows":[["Northgate",12,4180],["Ravensworth",7,2650],["Bellhaven",19,7310]]}]}
                 """);
+            File.WriteAllText(Path.Combine(work, "deck-spec.json"), AppleChipDeckSpec);
 
             var runner = new SkillScriptRunner(new SkillScriptRunnerOptions
             {
@@ -658,6 +1060,7 @@ public sealed class DocumentSkillTests
             {
                 ("scripts/make_pdf.py", new[] { "--spec", "spec.json", "--out", "report.pdf" }, "report.pdf", PdfMagic),
                 ("scripts/make_xlsx.py", new[] { "--csv", "sales.csv", "--out", "book.xlsx" }, "book.xlsx", ZipMagic),
+                ("scripts/make_pptx.py", new[] { "--spec", "deck-spec.json", "--out", "comparison.pptx" }, "comparison.pptx", ZipMagic),
             })
             {
                 SkillToolResult result = runner.Run(skill!, script, args);
@@ -672,6 +1075,8 @@ public sealed class DocumentSkillTests
                 using (FileStream stream = File.OpenRead(produced))
                     stream.ReadExactly(head);
                 Assert.True(head.SequenceEqual(magic), $"{output} does not begin with its format's bytes");
+                if (output.EndsWith(".pptx", StringComparison.OrdinalIgnoreCase))
+                    AssertDeckContainsBothChips(produced);
             }
         }
         finally

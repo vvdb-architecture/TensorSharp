@@ -217,7 +217,7 @@ dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basi
       <tr><td><code>TS_SCHED_DISABLE_BATCHED</code></td><td><code>1</code> forces per-sequence KV-swap even when a model supports batching (= <code>--no-continuous-batching</code>).</td></tr>
       <tr><td><code>TS_SCHED_MAX_BATCHED_TOKENS</code></td><td>Per-step token budget (default <code>4096</code>).</td></tr>
       <tr><td><code>TS_SCHED_MAX_RUNNING_SEQS</code></td><td>Maximum in-flight sequences (default <code>16</code>).</td></tr>
-      <tr><td><code>TS_SCHED_PREFILL_CHUNK</code></td><td>Maximum prefill tokens per step (default <code>1024</code>).</td></tr>
+      <tr><td><code>TS_SCHED_PREFILL_CHUNK</code></td><td>Per-request prefill cap while a decode is active (default <code>256</code>); prefill-only steps fill the complete token budget.</td></tr>
       <tr><td><code>TS_SCHED_SOLO_PREFILL_CHUNK</code></td><td>Prefill chunk size when at most one sequence is in the system — caps all solo prefill chunks (default <code>8192</code>).</td></tr>
       <tr><td><code>TS_SCHED_DECODE_QUANTUM</code></td><td>Decode tokens before a sequence switch (default <code>256</code> = block size).</td></tr>
       <tr><td><code>TS_SCHED_NUM_BLOCKS</code> / <code>TS_SCHED_BLOCK_SIZE</code></td><td>Physical blocks in the engine pool (default <code>256</code>) / tokens per block (default <code>256</code>).</td></tr>

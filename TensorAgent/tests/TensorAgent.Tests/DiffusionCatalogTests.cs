@@ -15,6 +15,54 @@ using TensorAgent.Core.Settings;
 namespace TensorAgent.Tests;
 
 /// <summary>
+/// A representative Qwen-Image entry used only by the test assembly.
+///
+/// <para>
+/// TensorAgent intentionally no longer offers a diffusion checkpoint in its built-in
+/// catalog. The companion publisher is still production infrastructure, though, and
+/// needs a complete multi-file model to exercise it without making a removed download
+/// appear to be supported. Live media tests also use this fixture to give explicitly
+/// supplied local files the names and roles the pipeline expects.
+/// </para>
+/// </summary>
+internal static class DiffusionModelFixture
+{
+    internal static CatalogModel ImageEdit { get; } = new()
+    {
+        Id = "test-qwen-image-edit-2511",
+        DisplayName = "Qwen-Image-Edit 2511 test fixture",
+        Family = CatalogFamily.QwenImage,
+        Kind = CatalogArchitectureKind.Diffusion,
+        Parameters = "20B DiT + 7B text encoder",
+        Quantization = "Q2_K (DiT) / IQ2_XXS (text encoder)",
+        Files = new[]
+        {
+            new CatalogFile(CatalogFileRole.Weights, "qwen-image-edit-2511-Q2_K.gguf", string.Empty,
+                7_468_022_368, "a3d09042b64657970654941aa08d895de29b4d98edf3632a89e70d4d6e23c47c"),
+            new CatalogFile(CatalogFileRole.TextEncoder, "Qwen2.5-VL-7B-Instruct-UD-IQ2_XXS.gguf", string.Empty,
+                2_398_444_416, "9fdde01492c884464ec3713aa02993c7b56711ee392904f2a53dd92cbe9f1967"),
+            new CatalogFile(CatalogFileRole.Vae, "Qwen_Image-VAE.safetensors", string.Empty,
+                253_806_246, "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"),
+            new CatalogFile(CatalogFileRole.Lora,
+                "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", string.Empty,
+                849_608_296, "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f"),
+            new CatalogFile(CatalogFileRole.VisionProjector,
+                "Qwen2.5-VL-7B-Instruct-mmproj-BF16.gguf", string.Empty,
+                1_354_163_040, "f0edf43c09b69d6e5dd24262f33b356a1e9dd978e7c3299b3e69141fcbb87553",
+                Optional: true),
+        },
+        Modalities = CatalogModalities.Image | CatalogModalities.ImageOutput,
+        MinDeviceMemoryGB = 24,
+        ContextLength = 0,
+        KvCacheDtype = "f16",
+        Sampling = new CatalogSampling(1.0f, 0, 1.0f, 0.0f),
+        Experimental = true,
+        License = "Apache-2.0",
+        Notes = "Test-only diffusion fixture; not a built-in TensorAgent model.",
+    };
+}
+
+/// <summary>
 /// Tests that write the process's own environment, kept out of everything else's way.
 ///
 /// <para>
@@ -32,15 +80,13 @@ public sealed class ProcessEnvironmentCollection
 }
 
 /// <summary>
-/// Whether the image-generation entry's five files are the five files the pipeline
-/// goes looking for, under names it will recognise.
+/// Whether a representative image-generation model's five files are the five files
+/// the pipeline goes looking for, under names it will recognise.
 ///
 /// <para>
-/// This is the only failure in the catalog that costs a user eleven gigabytes before
-/// it shows itself. Every other mistake — a wrong size, a wrong hash, a dead URL —
-/// stops the download; a companion whose name the pipeline's directory scan does not
-/// match downloads perfectly, verifies perfectly, and is then silently ignored, and
-/// the user gets a worse picture with no explanation anywhere.
+/// A companion whose name the pipeline's directory scan does not match can be present
+/// and valid yet still be silently ignored. Keeping a representative definition here
+/// catches that integration failure without requiring a built-in catalog entry.
 /// </para>
 /// <para>
 /// The scans are stated here rather than called, because they are private to
@@ -52,7 +98,7 @@ public sealed class ProcessEnvironmentCollection
 public sealed class DiffusionCatalogTests
 {
     private static CatalogModel ImageEdit =>
-        ModelCatalog.BuiltIn.Single(m => m.Kind == CatalogArchitectureKind.Diffusion);
+        DiffusionModelFixture.ImageEdit;
 
     private static string NameOf(CatalogModel model, CatalogFileRole role) =>
         model.Files.Single(f => f.Role == role).FileName;
@@ -85,7 +131,7 @@ public sealed class DiffusionCatalogTests
     }
 
     [Fact]
-    public void TheImageEditEntryCarriesEveryNetworkTheDiTDoesNotContain()
+    public void TheImageEditFixtureCarriesEveryNetworkTheDiTDoesNotContain()
     {
         CatalogModel model = ImageEdit;
         foreach (CatalogFileRole role in new[]
@@ -105,7 +151,7 @@ public sealed class DiffusionCatalogTests
     }
 
     [Fact]
-    public void EveryCompanionIsNamedSomethingThePipelinesOwnScanWillMatch()
+    public void EveryFixtureCompanionIsNamedSomethingThePipelinesOwnScanWillMatch()
     {
         CatalogModel model = ImageEdit;
 
@@ -122,7 +168,7 @@ public sealed class DiffusionCatalogTests
     }
 
     [Fact]
-    public void NoTwoCompanionsAnswerToTheSameScan()
+    public void NoTwoFixtureCompanionsAnswerToTheSameScan()
     {
         // The three scans run over one directory, so a name that satisfies two of them
         // hands one network to the wrong loader. The text-encoder scan in particular
@@ -167,9 +213,8 @@ public sealed class DiffusionCatalogTests
     [Fact]
     public void TheStepDistillationLoraIsPublishedBecauseNothingScansForIt()
     {
-        // QwenImageDiT.LoraPath reads TS_QWEN_IMAGE_LORA and nothing else. A LoRA the
-        // user paid 850 MB for and that the entry's own notes promise ("4 Lightning
-        // steps") is therefore inert unless the host says where it is.
+        // QwenImageDiT.LoraPath reads TS_QWEN_IMAGE_LORA and nothing else. A supplied
+        // 850 MB Lightning LoRA is therefore inert unless the host says where it is.
         using var installation = new FakeInstall(ImageEdit, install: model => model.Files);
 
         IReadOnlyDictionary<string, string> published = DiffusionCompanions.Publish(ImageEdit, installation.Store);
@@ -185,10 +230,9 @@ public sealed class DiffusionCatalogTests
     [Fact]
     public void ACompanionThatWasNeverDownloadedIsClearedRatherThanPointedAt()
     {
-        // The projector and the LoRA are optional downloads, and the environment is
-        // process-wide: leaving a variable set from a previous selection turns "you
-        // chose not to download this" into a load that dies naming a file the user has
-        // never heard of.
+        // Companion files may be absent from a partial or deliberately minimal local
+        // installation, and the environment is process-wide. Leaving a variable from
+        // a previous selection would point the next load at unrelated state.
         Environment.SetEnvironmentVariable("TS_QWEN_IMAGE_LORA", "/somewhere/from/before.safetensors");
         using var installation = new FakeInstall(ImageEdit,
             install: model => model.Files.Where(f => f.Role != CatalogFileRole.Lora));
@@ -208,7 +252,10 @@ public sealed class DiffusionCatalogTests
         DiffusionCompanions.Publish(null, installation.Store);
 
         foreach (string variable in new[]
-                 { "TS_QWEN_IMAGE_VAE", "TS_QWEN_IMAGE_TE", "TS_QWEN_IMAGE_MMPROJ", "TS_QWEN_IMAGE_LORA" })
+                 {
+                     "TS_QWEN_IMAGE_VAE", "TS_QWEN_IMAGE_TE", "TS_QWEN_IMAGE_MMPROJ",
+                     "TS_QWEN_IMAGE_LORA", "TS_QWEN_IMAGE_MAX_AREA",
+                 })
         {
             Assert.Null(Environment.GetEnvironmentVariable(variable));
         }
@@ -262,49 +309,41 @@ public sealed class DiffusionCatalogTests
     }
 
     /// <summary>
-    /// The wiring, not the helper. Every other test here calls
-    /// <c>DiffusionCompanions.Publish</c> directly, which proves the helper works and
-    /// says nothing about whether anything calls it — and a helper nobody calls is
-    /// exactly the state this fix was made to correct. This builds a real host with a
-    /// diffusion model selected and its files on disk, and asserts the variables the
-    /// pipeline reads are set by the time the host is constructed.
+    /// A remembered selection can outlive the catalog entry it names. Constructing a
+    /// host for that state must clear process-wide companion paths rather than leave a
+    /// previous diffusion run wired into an unrelated model.
     /// </summary>
     [Fact]
-    public void BuildingTheHostPublishesTheCompanionsThePipelineWillLookFor()
+    public void BuildingTheHostClearsCompanionsForARemovedDiffusionSelection()
     {
-        CatalogModel model = ModelCatalog.BuiltIn.First(m => m.Kind == CatalogArchitectureKind.Diffusion);
+        CatalogModel model = ImageEdit;
+        const string removedId = "qwen-image-edit-2511-q2k";
+        Assert.Null(ModelCatalog.Find(removedId));
+
         string root = Path.Combine(Path.GetTempPath(), "tensoragent-wired-" + Guid.NewGuid().ToString("N"));
         var paths = new AgentPaths(Path.Combine(root, "data"), Path.Combine(root, "cache")) { DeviceMemoryGB = 16 };
         paths.EnsureCreated();
 
-        // Every companion has to exist: Publish names a file it can see, never one it
-        // hopes for, so a half-downloaded model publishes nothing.
-        string directory = Path.Combine(paths.ModelsDirectory, model.Id);
-        Directory.CreateDirectory(directory);
-        foreach (CatalogFile file in model.Files)
-            File.WriteAllBytes(Path.Combine(directory, file.FileName), new byte[] { 1, 2, 3 });
-
         var settings = new SettingsStore(paths.SettingsFile);
         AppSettings chosen = settings.Load();
-        chosen.SelectedModelId = model.Id;
+        chosen.SelectedModelId = removedId;
         settings.Save(chosen);
 
-        foreach (string variable in new[] { "TS_QWEN_IMAGE_VAE", "TS_QWEN_IMAGE_TE", "TS_QWEN_IMAGE_MMPROJ", "TS_QWEN_IMAGE_LORA" })
-            Environment.SetEnvironmentVariable(variable, null);
+        using var installation = new FakeInstall(model, install: candidate => candidate.Files);
+        Assert.NotEmpty(DiffusionCompanions.Publish(model, installation.Store));
 
-        using var host = new AgentAppHost(paths);
+        using (var host = new AgentAppHost(paths))
+        {
+            foreach (string variable in new[]
+                     {
+                         "TS_QWEN_IMAGE_VAE", "TS_QWEN_IMAGE_TE", "TS_QWEN_IMAGE_MMPROJ",
+                         "TS_QWEN_IMAGE_LORA", "TS_QWEN_IMAGE_MAX_AREA",
+                     })
+            {
+                Assert.Null(Environment.GetEnvironmentVariable(variable));
+            }
+        }
 
-        // The LoRA is the one that matters most: without it the pipeline runs 30 steps
-        // with CFG instead of 4, which on a phone is the difference between a feature
-        // and a stall.
-        string? lora = Environment.GetEnvironmentVariable("TS_QWEN_IMAGE_LORA");
-        Assert.False(string.IsNullOrEmpty(lora), "constructing the host did not publish the Lightning LoRA");
-        Assert.Equal(Path.Combine(directory, model.Files.First(f => f.Role == CatalogFileRole.Lora).FileName), lora);
-
-        Assert.False(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TS_QWEN_IMAGE_VAE")));
-        Assert.False(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TS_QWEN_IMAGE_TE")));
-        Assert.False(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TS_QWEN_IMAGE_MMPROJ")));
-
-        try { Directory.Delete(root, true); } catch { }
+        try { Directory.Delete(root, true); } catch (Exception) { /* scratch */ }
     }
 }

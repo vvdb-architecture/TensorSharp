@@ -12,9 +12,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -100,6 +102,7 @@ namespace TensorSharp.Server.Skills
         {
             var working = new List<ChatMessage>(messages);
             int maxRounds = Math.Max(1, plan.LoopOptions.MaxRounds);
+            bool guardCompletion = plan.CompletionRequirement != null;
 
             int promptTokens = 0;
             int evalTokens = 0;
@@ -122,6 +125,7 @@ namespace TensorSharp.Server.Skills
                 var content = new StringBuilder();
                 var thinking = new StringBuilder();
                 var calls = new List<ToolCall>();
+                var heldAnswer = guardCompletion ? new List<ChatStreamUpdate>() : null;
                 ChatStreamUpdate terminal = default;
                 string toolBeingWritten = null;
 
@@ -139,12 +143,21 @@ namespace TensorSharp.Server.Skills
                     ParsedOutput delta = parser.Add(update.Piece, false);
                     Accumulate(delta, content, thinking, calls);
 
-                    // Content and reasoning go out the moment they are decoded. A tool
-                    // call does NOT: it is either ours to answer or the caller's to
-                    // service, and forwarding it mid-round would commit to an answer the
-                    // round has not finished giving.
-                    if (!string.IsNullOrEmpty(delta.Content) || !string.IsNullOrEmpty(delta.Thinking))
+                    // Content and reasoning ordinarily go out the moment they are
+                    // decoded. A guarded route holds both: small models sometimes put
+                    // user-facing success claims in the reasoning channel, so buffering
+                    // only content still leaks the very false claim this guard rejects.
+                    // A tool call does not stream as an answer either; it is ours to
+                    // answer or the caller's to service.
+                    if (guardCompletion)
+                    {
+                        if (!string.IsNullOrEmpty(delta.Content) || !string.IsNullOrEmpty(delta.Thinking))
+                            heldAnswer.Add(ChatStreamUpdate.Parsed(delta.Content, delta.Thinking, null));
+                    }
+                    else if (!string.IsNullOrEmpty(delta.Content) || !string.IsNullOrEmpty(delta.Thinking))
+                    {
                         yield return ChatStreamUpdate.Parsed(delta.Content, delta.Thinking, null);
+                    }
 
                     // The call's BODY does stream — as progress, not as content. A
                     // shell call can be a whole heredoc written in silence otherwise;
@@ -164,8 +177,15 @@ namespace TensorSharp.Server.Skills
 
                 ParsedOutput flushed = parser.Add(string.Empty, true);
                 Accumulate(flushed, content, thinking, calls);
-                if (!string.IsNullOrEmpty(flushed.Content) || !string.IsNullOrEmpty(flushed.Thinking))
+                if (guardCompletion)
+                {
+                    if (!string.IsNullOrEmpty(flushed.Content) || !string.IsNullOrEmpty(flushed.Thinking))
+                        heldAnswer.Add(ChatStreamUpdate.Parsed(flushed.Content, flushed.Thinking, null));
+                }
+                else if (!string.IsNullOrEmpty(flushed.Content) || !string.IsNullOrEmpty(flushed.Thinking))
+                {
                     yield return ChatStreamUpdate.Parsed(flushed.Content, flushed.Thinking, null);
+                }
 
                 // Three ways, not two. A call that is neither ours nor a tool the CLIENT
                 // declared belongs to nobody, and forwarding it was a silent end to the
@@ -180,6 +200,38 @@ namespace TensorSharp.Server.Skills
 
                 if (skillCalls.Count == 0 && unknownCalls.Count == 0)
                 {
+                    if (guardCompletion && clientCalls.Count == 0)
+                    {
+                        WorkspaceArtifactCompletionResult completion =
+                            WorkspaceArtifactCompletion.Verify(plan);
+                        if (!completion.Complete)
+                        {
+                            AppendCompletionCorrection(
+                                working, plan, content, thinking, calls, terminal, completion.Reason);
+                            await foreach (ChatStreamUpdate correction in RunCompletionCorrectionAsync(
+                                architecture, working, plan, enableThinking, generate, logger,
+                                correctionRound: round + 1,
+                                promptTokens, evalTokens, reusedTokens, promptNs, evalNs, totalNs,
+                                cancellationToken).ConfigureAwait(false))
+                            {
+                                yield return correction;
+                            }
+                            yield break;
+                        }
+
+                        plan.VerifiedArtifact = completion.Artifact;
+                        foreach (ChatStreamUpdate held in heldAnswer)
+                            yield return held;
+                        if (completion.Artifact.HasValue
+                            && !ContainsArtifactMarkdownLink(
+                                content.ToString(), completion.Artifact.Value.Url))
+                        {
+                            yield return ChatStreamUpdate.Parsed(
+                                (content.Length == 0 ? string.Empty : "\n\n")
+                                + DescribeCompletedArtifact(completion.Artifact.Value), null, null);
+                        }
+                    }
+
                     // Nothing more to fetch. Any tool calls left are the caller's, and
                     // only the caller knows what they do. The progress line still has to
                     // come down: it went up as the call was written, and the caller
@@ -238,94 +290,28 @@ namespace TensorSharp.Server.Skills
                     yield return ChatStreamUpdate.ToolProgress("finished", unknownCall.Name);
                 }
 
-                int executed = 0;
-                foreach (ToolCall call in skillCalls)
+                await foreach (ChatStreamUpdate progress in ExecuteSkillCallsAsync(
+                    skillCalls, round, plan, working, logger, cancellationToken).ConfigureAwait(false))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return progress;
+                }
 
-                    if (executed >= plan.LoopOptions.MaxCallsPerRound)
-                    {
-                        working.Add(BuildResult(plan,
-                            $"Error: too many tool calls in one turn; only the first {plan.LoopOptions.MaxCallsPerRound} "
-                            + "were answered. Ask for one file at a time."));
-                        break;
-                    }
-
-                    // Execution runs on a worker so this stream can keep breathing: a
-                    // shell call that installs packages holds the request for a
-                    // minute or more, and a synchronous call here meant the user's last
-                    // sign of life was however much prose preceded it. The heartbeat
-                    // updates carry the elapsed time; the adapter turns them into
-                    // "running…" frames. Cancellation stops the WAIT — the process
-                    // itself is bounded by the runner's own timeout, exactly as it was
-                    // when this call blocked the loop.
-                    string callDetail = DescribeCall(call);
-                    yield return ChatStreamUpdate.ToolProgress("running", call.Name, detail: callDetail);
-
-                    // The tool's own stdout/stderr, tapped live: a pip install's
-                    // "Collecting reportlab", the program's prints as it runs. Lines
-                    // arrive on the process's reader threads and drain into the
-                    // heartbeat frames the user is already watching.
-                    var liveOutput = new LiveOutputBuffer();
-                    // Acquire BEFORE scheduling. Request cancellation can dispose this
-                    // async iterator before the worker even starts; holding the operation
-                    // here lets the request lease detach immediately while deferring
-                    // workspace deletion until the worker's finally has run.
-                    IDisposable workspaceOperation = plan.ToolContext?.Workspace?.BeginOperation();
-                    Task<SkillToolResult> execution;
-                    try
-                    {
-                        execution = Task.Run(() =>
-                        {
-                            using (workspaceOperation)
-                                return SkillTools.Execute(call, plan.ToolContext, liveOutput.Add);
-                        });
-                    }
-                    catch
-                    {
-                        workspaceOperation?.Dispose();
-                        throw;
-                    }
-                    var executionClock = Stopwatch.StartNew();
-                    while (await Task.WhenAny(execution, Task.Delay(1000, cancellationToken)).ConfigureAwait(false) != execution)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        yield return ChatStreamUpdate.ToolProgress(
-                            "running", call.Name, piece: liveOutput.Drain(),
-                            seconds: executionClock.Elapsed.TotalSeconds, detail: callDetail);
-                    }
-                    SkillToolResult result = await execution.ConfigureAwait(false);
-
-                    // A run shorter than one heartbeat never hit the loop above; its
-                    // output still deserves to reach the screen before "finished".
-                    string trailingOutput = liveOutput.Drain();
-                    if (!string.IsNullOrEmpty(trailingOutput))
-                    {
-                        yield return ChatStreamUpdate.ToolProgress(
-                            "running", call.Name, piece: trailingOutput,
-                            seconds: executionClock.Elapsed.TotalSeconds, detail: callDetail);
-                    }
-                    executed++;
-
-                    var invocation = new SkillToolInvocation(
-                        round, call.Name ?? string.Empty, result.SkillId, result.ResourcePath,
-                        result.Ok, result.Content?.Length ?? 0)
-                    { Files = result.Files };
-                    lock (plan.Invocations)
-                        plan.Invocations.Add(invocation);
-
-                    logger?.LogInformation(LogEventIds.SkillToolInvoked,
-                        "skills.tool round={Round} tool={Tool} skill={SkillId} path={Path} ok={Ok} bytes={Bytes}",
-                        round, invocation.Tool, invocation.SkillId ?? "-", invocation.ResourcePath ?? "-",
-                        invocation.Ok, invocation.ResultBytes);
-
-                    working.Add(BuildResult(plan, result.Content ?? string.Empty, call.Name));
-
-                    // Yielded AFTER the invocation is recorded, so the adapter's trace
-                    // flush (which runs on every update it receives) emits the step's
-                    // result frame before the UI is told the live progress line is done.
-                    yield return ChatStreamUpdate.ToolProgress(
-                        "finished", call.Name, seconds: executionClock.Elapsed.TotalSeconds);
+                // A routed workflow's writer is itself the last meaningful step. Once
+                // its ordered prerequisite runs and immutable artifact pass the host
+                // contract, asking the model for another round merely gives it an
+                // opportunity to call more tools (or rewrite a file that is already
+                // correct). ExecuteSkillCallsAsync verifies after every finished call
+                // and stops the current batch too, so a trailing call from the same
+                // generated response cannot undo or duplicate the completed work.
+                if (plan.VerifiedArtifact is { } completedArtifact)
+                {
+                    yield return ChatStreamUpdate.Parsed(
+                        DescribeCompletedArtifact(completedArtifact), null, null);
+                    yield return Combine(
+                        terminal,
+                        promptTokens, evalTokens, reusedTokens, promptNs, evalNs, totalNs,
+                        finishReason: "stop");
+                    yield break;
                 }
             }
 
@@ -350,70 +336,685 @@ namespace TensorSharp.Server.Skills
             var finalCalls = new List<ToolCall>();
             var finalContent = new StringBuilder();
             var finalThinking = new StringBuilder();
+            var finalHeldAnswer = guardCompletion ? new List<ChatStreamUpdate>() : null;
+            ChatStreamUpdate finalTerminal = default;
 
             await foreach (ChatStreamUpdate update in
                 generate(working, plan.Tools, cancellationToken).ConfigureAwait(false))
             {
-                if (!update.Done)
+                if (update.Done)
                 {
-                    if (string.IsNullOrEmpty(update.Piece))
-                        continue;
-                    ParsedOutput delta = finalParser.Add(update.Piece, false);
-                    Accumulate(delta, finalContent, finalThinking, finalCalls);
-                    if (!string.IsNullOrEmpty(delta.Content) || !string.IsNullOrEmpty(delta.Thinking))
-                        yield return ChatStreamUpdate.Parsed(delta.Content, delta.Thinking, null);
-                    if (!string.IsNullOrEmpty(delta.ToolCallText))
-                        yield return ChatStreamUpdate.ToolProgress("writing", delta.ToolCallName, delta.ToolCallText);
+                    finalTerminal = update;
                     continue;
                 }
+                if (string.IsNullOrEmpty(update.Piece))
+                    continue;
 
-                ParsedOutput last = finalParser.Add(string.Empty, true);
-                Accumulate(last, finalContent, finalThinking, finalCalls);
-                if (!string.IsNullOrEmpty(last.Content) || !string.IsNullOrEmpty(last.Thinking))
-                    yield return ChatStreamUpdate.Parsed(last.Content, last.Thinking, null);
-
-                // Only the client's own tools may be forwarded here — this is the last
-                // round, so a name nobody declared would leave the turn empty with no
-                // round left to recover in.
-                SkillTools.Partition(
-                    finalCalls, plan.ClientTools,
-                    out List<ToolCall> stillOurs, out List<ToolCall> pending, out List<ToolCall> stillUnknown);
-                foreach (ToolCall dropped in stillOurs.Concat(stillUnknown))
-                    yield return ChatStreamUpdate.ToolProgress("finished", dropped.Name);
-                if (pending.Count > 0)
-                    yield return ChatStreamUpdate.Parsed(string.Empty, null, pending);
-
-                // The model was told to answer and asked for another tool instead, so
-                // its whole reply is markup this loop has just dropped and the user
-                // would get an empty bubble — the same silence, arrived at from the
-                // other end. Say what happened and what DID get made: a turn that
-                // produced files is a partial success, and the user cannot tell that
-                // from a crash unless someone says so.
-                // APPENDED, not substituted, and no longer conditional on the content
-                // being empty. Measured on this server's own logs: 6 of the 12 capped
-                // turns ended with a NON-empty lead-in and a dropped tool call —
-                // "Let me take a different approach and use a simpler Python script:"
-                // followed by 6,069 tokens of markup nobody would run. The gate below
-                // fired for none of them, so the user was handed a sentence promising
-                // work, no work, and no notice that the budget had run out. Five
-                // client-abort warnings the same day are consistent with people giving
-                // up on exactly that.
-                if (stillOurs.Count > 0 || stillUnknown.Count > 0)
+                ParsedOutput delta = finalParser.Add(update.Piece, false);
+                Accumulate(delta, finalContent, finalThinking, finalCalls);
+                if (guardCompletion)
                 {
-                    string exhausted = DescribeExhaustedTurn(plan, stillOurs.Concat(stillUnknown));
-                    yield return ChatStreamUpdate.Parsed(
-                        finalContent.Length == 0 ? exhausted : "\n\n" + exhausted, null, null);
+                    if (!string.IsNullOrEmpty(delta.Content) || !string.IsNullOrEmpty(delta.Thinking))
+                        finalHeldAnswer.Add(ChatStreamUpdate.Parsed(delta.Content, delta.Thinking, null));
+                }
+                else if (!string.IsNullOrEmpty(delta.Content) || !string.IsNullOrEmpty(delta.Thinking))
+                {
+                    yield return ChatStreamUpdate.Parsed(delta.Content, delta.Thinking, null);
+                }
+                if (!string.IsNullOrEmpty(delta.ToolCallText))
+                    yield return ChatStreamUpdate.ToolProgress("writing", delta.ToolCallName, delta.ToolCallText);
+            }
+
+            ParsedOutput last = finalParser.Add(string.Empty, true);
+            Accumulate(last, finalContent, finalThinking, finalCalls);
+            if (guardCompletion)
+            {
+                if (!string.IsNullOrEmpty(last.Content) || !string.IsNullOrEmpty(last.Thinking))
+                    finalHeldAnswer.Add(ChatStreamUpdate.Parsed(last.Content, last.Thinking, null));
+            }
+            else if (!string.IsNullOrEmpty(last.Content) || !string.IsNullOrEmpty(last.Thinking))
+            {
+                yield return ChatStreamUpdate.Parsed(last.Content, last.Thinking, null);
+            }
+
+            // Only the client's own tools may be forwarded here — this is ordinarily
+            // the last round, so a name nobody declared would leave the turn empty with
+            // no round left to recover in. A guarded route gets its one explicit
+            // correction below even when this configured cap has already been reached.
+            SkillTools.Partition(
+                finalCalls, plan.ClientTools,
+                out List<ToolCall> stillOurs, out List<ToolCall> pending, out List<ToolCall> stillUnknown);
+            foreach (ToolCall dropped in stillOurs.Concat(stillUnknown))
+                yield return ChatStreamUpdate.ToolProgress("finished", dropped.Name);
+
+            bool guardedCompletionVerified = false;
+            if (guardCompletion && pending.Count == 0)
+            {
+                WorkspaceArtifactCompletionResult completion = WorkspaceArtifactCompletion.Verify(plan);
+                if (!completion.Complete)
+                {
+                    AppendCompletionCorrection(
+                        working, plan, finalContent, finalThinking, finalCalls, finalTerminal, completion.Reason);
+                    await foreach (ChatStreamUpdate correction in RunCompletionCorrectionAsync(
+                        architecture, working, plan, enableThinking, generate, logger,
+                        correctionRound: maxRounds + 2,
+                        promptTokens + finalTerminal.PromptTokens,
+                        evalTokens + finalTerminal.EvalTokens,
+                        reusedTokens + finalTerminal.KvCacheReusedTokens,
+                        promptNs + finalTerminal.PromptNs,
+                        evalNs + finalTerminal.EvalNs,
+                        totalNs + finalTerminal.TotalNs,
+                        cancellationToken).ConfigureAwait(false))
+                    {
+                        yield return correction;
+                    }
+                    yield break;
                 }
 
-                yield return Combine(
-                    update,
-                    promptTokens + update.PromptTokens,
-                    evalTokens + update.EvalTokens,
-                    reusedTokens + update.KvCacheReusedTokens,
-                    promptNs + update.PromptNs,
-                    evalNs + update.EvalNs,
-                    totalNs + update.TotalNs);
+                guardedCompletionVerified = true;
+                plan.VerifiedArtifact = completion.Artifact;
+                if (stillOurs.Count == 0 && stillUnknown.Count == 0)
+                {
+                    foreach (ChatStreamUpdate held in finalHeldAnswer)
+                        yield return held;
+                }
+                if (completion.Artifact.HasValue
+                    && (stillOurs.Count > 0 || stillUnknown.Count > 0
+                        || !ContainsArtifactMarkdownLink(
+                            finalContent.ToString(), completion.Artifact.Value.Url)))
+                {
+                    yield return ChatStreamUpdate.Parsed(
+                        stillOurs.Count == 0 && stillUnknown.Count == 0 && finalContent.Length > 0
+                            ? "\n\n" + DescribeCompletedArtifact(completion.Artifact.Value)
+                            : DescribeCompletedArtifact(completion.Artifact.Value),
+                        null, null);
+                }
             }
+
+            if (pending.Count > 0)
+                yield return ChatStreamUpdate.Parsed(string.Empty, null, pending);
+
+            // The model was told to answer and asked for another tool instead, so its
+            // whole reply is markup this loop has just dropped and the user would get
+            // an empty bubble. Say what happened and what DID get made. Appended even
+            // to a non-empty lead-in: "let me try" plus a dropped call is not an answer.
+            if (!guardedCompletionVerified && (stillOurs.Count > 0 || stillUnknown.Count > 0))
+            {
+                string exhausted = DescribeExhaustedTurn(plan, stillOurs.Concat(stillUnknown));
+                yield return ChatStreamUpdate.Parsed(
+                    finalContent.Length == 0 ? exhausted : "\n\n" + exhausted, null, null);
+            }
+
+            yield return Combine(
+                finalTerminal,
+                promptTokens + finalTerminal.PromptTokens,
+                evalTokens + finalTerminal.EvalTokens,
+                reusedTokens + finalTerminal.KvCacheReusedTokens,
+                promptNs + finalTerminal.PromptNs,
+                evalNs + finalTerminal.EvalNs,
+                totalNs + finalTerminal.TotalNs);
+        }
+
+        /// <summary>
+        /// Preserve the rejected assistant turn as evidence, then add one terse host
+        /// correction. A user message is used when there was no tool call; inventing a
+        /// bare tool result there produces an invalid conversation for strict templates.
+        /// </summary>
+        private static void AppendCompletionCorrection(
+            List<ChatMessage> working,
+            SkillRequestPlan plan,
+            StringBuilder content,
+            StringBuilder thinking,
+            IReadOnlyList<ToolCall> calls,
+            ChatStreamUpdate terminal,
+            string reason)
+        {
+            working.Add(new ChatMessage
+            {
+                Role = "assistant",
+                Content = content.ToString(),
+                Thinking = thinking.Length == 0 ? null : thinking.ToString(),
+                ToolCalls = calls.Count == 0 ? null : new List<ToolCall>(calls),
+                RawOutputTokens = terminal.RawOutputTokens != null
+                    ? new List<int>(terminal.RawOutputTokens)
+                    : null,
+                RawPromptTrailingWhitespace = terminal.RawPromptTrailingWhitespace,
+            });
+
+            string feedback =
+                "Host completion check: the requested PowerPoint deliverable is not complete. "
+                + reason + " The latest tool error and any working research/spec are already in the conversation "
+                + "and shared workspace; reuse them. In this one corrective continuation, make the smallest necessary "
+                + "edit to the existing spec or repair file. If a required input is absent, create only that missing "
+                + "input. Keep supported research claims, source URLs, and dates in the deck, then rerun the bundled "
+                + "documents/scripts/make_pptx.py writer. Do not regenerate working files, copy the bundled writer, "
+                + "install python-pptx/lxml, or hand-build OOXML. Issue every necessary host tool call now, in order; "
+                + "do not merely claim success.";
+
+            working.Add(calls.Count == 0
+                ? new HostCompletionCorrectionMessage { Role = "user", Content = feedback }
+                : BuildResult(plan, feedback));
+        }
+
+        /// <summary>
+        /// A host-authored continuation that must use <c>role=user</c> for strict chat
+        /// templates, but must never replace the genuine user task as context-compaction
+        /// anchor. The runtime type is an in-process marker only; renderers still see an
+        /// ordinary <see cref="ChatMessage"/> and no wire or persisted shape changes.
+        /// </summary>
+        internal sealed class HostCompletionCorrectionMessage : ChatMessage
+        {
+        }
+
+        /// <summary>
+        /// Exactly one extra model generation after an unverified final answer. Calls
+        /// from that generation are executed as one bounded batch, then the host checks
+        /// the artifact immediately and supplies the final truthful sentence itself —
+        /// there is deliberately no third generation and therefore no retry loop.
+        /// </summary>
+        private static async IAsyncEnumerable<ChatStreamUpdate> RunCompletionCorrectionAsync(
+            string architecture,
+            List<ChatMessage> working,
+            SkillRequestPlan plan,
+            bool enableThinking,
+            SkillChatGeneration generate,
+            ILogger logger,
+            int correctionRound,
+            int promptTokens,
+            int evalTokens,
+            int reusedTokens,
+            long promptNs,
+            long evalNs,
+            long totalNs,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var parser = OutputParserFactory.Create(architecture);
+            parser.Init(enableThinking, plan.Tools);
+            var content = new StringBuilder();
+            var thinking = new StringBuilder();
+            var calls = new List<ToolCall>();
+            ChatStreamUpdate terminal = default;
+            string toolBeingWritten = null;
+
+            await foreach (ChatStreamUpdate update in
+                generate(working, plan.Tools, cancellationToken).ConfigureAwait(false))
+            {
+                if (update.Done)
+                {
+                    terminal = update;
+                    continue;
+                }
+                if (string.IsNullOrEmpty(update.Piece))
+                    continue;
+
+                ParsedOutput delta = parser.Add(update.Piece, false);
+                Accumulate(delta, content, thinking, calls);
+                // The correction's answer and reasoning are still provisional. Tool
+                // writing/running progress remains live, which keeps a long writer call
+                // visible without leaking another unverified success claim.
+                toolBeingWritten = delta.ToolCallName ?? toolBeingWritten;
+                if (!string.IsNullOrEmpty(delta.ToolCallText))
+                    yield return ChatStreamUpdate.ToolProgress("writing", toolBeingWritten, delta.ToolCallText);
+            }
+
+            ParsedOutput flushed = parser.Add(string.Empty, true);
+            Accumulate(flushed, content, thinking, calls);
+
+            SkillTools.Partition(
+                calls, plan.ClientTools,
+                out List<ToolCall> skillCalls,
+                out List<ToolCall> clientCalls,
+                out List<ToolCall> unknownCalls);
+
+            // Completion guards are attached only when the request has no client tools.
+            // Still close any unexpected progress line rather than leaking a call this
+            // one-shot correction cannot ask the client to service.
+            foreach (ToolCall unserviceable in clientCalls.Concat(unknownCalls))
+            {
+                string refusal = clientCalls.Contains(unserviceable)
+                    ? "A caller-owned tool cannot be serviced inside the artifact correction."
+                    : SkillTools.DescribeUnknownTool(unserviceable.Name, plan.Tools);
+                lock (plan.Invocations)
+                {
+                    plan.Invocations.Add(new SkillToolInvocation(
+                        correctionRound, unserviceable.Name ?? string.Empty, null, null,
+                        Ok: false, refusal.Length));
+                }
+                yield return ChatStreamUpdate.ToolProgress("finished", unserviceable.Name);
+            }
+
+            await foreach (ChatStreamUpdate progress in ExecuteSkillCallsAsync(
+                skillCalls, correctionRound, plan, working, logger, cancellationToken).ConfigureAwait(false))
+            {
+                yield return progress;
+            }
+
+            WorkspaceArtifactCompletionResult completion = WorkspaceArtifactCompletion.Verify(plan);
+            string final;
+            if (completion.Complete && completion.Artifact.HasValue)
+            {
+                plan.VerifiedArtifact = completion.Artifact;
+                final = DescribeCompletedArtifact(completion.Artifact.Value);
+                logger?.LogInformation(LogEventIds.SkillToolInvoked,
+                    "skills.completion.corrected round={Round} artifact={Artifact}",
+                    correctionRound, completion.Artifact.Value.Name);
+            }
+            else
+            {
+                final = "I couldn't complete the PowerPoint report: no valid downloadable .pptx was produced "
+                    + "after the one corrective attempt. " + completion.Reason;
+                logger?.LogWarning(LogEventIds.SkillLoopCapped,
+                    "skills.completion.failed round={Round} reason={Reason}",
+                    correctionRound, completion.Reason);
+            }
+
+            yield return ChatStreamUpdate.Parsed(final, null, null);
+            yield return Combine(
+                terminal,
+                promptTokens + terminal.PromptTokens,
+                evalTokens + terminal.EvalTokens,
+                reusedTokens + terminal.KvCacheReusedTokens,
+                promptNs + terminal.PromptNs,
+                evalNs + terminal.EvalNs,
+                totalNs + terminal.TotalNs,
+                finishReason: "stop");
+        }
+
+        private static string DescribeCompletedArtifact(SkillProducedFile artifact) =>
+            "The requested PowerPoint report is ready: "
+            + $"[Download the .pptx report]({artifact.Url}).";
+
+        private static bool ContainsArtifactMarkdownLink(string content, string url) =>
+            !string.IsNullOrEmpty(content)
+            && !string.IsNullOrEmpty(url)
+            && content.Contains("](" + url + ")", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Execute one generated batch of host-owned calls. Shared by the ordinary
+        /// progressive loop and the single artifact correction so their confinement,
+        /// trace, heartbeat, and per-round call cap stay identical.
+        /// </summary>
+        private static async IAsyncEnumerable<ChatStreamUpdate> ExecuteSkillCallsAsync(
+            IReadOnlyList<ToolCall> skillCalls,
+            int round,
+            SkillRequestPlan plan,
+            List<ChatMessage> working,
+            ILogger logger,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            int executed = 0;
+            for (int callIndex = 0; callIndex < skillCalls.Count; callIndex++)
+            {
+                ToolCall call = skillCalls[callIndex];
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (executed >= plan.LoopOptions.MaxCallsPerRound)
+                {
+                    working.Add(BuildResult(plan,
+                        $"Error: too many tool calls in one turn; only the first {plan.LoopOptions.MaxCallsPerRound} "
+                        + "were answered. Ask for one file at a time."));
+                    break;
+                }
+
+                // Execution runs on a worker so this stream can keep breathing: a
+                // shell call that installs packages holds the request for a minute or
+                // more. The heartbeat updates keep that wait visible and cancellable.
+                ApplyRoutedDefaults(call, plan.CompletionRequirement);
+                string callDetail = DescribeCall(call);
+                yield return ChatStreamUpdate.ToolProgress("running", call.Name, detail: callDetail);
+
+                var liveOutput = new LiveOutputBuffer();
+                // Acquire BEFORE scheduling. Request cancellation can dispose this async
+                // iterator before the worker starts; the operation defers workspace
+                // deletion until the worker's finally has run.
+                IDisposable workspaceOperation = null;
+                Task<SkillToolResult> execution;
+                if (TryBuildRoutedPrerequisiteFailure(
+                    call, plan.CompletionRequirement, out SkillToolResult prerequisiteFailure))
+                {
+                    // Keep this on the normal result path so the failed attempt is
+                    // recorded, shown in the trace, and fed back to the model. The
+                    // bundled script itself is deliberately never entered.
+                    execution = Task.FromResult(prerequisiteFailure);
+                }
+                else
+                {
+                    workspaceOperation = plan.ToolContext?.Workspace?.BeginOperation();
+                    try
+                    {
+                        execution = Task.Run(() =>
+                        {
+                            using (workspaceOperation)
+                                return SkillTools.Execute(call, plan.ToolContext, liveOutput.Add);
+                        });
+                    }
+                    catch
+                    {
+                        workspaceOperation?.Dispose();
+                        throw;
+                    }
+                }
+
+                var executionClock = Stopwatch.StartNew();
+                while (await Task.WhenAny(execution, Task.Delay(1000, cancellationToken)).ConfigureAwait(false) != execution)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return ChatStreamUpdate.ToolProgress(
+                        "running", call.Name, piece: liveOutput.Drain(),
+                        seconds: executionClock.Elapsed.TotalSeconds, detail: callDetail);
+                }
+                SkillToolResult result = await execution.ConfigureAwait(false);
+
+                // A run shorter than one heartbeat never hit the loop above; its output
+                // still deserves to reach the screen before "finished".
+                string trailingOutput = liveOutput.Drain();
+                if (!string.IsNullOrEmpty(trailingOutput))
+                {
+                    yield return ChatStreamUpdate.ToolProgress(
+                        "running", call.Name, piece: trailingOutput,
+                        seconds: executionClock.Elapsed.TotalSeconds, detail: callDetail);
+                }
+                executed++;
+
+                var invocation = new SkillToolInvocation(
+                    round, call.Name ?? string.Empty, result.SkillId, result.ResourcePath,
+                    result.Ok, result.Content?.Length ?? 0)
+                { Files = result.Files };
+                lock (plan.Invocations)
+                    plan.Invocations.Add(invocation);
+
+                logger?.LogInformation(LogEventIds.SkillToolInvoked,
+                    "skills.tool round={Round} tool={Tool} skill={SkillId} path={Path} ok={Ok} bytes={Bytes}",
+                    round, invocation.Tool, invocation.SkillId ?? "-", invocation.ResourcePath ?? "-",
+                    invocation.Ok, invocation.ResultBytes);
+
+                working.Add(BuildResult(plan, result.Content ?? string.Empty, call.Name));
+
+                // Yielded AFTER the invocation is recorded, so the adapter flushes the
+                // step's structural result before it removes the progress line.
+                yield return ChatStreamUpdate.ToolProgress(
+                    "finished", call.Name, seconds: executionClock.Elapsed.TotalSeconds);
+
+                if (TryCompleteRoutedWorkflow(plan, out SkillProducedFile artifact))
+                {
+                    logger?.LogInformation(LogEventIds.SkillToolInvoked,
+                        "skills.completion.early round={Round} artifact={Artifact}",
+                        round, artifact.Name);
+
+                    // Parsing happened before execution, so the UI may already have
+                    // shown a "writing" phase for calls later in this same response.
+                    // Close those transient rows without executing or recording them.
+                    for (int skipped = callIndex + 1; skipped < skillCalls.Count; skipped++)
+                    {
+                        yield return ChatStreamUpdate.ToolProgress(
+                            "finished", skillCalls[skipped].Name);
+                    }
+                    yield break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// End only a host-routed, ordered workflow whose artifact passes the complete
+        /// structural/evidence contract. A bare completion requirement with no ordered
+        /// runs retains the original guard behaviour, and ordinary plans never enter
+        /// this path at all.
+        /// </summary>
+        private static bool TryCompleteRoutedWorkflow(
+            SkillRequestPlan plan,
+            out SkillProducedFile artifact)
+        {
+            artifact = default;
+            WorkspaceArtifactCompletionRequirement requirement = plan?.CompletionRequirement;
+            if (requirement == null || requirement.RequiredRuns.Count == 0)
+                return false;
+
+            WorkspaceArtifactCompletionResult completion = WorkspaceArtifactCompletion.Verify(plan);
+            if (!completion.Complete || completion.Artifact is not { } verified)
+                return false;
+
+            artifact = verified;
+            plan.VerifiedArtifact = verified;
+            return true;
+        }
+
+        /// <summary>
+        /// Refuse one exact routed script until its route-owned workspace input exists
+        /// and is non-empty. The opt-in path is validated when the route is attached;
+        /// checking again here, immediately before launch, prevents a model from spending
+        /// a Python invocation on a writer whose JSON spec has not been created yet.
+        /// </summary>
+        private static bool TryBuildRoutedPrerequisiteFailure(
+            ToolCall call,
+            WorkspaceArtifactCompletionRequirement requirement,
+            out SkillToolResult failure)
+        {
+            failure = default;
+            if (call == null
+                || requirement == null
+                || !string.Equals(call.Name, SkillTools.RunToolName, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string path = ReadCallString(call, "path") ?? ReadCallString(call, "script");
+            string skill = ReadCallString(call, "skill");
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(skill))
+                return false;
+
+            string normalizedPath = path.Replace('\\', '/').Trim();
+            WorkspaceSkillRunRequirement[] matches = requirement.RequiredRuns
+                .Where(run => MatchesRoutedResourcePath(normalizedPath, run)
+                    && string.Equals(skill.Trim(), run.SkillId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (matches.Length != 1 || string.IsNullOrEmpty(matches[0].RequiredInputPath))
+                return false;
+
+            WorkspaceSkillRunRequirement required = matches[0];
+            bool ready = false;
+            try
+            {
+                using (requirement.Workspace.BeginOperation())
+                {
+                    ready = requirement.Workspace.TryResolve(
+                            required.RequiredInputPath, out string fullPath, out _)
+                        && File.Exists(fullPath)
+                        && new FileInfo(fullPath).Length > 0;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                          or ArgumentException or NotSupportedException)
+            {
+                ready = false;
+            }
+
+            if (ready)
+                return false;
+
+            failure = new SkillToolResult(
+                false,
+                $"Error: required input '{required.RequiredInputPath}' is missing or empty. "
+                    + "Create or repair only that input in the shared workspace, then retry this writer.",
+                required.SkillId,
+                required.ResourcePath);
+            return true;
+        }
+
+        /// <summary>
+        /// Complete a narrowly routed script call when a model selected the exact
+        /// required script but dropped fields from its JSON arguments. Defaults belong
+        /// to the route, not to <c>skills_run</c> globally. Ordinary routes preserve a
+        /// non-empty model value; a narrowly host-owned route may explicitly require
+        /// its bounded canonical argument vector.
+        /// </summary>
+        internal static bool ApplyRoutedDefaults(
+            ToolCall call,
+            WorkspaceArtifactCompletionRequirement requirement)
+        {
+            if (call == null
+                || requirement == null
+                || !string.Equals(call.Name, SkillTools.RunToolName, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string path = ReadCallString(call, "path");
+            if (string.IsNullOrWhiteSpace(path))
+                path = ReadCallString(call, "script");
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            string normalizedPath = path.Replace('\\', '/').Trim();
+            WorkspaceSkillRunRequirement[] matches = requirement.RequiredRuns
+                .Where(run => MatchesRoutedResourcePath(normalizedPath, run))
+                .ToArray();
+            if (matches.Length != 1)
+                return false;
+
+            WorkspaceSkillRunRequirement required = matches[0];
+            string skill = ReadCallString(call, "skill");
+            if (!string.IsNullOrWhiteSpace(skill)
+                && !string.Equals(skill.Trim(), required.SkillId, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            call.Arguments ??= new Dictionary<string, object>();
+            bool changed = false;
+
+            // The matcher deliberately accepts the two spellings small models emit
+            // most often ("./..." and "<skill>/..."). Hand the executor the one
+            // unambiguous skill-relative spelling. SkillTools also confines and
+            // normalizes these aliases, but canonicalizing here keeps the routed call,
+            // its recorded invocation, and completion evidence in exact agreement.
+            // If a malformed blank `path` shadows a usable `script` alias, repair the
+            // canonical key because ExecuteRun gives `path` precedence.
+            string resourceArgument = call.Arguments.ContainsKey("path") ? "path" : "script";
+            if (!string.Equals(
+                    ReadCallString(call, resourceArgument)?.Trim(),
+                    required.ResourcePath,
+                    SkillPathGuard.PathComparison))
+            {
+                call.Arguments[resourceArgument] = required.ResourcePath;
+                changed = true;
+            }
+
+            if (string.IsNullOrWhiteSpace(skill))
+            {
+                call.Arguments["skill"] = required.SkillId;
+                changed = true;
+            }
+
+            if (required.DefaultArguments.Count > 0
+                && required.EnforceArguments
+                && !ArgumentListEquals(call, "args", required.DefaultArguments))
+            {
+                // ExecuteRun gives `args` precedence over the legacy `arguments`
+                // alias. Installing one canonical vector is therefore sufficient even
+                // when a small model emitted both spellings.
+                call.Arguments["args"] = required.DefaultArguments.ToArray();
+                changed = true;
+            }
+            else if (required.DefaultArguments.Count > 0
+                && !HasUsableArgumentList(call, "args")
+                && !HasUsableArgumentList(call, "arguments"))
+            {
+                call.Arguments["args"] = required.DefaultArguments.ToArray();
+                changed = true;
+            }
+
+            return changed;
+        }
+
+        private static bool ArgumentListEquals(
+            ToolCall call,
+            string name,
+            IReadOnlyList<string> expected)
+        {
+            if (call?.Arguments == null
+                || !call.Arguments.TryGetValue(name, out object value)
+                || value == null)
+            {
+                return false;
+            }
+
+            IEnumerable<string> actual = value switch
+            {
+                JsonElement { ValueKind: JsonValueKind.Array } element =>
+                    element.EnumerateArray().Select(item =>
+                        item.ValueKind == JsonValueKind.String ? item.GetString() : item.ToString()),
+                IEnumerable<string> values => values,
+                _ => null,
+            };
+            return actual != null && actual.SequenceEqual(expected, StringComparer.Ordinal);
+        }
+
+        private static bool MatchesRoutedResourcePath(
+            string normalizedPath,
+            WorkspaceSkillRunRequirement required)
+        {
+            while (normalizedPath.StartsWith("./", StringComparison.Ordinal))
+                normalizedPath = normalizedPath.Substring(2);
+
+            if (string.Equals(normalizedPath, required.ResourcePath, SkillPathGuard.PathComparison))
+                return true;
+
+            string skillPrefix = required.SkillId + "/";
+            return normalizedPath.StartsWith(skillPrefix, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    normalizedPath.Substring(skillPrefix.Length),
+                    required.ResourcePath,
+                    SkillPathGuard.PathComparison);
+        }
+
+        private static string ReadCallString(ToolCall call, string name)
+        {
+            if (call?.Arguments == null
+                || !call.Arguments.TryGetValue(name, out object value)
+                || value == null)
+            {
+                return null;
+            }
+
+            return value switch
+            {
+                string text => text,
+                JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(),
+                JsonElement { ValueKind: JsonValueKind.Null } => null,
+                JsonElement element => element.ToString(),
+                _ => Convert.ToString(value, CultureInfo.InvariantCulture),
+            };
+        }
+
+        private static bool HasUsableArgumentList(ToolCall call, string name)
+        {
+            if (call?.Arguments == null
+                || !call.Arguments.TryGetValue(name, out object value)
+                || value == null)
+            {
+                return false;
+            }
+
+            if (value is string text)
+                return !string.IsNullOrWhiteSpace(text);
+
+            if (value is JsonElement element)
+            {
+                return element.ValueKind switch
+                {
+                    JsonValueKind.Null or JsonValueKind.Undefined => false,
+                    JsonValueKind.String => !string.IsNullOrWhiteSpace(element.GetString()),
+                    JsonValueKind.Array => element.GetArrayLength() > 0,
+                    _ => true,
+                };
+            }
+
+            if (value is System.Collections.ICollection collection)
+                return collection.Count > 0;
+
+            return true;
         }
 
         /// <summary>
@@ -586,9 +1187,10 @@ namespace TensorSharp.Server.Skills
             int reusedTokens,
             long promptNs,
             long evalNs,
-            long totalNs) =>
+            long totalNs,
+            string finishReason = null) =>
             new(string.Empty, true, promptTokens, evalTokens, reusedTokens,
-                totalNs, promptNs, evalNs, terminal.FinishReason ?? "stop")
+                totalNs, promptNs, evalNs, finishReason ?? terminal.FinishReason ?? "stop")
             {
                 RawOutputTokens = terminal.RawOutputTokens,
                 RawPromptTrailingWhitespace = terminal.RawPromptTrailingWhitespace,

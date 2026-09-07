@@ -188,6 +188,7 @@ public static class WebUiRoutes
                 messages = conversation.Messages,
                 think = conversation.Think,
                 skills = conversation.Skills,
+                skillsExplicit = conversation.SkillsExplicit,
                 modelId = conversation.ModelId,
                 // The answer a previous page left running here, if there is one. Sent
                 // with the binding rather than fetched afterwards, so a page that was
@@ -406,6 +407,13 @@ public static class WebUiRoutes
             CatalogModel? model = Find(request.RouteValues["id"]);
             if (model is null)
                 return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { error = "no such model" }, 404));
+            if (model.SideloadOnly)
+            {
+                return Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new
+                {
+                    error = $"{model.DisplayName} has no verified publisher URL; import {model.Weights.FileName} from the native Models page.",
+                }, 409));
+            }
 
             IReadOnlyCollection<CatalogFileRole>? optional = OptionalRoles(settings);
             if (downloads is null)
@@ -651,6 +659,7 @@ public static class WebUiRoutes
         modalities = model.Modalities.ToString(),
         kind = model.Kind.ToString(),
         experimental = model.Experimental,
+        sideloadOnly = model.SideloadOnly,
         minDeviceMemoryGB = model.MinDeviceMemoryGB,
         totalBytes = model.TotalBytes,
         state = store.StateOf(model).ToString(),

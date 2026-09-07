@@ -52,14 +52,19 @@ namespace TensorSharp.Runtime.Scheduling
         /// <c>TS_BATCHED_FUSED_DECODE</c> (set 0 to disable for A/B).</summary>
         public bool BatchedFusedDecodeEnabled { get; init; } = true;
 
-        /// <summary>Retain finished fused-path KV holders for cross-request
-        /// prefix reuse. Env: <c>TS_RETAINED_FUSED_CACHE</c> (default on;
-        /// kill-switch for A/B or to cap VRAM use).</summary>
+        /// <summary>Retain finished request-owned fused holders for exact-prefix
+        /// continuation across requests. A holder may be attention K/V alone
+        /// (for example Gemma 4) or complete hybrid state (Qwen 3.5/3.6 keeps
+        /// both attention K/V and GatedDeltaNet recurrent state). Applies only
+        /// when the model advertises retained-holder support. Env:
+        /// <c>TS_RETAINED_FUSED_CACHE</c> (default on; kill-switch for A/B or
+        /// to cap VRAM use).</summary>
         public bool RetainedFusedCacheEnabled { get; init; } = true;
 
         /// <summary>How many finished fused holders to keep alive for
-        /// cross-request prefix reuse; each pins a full per-request KV cache.
-        /// Env: <c>TS_RETAINED_FUSED_CACHE_MAX</c> (default 4).</summary>
+        /// cross-request prefix reuse; each pins the model's complete
+        /// per-request continuation state, including recurrent state where
+        /// applicable. Env: <c>TS_RETAINED_FUSED_CACHE_MAX</c> (default 4).</summary>
         public int RetainedFusedCacheBudget { get; init; } = 4;
 
         /// <summary>All defaults — the configuration used when no TS_* override

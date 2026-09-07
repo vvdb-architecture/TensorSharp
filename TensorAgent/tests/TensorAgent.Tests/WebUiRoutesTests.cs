@@ -318,7 +318,7 @@ public sealed class WebUiRoutesTests : IDisposable
     {
         JsonElement body = await BodyOf(await _client.GetAsync("/api/agent/catalog"));
         JsonElement models = body.GetProperty("models");
-        Assert.True(models.GetArrayLength() >= 6, "the catalog carries Gemma 4 and Qwen dense + MoE entries");
+        Assert.Equal(ModelCatalog.BuiltIn.Count, models.GetArrayLength());
 
         JsonElement first = models[0];
         Assert.False(string.IsNullOrWhiteSpace(first.GetProperty("id").GetString()));
@@ -328,7 +328,7 @@ public sealed class WebUiRoutesTests : IDisposable
     }
 
     [Fact]
-    public async Task TheCatalogCoversBothFamiliesAndBothArchitectures()
+    public async Task TheCatalogSerializesTheRetainedFamiliesAndDenseArchitecture()
     {
         JsonElement body = await BodyOf(await _client.GetAsync("/api/agent/catalog"));
         var families = new HashSet<string>(StringComparer.Ordinal);
@@ -338,12 +338,8 @@ public sealed class WebUiRoutesTests : IDisposable
             families.Add(model.GetProperty("family").GetString()!);
             kinds.Add(model.GetProperty("kind").GetString()!);
         }
-        Assert.Contains("Gemma4", families);
-        Assert.Contains("Qwen38", families);
-        Assert.Contains("QwenImage", families);
-        Assert.Contains("Dense", kinds);
-        Assert.Contains("MixtureOfExperts", kinds);
-        Assert.Contains("Diffusion", kinds);
+        Assert.True(families.SetEquals(new[] { "Gemma4", "Qwen35", "Bonsai" }));
+        Assert.True(kinds.SetEquals(new[] { "Dense" }));
     }
 
     [Fact]
@@ -351,6 +347,19 @@ public sealed class WebUiRoutesTests : IDisposable
     {
         HttpResponseMessage response = await _client.GetAsync("/api/agent/catalog/not-a-model");
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BonsaiCardsAdvertiseLocalImportAndCannotStartAnEmptyUrlDownload()
+    {
+        JsonElement body = await BodyOf(await _client.GetAsync("/api/agent/catalog/bonsai-8b-q1-0"));
+        Assert.True(body.GetProperty("sideloadOnly").GetBoolean());
+        Assert.Equal("NotInstalled", body.GetProperty("state").GetString());
+
+        HttpResponseMessage response = await _client.PostAsync(
+            "/api/agent/catalog/bonsai-8b-q1-0/download", content: null);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("import", (await response.Content.ReadAsStringAsync()).ToLowerInvariant());
     }
 
     [Fact]

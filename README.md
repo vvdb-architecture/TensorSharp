@@ -162,6 +162,7 @@ Implemented and exercised by the test/benchmark matrix. Pick a quantization that
 | Qwen 3.8 Flash Next | [Qwen3.8-Flash-Next](https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF) (hybrid GDN + attention MoE, 512 experts, split GGUF, + mmproj) | ✅ / — / — | ✅ | No (no parser) | [qwen38-flash-next.md](docs/models/qwen38-flash-next.md) |
 | Gemma 4 | [gemma-4-E4B-it](https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF) (also 31B, 26B-A4B MoE) | ✅ / ✅ / ✅ | ✅ | ✅ | [gemma4.md](docs/models/gemma4.md) |
 | Qwen 3.5 / 3.6 | [Qwen3.5-9B](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF) (also 35B-A3B MoE) | ✅ / — / — | ✅ | ✅ | [qwen35.md](docs/models/qwen35.md) |
+| Bonsai Q1_0 | Local hash-pinned `Bonsai-8B-Q1_0.gguf` (dense Qwen 3) and `Bonsai-27B-Q1_0.gguf` (dense Qwen 3.5 hybrid); the supplied GGUFs declare no publisher URL or license | — / — / — | 8B: No (fixed empty block); 27B: ✅ | ✅ | [bonsai.md](docs/models/bonsai.md) |
 | GPT OSS | [gpt-oss-20b](https://huggingface.co/ggml-org/gpt-oss-20b-GGUF) (MoE) | — / — / — | ✅ | ✅ | [gptoss.md](docs/models/gptoss.md) |
 | Nemotron-H | [Nemotron-H-8B](https://huggingface.co/bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF) (also 47B, Omni) | ✅ (Omni) / — / — | ✅ | ✅ | [nemotron.md](docs/models/nemotron.md) |
 | Mistral 3 | [Mistral-Small-3.1-24B](https://huggingface.co/bartowski/mistralai_Mistral-Small-3.1-24B-Instruct-2503-GGUF) | ✅ / — / — | — | — | [mistral3.md](docs/models/mistral3.md) |
@@ -191,6 +192,7 @@ See the [performance guide and detailed fast lanes](docs/PROJECT_STATUS.md#make-
 | Qwen 3.8 Flash Next | `qwen4exp` | Qwen3.8-Flash-Next (hybrid MoE, 512 experts / 10 used, GatedDeltaNet on 36 of 48 layers interleaved with QSA-indexed full attention, PLE n-gram block, ×4 hyper-connections) | Image | Yes | No (no structured tool-output parser) | — | [qwen38-flash-next.md](docs/models/qwen38-flash-next.md) |
 | Gemma 4 | `gemma4` | gemma-4-E4B, gemma-4-31B, gemma-4-26B-A4B (MoE) | Image, Video, Audio | Yes | Yes | Yes (separate draft GGUF) | [gemma4.md](docs/models/gemma4.md) |
 | Qwen 3.5 / 3.6 family | `qwen35`, `qwen35moe`, `qwen3next` | Qwen3.5-9B (hybrid Attn+Recurrent), Qwen3.5/3.6-35B-A3B (MoE) | Image | Yes | Yes | Yes on Qwen 3.6 (embedded NextN) | [qwen35.md](docs/models/qwen35.md) |
+| Bonsai (Qwen family) | `qwen3` (8B), `qwen35` (27B) | Bonsai-8B (36-layer dense GQA), Bonsai-27B (48 GatedDeltaNet + 16 full-attention layers), both Q1_0 | Text only | 27B yes; 8B template emits a fixed empty think block | Yes | — | [bonsai.md](docs/models/bonsai.md) |
 | GPT OSS | `gptoss`, `gpt-oss` | gpt-oss-20b (MoE) | Text only | Yes (always) | Yes | — | [gptoss.md](docs/models/gptoss.md) |
 | Nemotron-H | `nemotron_h`, `nemotron_h_moe` | Nemotron-H-8B/47B (Hybrid SSM-Transformer, MoE), Nemotron 3 Nano Omni | Image (Omni) | Yes | Yes | — | [nemotron.md](docs/models/nemotron.md) |
 | Mistral 3 | `mistral3` | Mistral-Small-3.1-24B-Instruct | Image | No | No | — | [mistral3.md](docs/models/mistral3.md) |

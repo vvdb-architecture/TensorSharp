@@ -12,6 +12,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
 using Xunit;
@@ -89,8 +90,10 @@ public class FileToolsTests : IDisposable
     private CodeExecResult DoEdit(string path, string oldString, string newString, bool all = false) =>
         _runner.EditFile(new ShellTools.EditRequest(path, oldString, newString, all), _workspace);
 
-    private CodeExecResult DoWrite(string path, string content) =>
-        _runner.WriteFile(new ShellTools.WriteRequest(path, content), _workspace);
+    private CodeExecResult DoWrite(string path, string content, bool overwrite = false) =>
+        _runner.WriteFile(
+            new ShellTools.WriteRequest(path, content) { Overwrite = overwrite },
+            _workspace);
 
     private static string Numbered(int line) => NumberedListing.Prefix(line);
 
@@ -542,6 +545,151 @@ public class FileToolsTests : IDisposable
     }
 
     [Fact]
+    public void AWriteDoesNotReplaceAnExistingFileWithoutExplicitConfirmation()
+    {
+        Write("main.py", "value = 1\nkeep = true\n");
+
+        CodeExecResult result = DoWrite("main.py", "value = 2\nkeep = true\n");
+
+        Assert.False(result.Ok);
+        Assert.Equal("value = 1\nkeep = true\n", Read("main.py"));
+        Assert.Contains(ShellTools.EditToolName, result.Content, StringComparison.Ordinal);
+        Assert.Contains("overwrite=true", result.Content, StringComparison.Ordinal);
+        Assert.Contains("Nothing was written", result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheWriteToolRequiresAnOverwriteFlagForAnExistingFile()
+    {
+        ToolFunction declaration = ShellTools.DeclareWrite();
+
+        Assert.Contains("overwrite", declaration.Parameters.Keys);
+        Assert.DoesNotContain("overwrite", declaration.Required);
+        Assert.Contains("local bug fix", declaration.Parameters["overwrite"].Description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheDeclaredOverwriteArgumentIsParsedAsExplicitConfirmation()
+    {
+        var call = new ToolCall
+        {
+            Name = ShellTools.WriteToolName,
+            Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["path"] = "main.py",
+                ["content"] = "print(2)\n",
+                ["overwrite"] = true,
+            },
+        };
+
+        Assert.True(ShellTools.TryReadWrite(call, out ShellTools.WriteRequest request, out string? error), error);
+        Assert.True(request.Overwrite);
+    }
+
+    [Fact]
+    public void AStructuredJsonContentArgumentIsWrittenAsJson_NotAClrTypeName()
+    {
+        var call = new ToolCall
+        {
+            Name = ShellTools.WriteToolName,
+            Arguments = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["path"] = "pptx_spec.json",
+                ["content"] = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["title"] = "Apple M6 vs M5",
+                    ["slides"] = new object[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["layout"] = "title",
+                            ["title"] = "Apple M6 vs M5",
+                        },
+                    },
+                },
+            },
+        };
+
+        Assert.True(ShellTools.TryReadWrite(
+            call, out ShellTools.WriteRequest request, out string? error), error);
+        Assert.DoesNotContain("System.Collections", request.Content, StringComparison.Ordinal);
+        Assert.True(_runner.WriteFile(request, _workspace).Ok);
+
+        using JsonDocument document = JsonDocument.Parse(Read("pptx_spec.json"));
+        Assert.Equal("Apple M6 vs M5", document.RootElement.GetProperty("title").GetString());
+        Assert.Equal(
+            "title",
+            document.RootElement.GetProperty("slides")[0].GetProperty("layout").GetString());
+    }
+
+    [Fact]
+    public void ExistingTwoArgumentHostCallersRetainLegacyReplacementSemantics()
+    {
+        var request = new ShellTools.WriteRequest("main.py", "print(2)\n");
+
+        Assert.True(request.Overwrite);
+    }
+
+    [Fact]
+    public void CreateOnlyWriteCannotClobberAFileThatWinsTheExistenceRace()
+    {
+        string path = Write("race.txt", "background job won\n");
+
+        bool written = ShellRunner.TryWriteFileBytes(
+            path,
+            "model content\n",
+            "\n",
+            overwrite: false,
+            out string? error);
+
+        Assert.False(written);
+        Assert.Contains("overwrite was not authorized", error, StringComparison.Ordinal);
+        Assert.Equal("background job won\n", File.ReadAllText(path));
+        Assert.Empty(Directory.GetFiles(
+            _workspace.WorkDirectory,
+            ".tensorsharp-write-*.tmp",
+            SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void CreateOnlyWriteConstructionFailureIsNotReportedAsATargetCollision()
+    {
+        string blocker = Write("blocked", "a file cannot be a parent directory\n");
+        string path = Path.Combine(blocker, "report.txt");
+
+        bool written = ShellRunner.TryWriteFileBytes(
+            path,
+            "model content\n",
+            "\n",
+            overwrite: false,
+            out string? error);
+
+        Assert.False(written);
+        Assert.DoesNotContain("path appeared", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("overwrite was not authorized", error, StringComparison.Ordinal);
+        Assert.Equal("a file cannot be a parent directory\n", File.ReadAllText(blocker));
+        Assert.Empty(Directory.GetFiles(
+            _workspace.WorkDirectory,
+            ".tensorsharp-write-*.tmp",
+            SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void AnIdempotentWriteSucceedsAndAuthorizesAFollowingEdit()
+    {
+        Write("main.txt", "value = 1\n");
+
+        CodeExecResult same = DoWrite("main.txt", "value = 1\n");
+        CodeExecResult edit = DoEdit("main.txt", "value = 1", "value = 2");
+
+        Assert.True(same.Ok, same.Content);
+        Assert.Contains("nothing was written", same.Content, StringComparison.Ordinal);
+        Assert.True(edit.Ok, edit.Content);
+        Assert.DoesNotContain("had not read", edit.Content, StringComparison.Ordinal);
+        Assert.Equal("value = 2\n", Read("main.txt"));
+    }
+
+    [Fact]
     public void AWriteThatRetypesAFileToChangeOneLine_IsNamedWithTheNumbers()
     {
         // The sanctioned rewrite path, which is the whole reason write_file exists even
@@ -553,7 +701,7 @@ public class FileToolsTests : IDisposable
         Assert.True(DoRead("deck.py").Ok);
 
         string after = before.Replace("line30 = 30", "line30 = 999", StringComparison.Ordinal);
-        CodeExecResult result = DoWrite("deck.py", after);
+        CodeExecResult result = DoWrite("deck.py", after, overwrite: true);
 
         Assert.True(result.Ok, result.Content);
         Assert.Contains("replaced all 60 lines", result.Content, StringComparison.Ordinal);
@@ -579,7 +727,8 @@ public class FileToolsTests : IDisposable
         Assert.True(DoRead("old.py").Ok);
 
         CodeExecResult result = DoWrite(
-            "old.py", string.Join("\n", Enumerable.Range(1, 60).Select(i => $"brand_new{i}()")) + "\n");
+            "old.py", string.Join("\n", Enumerable.Range(1, 60).Select(i => $"brand_new{i}()")) + "\n",
+            overwrite: true);
 
         Assert.True(result.Ok, result.Content);
         Assert.DoesNotContain("came back exactly as they already were", result.Content, StringComparison.Ordinal);
@@ -593,7 +742,7 @@ public class FileToolsTests : IDisposable
         Write("tiny.py", "a\nb\nc\n");
         Assert.True(DoRead("tiny.py").Ok);
 
-        CodeExecResult result = DoWrite("tiny.py", "a\nB\nc\n");
+        CodeExecResult result = DoWrite("tiny.py", "a\nB\nc\n", overwrite: true);
 
         Assert.True(result.Ok, result.Content);
         Assert.DoesNotContain("came back exactly", result.Content, StringComparison.Ordinal);
@@ -614,7 +763,7 @@ public class FileToolsTests : IDisposable
         for (int i = 1; i <= 40; i++)
             sb.Append(i <= 11 ? $"v{i} = CHANGED{i}" : $"v{i} = {i}").Append('\n');
 
-        CodeExecResult result = DoWrite("mid.py", sb.ToString());
+        CodeExecResult result = DoWrite("mid.py", sb.ToString(), overwrite: true);
 
         Assert.True(result.Ok, result.Content);
         Assert.Contains("29 lines came back exactly as they already were", result.Content, StringComparison.Ordinal);
@@ -625,7 +774,7 @@ public class FileToolsTests : IDisposable
     {
         Write("notes.txt", "something the user wrote\n");
 
-        CodeExecResult result = DoWrite("notes.txt", "replaced\n");
+        CodeExecResult result = DoWrite("notes.txt", "replaced\n", overwrite: true);
 
         Assert.True(result.Ok, result.Content);
         Assert.Contains("had not read", result.Content, StringComparison.Ordinal);

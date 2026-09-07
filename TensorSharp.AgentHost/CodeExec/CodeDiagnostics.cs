@@ -278,6 +278,19 @@ namespace TensorSharp.AgentHost.CodeExec
             string? output,
             CodeLanguage language = CodeLanguage.Unknown,
             bool networkConfined = true)
+            => ClassifyFailure(output, language, networkConfined, pythonInterpreter: null);
+
+        /// <summary>
+        /// Classify a run whose exact Python interpreter is already known. Keeping this
+        /// overload internal preserves the established public signature while preventing
+        /// a skill configured with one Python from being diagnosed using whichever
+        /// unrelated Python happens to win the host-wide PATH probe.
+        /// </summary>
+        internal static FailureCause ClassifyFailure(
+            string? output,
+            CodeLanguage language,
+            bool networkConfined,
+            string? pythonInterpreter)
         {
             if (string.IsNullOrEmpty(output))
                 return new FailureCause(FailureSource.Unknown, string.Empty, false);
@@ -323,7 +336,7 @@ namespace TensorSharp.AgentHost.CodeExec
                     HostCanFix: false);
             }
 
-            if (LooksLikeOldInterpreter(text, language))
+            if (LooksLikeOldInterpreter(text, language, pythonInterpreter))
             {
                 return new FailureCause(
                     FailureSource.Environment,
@@ -415,20 +428,48 @@ namespace TensorSharp.AgentHost.CodeExec
         /// dies there as a bare "SyntaxError: invalid syntax" — which reads as a broken
         /// program when the program is fine and the host is old.
         /// </summary>
-        private static bool LooksLikeOldInterpreter(string text, CodeLanguage language)
+        internal static bool LooksLikeOldInterpreter(
+            string text,
+            CodeLanguage language,
+            string? pythonInterpreter)
         {
             if (language == CodeLanguage.JavaScript)
                 return false;
-            if (!text.Contains("SyntaxError", StringComparison.Ordinal)
-                && !text.Contains("unsupported operand type(s) for |: 'type'", StringComparison.Ordinal))
+
+            // A version number alone cannot turn every SyntaxError into an environment
+            // problem. Ordinary typos fail on Python 3.9 too, and suppressing those as
+            // "the host is old" prevents the local repair path from ever fixing them.
+            // Require evidence of a construct whose minimum version is actually known.
+            if (!IsPython310OnlyFailure(text))
             {
                 return false;
             }
-            return CodeEnvironment.TryResolveInterpreter(CodeLanguage.Python, out string? python, out _)
-                && python != null
+            string? python = pythonInterpreter;
+            if (python == null
+                && !CodeEnvironment.TryResolveInterpreter(CodeLanguage.Python, out python, out _))
+            {
+                return false;
+            }
+            return python != null
                 && CodeEnvironment.PythonVersionOf(python) is { } version
                 && version < new Version(3, 10);
         }
+
+        internal static bool IsPython310OnlyFailure(string text)
+        {
+            bool pep604 = text.Contains(
+                "unsupported operand type(s) for |: 'type'", StringComparison.Ordinal);
+            bool structuralPatternMatching = text.Contains("SyntaxError", StringComparison.Ordinal)
+                && (PythonMatchStatement.IsMatch(text)
+                    || text.Contains(
+                        "Pattern matching is only supported in Python 3.10 and greater",
+                        StringComparison.OrdinalIgnoreCase));
+            return pep604 || structuralPatternMatching;
+        }
+
+        private static readonly Regex PythonMatchStatement = new(
+            @"^\s*(?:match\s+.+|case\s+.+):\s*(?:#.*)?$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline);
 
         /// <summary>
         /// A wheel that installed and cannot load, because it needs a system library.

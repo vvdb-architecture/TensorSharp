@@ -11,9 +11,11 @@
 namespace TensorAgent.Core.Catalog;
 
 /// <summary>
-/// The built-in model list. Sizes and hashes were read from the Hugging Face tree API
-/// (LFS object ids) on 2026-09-01, so a download is verified against the exact bytes
-/// the publisher uploaded.
+/// The built-in model list. Downloadable entries' sizes and hashes were read from the
+/// Hugging Face tree API (LFS object ids) on 2026-09-01, so a download is verified
+/// against the exact bytes the publisher uploaded. A sideload-only entry carries the
+/// same immutable size/hash identity but deliberately no URL when its GGUF embeds no
+/// publisher repository; the app verifies a user-selected local file instead.
 ///
 /// <para>
 /// Sizing rule (why these quantizations): on GGML Metal the quantized weights are wrapped
@@ -23,12 +25,6 @@ namespace TensorAgent.Core.Catalog;
 /// 12 GB grants an app with the increased-memory entitlement roughly 8.5 GB, which is why
 /// the 12 GB tier tops out around 7.5 GB of weights and everything larger is offered only
 /// to 16 GB iPads.
-/// </para>
-/// <para>
-/// Every Qwen 3.8 mixture-of-experts checkpoint (Flash-Next is 180B parameters, 72 GB at
-/// 1-bit) and every Gemma 4 MoE quant under 9.9 GB does not exist, so the MoE entries here
-/// are the smallest published builds and are gated to 16 GB devices; the dense Qwen 3.8
-/// 27B fits a 12 GB phone only at 2-bit and is marked experimental.
 /// </para>
 /// </summary>
 public static class ModelCatalog
@@ -102,32 +98,6 @@ public static class ModelCatalog
         },
         new CatalogModel
         {
-            Id = "gemma-4-e4b-q8",
-            DisplayName = "Gemma 4 E4B (high quality)",
-            Family = CatalogFamily.Gemma4,
-            Kind = CatalogArchitectureKind.Dense,
-            Parameters = "4B effective (8B with per-layer embeddings)",
-            Quantization = "Q8_0",
-            Files = new[]
-            {
-                new CatalogFile(CatalogFileRole.Weights, "gemma-4-E4B-it-Q8_0.gguf",
-                    Hf("ggml-org/gemma-4-E4B-it-GGUF", "gemma-4-E4B-it-Q8_0.gguf"),
-                    8_031_242_688, "34be82b17b4942d389b9b527170c4b058027abdd32531fda063d3d97dd8ce80a"),
-                new CatalogFile(CatalogFileRole.Projector, "mmproj-gemma-4-E4B-it-Q8_0.gguf",
-                    Hf("ggml-org/gemma-4-E4B-it-GGUF", "mmproj-gemma-4-E4B-it-Q8_0.gguf"),
-                    559_874_816, "197f49a93027f9843772bd24a6a9e0be2a32a788de5a3def330e9c585d86edd1"),
-            },
-            Modalities = CatalogModalities.Image | CatalogModalities.Audio | CatalogModalities.Video,
-            MinDeviceMemoryGB = 16,
-            ContextLength = 8192,
-            KvCacheDtype = "f16",
-            Sampling = new CatalogSampling(1.0f, 64, 0.95f, 0.0f),
-            SupportsThinking = true,
-            License = GemmaLicense,
-            Notes = "8 GB of weights: iPad Pro (16 GB) only.",
-        },
-        new CatalogModel
-        {
             Id = "gemma-4-12b-iq2m",
             DisplayName = "Gemma 4 12B",
             Family = CatalogFamily.Gemma4,
@@ -183,6 +153,64 @@ public static class ModelCatalog
         },
         new CatalogModel
         {
+            Id = "bonsai-8b-q1-0",
+            DisplayName = "Bonsai 8B",
+            Family = CatalogFamily.Bonsai,
+            Kind = CatalogArchitectureKind.Dense,
+            Parameters = "8.2B",
+            Quantization = "Q1_0",
+            Files = new[]
+            {
+                // This exact artifact carries no general.repo_url/source URL. Keep the
+                // immutable identity, but do not invent a place to download it from.
+                new CatalogFile(CatalogFileRole.Weights, "Bonsai-8B-Q1_0.gguf", string.Empty,
+                    1_158_654_496, "284a335aa3fb2ced3b1b01fcb40b08aa783e3b70832767f0dd2e3fdfa134bd54"),
+            },
+            Modalities = CatalogModalities.Text,
+            MinDeviceMemoryGB = 12,
+            // The checkpoint's native YaRN window starts at 16k. Staying at that native
+            // window avoids spending a phone's memory on extrapolated positions by default.
+            ContextLength = 16384,
+            KvCacheDtype = "q8_0",
+            Sampling = new CatalogSampling(0.5f, 20, 0.85f, 0.0f),
+            // This artifact's embedded template unconditionally appends an empty
+            // <think></think> block; it does not consume enable_thinking.
+            SupportsThinking = false,
+            SideloadOnly = true,
+            Experimental = true,
+            License = "Not embedded in GGUF",
+            Notes = "Local import only: choose the exact hash-pinned Bonsai-8B-Q1_0.gguf file. "
+                + "The checkpoint does not identify a publisher repository or license, so verify its terms before use.",
+        },
+        new CatalogModel
+        {
+            Id = "bonsai-27b-q1-0",
+            DisplayName = "Bonsai 27B",
+            Family = CatalogFamily.Bonsai,
+            Kind = CatalogArchitectureKind.Dense,
+            Parameters = "27B",
+            Quantization = "Q1_0",
+            Files = new[]
+            {
+                // qwen35 hybrid (48 Gated DeltaNet + 16 full-attention layers).
+                new CatalogFile(CatalogFileRole.Weights, "Bonsai-27B-Q1_0.gguf", string.Empty,
+                    3_803_452_480, "17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0"),
+            },
+            Modalities = CatalogModalities.Text,
+            MinDeviceMemoryGB = 12,
+            ContextLength = 32768,
+            KvCacheDtype = "q8_0",
+            // The GGUF does not publish min_p; zero is the neutral/default value.
+            Sampling = new CatalogSampling(1.0f, 20, 0.95f, 0.0f),
+            SupportsThinking = true,
+            SideloadOnly = true,
+            Experimental = true,
+            License = "Not embedded in GGUF",
+            Notes = "Local import only: choose the exact hash-pinned Bonsai-27B-Q1_0.gguf file. "
+                + "The checkpoint does not identify a publisher repository or license, so verify its terms before use.",
+        },
+        new CatalogModel
+        {
             Id = "qwen3.5-9b-iq4xs",
             DisplayName = "Qwen3.5 9B",
             Family = CatalogFamily.Qwen35,
@@ -222,224 +250,6 @@ public static class ModelCatalog
             SupportsThinking = true,
             License = ApacheLicense,
             Notes = "Strong general model with vision; the projector is optional and costs ~1.8 GB of memory when loaded.",
-        },
-        new CatalogModel
-        {
-            Id = "qwen3.8-27b-iq1s",
-            DisplayName = "Qwen3.8 27B",
-            Family = CatalogFamily.Qwen38,
-            Kind = CatalogArchitectureKind.Dense,
-            Parameters = "27B",
-            Quantization = "UD-IQ1_S",
-            Files = new[]
-            {
-                new CatalogFile(CatalogFileRole.Weights, "Qwen3.8-27B-UD-IQ1_S.gguf",
-                    Hf("unsloth/Qwen3.8-27B-GGUF", "Qwen3.8-27B-UD-IQ1_S.gguf"),
-                    6_192_222_208, "3895b6eaa91e705c06ad1938d16c22e86f073c6a67df86260a1da79be3d1f887"),
-                new CatalogFile(CatalogFileRole.Projector, "mmproj-F16.gguf",
-                    Hf("unsloth/Qwen3.8-27B-GGUF", "mmproj-F16.gguf"),
-                    927_607_488, "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e", Optional: true),
-            },
-            Modalities = CatalogModalities.Image | CatalogModalities.Video,
-            MinDeviceMemoryGB = 12,
-            // 32768, not 8192: the reply-length setting is bounded by the CONTEXT
-            // (ChatGenerationPipeline.ClampGenerationReserve trims the generation
-            // reserve to what the window leaves after the prompt, and the thinking
-            // budget is 75% of THAT), so an 8192 window capped a reply at ~7.7k
-            // tokens however high the user set the limit -- and a reasoning model
-            // that spent it produced no answer at all. A quantized cache pays for
-            // the bigger window: MEASURED on Qwen3.5-9B UD-Q4_K_XL, ggml_metal,
-            // peak physical footprint is 1697 MB at q8_0/32768 against the 1118 MB
-            // that f16/8192 already cost, and q8_0/16384 (1152 MB) is a wash.
-            // 16384 and not 32768 like the hybrids: this one is DENSE, so all 64 layers
-            // hold a KV cache and a token costs 68 KiB even at q8_0. MEASURED on
-            // ggml_metal: 1820 MB at 8192, 3455 MB at 32768 -- over half the ~6.4 GB a
-            // 12 GB phone grants, on top of weights already at 81% of the Metal
-            // working-set ceiling. 16384 buys double the window for a third of that.
-            ContextLength = 16384,
-            KvCacheDtype = "q8_0",
-            Sampling = new CatalogSampling(0.7f, 20, 0.8f, 0.0f),
-            SupportsThinking = true,
-            Experimental = true,
-            License = ApacheLicense,
-            Notes = "The only Qwen 3.8 that fits a phone, at 1 bit -- 6.2 GB for 27B parameters, "
-                + "which is a real quality cost rather than a rounding one. Try it against the "
-                + "Qwen3.5 9B at 4 bits before keeping it. Text only unless the projector is "
-                + "downloaded; expect slow decoding.",
-        },
-        new CatalogModel
-        {
-            Id = "gemma-4-26b-a4b-iq2xxs",
-            DisplayName = "Gemma 4 26B-A4B (MoE)",
-            Family = CatalogFamily.Gemma4,
-            Kind = CatalogArchitectureKind.MixtureOfExperts,
-            Parameters = "26B (4B active, 128 experts)",
-            Quantization = "UD-IQ2_XXS",
-            Files = new[]
-            {
-                new CatalogFile(CatalogFileRole.Weights, "gemma-4-26B-A4B-it-UD-IQ2_XXS.gguf",
-                    Hf("unsloth/gemma-4-26B-A4B-it-GGUF", "gemma-4-26B-A4B-it-UD-IQ2_XXS.gguf"),
-                    9_922_480_608, "52f98e6fc6df62438dff8f57ac049f60b4c36acf93786b6aeeedc129acc02343"),
-                new CatalogFile(CatalogFileRole.Projector, "mmproj-F16.gguf",
-                    Hf("unsloth/gemma-4-26B-A4B-it-GGUF", "mmproj-F16.gguf"),
-                    1_193_058_784, "418a6d8723067cd712235facbbc5cba6c8fbbd413fc1292d2aace5a027d5a42f", Optional: true),
-            },
-            Modalities = CatalogModalities.Image | CatalogModalities.Video,
-            MinDeviceMemoryGB = 12,
-            ContextLength = 4096,
-            KvCacheDtype = "f16",
-            Sampling = new CatalogSampling(1.0f, 64, 0.95f, 0.0f),
-            SupportsThinking = true,
-            Experimental = true,
-            License = GemmaLicense,
-            Notes = "Mixture of experts, 9.9 GB of weights. Offered to a 12 GB phone because the "
-                + "weights are a FILE MAPPING and Darwin charges mapped clean pages almost nothing: "
-                + "measured on Metal, a same-family 11.3 GB MoE peaked at 1.21 GB resident / 1.09 GB "
-                + "physical footprint against the ~8.5 GB a 12 GB phone grants; this entry itself "
-                + "measured 1,691 MB at 4096 tokens and decoded at 70 tok/s on an M5 Pro. What a phone this size "
-                + "cannot do is hold 9.9 GB in the page cache, so expect every token to fault expert "
-                + "weights from flash and decode far below a desktop's. Only 8 of 128 experts run per "
-                + "token, which is what makes that survivable at all.",
-        },
-        new CatalogModel
-        {
-            Id = "qwen3.6-35b-a3b-iq1m",
-            DisplayName = "Qwen3.6 35B-A3B (MoE)",
-            Family = CatalogFamily.Qwen36,
-            Kind = CatalogArchitectureKind.MixtureOfExperts,
-            Parameters = "35B (3B active, 256 experts)",
-            Quantization = "UD-IQ1_M",
-            Files = new[]
-            {
-                new CatalogFile(CatalogFileRole.Weights, "Qwen3.6-35B-A3B-UD-IQ1_M.gguf",
-                    Hf("unsloth/Qwen3.6-35B-A3B-GGUF", "Qwen3.6-35B-A3B-UD-IQ1_M.gguf"),
-                    10_047_749_088, "0dc2488c89d916c5599f7c03a286cd8f37a6a75a02bc13caf41c6bac26d70c9e"),
-                new CatalogFile(CatalogFileRole.Projector, "mmproj-F16.gguf",
-                    Hf("unsloth/Qwen3.6-35B-A3B-GGUF", "mmproj-F16.gguf"),
-                    899_283_680, "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f", Optional: true),
-            },
-            Modalities = CatalogModalities.Image | CatalogModalities.Video,
-            MinDeviceMemoryGB = 12,
-            // 32768, not 8192: the reply-length setting is bounded by the CONTEXT
-            // (ChatGenerationPipeline.ClampGenerationReserve trims the generation
-            // reserve to what the window leaves after the prompt, and the thinking
-            // budget is 75% of THAT), so an 8192 window capped a reply at ~7.7k
-            // tokens however high the user set the limit -- and a reasoning model
-            // that spent it produced no answer at all. A quantized cache pays for
-            // the bigger window: MEASURED on Qwen3.5-9B UD-Q4_K_XL, ggml_metal,
-            // peak physical footprint is 1697 MB at q8_0/32768 against the 1118 MB
-            // that f16/8192 already cost, and q8_0/16384 (1152 MB) is a wash.
-            ContextLength = 32768,
-            KvCacheDtype = "q8_0",
-            Sampling = new CatalogSampling(0.7f, 20, 0.8f, 0.0f),
-            SupportsThinking = true,
-            Experimental = true,
-            License = ApacheLicense,
-            Notes = "The nearest Qwen mixture of experts that fits any Apple device (Qwen 3.8's MoE "
-                + "checkpoints start at 72 GB). 10.0 GB of weights, offered to a 12 GB phone for the "
-                + "same measured reason as the Gemma MoE: mapped weights cost almost no physical "
-                + "footprint (11.3 GB of this family measured at 1.09 GB), and only 3B of 35B "
-                + "parameters are active per token. At IQ1_M this is a one-bit quantization -- try it "
-                + "against the 9B at Q4 before keeping it, and expect flash paging to dominate decode.",
-        },
-        new CatalogModel
-        {
-            Id = "gpt-oss-20b-q8",
-            DisplayName = "GPT-OSS 20B (MoE)",
-            Family = CatalogFamily.GptOss,
-            Kind = CatalogArchitectureKind.MixtureOfExperts,
-            Parameters = "20B (3.6B active, 32 experts)",
-            // Q8_0 rather than a smaller quant because for THIS model it is nearly
-            // free: the experts ship as MXFP4 and every published quant keeps them
-            // that way, so the whole Q2_K..Q8_0 range spans 11.5 GB to 12.1 GB -- the
-            // quantization only touches the ~1.9B dense parameters. Paying 0.6 GB for
-            // the best attention and embedding weights available is the obvious trade.
-            Quantization = "Q8_0 (MXFP4 experts)",
-            Files = new[]
-            {
-                new CatalogFile(CatalogFileRole.Weights, "gpt-oss-20b-Q8_0.gguf",
-                    Hf("unsloth/gpt-oss-20b-GGUF", "gpt-oss-20b-Q8_0.gguf"),
-                    12_109_567_168, "bcd455d4034ec02f71a875b46cb17df44a97911d7258291973be4d21f98329f3"),
-            },
-            Modalities = CatalogModalities.Text,
-            // 16, not 12, and this is the one number in the entry that was decided ON A
-            // PHONE rather than on a laptop. MEMORY is not the constraint -- the load
-            // costs 1.2 GB and the app is nowhere near jetsam. STORAGE READ BANDWIDTH
-            // is: 11.5 GB of expert weights are file-backed, a 12 GB device cannot hold
-            // that in its page cache, and every token faults some of it back from flash.
-            // MEASURED on a 12 GB iPhone 17 Pro Max: loads in 2.1 s, then did not finish
-            // answering "Say hello." in six minutes, while Gemma 4 12B answers the same
-            // prompt on the same phone in seconds. Nothing about the entry can fix that:
-            // every published gpt-oss-20b GGUF is 11.4 GB or larger, because the experts
-            // are MXFP4 in all of them, so there is no smaller build to offer instead.
-            // It is a good model on a 16 GB iPad and an unusable one on this phone.
-            MinDeviceMemoryGB = 16,
-            // 32768: this is a reasoning model, and the reply length is bounded by the
-            // CONTEXT (ChatGenerationPipeline.ClampGenerationReserve trims the
-            // generation reserve to what the window leaves, and the thinking budget is
-            // 75% of THAT), so a small window is a model that thinks and never answers.
-            // MEASURED, ggml_metal, peak physical footprint at 128 decoded tokens:
-            //   8192  1,222 MB    16384  1,606 MB    32768  2,377 MB
-            // all at 81 tok/s, which is what makes the largest of the three the right
-            // one to take.
-            ContextLength = 32768,
-            // f16 is the only choice: both fused GPT-OSS graphs refuse a
-            // block-quantized cache outright and the managed fallback walks the cache
-            // as a flat float buffer (GptOssModel.SupportsBlockQuantizedKvCache).
-            KvCacheDtype = "f16",
-            // The model card's own numbers: temperature 1.0 with nucleus sampling
-            // disabled. Harmony's analysis channel is where the reasoning happens and
-            // it is not improved by truncating the tail.
-            Sampling = new CatalogSampling(1.0f, 0, 1.0f, 0.0f),
-            SupportsThinking = true,
-            Experimental = true,
-            License = ApacheLicense,
-            Notes = "OpenAI's open-weight reasoning model, with its native MXFP4 experts. Only "
-                + "3.6B of its 20B parameters run per token and the weights are mapped rather "
-                + "than copied, so it costs about 2.4 GB of memory -- but it is 12.1 GB on disk, "
-                + "and a device that cannot keep that in its page cache re-reads the experts from "
-                + "flash for every token. Measured unusable on a 12 GB iPhone for that reason, "
-                + "which is why this needs 16 GB. Text only.",
-        },
-        new CatalogModel
-        {
-            Id = "qwen-image-edit-2511-q2k",
-            DisplayName = "Qwen-Image-Edit 2511",
-            Family = CatalogFamily.QwenImage,
-            Kind = CatalogArchitectureKind.Diffusion,
-            Parameters = "20B DiT + 7B text encoder",
-            Quantization = "Q2_K (DiT) / IQ2_XXS (text encoder)",
-            Files = new[]
-            {
-                new CatalogFile(CatalogFileRole.Weights, "qwen-image-edit-2511-Q2_K.gguf",
-                    Hf("unsloth/Qwen-Image-Edit-2511-GGUF", "qwen-image-edit-2511-Q2_K.gguf"),
-                    7_468_022_368, "a3d09042b64657970654941aa08d895de29b4d98edf3632a89e70d4d6e23c47c"),
-                new CatalogFile(CatalogFileRole.TextEncoder, "Qwen2.5-VL-7B-Instruct-UD-IQ2_XXS.gguf",
-                    Hf("unsloth/Qwen2.5-VL-7B-Instruct-GGUF", "Qwen2.5-VL-7B-Instruct-UD-IQ2_XXS.gguf"),
-                    2_398_444_416, "9fdde01492c884464ec3713aa02993c7b56711ee392904f2a53dd92cbe9f1967"),
-                new CatalogFile(CatalogFileRole.Vae, "Qwen_Image-VAE.safetensors",
-                    Hf("QuantStack/Qwen-Image-Edit-GGUF", "VAE/Qwen_Image-VAE.safetensors"),
-                    253_806_246, "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"),
-                new CatalogFile(CatalogFileRole.Lora, "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
-                    Hf("lightx2v/Qwen-Image-Edit-2511-Lightning", "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"),
-                    849_608_296, "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f"),
-                // Stored under the family's own name rather than the repository's bare
-                // "mmproj-BF16.gguf": QwenImageModel finds the projector by scanning for a
-                // GGUF whose name says both "mmproj" and which family it belongs to, and a
-                // file called only "mmproj-BF16.gguf" downloads, verifies and is then never
-                // looked at, leaving the edit with no image grounding and no complaint.
-                new CatalogFile(CatalogFileRole.VisionProjector, "Qwen2.5-VL-7B-Instruct-mmproj-BF16.gguf",
-                    Hf("unsloth/Qwen2.5-VL-7B-Instruct-GGUF", "mmproj-BF16.gguf"),
-                    1_354_163_040, "f0edf43c09b69d6e5dd24262f33b356a1e9dd978e7c3299b3e69141fcbb87553", Optional: true),
-            },
-            Modalities = CatalogModalities.Image | CatalogModalities.ImageOutput,
-            MinDeviceMemoryGB = 24,
-            ContextLength = 0,
-            KvCacheDtype = "f16",
-            Sampling = new CatalogSampling(1.0f, 0, 1.0f, 0.0f),
-            Experimental = true,
-            License = ApacheLicense,
-            Notes = "Image editing from a picture plus a prompt. MEASURED at 16.0 GB of Metal allocation for one edit with this Q2_K DiT -- the smallest published -- against the ~11.3 GB a 16 GB iPhone grants one app, so it does not fit any current iPhone and is not offered on one. Reducing the output area saves about 1.2 GB per halving and the CPU-offload path does not lower allocation on unified memory, so neither closes the gap. It runs correctly where the memory exists.",
         },
     };
 

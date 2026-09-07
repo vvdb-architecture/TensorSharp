@@ -316,7 +316,10 @@ namespace TensorSharp.AgentHost.Skills
                         "Run one of a skill's bundled scripts on this machine and return what it printed. "
                         + "Pass the script's path in 'path' and everything you would have typed after it on "
                         + "the command line in 'args'. Only files inside the skill's own directory can be "
-                        + "run. Read the script first if you are unsure what it does.",
+                        + "run. A SKILL.md may show `cd <skill>/scripts` followed by `python3 tool.py ...` as a "
+                        + "terminal example; do not call cd or shell and do not include python3 here—make one "
+                        + "skills_run call with path=`scripts/tool.py` and only `...` in args. Follow SKILL.md; "
+                        + "do not read or copy a bundled script unless a traceback proves that script is broken.",
                     Parameters = new Dictionary<string, ToolParameter>
                     {
                         ["skill"] = new()
@@ -608,9 +611,15 @@ namespace TensorSharp.AgentHost.Skills
 
             string? skillName = ReadString(call, "skill");
             string? path = ReadString(call, "path") ?? ReadString(call, "script");
-            IReadOnlyList<string> args = ReadRunArgumentList(call, "args", context.CodeInputFiles)
-                                         ?? ReadRunArgumentList(call, "arguments", context.CodeInputFiles)
-                                         ?? Array.Empty<string>();
+            IReadOnlyList<string>? canonicalArgs =
+                ReadRunArgumentList(call, "args", context.CodeInputFiles);
+            IReadOnlyList<string>? aliasedArgs =
+                ReadRunArgumentList(call, "arguments", context.CodeInputFiles);
+            IReadOnlyList<string> args = canonicalArgs is { Count: > 0 }
+                ? canonicalArgs
+                : aliasedArgs is { Count: > 0 }
+                    ? aliasedArgs
+                    : canonicalArgs ?? aliasedArgs ?? Array.Empty<string>();
 
             if (string.IsNullOrWhiteSpace(skillName) || string.IsNullOrWhiteSpace(path))
                 return SkillToolResult.Failure($"{RunToolName} needs both a 'skill' and a 'path' argument.");

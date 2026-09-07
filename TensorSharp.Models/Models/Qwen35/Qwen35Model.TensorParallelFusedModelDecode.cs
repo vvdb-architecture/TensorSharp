@@ -663,69 +663,78 @@ namespace TensorSharp.Models
             int sharedFfPerRank = _sharedExpertFfnLength > 0 ? _sharedExpertFfnLength / gTp : 0;
             int headDim = Config.HeadDim;
 
-            int previousRank = GgmlBasicOps.GetActiveRank();
-            var planSlot = new IntPtr[1];
             long t0 = Stopwatch.GetTimestamp();
-            try
+            // Native TP plans borrow process-global per-rank execution resources
+            // between the build calls and TensorParallelExecutePlans. Owner-keyed
+            // pending slots prevent accidental replacement, while this lock closes
+            // the remaining build-all-ranks -> execute lifetime window across two
+            // live Qwen35 model instances.
+            lock (_verifyTpPlanLock)
             {
-                fixed (float* lp = logitsOut)
+                int previousRank = GgmlBasicOps.GetActiveRank();
+                var planSlot = new IntPtr[1];
+                try
                 {
-                    long offset = 0;
-                    for (int r = 0; r < tp; r++)
+                    fixed (float* lp = logitsOut)
                     {
-                        var lm = lmShards[r];
-                        GgmlBasicOps.SetActiveRank(r);
-                        planSlot[0] = IntPtr.Zero;
-                        bool ok = GgmlBasicOps.Qwen35ModelVerify(
-                            _tpFdLayers[r], n,
-                            (IntPtr)GetFloatPtr(hidden), Config.HiddenSize, startPos, seqLen,
-                            headsPerRank, kvHeadsPerRank, headDim, cacheSize,
-                            _ropeDimCount > 0 ? _ropeDimCount : headDim, 2, kvCacheType,
-                            _convKernel, _headKDim, _headVDim, kHeadsPerRank, vHeadsPerRank,
-                            Config.Eps, Config.RopeBase, 1.0f / Config.RopeScale,
-                            _numExperts, _numExpertsUsed, _expertFfnLength, sharedFfPerRank,
-                            _normTopKProb ? 1 : 0, 1.0f,
-                            (IntPtr)(lp + offset), (int)lm.Ne1,
-                            lm.CacheKey, lm.GgmlType, lm.Ne0, lm.Ne1, lm.RawBytes,
-                            finalNormPtr, IntPtr.Zero, nLogitRows: 1,
-                            mropePos, mropeSecs,
-                            tpDegree: tp, tpPlanOut: planSlot);
-                        if (!ok || planSlot[0] == IntPtr.Zero)
+                        long offset = 0;
+                        for (int r = 0; r < tp; r++)
                         {
-                            _tpPfFailed = true;
-                            if (!_tpPfLogged)
+                            var lm = lmShards[r];
+                            GgmlBasicOps.SetActiveRank(r);
+                            planSlot[0] = IntPtr.Zero;
+                            bool ok = GgmlBasicOps.Qwen35ModelVerify(
+                                _tpFdLayers[r], n,
+                                (IntPtr)GetFloatPtr(hidden), Config.HiddenSize, startPos, seqLen,
+                                headsPerRank, kvHeadsPerRank, headDim, cacheSize,
+                                _ropeDimCount > 0 ? _ropeDimCount : headDim, 2, kvCacheType,
+                                _convKernel, _headKDim, _headVDim, kHeadsPerRank, vHeadsPerRank,
+                                Config.Eps, Config.RopeBase, 1.0f / Config.RopeScale,
+                                _numExperts, _numExpertsUsed, _expertFfnLength, sharedFfPerRank,
+                                _normTopKProb ? 1 : 0, 1.0f,
+                                (IntPtr)(lp + offset), (int)lm.Ne1,
+                                lm.CacheKey, lm.GgmlType, lm.Ne0, lm.Ne1, lm.RawBytes,
+                                finalNormPtr, IntPtr.Zero, nLogitRows: 1,
+                                mropePos, mropeSecs,
+                                tpDegree: tp, tpPlanOut: planSlot,
+                                ownerId: _verifyOwnerId);
+                            if (!ok || planSlot[0] == IntPtr.Zero)
                             {
-                                _tpPfLogged = true;
-                                Console.Error.WriteLine(
-                                    "[tp-full-prefill] native declined; staying on the per-layer TP prefill.");
+                                _tpPfFailed = true;
+                                if (!_tpPfLogged)
+                                {
+                                    _tpPfLogged = true;
+                                    Console.Error.WriteLine(
+                                        "[tp-full-prefill] native declined; staying on the per-layer TP prefill.");
+                                }
+                                return false;
                             }
-                            return false;
+                            _tpFdPlans[r] = planSlot[0];
+                            offset += lm.Ne1;
                         }
-                        _tpFdPlans[r] = planSlot[0];
-                        offset += lm.Ne1;
-                    }
 
-                    if (TpCrossNodeReducer != null)
-                        GgmlBasicOps.TensorParallelExecutePlansDistributed(_tpFdPlans, TpCrossNodeCallback);
-                    else
-                        GgmlBasicOps.TensorParallelExecutePlans(_tpFdPlans);
+                        if (TpCrossNodeReducer != null)
+                            GgmlBasicOps.TensorParallelExecutePlansDistributed(_tpFdPlans, TpCrossNodeCallback);
+                        else
+                            GgmlBasicOps.TensorParallelExecutePlans(_tpFdPlans);
+                    }
                 }
-            }
-            catch (InvalidOperationException e)
-            {
-                _tpPfFailed = true;
-                if (!_tpPfLogged)
+                catch (InvalidOperationException e)
                 {
-                    _tpPfLogged = true;
-                    Console.Error.WriteLine(
-                        $"[tp-full-prefill] native execution failed ({e.Message}); " +
-                        "staying on the per-layer TP prefill (significantly slower). Reported once.");
+                    _tpPfFailed = true;
+                    if (!_tpPfLogged)
+                    {
+                        _tpPfLogged = true;
+                        Console.Error.WriteLine(
+                            $"[tp-full-prefill] native execution failed ({e.Message}); " +
+                            "staying on the per-layer TP prefill (significantly slower). Reported once.");
+                    }
+                    return false;
                 }
-                return false;
-            }
-            finally
-            {
-                GgmlBasicOps.SetActiveRank(previousRank);
+                finally
+                {
+                    GgmlBasicOps.SetActiveRank(previousRank);
+                }
             }
             _tpAttnBlockTicks += Stopwatch.GetTimestamp() - t0;
 

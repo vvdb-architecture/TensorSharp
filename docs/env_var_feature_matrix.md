@@ -49,8 +49,8 @@ results as part of the standard matrix.
 | `TS_BATCHED_N1_FAST_PATH` | all | Fused N=1 fast-path decode for solo sequences; `0` forces those steps onto the fully-batched path | ON | `0`, `1` | yes |
 | `TS_PER_SEQ_FUSED` | fused-capable models (Gemma 4, Qwen 3.5/3.6, DeepSeek V4, GLM 5.x) | Per-request fused Forward for concurrent (N>=2) sequences; `0` forces the op-by-op batched paged path | ON | `0`, `1` | no |
 | `TS_BATCHED_FUSED_DECODE` | fused-capable models | True token-batched fused decode inside the per-seq fused path (one graph for all N). On GLM 5.x this is 1.81x aggregate decode at 4 concurrent requests. Batching changes GEMM shapes and a 2-bit MoE can turn that into different expert picks; set `0` for a serial-path A/B. | ON | `0`, `1` | no |
-| `TS_RETAINED_FUSED_CACHE` | fused-capable sliding-window models (Gemma 4) | Retain finished fused KV holders for cross-request prefix reuse | ON | `0`, `1` | no |
-| `TS_RETAINED_FUSED_CACHE_MAX` | fused-capable sliding-window models | LRU budget of retained fused holders (VRAM cap) | `4` | n/a | no |
+| `TS_RETAINED_FUSED_CACHE` | models with retainable request-owned fused holders (Gemma 4; Qwen 3.5/3.6) | Retain a finished holder for exact-prefix continuation. Qwen's holder includes attention K/V and matching GatedDeltaNet recurrent state | ON | `0`, `1` | no |
+| `TS_RETAINED_FUSED_CACHE_MAX` | models with retainable request-owned fused holders | LRU budget of retained holders (VRAM cap; includes recurrent state where applicable) | `4` | n/a | no |
 | `TS_SCHED_DISABLE_BATCHED` | all | Global per-sequence KV-swap fallback | OFF | `0`, `1` | yes |
 
 All executor-level switches in this section are read through

@@ -262,8 +262,8 @@ namespace TensorSharp.Server.Hosting
                     "--no-paged-batching). Default: on.",
                     "--no-continuous-batching"),
                 new OptionHelp("--prefill-chunk-size <N>",
-                    "Chunked-prefill granularity under contention; smaller chunks give parallel decodes more frequent " +
-                    "turns at the GPU. Default: 1024.",
+                    "Per-request prefill cap while a decode is active; smaller chunks give streaming requests more " +
+                    "frequent turns at the GPU. Prefill-only batches still fill the device token budget. Default: 256.",
                     "--prefill-chunk-size 256"),
             }),
             ("Speculative decoding (one name per option; the old --mtp-*/--spec-draft-model spellings error with a pointer here)", new[]

@@ -34,9 +34,13 @@ public enum CatalogFileRole
 /// <summary>One downloadable artifact of a catalog entry.</summary>
 /// <param name="Role">What the engine uses it for.</param>
 /// <param name="FileName">The name it is stored under, inside the entry's folder.</param>
-/// <param name="Url">Where it is fetched from (a plain Hugging Face resolve URL).</param>
-/// <param name="Bytes">Exact size, from the Hugging Face tree API.</param>
-/// <param name="Sha256">Lower-case hex SHA-256 (the LFS object id), verified after download.</param>
+/// <param name="Url">Where it is fetched from (a plain Hugging Face resolve URL), or
+/// empty for an artifact whose publisher did not embed a verifiable repository and
+/// which must therefore be imported by the user.</param>
+/// <param name="Bytes">Exact expected artifact size (from the Hugging Face tree API for downloads,
+/// or from the inspected source file for a local import).</param>
+/// <param name="Sha256">Lower-case expected SHA-256 (also the LFS object id for downloads), verified
+/// before a download or import is published.</param>
 /// <param name="Optional">True when the model works without it (e.g. a draft head).</param>
 public sealed record CatalogFile(
     CatalogFileRole Role,
@@ -48,7 +52,7 @@ public sealed record CatalogFile(
 
 /// <summary>Model families the catalog knows; used for grouping in the UI and for
 /// family-specific defaults (thinking, sampling).</summary>
-public enum CatalogFamily { Gemma4, Qwen35, Qwen36, Qwen38, QwenImage, GptOss }
+public enum CatalogFamily { Gemma4, Qwen35, Qwen36, Qwen38, QwenImage, GptOss, Bonsai }
 
 /// <summary>Dense or mixture-of-experts.</summary>
 public enum CatalogArchitectureKind { Dense, MixtureOfExperts, Diffusion }
@@ -69,9 +73,9 @@ public enum CatalogModalities
 public sealed record CatalogSampling(float Temperature, int TopK, float TopP, float MinP);
 
 /// <summary>
-/// A built-in model the user can pick. Everything the app needs to download, size and
+/// A built-in model the user can pick. Everything the app needs to obtain, size and
 /// load it lives here so the catalog is data, not code: the UI shows it, the store
-/// downloads it, the engine host turns it into load arguments.
+/// downloads or verifies an import, and the engine host turns it into load arguments.
 /// </summary>
 public sealed record CatalogModel
 {
@@ -96,6 +100,13 @@ public sealed record CatalogModel
     public required CatalogSampling Sampling { get; init; }
     /// <summary>Whether the family has a thinking channel the app may enable.</summary>
     public bool SupportsThinking { get; init; }
+    /// <summary>
+    /// The card describes an exact, hash-pinned artifact but has no publisher URL the
+    /// app can verify. The Models page offers a file picker instead of a download and
+    /// <see cref="ModelStore.ImportAsync"/> verifies the selected bytes before exposing
+    /// them to the engine.
+    /// </summary>
+    public bool SideloadOnly { get; init; }
     /// <summary>Marked in the UI: fits only with reduced context or has not been validated on
     /// a phone yet.</summary>
     public bool Experimental { get; init; }
