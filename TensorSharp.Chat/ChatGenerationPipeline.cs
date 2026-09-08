@@ -103,6 +103,14 @@ namespace TensorSharp.Server
         public string? RawPromptTrailingWhitespace { get; init; }
 
         /// <summary>
+        /// What the generation prompt ended with when <see cref="RawOutputTokens"/> were
+        /// produced (see <see cref="ChatMessage.RawGenerationSuffix"/>). The skills
+        /// loops rebuild each tool round from this update, so without it a round's
+        /// framing would be replayed as whatever the NEXT request's mode is.
+        /// </summary>
+        public string? RawGenerationSuffix { get; init; }
+
+        /// <summary>
         /// Reasoning text decoded since the last update, already separated from
         /// <see cref="Piece"/>. Only meaningful when <see cref="IsParsed"/> is true.
         /// </summary>
@@ -541,6 +549,12 @@ namespace TensorSharp.Server
             // image. Null for text-only prompts (no change to their cache behavior).
             string mediaFingerprint = BuildMediaFingerprint(renderHistory);
 
+            // Where the prompt every conversation on this host shares ends, so the
+            // engine can checkpoint its state there once and start the next new chat
+            // from a copy (see SequenceState.SharedPrefixTokens).
+            int sharedPrefixTokens = ComputeSharedPrefixTokens(
+                model, renderHistory, inputTokens, arch, tools, enableThinking);
+
             var seq = new SequenceState(
                 requestId: requestId,
                 promptTokens: inputTokens,
@@ -549,7 +563,8 @@ namespace TensorSharp.Server
                 samplingConfig: cfg,
                 userTag: session,
                 mediaFingerprint: mediaFingerprint,
-                cacheBreakpoints: explicitBreakpoints);
+                cacheBreakpoints: explicitBreakpoints,
+                sharedPrefixTokens: sharedPrefixTokens);
 
             promptSw.Stop();
             long promptNs = InferenceTelemetry.ToNanos(promptSw.ElapsedTicks);
@@ -593,7 +608,23 @@ namespace TensorSharp.Server
 
             // Stream tokens off the engine handle, doing UTF-8-valid piece
             // accumulation and stop-sequence detection in this layer.
-            await foreach (var nextToken in handle.Tokens.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            //
+            // A Stop (the token cancelling while this awaits the next token) used to
+            // leave this method through the exception, past the transcript update
+            // below - so the stopped turn's raw tokens were never recorded, the next
+            // turn re-rendered the half answer from text, and the live cache (which
+            // holds every token the engine forwarded, a step or two past what was
+            // streamed) no longer matched it. On a model that can rewind a few
+            // tokens that mostly went unnoticed; on one that cannot (Qwen 3.5) every
+            // Stop cost a full re-prefill on the following turn. The cancellation is
+            // observed here instead, the engine's own token list is taken as the
+            // record, and the exception is re-raised after the transcript is written.
+            // Read WITHOUT the token: the handle registered it at submission, so a
+            // Stop aborts the request in the engine, which completes this channel and
+            // ends the loop on its own - no exception, and nothing yielded inside a
+            // try/catch (which an iterator cannot do).
+            OperationCanceledException stopped = null;
+            await foreach (var nextToken in handle.Tokens.ReadAllAsync().ConfigureAwait(false))
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -672,6 +703,12 @@ namespace TensorSharp.Server
                     break;
                 }
             }
+            if (cancellationToken.IsCancellationRequested && finishReason != "stop_sequence" && finishReason != "thinking_budget")
+            {
+                wasCancelled = true;
+                finishReason = "cancelled";
+                stopped = new OperationCanceledException(cancellationToken);
+            }
 
             InferenceCompletion completion;
             try
@@ -694,14 +731,38 @@ namespace TensorSharp.Server
                 throw;
             }
 
+            if (wasCancelled)
+            {
+                // The engine may have forwarded a step or two past the last token that
+                // was streamed before the abort landed. Those tokens are in the live
+                // cache, so the transcript records them too; otherwise the next
+                // render diverges from the cache at the end of this answer. The user
+                // never saw their text and the streamed answer stays as it was.
+                IReadOnlyList<int> forwarded = seq.OutputTokens;
+                for (int i = generatedTokens.Count; i < forwarded.Count; i++)
+                    generatedTokens.Add(forwarded[i]);
+            }
+
             string assistantText = Encoding.UTF8.GetString(rawBytes.ToArray());
             evalSw.Stop();
             totalSw.Stop();
 
+            string recordedSuffix = RecordedGenerationSuffix(model.Tokenizer, inputTokens, arch, enableThinking);
             lock (session.HistoryLock)
                 ChatHistoryPreparer.UpdateTrackedHistory(
                     session.TrackedHistory, renderHistory, assistantText, generatedTokens,
-                    generationPromptTrailingWhitespace);
+                    generationPromptTrailingWhitespace, recordedSuffix);
+
+            if (stopped != null)
+            {
+                // Exactly the exception the caller has always seen for a stopped turn,
+                // now raised AFTER the transcript knows what the cache holds.
+                _telemetry.LogChatFinished(
+                    true, generatedTokens.Count, promptTokenCount, kvCacheReusedTokens,
+                    promptTokenCount > 0 ? 100.0 * kvCacheReusedTokens / promptTokenCount : 0.0,
+                    timeToFirstTokenMs, totalSw.Elapsed.TotalMilliseconds, 0, finishReason, assistantText);
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(stopped).Throw();
+            }
 
             double evalSeconds = evalSw.Elapsed.TotalSeconds;
             double tokensPerSecond = (evalSeconds > 0 && generatedTokens.Count > 0)
@@ -725,6 +786,7 @@ namespace TensorSharp.Server
                 // next render instead of re-tokenizing it. See RawOutputTokens.
                 RawOutputTokens = generatedTokens,
                 RawPromptTrailingWhitespace = generationPromptTrailingWhitespace,
+                RawGenerationSuffix = recordedSuffix,
             };
             }
             finally
@@ -879,6 +941,133 @@ namespace TensorSharp.Server
             for (int i = 0; i < cut; i++) slice.Add(tokens[i]);
             try { return model.Tokenizer.Decode(slice); }
             catch { return string.Empty; }
+        }
+
+        /// <summary>Below this many shared tokens a checkpoint is not worth its copy.</summary>
+        internal const int MinSharedPrefixTokens = 64;
+
+        // The rendered token run of the last few distinct shared prefixes, so a turn
+        // does not re-tokenize thousands of tokens of system prompt to find where its
+        // own prompt stops sharing them. Keyed by everything the render depends on.
+        private readonly object _sharedPrefixLock = new();
+        private readonly Dictionary<string, List<int>> _sharedPrefixRenders = new(StringComparer.Ordinal);
+        private readonly Queue<string> _sharedPrefixOrder = new();
+
+        /// <summary>
+        /// How many leading tokens of <paramref name="promptTokens"/> are the prefix
+        /// every conversation shares: the leading system/developer messages plus the
+        /// tool declarations, rendered on their own and matched against the prompt.
+        /// Zero when there is no such prefix, when it is too short to be worth a
+        /// checkpoint, or when anything about working it out fails — the engine then
+        /// simply takes no checkpoint, which is what it did before this existed.
+        /// </summary>
+        internal int ComputeSharedPrefixTokens(
+            ModelBase model, List<ChatMessage> history, List<int> promptTokens,
+            string arch, List<ToolFunction> tools, bool enableThinking)
+        {
+            try
+            {
+                if (model?.Tokenizer == null || history == null || promptTokens == null)
+                    return 0;
+                int leading = 0;
+                while (leading < history.Count
+                    && (history[leading].Role == "system" || history[leading].Role == "developer"))
+                    leading++;
+                bool hasTools = tools is { Count: > 0 };
+                if (leading == 0 && !hasTools)
+                    return 0;
+                // Media in the leading messages would make the prefix depend on the
+                // attachment, which the checkpoint deliberately ignores.
+                for (int i = 0; i < leading; i++)
+                    if (ChatHistoryPreparer.HasMultimodalContent(history[i]))
+                        return 0;
+
+                var keyBuilder = new StringBuilder();
+                keyBuilder.Append(arch).Append('|').Append(enableThinking ? 'T' : 'F').Append('|');
+                for (int i = 0; i < leading; i++)
+                    keyBuilder.Append(history[i].Role).Append(':').Append(history[i].Content).Append('\u0001');
+                if (hasTools)
+                    foreach (var t in tools)
+                        keyBuilder.Append(t.Name).Append(':').Append(t.Description).Append(':')
+                            .Append(t.Parameters?.Count ?? 0).Append('\u0001');
+                string key = keyBuilder.ToString();
+
+                List<int> prefixTokens;
+                lock (_sharedPrefixLock)
+                    _sharedPrefixRenders.TryGetValue(key, out prefixTokens);
+                if (prefixTokens == null)
+                {
+                    prefixTokens = _kvCacheRenderer.RenderToTokens(
+                        model.Tokenizer, model.Config.ChatTemplate, history.GetRange(0, leading), arch,
+                        addGenerationPrompt: false, tools: tools, enableThinking: enableThinking);
+                    lock (_sharedPrefixLock)
+                    {
+                        if (_sharedPrefixRenders.TryAdd(key, prefixTokens))
+                        {
+                            _sharedPrefixOrder.Enqueue(key);
+                            while (_sharedPrefixOrder.Count > 8)
+                                _sharedPrefixRenders.Remove(_sharedPrefixOrder.Dequeue());
+                        }
+                    }
+                }
+
+                int lcp = 0;
+                int limit = Math.Min(prefixTokens.Count, promptTokens.Count - 1);
+                while (lcp < limit && prefixTokens[lcp] == promptTokens[lcp])
+                    lcp++;
+                return lcp >= MinSharedPrefixTokens ? lcp : 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "shared prefix could not be measured; no checkpoint for this turn");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// The framing this turn's generation prompt actually ended with, for the
+        /// transcript to remember beside the raw tokens.
+        ///
+        /// <para>
+        /// The family declares one suffix per thinking mode, but not every prompt ends
+        /// on it: a Gemma 4 round that continues after a tool result ends on the
+        /// result's closing marker and the model writes straight on, with no empty
+        /// thought block in between. Recording the family's suffix for that round put a
+        /// block into the re-render that the cache never held, and the next turn
+        /// re-prefilled the conversation from that point. So what is recorded is what
+        /// the rendered prompt's tail shows — the suffix when it is there, an explicit
+        /// "nothing" when it is not — and the renderer trusts that over its default.
+        /// </para>
+        /// </summary>
+        internal static string RecordedGenerationSuffix(
+            ITokenizer tokenizer, List<int> promptTokens, string arch, bool enableThinking)
+        {
+            string suffix = KVCachePromptRenderer.GetAssistantGenerationSuffix(arch, enableThinking);
+            if (string.IsNullOrEmpty(suffix) || promptTokens == null || promptTokens.Count == 0 || tokenizer == null)
+                return string.Empty;
+            try
+            {
+                int take = Math.Min(promptTokens.Count, 24);
+                string tail = tokenizer.Decode(promptTokens.GetRange(promptTokens.Count - take, take));
+                if (tail.EndsWith(suffix, StringComparison.Ordinal))
+                    return suffix;
+                // Every Jinja render is TrimEnd()ed, and only some families put the
+                // trailing newline back (Gemma 4, Qwen 3.5). For the rest (Qwen 3,
+                // Bonsai, Qwen3.8-Flash-Next) the prompt ends on `</think>` without the
+                // suffix's `\n\n`. The framing is still there, so it is the framing that
+                // is recorded; the exact boundary whitespace travels separately as
+                // RawPromptTrailingWhitespace and is restored by the renderer.
+                string trimmedSuffix = suffix.TrimEnd();
+                if (trimmedSuffix.Length > 0 && tail.TrimEnd().EndsWith(trimmedSuffix, StringComparison.Ordinal))
+                    return suffix;
+                return string.Empty;
+            }
+            catch (Exception)
+            {
+                // A tokenizer that cannot decode a lone control token: fall back to the
+                // family's declared suffix, which is what was recorded before.
+                return suffix;
+            }
         }
 
         public async IAsyncEnumerable<ChatStreamUpdate>

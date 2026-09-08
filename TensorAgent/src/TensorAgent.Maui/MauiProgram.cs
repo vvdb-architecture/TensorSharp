@@ -24,6 +24,7 @@ public static class MauiProgram
     /// was chosen.
     /// </summary>
     private const string SoloPrefillChunkVariable = "TS_SCHED_SOLO_PREFILL_CHUNK";
+    private const string PrefixCheckpointBudgetVariable = "TS_PREFIX_CHECKPOINTS_MAX";
 
     public static MauiApp CreateMauiApp()
     {
@@ -64,6 +65,17 @@ public static class MauiProgram
         if (Environment.GetEnvironmentVariable(SoloPrefillChunkVariable) is not { Length: > 0 })
             Environment.SetEnvironmentVariable(SoloPrefillChunkVariable, "1024");
         Console.WriteLine($"TensorAgent: solo prefill chunk {Environment.GetEnvironmentVariable(SoloPrefillChunkVariable)} tokens");
+
+        // One shared-prefix checkpoint, not the engine's two. A checkpoint is a whole
+        // copy of the model's state at the end of the system prompt -- some 45 MB for
+        // Gemma 4 E2B, a few hundred for a 9B or 12B -- kept so every new chat starts
+        // from it instead of re-prefilling it (see IBatchedPagedModel.SupportsPrefixCheckpoints).
+        // The engine keeps two so a thinking toggle, which changes the prefix on Gemma 4,
+        // has both ready; next to a jetsam limit one is the right trade, and the second
+        // mode simply re-prefills once and takes the checkpoint over.
+        if (Environment.GetEnvironmentVariable(PrefixCheckpointBudgetVariable) is not { Length: > 0 })
+            Environment.SetEnvironmentVariable(PrefixCheckpointBudgetVariable, "1");
+        Console.WriteLine($"TensorAgent: shared-prefix checkpoints kept {Environment.GetEnvironmentVariable(PrefixCheckpointBudgetVariable)}");
 #if DEBUG
         // Debug only, and the only place the iOS media provider is ever executed: the repo's
         // xunit suite is a net10.0 host that cannot load an iOS assembly, so ImageIO and

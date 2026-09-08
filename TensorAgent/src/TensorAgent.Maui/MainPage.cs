@@ -473,6 +473,7 @@ public sealed class MainPage : ContentPage
             return;
 
         await RunUiCheckAsync();
+        await RunTtftProbeAsync();
 
         // Screenshot hook: neither simctl nor devicectl can tap, so the menu -- the one
         // surface all of this app's navigation lives on -- can otherwise never appear in
@@ -528,6 +529,139 @@ public sealed class MainPage : ContentPage
         catch (Exception ex)
         {
             Console.WriteLine("TensorAgent: demo prompt failed: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Device E2E hook (Debug builds only): measure the time to first token, on this
+    /// phone, with the app's own prompt.
+    ///
+    /// <para>
+    /// Launched with <c>TENSORAGENT_TTFT_CHECK=1</c> (and a model, via
+    /// <c>TENSORAGENT_USE_MODEL</c> or the remembered choice). The question a user
+    /// asks is "why does it take so long before it starts answering", and the answer
+    /// is almost never the model's speed — it is how many prompt tokens are forwarded
+    /// before the first one comes out, and whether any of that work was already done.
+    /// So this asks the app's own <c>/api/chat</c> for four turns and prints, for each,
+    /// the first-token time and how much of the prompt the KV cache served: a first
+    /// turn (served by the warm-up, or cold), a second turn in the same conversation,
+    /// a first turn in a NEW conversation (served by the shared-prefix checkpoint),
+    /// and a follow-up in that one. Those numbers say which fault is present; a
+    /// guess cannot. One <c>ttft</c> line per turn on stdout, readable with
+    /// <c>devicectl device process launch --console</c>.
+    /// </para>
+    /// </summary>
+    private async Task RunTtftProbeAsync()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_TTFT_CHECK"), "1", StringComparison.Ordinal))
+            return;
+
+        Core.Hosting.AgentAppHost app = _host.App;
+        try
+        {
+            for (int i = 0; i < 180 && app.ModelLoad != Core.Hosting.AgentAppHost.ModelLoadState.Loaded; i++)
+                await Task.Delay(1000);
+            if (app.ModelLoad != Core.Hosting.AgentAppHost.ModelLoadState.Loaded)
+            {
+                Console.WriteLine($"TensorAgent: ttft FAIL no model (state {app.ModelLoad})");
+                return;
+            }
+
+            using var client = new HttpClient
+            {
+                BaseAddress = new Uri(_host.BaseUrl),
+                Timeout = Timeout.InfiniteTimeSpan,
+            };
+            client.DefaultRequestHeaders.Add("Cookie", $"tensoragent_token={_host.Token}");
+
+            // Wait for the warm-up the way a user does: by taking a few seconds to
+            // type. A turn asked for the instant the weights land CANCELS the warm-up
+            // by design, so a probe that fires immediately measures the cold path
+            // forever and never sees the thing it exists to measure.
+            for (int i = 0; i < 90 && !app.PrefixCacheIsWarm; i++)
+                await Task.Delay(1000);
+            Console.WriteLine(app.PrefixCacheIsWarm
+                ? "TensorAgent: ttft asking with the cache already warm"
+                : "TensorAgent: ttft asking WITHOUT a warm cache (the warm-up did not finish in time)");
+
+            // Through a REAL session, exactly as the page does: a request with no
+            // session is served by the default one, which has no workspace and is
+            // therefore declared a different set of tools.
+            async Task<string> NewSessionAsync()
+            {
+                using HttpResponseMessage made = await client.PostAsync("/api/sessions?conversation=new", content: null);
+                using JsonDocument answer = JsonDocument.Parse(await made.Content.ReadAsStringAsync());
+                return answer.RootElement.GetProperty("sessionId").GetString()!;
+            }
+
+            // The same thinking mode the warm-up used: on Gemma 4 the two modes share
+            // no prompt prefix, so measuring the other one would measure nothing.
+            bool think = app.Settings.Load().ThinkByDefault;
+            string session = await NewSessionAsync();
+            var history = new List<object>();
+            async Task AskAsync(string label, string question, bool sameConversation)
+            {
+                if (!sameConversation)
+                {
+                    history.Clear();
+                    session = await NewSessionAsync();
+                }
+                history.Add(new { role = "user", content = question });
+
+                var body = new { sessionId = session, messages = history.ToArray(), maxTokens = 24, think };
+                using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json"),
+                };
+
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                TimeSpan firstToken = TimeSpan.Zero;
+                var answer = new System.Text.StringBuilder();
+                int prompt = 0, reused = 0;
+                string? error = null;
+
+                using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                await using Stream stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    if (!line.StartsWith("data: ", StringComparison.Ordinal))
+                        continue;
+                    JsonElement frame = JsonDocument.Parse(line[6..]).RootElement;
+                    bool hasToken = frame.TryGetProperty("token", out JsonElement token);
+                    if (hasToken || frame.TryGetProperty("thinking", out _))
+                    {
+                        if (firstToken == TimeSpan.Zero)
+                            firstToken = clock.Elapsed;
+                        if (hasToken)
+                            answer.Append(token.GetString());
+                    }
+                    if (frame.TryGetProperty("promptTokens", out JsonElement p))
+                        prompt = p.GetInt32();
+                    if (frame.TryGetProperty("kvReusedTokens", out JsonElement r))
+                        reused = r.GetInt32();
+                    if (frame.TryGetProperty("error", out JsonElement e) && e.ValueKind == JsonValueKind.String)
+                        error = e.GetString();
+                }
+                clock.Stop();
+
+                history.Add(new { role = "assistant", content = answer.ToString() });
+                Console.WriteLine(error is { Length: > 0 }
+                    ? $"TensorAgent: ttft {label} FAILED: {error}"
+                    : $"TensorAgent: ttft {label}: first token {firstToken.TotalSeconds:0.0}s, "
+                      + $"{prompt} prompt tokens, {reused} reused ({(prompt > 0 ? 100.0 * reused / prompt : 0):0}%), "
+                      + $"whole turn {clock.Elapsed.TotalSeconds:0.0}s");
+            }
+
+            await AskAsync("turn 1 (first chat)", "Say the single word: apple.", sameConversation: false);
+            await AskAsync("turn 2 (same chat)", "Now say: banana.", sameConversation: true);
+            await AskAsync("turn 3 (new chat)", "Say the single word: cherry.", sameConversation: false);
+            await AskAsync("turn 4 (same chat)", "Now say: date.", sameConversation: true);
+            Console.WriteLine("TensorAgent: ttft done");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TensorAgent: ttft FAIL " + ex.Message);
         }
     }
 

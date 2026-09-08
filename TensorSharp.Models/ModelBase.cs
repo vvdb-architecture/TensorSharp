@@ -1947,6 +1947,82 @@ namespace TensorSharp.Models
         }
 
         /// <summary>
+        /// Copy one whole cache tensor's bytes into another of the same shape and
+        /// dtype, on the host. The only whole-tensor copy that is right for every K/V
+        /// dtype: a quantized storage has no legal element address but its first
+        /// (<c>PtrAtElement(0)</c>), and <c>Ops.Copy</c> is an F32 path on the GGML
+        /// backends. The caller synchronizes the source's device copy to the host
+        /// first and invalidates the destination's device copy afterwards.
+        /// </summary>
+        /// <summary>
+        /// Copy the first <paramref name="rows"/> positions of every head from one
+        /// <c>[heads, capacity, headDim]</c> cache tensor into another whose capacity may
+        /// differ. Row bytes are derived from the storage size, so this is right for
+        /// block-quantized K/V as long as a row is a whole number of blocks (a 256-wide
+        /// head is eight q8_0/q4_0 blocks). Rows past <paramref name="rows"/> in the
+        /// destination are left as allocated (zero), which the fused kernels' padded
+        /// window requires to be finite.
+        /// </summary>
+        protected static unsafe void CopyCacheRows(Tensor source, Tensor destination, int rows)
+        {
+            if (source == null || destination == null)
+                throw new ArgumentNullException(source == null ? nameof(source) : nameof(destination));
+            if (source.ElementType != destination.ElementType)
+                throw new InvalidOperationException($"cache tensors differ in dtype: {source.ElementType} vs {destination.ElementType}");
+            long heads = source.Sizes[0];
+            long sourceCap = source.Sizes[1];
+            long destCap = destination.Sizes[1];
+            if (heads != destination.Sizes[0] || source.Sizes[2] != destination.Sizes[2])
+                throw new InvalidOperationException("cache tensors differ in head count or head width");
+            if (rows < 0 || rows > sourceCap || rows > destCap)
+                throw new ArgumentOutOfRangeException(nameof(rows), $"{rows} rows exceed a capacity of {Math.Min(sourceCap, destCap)}");
+            if (rows == 0 || heads == 0)
+                return;
+            long rowBytes = source.Storage.ByteLength / (heads * sourceCap);
+            if (rowBytes * heads * destCap != destination.Storage.ByteLength)
+                throw new InvalidOperationException("cache tensors differ in bytes per row");
+            source.Storage.EnsureHostReadable();
+            destination.Storage.EnsureHostReadable();
+            byte* src = (byte*)source.Storage.PtrAtElement(0);
+            byte* dst = (byte*)destination.Storage.PtrAtElement(0);
+            long perHead = rows * rowBytes;
+            for (long h = 0; h < heads; h++)
+            {
+                Buffer.MemoryCopy(
+                    src + h * sourceCap * rowBytes,
+                    dst + h * destCap * rowBytes,
+                    destination.Storage.ByteLength - h * destCap * rowBytes,
+                    perHead);
+            }
+        }
+
+        /// <summary>A capacity that holds <paramref name="rows"/> with one 256-row
+        /// window of finite padding beyond them, on a 256 boundary.</summary>
+        protected static int CacheCapacityFor(int rows)
+            => checked(((Math.Max(rows, 0) + 255) / 256) * 256 + 256);
+
+        protected static unsafe void CopyCacheTensorBytes(Tensor source, Tensor destination)
+        {
+            if (source == null || destination == null)
+                throw new ArgumentNullException(source == null ? nameof(source) : nameof(destination));
+            long bytes = source.Storage.ByteLength;
+            if (bytes != destination.Storage.ByteLength || source.ElementType != destination.ElementType)
+            {
+                throw new InvalidOperationException(
+                    $"cache tensors differ: {source.ElementType}/{bytes} bytes vs " +
+                    $"{destination.ElementType}/{destination.Storage.ByteLength} bytes");
+            }
+            if (bytes == 0)
+                return;
+            source.Storage.EnsureHostReadable();
+            destination.Storage.EnsureHostReadable();
+            Buffer.MemoryCopy(
+                (void*)source.Storage.PtrAtElement(0),
+                (void*)destination.Storage.PtrAtElement(0),
+                bytes, bytes);
+        }
+
+        /// <summary>
         /// Drop THIS model's device-resident weight copies while keeping the model itself
         /// usable: the GGUF mmap, the parsed weight table and the tokenizer all stay, so the
         /// next forward re-uploads from host memory instead of re-reading and re-parsing the

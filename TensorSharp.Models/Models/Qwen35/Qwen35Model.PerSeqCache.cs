@@ -279,11 +279,18 @@ namespace TensorSharp.Models
                 ResetHolderForReuse(reused);
                 return reused;
             }
+            return AllocateHolder(_initialKvCacheCapacity > 0 ? _initialKvCacheCapacity : _kvCacheCapacity);
+        }
+
+        /// <summary>A brand-new, zeroed holder with attention K/V of <paramref name="cap"/>
+        /// rows. The allocation half of <see cref="CreateFreshHolder"/>, on its own so a
+        /// copy can be sized to its source (a pooled holder may have grown).</summary>
+        private Qwen35KvCacheHolder AllocateHolder(int cap)
+        {
             int numLayers = _kvCacheK.Length;
             int qkvDim = _headKDim * _numKHeads * 2 + _headVDim * _numVHeads;
             int convDim = _convKernel - 1;
             DType kvDtype = _kvCacheDtype.ToDType();
-            int cap = _initialKvCacheCapacity > 0 ? _initialKvCacheCapacity : _kvCacheCapacity;
 
             var k = new Tensor[numLayers];
             var v = new Tensor[numLayers];
@@ -529,6 +536,125 @@ namespace TensorSharp.Models
             {
                 DisposeHolder(holder);
             }
+        }
+
+        // ---- Shared-prefix checkpoints (IBatchedPagedModel) ----
+
+        /// <summary>Qwen 3.5 can copy its complete state — attention K/V and the
+        /// GatedDeltaNet conv ring and delta state — once every device-resident part
+        /// has been brought back to the host. GGML only, and not under tensor
+        /// parallelism (the cache lives on the ranks there).</summary>
+        public bool SupportsPrefixCheckpoints => IsGgmlBackend && !IsTensorParallel && _kvCacheK != null;
+
+        /// <summary>Deep-copy the ACTIVE cache into the retained set under
+        /// <paramref name="key"/>. See <see cref="IBatchedPagedModel.TryCheckpointActiveCache"/>.</summary>
+        public bool TryCheckpointActiveCache(string key)
+        {
+            if (!SupportsPrefixCheckpoints || string.IsNullOrEmpty(key) || _isRecurrent == null)
+                return false;
+            _retainedFusedHolders ??= new Dictionary<string, Qwen35KvCacheHolder>(StringComparer.Ordinal);
+            if (_retainedFusedHolders.ContainsKey(key)
+                || (_fusedHolders != null && _fusedHolders.ContainsKey(key)))
+                return false;
+            // Three places can hold state newer than the host bytes the copy reads: the
+            // native arena slot and the K/V device mirrors (EnsureKvCacheHostSynchronized
+            // flushes and syncs both), the fused-decode conv scratch and delta mirrors
+            // (EnsureFusedDecodeStateHostSynchronized), and verify-owned device slices
+            // (DrainDeviceRecurrentState). Same order TryExtractKVBlock uses.
+            EnsureKvCacheHostSynchronized();
+            EnsureFusedDecodeStateHostSynchronized();
+            DrainDeviceRecurrentState();
+            var copy = DeepCopyHolder(SnapshotActiveCache());
+            _retainedFusedHolders.Add(key, copy);
+            return true;
+        }
+
+        /// <summary>Deep-copy the retained holder <paramref name="retainedKey"/> into a
+        /// fresh active holder for <paramref name="newRequestId"/>; the retained one is
+        /// untouched. See <see cref="IBatchedPagedModel.TryCloneRetainedCache"/>.</summary>
+        public bool TryCloneRetainedCache(string retainedKey, string newRequestId)
+        {
+            if (_retainedFusedHolders == null
+                || string.IsNullOrEmpty(retainedKey)
+                || string.IsNullOrEmpty(newRequestId))
+                return false;
+            if (!_retainedFusedHolders.TryGetValue(retainedKey, out var source))
+                return false;
+            _fusedHolders ??= new Dictionary<string, Qwen35KvCacheHolder>(StringComparer.Ordinal);
+            if (_fusedHolders.ContainsKey(newRequestId)
+                || string.Equals(_activeFusedKey, newRequestId, StringComparison.Ordinal))
+                return false;
+            // A checkpoint is never bound, so its host bytes stay the truth; a retained
+            // conversation holder may be device-dirty and is re-keyed, never copied.
+            if (source.KvHostDirty || source.GdnHostDirty || source.ArenaStateResident)
+                return false;
+            _fusedHolders.Add(newRequestId, DeepCopyHolder(source));
+            return true;
+        }
+
+        /// <summary>An independent copy of <paramref name="source"/>, whose host bytes
+        /// must be current: fresh tensors sized to the source, every attention K/V
+        /// storage and every recurrent layer's conv ring, write index and delta state
+        /// copied, and every residency flag off so the next fused decode re-seeds its
+        /// device state from the copied host state and builds its own graphs.</summary>
+        private unsafe Qwen35KvCacheHolder DeepCopyHolder(Qwen35KvCacheHolder source)
+        {
+            // Sized to what the source HOLDS, not to what it reserved. The first
+            // request's primary cache was reserved for its whole generation budget
+            // (PrepareForPrefill), and a checkpoint is kept for the life of the model
+            // while every new chat gets a clone of it; copying and pinning that whole
+            // reservation each time is hundreds of megabytes a phone does not have.
+            // The copy grows on demand like any holder when a chat outlives it.
+            int rows = Math.Max(0, Math.Min(source.CacheSeqLen, source.KvCapacity));
+            int cap = Math.Min(source.KvCapacity, CacheCapacityFor(rows));
+            var dst = AllocateHolder(Math.Max(cap, 1));
+            int numLayers = Math.Min(source.K.Length, dst.K.Length);
+            for (int l = 0; l < numLayers; l++)
+            {
+                bool recurrent = l < _isRecurrent.Length && _isRecurrent[l];
+                if (!recurrent)
+                {
+                    if (source.K[l] != null && dst.K[l] != null)
+                    {
+                        CopyCacheRows(source.K[l], dst.K[l], rows);
+                        InvalidateTensorDeviceCache(dst.K[l]);
+                    }
+                    if (source.V[l] != null && dst.V[l] != null)
+                    {
+                        CopyCacheRows(source.V[l], dst.V[l], rows);
+                        InvalidateTensorDeviceCache(dst.V[l]);
+                    }
+                    continue;
+                }
+
+                if (source.ConvState[l] != null && dst.ConvState[l] != null)
+                    Array.Copy(source.ConvState[l], dst.ConvState[l], Math.Min(source.ConvState[l].Length, dst.ConvState[l].Length));
+                dst.ConvWriteIdx[l] = source.ConvWriteIdx[l];
+
+                Tensor from = source.DeltaState[l];
+                Tensor to = dst.DeltaState[l];
+                if (from != null && to != null)
+                {
+                    long bytes = GdnDeltaStateBytes(from);
+                    if (bytes != GdnDeltaStateBytes(to))
+                        throw new InvalidOperationException("delta-state tensors differ in size");
+                    from.Storage.EnsureHostReadable();
+                    to.Storage.EnsureHostReadable();
+                    // The Metal in-place layout is a VIEW at an offset inside a backing
+                    // [attention output | state] storage: copy the state slice only,
+                    // through the offset pointer, and drop both of the copy's mirrors.
+                    Buffer.MemoryCopy((void*)GdnDeltaStatePointer(from), (void*)GdnDeltaStatePointer(to), bytes, bytes);
+                    if (IsGgmlBackend)
+                        InvalidateGdnDeltaStateDeviceCaches(to);
+                }
+            }
+            dst.CacheSeqLen = source.CacheSeqLen;
+            dst.KvHostDirty = false;
+            dst.GdnHostDirty = false;
+            dst.FdStateResident = false;
+            dst.ArenaStateResident = false;
+            dst.Logits = null;
+            return dst;
         }
 
         private void DisposeHolder(Qwen35KvCacheHolder holder)

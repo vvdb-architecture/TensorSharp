@@ -43,6 +43,10 @@ namespace TensorSharp.AgentHost.Skills
         /// null means the producer does not support boundary tracking yet.
         /// </summary>
         public string? RawPromptTrailingWhitespace { get; init; }
+
+        /// <summary>What the round's generation prompt ended with; see
+        /// <see cref="ChatMessage.RawGenerationSuffix"/>.</summary>
+        public string? RawGenerationSuffix { get; init; }
     }
 
     /// <summary>
@@ -265,6 +269,7 @@ namespace TensorSharp.AgentHost.Skills
                     ToolCalls = new List<ToolCall>(calls),
                     RawOutputTokens = output.RawTokens != null ? new List<int>(output.RawTokens) : null,
                     RawPromptTrailingWhitespace = output.RawPromptTrailingWhitespace,
+                    RawGenerationSuffix = output.RawGenerationSuffix,
                 });
 
                 foreach (ToolCall unknownCall in unknownCalls)

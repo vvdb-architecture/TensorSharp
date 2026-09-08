@@ -262,6 +262,7 @@ namespace TensorSharp.Server.Skills
                         ? new List<int>(terminal.RawOutputTokens)
                         : null,
                     RawPromptTrailingWhitespace = terminal.RawPromptTrailingWhitespace,
+                    RawGenerationSuffix = terminal.RawGenerationSuffix,
                 });
 
                 foreach (ToolCall unknownCall in unknownCalls)
@@ -479,6 +480,7 @@ namespace TensorSharp.Server.Skills
                     ? new List<int>(terminal.RawOutputTokens)
                     : null,
                 RawPromptTrailingWhitespace = terminal.RawPromptTrailingWhitespace,
+                    RawGenerationSuffix = terminal.RawGenerationSuffix,
             });
 
             string feedback =
@@ -1194,6 +1196,7 @@ namespace TensorSharp.Server.Skills
             {
                 RawOutputTokens = terminal.RawOutputTokens,
                 RawPromptTrailingWhitespace = terminal.RawPromptTrailingWhitespace,
+                    RawGenerationSuffix = terminal.RawGenerationSuffix,
             };
 
         /// <summary>

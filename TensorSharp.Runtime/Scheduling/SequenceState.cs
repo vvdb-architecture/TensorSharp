@@ -31,7 +31,8 @@ namespace TensorSharp.Runtime.Scheduling
             SamplingConfig samplingConfig,
             object userTag = null,
             string mediaFingerprint = null,
-            IReadOnlyList<int> cacheBreakpoints = null)
+            IReadOnlyList<int> cacheBreakpoints = null,
+            int sharedPrefixTokens = 0)
         {
             if (promptTokens == null) throw new ArgumentNullException(nameof(promptTokens));
             if (promptTokens.Count == 0) throw new ArgumentException("Prompt must be non-empty.", nameof(promptTokens));
@@ -65,7 +66,23 @@ namespace TensorSharp.Runtime.Scheduling
             SubmittedAt = DateTime.UtcNow;
             UserTag = userTag;
             MediaFingerprint = string.IsNullOrEmpty(mediaFingerprint) ? null : mediaFingerprint;
+            // At least one prompt token has to follow the prefix, or there is nothing
+            // to forward from a clone of it.
+            SharedPrefixTokens = Math.Clamp(sharedPrefixTokens, 0, Math.Max(0, promptTokens.Count - 1));
         }
+
+        /// <summary>
+        /// How many leading prompt tokens are the prefix every conversation on this
+        /// host shares (system prompt, tool schemas, skill descriptions), or 0 when
+        /// the caller did not say. The executor takes a checkpoint of the model's
+        /// state at exactly this position and starts later requests with the same
+        /// prefix from a clone of it. See <c>IBatchedPagedModel.SupportsPrefixCheckpoints</c>.
+        /// </summary>
+        public int SharedPrefixTokens { get; }
+
+        /// <summary>Set once the executor has taken (or found) a checkpoint for this
+        /// sequence's shared prefix, so the prefill stops aligning to it.</summary>
+        internal bool PrefixCheckpointTaken { get; set; }
 
         /// <summary>Monotonic submission sequence number. Used as FCFS tiebreaker
         /// when multiple sequences share the same priority.</summary>

@@ -51,6 +51,8 @@ results as part of the standard matrix.
 | `TS_BATCHED_FUSED_DECODE` | fused-capable models | True token-batched fused decode inside the per-seq fused path (one graph for all N). On GLM 5.x this is 1.81x aggregate decode at 4 concurrent requests. Batching changes GEMM shapes and a 2-bit MoE can turn that into different expert picks; set `0` for a serial-path A/B. | ON | `0`, `1` | no |
 | `TS_RETAINED_FUSED_CACHE` | models with retainable request-owned fused holders (Gemma 4; Qwen 3.5/3.6) | Retain a finished holder for exact-prefix continuation. Qwen's holder includes attention K/V and matching GatedDeltaNet recurrent state | ON | `0`, `1` | no |
 | `TS_RETAINED_FUSED_CACHE_MAX` | models with retainable request-owned fused holders | LRU budget of retained holders (VRAM cap; includes recurrent state where applicable) | `4` | n/a | no |
+| `TS_PREFIX_CHECKPOINTS` | Gemma 4; Qwen 3.5/3.6 (GGML backends) | Checkpoint the model's complete state where the prompt every conversation shares ends (system prompt, tools, skills) and start each NEW chat from a clone of it, so a new chat re-prefills only its own message | ON | `0`, `1` | no |
+| `TS_PREFIX_CHECKPOINTS_MAX` | same | How many distinct shared prefixes stay checkpointed (each holds one copy of the prefix's K/V and, for Qwen, recurrent state) | `2` | n/a | no |
 | `TS_SCHED_DISABLE_BATCHED` | all | Global per-sequence KV-swap fallback | OFF | `0`, `1` | yes |
 
 All executor-level switches in this section are read through

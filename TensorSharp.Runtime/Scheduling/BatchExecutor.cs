@@ -76,9 +76,22 @@ namespace TensorSharp.Runtime.Scheduling
             public string RequestId;   // model holder key (retained, not active)
             public int[] Tokens;       // full prompt+output tokens the holder's K/V covers
             public string MediaFingerprint; // prevents placeholder-identical media cross-reuse
+            // A shared-prefix checkpoint: cloned on adoption rather than re-keyed, and
+            // never removed by that adoption. Its tokens are text-only by construction
+            // (the chat layer marks the prefix before any media), so no fingerprint
+            // gate applies to it.
+            public bool IsPrefixCheckpoint;
         }
         // Most-recently-retained at the tail; evict from the head.
         private readonly LinkedList<RetainedFusedCache> _retainedFused = new();
+
+        // ---- Shared-prefix checkpoints (see IBatchedPagedModel.SupportsPrefixCheckpoints) ----
+        // The model's complete state at the end of the prompt prefix every conversation
+        // shares, keyed "prefix:<n>" so no request id can collide with it. Unlike a
+        // retained holder it is never consumed: a request that starts from it gets a
+        // CLONE. Most recent at the tail; evicted from the head past the budget.
+        private readonly LinkedList<RetainedFusedCache> _prefixCheckpoints = new();
+        private int _prefixCheckpointSerial;
         // A retained holder can include one or two generated control tokens (most
         // commonly EOS) that the chat history intentionally does not render. After
         // re-keying such a holder, truncate its active model cache to this target
@@ -1178,6 +1191,8 @@ namespace TensorSharp.Runtime.Scheduling
                     seq.LastLogits = (float[])logits.Clone();
 
                     seq.AdvanceComputedTokens(inputTokens.Length);
+                    if (work.IsPrefill)
+                        MaybeCheckpointSharedPrefix(seq);
 
                     if (!seq.FirstTokenAt.HasValue && sampledToken >= 0)
                         seq.FirstTokenAt = DateTime.UtcNow;
@@ -1406,6 +1421,9 @@ namespace TensorSharp.Runtime.Scheduling
                     _liveCacheSeq = seq;
                     _liveCacheLen = seq.NumComputedTokens;
                     _liveCacheValid = true;
+
+                    if (work.IsPrefill)
+                        MaybeCheckpointSharedPrefix(seq);
 
                     // Capture any newly-completed full blocks into the prefix cache.
                     int capturedFullBlocks = CaptureNewlyFullBlocks(seq);
@@ -1778,6 +1796,11 @@ namespace TensorSharp.Runtime.Scheduling
                 _liveCacheSeq = seq;
                 _liveCacheLen = seq.NumComputedTokens;
                 _liveCacheValid = true;
+                // The trunk's live cache is the sequence's own here, exactly as on the
+                // plain linear path, so the shared-prefix boundary is checkpointed the
+                // same way (a prefill chunk is the only step that can land on it).
+                if (tokensForwarded > 1 || seq.NumComputedTokens <= seq.PromptTokens.Count)
+                    MaybeCheckpointSharedPrefix(seq);
             }
         }
 
@@ -1839,8 +1862,25 @@ namespace TensorSharp.Runtime.Scheduling
                 lcp++;
 
             if (seq.PromptTokens.Count <= lcp)
-                return LiveContinuationDeclined(seq,
-                    $"prompt ({seq.PromptTokens.Count} tokens) has no new suffix past the matched prefix ({lcp})");
+            {
+                // The cache already holds this ENTIRE prompt (and usually the answer it
+                // produced): the same question asked again, a regenerated turn, a new
+                // chat that opens with the first chat's exact words. Continuing needs at
+                // least one prompt token to forward for fresh logits, so keep everything
+                // but the last one and rewind the rest — the same rewind a trailing
+                // control token gets below, and subject to the same limit. Declining
+                // outright here re-prefilled the whole conversation for a prompt the
+                // cache had already seen to the last token.
+                if (!_model.SupportsKVCacheTruncation)
+                {
+                    return LiveContinuationDeclined(seq,
+                        $"prompt ({seq.PromptTokens.Count} tokens) has no new suffix past the matched prefix ({lcp}) " +
+                        "and this model cannot rewind its KV state to re-forward the last token");
+                }
+                lcp = seq.PromptTokens.Count - 1;
+                if (lcp <= 0)
+                    return LiveContinuationDeclined(seq, "prompt is a single token the cache already holds");
+            }
 
             if (lcp == liveLen)
                 return liveLen;   // exact prefix: continue with no rewind at all
@@ -1865,6 +1905,33 @@ namespace TensorSharp.Runtime.Scheduling
             if (lcp <= cap)
                 return LiveContinuationDeclined(seq,
                     $"matched prefix {lcp} (after a {rewind}-token rewind) is within the pooled reuse cap {cap}");
+            // On a circular (sliding-window) cache a rewind is not exact: the slots the
+            // discarded tokens overwrote still hold them, and the next tokens attend
+            // to those stale keys until they are written over. Measured on Gemma 4
+            // E2B, a 15-token rewind changed a greedy answer from its fifth token on.
+            // When a retained holder or a shared-prefix checkpoint can serve this
+            // prompt with NO rewind, that exact state wins; the rewind stays the
+            // fallback for prompts nothing else can serve.
+            // "Covers the prompt" allows the exact state to be a few tokens SHORTER than
+            // the live match: re-forwarding those is cheap, and it is exact. After the
+            // warm-up the live cache matches four tokens more (the user-turn header)
+            // than the checkpoint taken at the end of the system prompt; without this
+            // allowance the lossy rewind won over the exact copy by four tokens.
+            // And never INSIDE the shared prefix: the state below that boundary is what
+            // gets checkpointed and cloned into every later chat, so it has to come from
+            // a clean prefill, not from a rewind that left stale keys in the ring.
+            if (cap != int.MaxValue && lcp < seq.SharedPrefixTokens)
+            {
+                return LiveContinuationDeclined(seq,
+                    $"prompt diverges from the live cache at token {lcp} of {liveLen}, inside the shared prefix " +
+                    $"({seq.SharedPrefixTokens} tokens); a rewind on a circular cache would not be exact there");
+            }
+            if (cap != int.MaxValue && HasExactRetainedContinuation(seq, lcp - MaxLiveContinuationRewindTokens))
+            {
+                return LiveContinuationDeclined(seq,
+                    $"prompt diverges from the live cache at token {lcp} of {liveLen}; a retained state serves " +
+                    "that prefix exactly, and a rewind on a circular cache would not be exact");
+            }
 
             _logger.LogDebug(
                 "Live-cache continuation for {RequestId} rewinding {Rewind} trailing token(s) the prompt does " +
@@ -1983,6 +2050,116 @@ namespace TensorSharp.Runtime.Scheduling
             && f.SupportsPerSequenceFusedForward
             && f.SupportsRetainedFusedCache;
 
+        /// <summary>True when the loaded model can copy its complete state at a
+        /// shared-prefix boundary and start later requests from a clone of it.</summary>
+        private bool ModelSupportsPrefixCheckpoints()
+        {
+            var options = ExecutionOptions.FromEnvironment();
+            // A clone lives in a per-request fused holder and runs on the per-sequence
+            // fused path; if the planner cannot route a fused-resident solo request
+            // there (TS_PER_SEQ_FUSED=0, TS_SCHED_DISABLE_BATCHED, a model without
+            // batched paged attention), the request would fall to the linear path with
+            // placeholder blocks nothing ever wrote and silently re-prefill with its
+            // reuse misreported. And adoption itself lives behind the scheduler's
+            // prefix-caching switch, so a checkpoint nothing can adopt is a copy for
+            // nothing.
+            return options.PrefixCheckpointsEnabled
+                && options.PerSeqFusedEnabled
+                && !options.BatchedPathDisabled
+                && _scheduler.PrefixCacheConfigured
+                && ModelUsesRetainableFusedCache()
+                && _model is IBatchedPagedModel f
+                && f.SupportsPrefixCheckpoints
+                && ExecutionCapabilities.FromModel(_model).SupportsBatchedPagedAttention;
+        }
+
+        /// <summary>Whether shared-prefix checkpoints are in use for this model, so the
+        /// scheduler ends prefill chunks at the boundary the chat layer marked.</summary>
+        public bool PrefixCheckpointsSupported => ModelSupportsPrefixCheckpoints();
+
+        /// <summary>
+        /// After a prefill step: if this sequence has just reached the end of its shared
+        /// prefix, checkpoint the model's state there — unless an identical checkpoint
+        /// already exists. Called on every per-sequence path with the sequence's cache
+        /// active (the primary cache on the linear path, its own holder on the fused
+        /// one); the model copies whichever is active.
+        /// </summary>
+        private void MaybeCheckpointSharedPrefix(SequenceState seq)
+        {
+            if (seq == null || seq.PrefixCheckpointTaken || seq.SharedPrefixTokens <= 0)
+                return;
+            if (seq.NumComputedTokens != seq.SharedPrefixTokens)
+                return;
+            // Whatever happens below, this sequence is done with the boundary: the
+            // scheduler stops aligning to it and this is not asked again.
+            seq.PrefixCheckpointTaken = true;
+            if (!ModelSupportsPrefixCheckpoints() || _model is not IBatchedPagedModel fused)
+                return;
+            if (seq.CacheBreakpoints != null)
+                return; // an explicit cache policy is served by the pooled path only
+
+            int n = seq.SharedPrefixTokens;
+            foreach (var existing in _prefixCheckpoints)
+            {
+                if (existing.Tokens.Length != n) continue;
+                bool same = true;
+                for (int i = 0; i < n && same; i++)
+                    same = existing.Tokens[i] == seq.PromptTokens[i];
+                if (same)
+                {
+                    // Keep the most recently confirmed prefix at the tail (LRU).
+                    _prefixCheckpoints.Remove(existing);
+                    _prefixCheckpoints.AddLast(existing);
+                    return;
+                }
+            }
+
+            string key = $"prefix:{++_prefixCheckpointSerial}";
+            var sw = Stopwatch.StartNew();
+            bool taken;
+            try
+            {
+                taken = fused.TryCheckpointActiveCache(key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Shared-prefix checkpoint for {RequestId} at {Tokens} tokens failed; new chats will re-prefill this prefix.",
+                    seq.RequestId, n);
+                return;
+            }
+            if (!taken)
+            {
+                _logger.LogInformation(
+                    "Shared-prefix checkpoint for {RequestId} at {Tokens} tokens was declined by the model; " +
+                    "new chats will re-prefill this prefix.",
+                    seq.RequestId, n);
+                return;
+            }
+
+            var tokens = new int[n];
+            for (int i = 0; i < n; i++) tokens[i] = seq.PromptTokens[i];
+            _prefixCheckpoints.AddLast(new RetainedFusedCache
+            {
+                RequestId = key,
+                Tokens = tokens,
+                MediaFingerprint = null,
+                IsPrefixCheckpoint = true,
+            });
+
+            int budget = Math.Max(1, ExecutionOptions.FromEnvironment().PrefixCheckpointBudget);
+            while (_prefixCheckpoints.Count > budget)
+            {
+                var victim = _prefixCheckpoints.First.Value;
+                _prefixCheckpoints.RemoveFirst();
+                fused.DiscardRetainedCache(victim.RequestId);
+            }
+            _logger.LogInformation(
+                "Shared-prefix checkpoint {Key} taken at {Tokens} tokens for {RequestId} in {Ms:F0} ms " +
+                "({Count} kept); a new chat that starts with this prefix will continue from a copy of it.",
+                key, n, seq.RequestId, sw.Elapsed.TotalMilliseconds, _prefixCheckpoints.Count);
+        }
+
         /// <summary>Longest reusable prefix from a retained fused holder, or 0 when
         /// no retained holder applies. A short trailing control-token tail may be
         /// rewound when the rendered history intentionally omitted it.
@@ -1995,7 +2172,7 @@ namespace TensorSharp.Runtime.Scheduling
         /// admission (same worker thread as the executor).</summary>
         public int ComputeFusedContinuationLcp(SequenceState seq)
         {
-            if (seq == null || _retainedFused.Count == 0) return 0;
+            if (seq == null || (_retainedFused.Count == 0 && _prefixCheckpoints.Count == 0)) return 0;
             if (!ModelUsesRetainableFusedCache()) return 0;
             FindRetainedFusedMatch(seq, out int lcp);
             return lcp;
@@ -2021,9 +2198,38 @@ namespace TensorSharp.Runtime.Scheduling
             if (blocks == null)
                 return false; // pool pressure -> let the caller use the capped pool path
 
-            if (!fused.TryRebindRetainedCache(match.RequestId, seq.RequestId))
+            bool bound;
+            try
+            {
+                bound = match.IsPrefixCheckpoint
+                    // A checkpoint is copied, never moved: the next new chat needs it too.
+                    ? fused.TryCloneRetainedCache(match.RequestId, seq.RequestId)
+                    : fused.TryRebindRetainedCache(match.RequestId, seq.RequestId);
+            }
+            catch (Exception ex)
+            {
+                // A clone is a whole-cache allocation; on a phone near its memory limit
+                // it can fail outright. Treated exactly like a refusal: blocks back,
+                // checkpoint gone, this request re-prefills — never a leak of reserved
+                // blocks and never the same throw on every scheduler pass.
+                _logger.LogWarning(ex,
+                    "Adopting retained state {Key} for {RequestId} failed; discarding it and re-prefilling.",
+                    match.RequestId, seq.RequestId);
+                bound = false;
+            }
+            if (!bound)
             {
                 _pool.Free(blocks);
+                if (match.IsPrefixCheckpoint)
+                {
+                    // Declined once, declined always: drop it so the next request does
+                    // not pay the search for a copy the model will not make.
+                    _logger.LogWarning(
+                        "Shared-prefix checkpoint {Key} could not be cloned for {RequestId}; discarding it.",
+                        match.RequestId, seq.RequestId);
+                    _prefixCheckpoints.Remove(match);
+                    fused.DiscardRetainedCache(match.RequestId);
+                }
                 return false;
             }
 
@@ -2032,6 +2238,18 @@ namespace TensorSharp.Runtime.Scheduling
 
             seq.SetComputedTokensForPrefixAdoption(lcp);
             seq.PrefixCacheReusedTokens = lcp;
+            if (match.IsPrefixCheckpoint)
+            {
+                // Its own prefix is now covered; nothing to checkpoint again, and the
+                // copy the request holds is exactly the state after those tokens.
+                seq.PrefixCheckpointTaken = true;
+                _prefixCheckpoints.Remove(match);
+                _prefixCheckpoints.AddLast(match);   // most recently used at the tail
+                _logger.LogInformation(
+                    "Shared-prefix checkpoint {Key} cloned for {RequestId}: {Tokens} prompt tokens continue from the copy.",
+                    match.RequestId, seq.RequestId, lcp);
+                return true;
+            }
             if (lcp < match.Tokens.Length)
                 _pendingRetainedFusedTruncations[seq.RequestId] = lcp;
             // The rebound holder is now this request's active fused cache; the
@@ -2039,6 +2257,36 @@ namespace TensorSharp.Runtime.Scheduling
             // from it without injecting from the (empty) reserved blocks.
             _retainedFused.Remove(match);
             return true;
+        }
+
+        /// <summary>True when a retained holder or shared-prefix checkpoint covers at
+        /// least <paramref name="minimum"/> tokens of this prompt as an exact prefix,
+        /// with nothing to rewind.</summary>
+        private bool HasExactRetainedContinuation(SequenceState seq, int minimum)
+        {
+            if (!ModelUsesRetainableFusedCache() || seq.CacheBreakpoints != null)
+                return false;
+            foreach (var entry in RetainedCandidates())
+            {
+                if (!entry.IsPrefixCheckpoint
+                    && !string.Equals(entry.MediaFingerprint, seq.MediaFingerprint, StringComparison.Ordinal))
+                    continue;
+                int len = entry.Tokens.Length;
+                if (len < minimum || len >= seq.PromptTokens.Count)
+                    continue;
+                bool exact = true;
+                for (int i = 0; i < len && exact; i++)
+                    exact = seq.PromptTokens[i] == entry.Tokens[i];
+                if (exact)
+                    return true;
+            }
+            return false;
+        }
+
+        private IEnumerable<RetainedFusedCache> RetainedCandidates()
+        {
+            foreach (var entry in _retainedFused) yield return entry;
+            foreach (var entry in _prefixCheckpoints) yield return entry;
         }
 
         /// <summary>Find the retained fused holder whose token run is a prefix of
@@ -2054,10 +2302,15 @@ namespace TensorSharp.Runtime.Scheduling
             if (seq.CacheBreakpoints != null)
                 return null;
 
-            RetainedFusedCache best = null;
-            foreach (var entry in _retainedFused)
+            RetainedFusedCache bestExact = null, bestRewound = null;
+            int exactLcp = 0, rewoundLcp = 0;
+            bool circular = _model.MaxReusablePrefixTokens != int.MaxValue;
+            foreach (var entry in RetainedCandidates())
             {
-                if (!string.Equals(entry.MediaFingerprint, seq.MediaFingerprint, StringComparison.Ordinal))
+                // A checkpoint's tokens are text-only by construction; a retained
+                // conversation holder may hold media and must match on it.
+                if (!entry.IsPrefixCheckpoint
+                    && !string.Equals(entry.MediaFingerprint, seq.MediaFingerprint, StringComparison.Ordinal))
                     continue;
                 int len = entry.Tokens.Length;
                 // NB: no `len <= cap` skip. The fused path writes nothing to the shared
@@ -2071,16 +2324,37 @@ namespace TensorSharp.Runtime.Scheduling
 
                 if (seq.PromptTokens.Count <= lcp) continue;   // no new suffix to forward
                 int rewind = len - lcp;
+                // A checkpoint is adopted whole or not at all: the prompt must extend
+                // exactly the tokens it was taken after.
+                if (entry.IsPrefixCheckpoint && rewind > 0)
+                    continue;
                 if (rewind > 0
                     && (rewind > MaxLiveContinuationRewindTokens
                         || !_model.SupportsKVCacheTruncation))
                     continue;
-                if (lcp <= reusableLength) continue;
-
-                best = entry;
-                reusableLength = lcp;
+                if (rewind == 0)
+                {
+                    if (lcp > exactLcp) { bestExact = entry; exactLcp = lcp; }
+                }
+                else if (lcp > rewoundLcp)
+                {
+                    bestRewound = entry; rewoundLcp = lcp;
+                }
             }
-            return best;
+
+            // On a circular cache a rewound holder is not exact (see
+            // ComputeLiveContinuationLcp), so an exact state wins whenever it covers
+            // the prompt to within the rewind allowance — the same rule the live path
+            // applies. Not unconditionally: a conversation holder that needs a
+            // one-token EOS rewind must still beat a checkpoint at the system prompt,
+            // or every follow-up turn would re-forward the whole conversation from the
+            // clone. Elsewhere the longest match wins as before.
+            bool preferExact = bestExact != null
+                && (bestRewound == null
+                    || (circular ? exactLcp >= rewoundLcp - MaxLiveContinuationRewindTokens
+                                 : exactLcp >= rewoundLcp));
+            reusableLength = preferExact ? exactLcp : rewoundLcp;
+            return preferExact ? bestExact : bestRewound;
         }
 
         /// <summary>Track an in-flight fused sequence so the release hook can snapshot
@@ -2145,10 +2419,17 @@ namespace TensorSharp.Runtime.Scheduling
 
             if (!ModelUsesRetainableFusedCache()) return false;
             if (_model is not IBatchedPagedModel fused) return false;
-            // Only retain clean finishes; aborted/errored sequences may hold
-            // partial/inconsistent K/V, and preempted ones resume on their own.
+            // Clean finishes, and clean STOPS. An abort is processed between steps,
+            // so a stopped sequence's holder is consistent at its last forwarded
+            // token — and the chat layer now records exactly those tokens, so the
+            // next turn of that conversation extends the holder precisely. Errored
+            // sequences may hold partial state and preempted ones resume on their own.
+            bool cleanStop = seq.Status == SequenceStatus.FinishedAborted
+                && seq.Error == null
+                && seq.NumComputedTokens >= seq.NumTotalTokens;
             if (seq.Status != SequenceStatus.FinishedStopped
-                && seq.Status != SequenceStatus.FinishedLengthCapped)
+                && seq.Status != SequenceStatus.FinishedLengthCapped
+                && !cleanStop)
                 return false;
 
             // A retained holder represents the model's complete fused state. Even
@@ -2540,8 +2821,11 @@ namespace TensorSharp.Runtime.Scheduling
             {
                 foreach (var entry in _retainedFused)
                     fused.DiscardRetainedCache(entry.RequestId);
+                foreach (var entry in _prefixCheckpoints)
+                    fused.DiscardRetainedCache(entry.RequestId);
             }
             _retainedFused.Clear();
+            _prefixCheckpoints.Clear();
             _fusedSeqById.Clear();
             _model.ResetKVCache();
         }
@@ -2731,6 +3015,30 @@ namespace TensorSharp.Runtime.Scheduling
         /// <summary>Dispose a retained holder (LRU eviction / shutdown) and free its
         /// buffers and any recurrent state. Default no-op.</summary>
         void DiscardRetainedCache(string requestId) { }
+
+        // ---- Shared-prefix checkpoints (the prompt every conversation begins with) ----
+        //
+        // A retained holder is consumed by the one request that continues it, and it
+        // holds one whole conversation. Neither fits the prefix every chat on a host
+        // shares - the system prompt, tool schemas and skill descriptions, thousands
+        // of tokens that never change between chats. A NEW chat extends that prefix
+        // and nothing else, so on a sliding-window model (Gemma 4) or a hybrid
+        // recurrent one (Qwen 3.5) it re-prefilled all of it: the live cache diverged
+        // too far back to rewind, no retained holder matched, and the pool cannot
+        // restore a circular or recurrent state. A checkpoint is the model's complete
+        // state copied at exactly that boundary, kept apart from the LRU, and CLONED
+        // into each request that starts from it - the checkpoint itself is never
+        // consumed. The executor decides where the boundary is (the chat layer marks
+        // it on the request) and when to take one; the model only copies.
+        bool SupportsPrefixCheckpoints => false;
+        /// <summary>Deep-copy the ACTIVE cache (primary or checked-out holder) into a
+        /// retained holder under <paramref name="key"/>. The copy must be
+        /// independent: continuing from either side must not disturb the other.</summary>
+        bool TryCheckpointActiveCache(string key) => false;
+        /// <summary>Deep-copy the retained holder <paramref name="retainedKey"/> into a
+        /// fresh active holder for <paramref name="newRequestId"/>, leaving the retained
+        /// one intact so the next request can clone it too.</summary>
+        bool TryCloneRetainedCache(string retainedKey, string newRequestId) => false;
 
         /// <summary>TRUE token-batched decode: decode ONE token for each of N
         /// concurrent sequences in a single fused graph (one compute buffer,

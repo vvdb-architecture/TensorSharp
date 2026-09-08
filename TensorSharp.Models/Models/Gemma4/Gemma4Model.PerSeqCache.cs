@@ -368,6 +368,100 @@ namespace TensorSharp.Models
             }
         }
 
+        // ---- Shared-prefix checkpoints (IBatchedPagedModel) ----
+
+        /// <summary>Gemma 4 can copy its complete cache — every global layer's K/V
+        /// and every local layer's circular window — as plain bytes, so a
+        /// checkpoint is exact. GGML only: the copy relies on host-side storage.</summary>
+        public bool SupportsPrefixCheckpoints => IsGgmlBackend && _kvCacheK != null && _kvCacheV != null;
+
+        /// <summary>Deep-copy the ACTIVE cache (primary or checked-out holder) into the
+        /// retained set under <paramref name="key"/>. See
+        /// <see cref="IBatchedPagedModel.TryCheckpointActiveCache"/>.</summary>
+        public bool TryCheckpointActiveCache(string key)
+        {
+            if (!SupportsPrefixCheckpoints || string.IsNullOrEmpty(key))
+                return false;
+            _retainedFusedHolders ??= new Dictionary<string, Gemma4KvCacheHolder>(StringComparer.Ordinal);
+            if (_retainedFusedHolders.ContainsKey(key)
+                || (_fusedHolders != null && _fusedHolders.ContainsKey(key)))
+                return false;
+            // The device copy may be newer than the host bytes the copy reads.
+            EnsureKvCacheHostSynchronized();
+            var copy = DeepCopyHolder(SnapshotActiveCache());
+            _retainedFusedHolders[key] = copy;
+            CbTrace($"TryCheckpointActiveCache({key}) seqLen={copy.SeqLen}");
+            return true;
+        }
+
+        /// <summary>Deep-copy the retained holder <paramref name="retainedKey"/> into a
+        /// fresh active holder for <paramref name="newRequestId"/>; the retained one
+        /// is untouched. See <see cref="IBatchedPagedModel.TryCloneRetainedCache"/>.</summary>
+        public bool TryCloneRetainedCache(string retainedKey, string newRequestId)
+        {
+            if (_retainedFusedHolders == null
+                || string.IsNullOrEmpty(retainedKey)
+                || string.IsNullOrEmpty(newRequestId))
+                return false;
+            if (!_retainedFusedHolders.TryGetValue(retainedKey, out var source))
+                return false;
+            _fusedHolders ??= new Dictionary<string, Gemma4KvCacheHolder>(StringComparer.Ordinal);
+            if (_fusedHolders.ContainsKey(newRequestId)
+                || string.Equals(_activeFusedKey, newRequestId, StringComparison.Ordinal))
+                return false;
+            // A checkpoint is never bound, so its host bytes stay the truth. A retained
+            // conversation holder can be device-dirty and is re-keyed, never copied.
+            if (source.HostDirty)
+                return false;
+            _fusedHolders[newRequestId] = DeepCopyHolder(source);
+            CbTrace($"TryCloneRetainedCache({retainedKey} -> {newRequestId}) seqLen={source.SeqLen}");
+            return true;
+        }
+
+        /// <summary>An independent copy of <paramref name="source"/>: fresh tensors
+        /// (allocated through the same routine as every holder, so donor layers alias
+        /// exactly as the original does and unused rows are zero), the bytes of every
+        /// unique storage copied, and the copy's device mirrors dropped so the next
+        /// forward uploads the copied bytes.</summary>
+        private Gemma4KvCacheHolder DeepCopyHolder(Gemma4KvCacheHolder source)
+        {
+            // The global layers are sized to what the source HOLDS (plus a padded
+            // window), not to the generation budget its primary cache was reserved
+            // for: a checkpoint lives for the life of the model and every new chat
+            // clones it. The local layers are one fixed circular window each and are
+            // copied whole. A copy grows on demand like any holder.
+            int rows = Math.Max(0, Math.Min(source.SeqLen, source.GlobalCapacity));
+            int globalCap = Math.Max(1, Math.Min(source.GlobalCapacity, CacheCapacityFor(rows)));
+            AllocateKvCacheArrays(globalCap, out var k, out var v, out var sizes, out _);
+            var seen = new HashSet<Tensor>();
+            for (int l = 0; l < Config.NumLayers; l++)
+            {
+                if (_kvDonorMap.ContainsKey(l)) continue;   // aliases another layer's tensors
+                bool local = IsLocalLayer(l);
+                if (source.K[l] != null && k[l] != null && seen.Add(source.K[l]))
+                {
+                    if (local) CopyCacheTensorBytes(source.K[l], k[l]);
+                    else CopyCacheRows(source.K[l], k[l], rows);
+                    InvalidateTensorDeviceCache(k[l]);
+                }
+                if (source.V != null && source.V[l] != null && v[l] != null && seen.Add(source.V[l]))
+                {
+                    if (local) CopyCacheTensorBytes(source.V[l], v[l]);
+                    else CopyCacheRows(source.V[l], v[l], rows);
+                    InvalidateTensorDeviceCache(v[l]);
+                }
+            }
+            return new Gemma4KvCacheHolder
+            {
+                K = k,
+                V = v,
+                Sizes = sizes,
+                GlobalCapacity = globalCap,
+                SeqLen = source.SeqLen,
+                HostDirty = false,
+            };
+        }
+
         private void DisposeHolder(Gemma4KvCacheHolder holder)
         {
             if (holder?.K == null) return;

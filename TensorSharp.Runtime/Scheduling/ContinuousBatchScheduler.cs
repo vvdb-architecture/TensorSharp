@@ -114,6 +114,32 @@ namespace TensorSharp.Runtime.Scheduling
 
         /// <summary>Wire the retained fused-cache continuation hooks (see the fields).
         /// Called once by the engine after the executor is constructed.</summary>
+        // Whether prefill chunks should end exactly at a sequence's shared-prefix
+        // boundary so the executor can checkpoint the model's state there. Set by
+        // the engine when the model can take such checkpoints; otherwise the
+        // boundary is ignored and chunks are sized for throughput alone.
+        private bool _alignToSharedPrefix;
+
+        /// <summary>Enable shared-prefix alignment (see <see cref="AlignSharedPrefixBoundary"/>).</summary>
+        public void EnablePrefixCheckpoints() => _alignToSharedPrefix = true;
+
+        /// <summary>
+        /// Cut a prefill chunk at the sequence's shared-prefix boundary when the chunk
+        /// would otherwise run past it, so the state the executor checkpoints is the
+        /// state after exactly those tokens. Costs one extra chunk boundary per new
+        /// conversation, and only until a checkpoint exists.
+        /// </summary>
+        private int AlignSharedPrefixBoundary(SequenceState seq, int want)
+        {
+            if (!_alignToSharedPrefix || want <= 0 || seq.SharedPrefixTokens <= 0 || seq.PrefixCheckpointTaken)
+                return want;
+            int start = seq.NumComputedTokens;
+            int boundary = seq.SharedPrefixTokens;
+            if (boundary > start && start + want > boundary)
+                return boundary - start;
+            return want;
+        }
+
         public void AttachFusedCacheContinuation(
             Func<SequenceState, int> computeLcp,
             Func<SequenceState, int, bool> adopt)
@@ -131,6 +157,13 @@ namespace TensorSharp.Runtime.Scheduling
         /// blocks. The executor uses it to avoid extracting KV snapshots when
         /// prefix caching is disabled or unsafe for the loaded model.</summary>
         public bool PrefixCachingEnabled => PrefixCachingActive;
+
+        /// <summary>The operator's prefix-cache switch alone (TS_SCHED_PREFIX_CACHE),
+        /// which is what gates EVERY reuse at admission — live, retained holder,
+        /// checkpoint and pooled — where <see cref="PrefixCachingEnabled"/> also asks
+        /// whether the POOLED path can serve this model (it never can for Qwen 3.5,
+        /// whose retained holders and checkpoints are exactly the alternative).</summary>
+        public bool PrefixCacheConfigured => _cfg.EnablePrefixCaching;
 
         /// <summary>Snapshot all requests currently owned by the scheduler.
         /// Used by the engine's failure path when scheduling itself throws and
@@ -307,6 +340,7 @@ namespace TensorSharp.Runtime.Scheduling
                 int desired = Math.Min(promptUncomputed, cap);
                 int want = Math.Min(desired, tokenBudget);
                 want = AlignRecurrentPrefillBoundary(seq, want, promptUncomputed);
+                want = AlignSharedPrefixBoundary(seq, want);
                 if (want <= 0)
                 {
                     _nextPrefillRequestId = seq.RequestId;
@@ -409,6 +443,7 @@ namespace TensorSharp.Runtime.Scheduling
                 int want = Math.Min(desired, tokenBudget);
                 want = Math.Min(want, tokenBudget);
                 want = AlignRecurrentPrefillBoundary(seq, want, promptUncomputed);
+                want = AlignSharedPrefixBoundary(seq, want);
                 if (want <= 0) break;
 
                 if (!TryEnsureBlocksForStep(seq, want))

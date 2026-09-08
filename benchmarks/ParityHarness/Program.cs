@@ -549,6 +549,7 @@ public static class Program
         {
             "TS_RETAINED_FUSED_CACHE",
             "TS_RETAINED_FUSED_CACHE_MAX",
+            "TS_PREFIX_CHECKPOINTS",
             "TS_SCHED_DISABLE_BATCHED",
             "TS_PER_SEQ_FUSED",
             "TS_BATCHED_FUSED_DECODE",
@@ -560,6 +561,7 @@ public static class Program
             StringComparer.Ordinal);
         Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "0");
         Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", "4");
+        Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS", "0");
         Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", "0");
         Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
         Environment.SetEnvironmentVariable("TS_BATCHED_FUSED_DECODE", "1");

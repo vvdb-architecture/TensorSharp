@@ -327,6 +327,8 @@ Models that do not advertise this capability ignore the retained-cache setting.
 | `TS_BATCHED_FUSED_DECODE` | `1` | `0` disables true token-batched fused decode inside the per-sequence fused path (one graph decodes all N sequences). |
 | `TS_RETAINED_FUSED_CACHE` | `1` | Retain finished request-owned fused holders for exact-prefix continuation on models that advertise support; `0` disables (VRAM cap / A/B). Supported holders include Gemma 4 K/V and Qwen 3.5/3.6 attention K/V plus GDN recurrent state. |
 | `TS_RETAINED_FUSED_CACHE_MAX` | `4` | LRU budget of retained fused holders (each pins the model's complete per-request continuation state). |
+| `TS_PREFIX_CHECKPOINTS` | `1` | Checkpoint the model's complete state at the end of the shared prompt prefix (the boundary the chat layer marks on the request) and start each new chat from a clone of it, on models that can copy their state (Gemma 4, Qwen 3.5/3.6). `0` disables. |
+| `TS_PREFIX_CHECKPOINTS_MAX` | `2` | How many distinct shared prefixes stay checkpointed at once (LRU). |
 | `TS_KV_PAGED_QUANT_BITS` | `0` | Optional TurboQuant codec bits for paged KV blocks (`2`, `4`, or `8`); recurrent-state models may fall back to passthrough. |
 | `TS_MTP_SPEC` | `0` | `1` enables MTP / NextN speculative decoding for solo sequences (server `--spec`). |
 | `TS_MTP_DRAFT` | `8` | Max tokens drafted per speculative step (server `--spec-draft`). |

@@ -156,6 +156,30 @@ using the shell and starts inventing the answer, which is exactly what one did o
 phone — reaching for `bc` to subtract two dates, being told 127, and finishing the
 arithmetic in its head with the wrong number and a formula underneath.
 
+**The first message is as fast as the second, and so is a new chat.** A
+conversation's first turn used to forward several thousand tokens — the system prompt,
+the tool schemas, the skill descriptions — before the model wrote a character: 0% KV
+reuse, and twenty to forty seconds on the phone before the first token. Every later
+turn reused 99% of that, so the prompt was never slow; it was paid for once, by the
+user. Two things now pay it instead. As soon as the weights are in, the app forwards
+that shared prompt on a throwaway one-token request (`AgentAppHost.WarmThePrefixCache`)
+while the user is still reading the screen; a real message cancels it and waits for it
+to be gone, so nobody ever shares the engine with it. And the engine keeps a
+**checkpoint** of the model's complete state at the end of that shared prefix — a deep
+copy, kept apart from the per-conversation caches and never consumed — so every NEW
+chat starts from a clone of it and re-prefills only its own message. That copy is what
+makes new chats fast on the two families that could not be served any other way: Gemma
+4's sliding-window layers physically hold only the last 512 positions, so the pooled
+block cache could restore at most one window, and Qwen 3.5's recurrent state cannot be
+rewound at all. Measured with `benchmarks/TensorAgentTtftBench` (below): on Gemma 4 E2B
+a new chat went from 1.5 s / 0% reuse to 0.11 s / 99.6% on a Mac, and the same shape
+holds on the phone, ten times slower in absolute terms. Two more turns that used to
+re-prefill everything no longer do: a turn after the user tapped Stop (the transcript
+now records the tokens the engine forwarded past the last one streamed), and, on Qwen
+3.5, a turn after the thinking toggle changed (the two thinking modes rendered through
+different code and disagreed from the first tool declaration on; they now share one
+renderer, and each answer remembers which mode its prompt ended in).
+
 **A sandbox the user controls.** Two switches, both in Settings, both defaulting to
 the safe answer: code execution on, because an agent that cannot act is not an
 agent, and network off, because a model that can reach the internet from inside a
@@ -442,9 +466,53 @@ the shape, not the absolute value — a phone with Metal is a different machine.
 | 3 | 3019 | 2996 | 99.2% |
 | 4 | 3105 | 3082 | 99.3% |
 
-Only the new message and the previous answer are processed on each turn. Starting
-a new chat drops reuse to zero; rewriting an earlier turn invalidates from the
-point the histories diverge, and the model then answers from the rewritten history.
+Only the new message and the previous answer are processed on each turn. Rewriting
+an earlier turn invalidates from the point the histories diverge, and the model then
+answers from the rewritten history. (Starting a new chat used to drop reuse to zero
+as well; see the next section for what changed.)
+
+### Every conversation shape, on Metal
+
+`benchmarks/TensorAgentTtftBench` starts the real app host on the Mac with the phone's
+settings (catalog context and K/V budget, 1024-token solo prefill chunks, all twelve
+skills), loads a catalog model on Metal the way tapping "Use" does, and drives
+`/api/chat` exactly as the page does through every shape a conversation takes. It
+prints, for each turn, the first-token time, the prompt size, how much of it the KV
+cache served, and — next to any turn that reused nothing — the engine's own line
+saying why. Run it with `--model <catalog id> --source <dir with the entry's files>`
+(or `--weights <gguf>`), and `--warm` to let the prefix warm-up finish first, as a
+user who takes a few seconds to type does.
+
+Gemma 4 E2B Q8_0, ggml_metal, M5 Pro, 2026-09-07, first token / prompt reused:
+
+| Turn | Before | After |
+| --- | --- | --- |
+| First turn of the first chat | 2.03 s / 0% | 0.16 s / 99.7% (warm-up) |
+| Follow-up in the same chat | 0.10 s / 99.6% | 0.11 s / 99.6% |
+| First turn of a NEW chat | 1.50 s / 0% | 0.11 s / 99.6% (checkpoint) |
+| Turn after the user tapped Stop | 0.08 s / 99.4% | 0.08 s / 99.0% |
+| Turn after a tool round | 1.52 s / 0% | 0.14 s / 95.9% |
+| Thinking toggled on, same chat | 1.52 s / 0% | 1.55 s / 0% — Gemma 4's template puts the thinking marker at the top of the system turn, so that prompt shares nothing with the other mode |
+
+Qwen 3.5 9B Q8_0, same machine:
+
+| Turn | Before | After |
+| --- | --- | --- |
+| First turn of the first chat | 5.76 s / 0% | 0.29 s / 99.7% |
+| First turn of a NEW chat | 4.95 s / 0% | 0.25 s / 99.6% |
+| Thinking toggled on, same chat | 4.99 s / 0% | 0.23 s / 99.5% |
+| Turn after the user tapped Stop | 5.17 s / 0% | 0.36 s / 99.2% |
+
+The checkpoint is a copy, so it had to be proved a faithful one:
+`InferenceWeb.Tests/PrefixCheckpointExactnessTests` generates greedily from a chat
+started on the clone and from a cold prefill of the same prompt and requires the two
+token sequences to be identical. Both families pass on Metal. Its first version
+failed on Gemma 4 for a reason worth knowing: the engine's older trick of continuing
+the live cache by rewinding up to sixteen trailing tokens is not exact on a
+sliding-window model — the rewound tokens' keys stay in the ring where the window's
+oldest positions should be, and a 15-token rewind changed the answer from its fifth
+token. The engine now prefers a retained state or a checkpoint whenever one covers
+the prompt exactly, and keeps the rewind only as the fallback.
 
 ### In the simulator, with a real model
 
@@ -480,6 +548,14 @@ checked and these were not:
   surface. No video model is small enough for the catalog, so nothing offers one.
 - **Package installation.** `WheelInstaller` refuses without the network switch and
   accepts only pure-Python wheels; the accepting path has not run on iOS.
+
+- **The first-token numbers ON THE PHONE after the 2026-09-07 cache work.** Every
+  figure in "Every conversation shape, on Metal" is from a Mac driving the real app
+  host; the phone was not reachable that day. The Debug build carries a probe for
+  exactly this: launch with `TENSORAGENT_TTFT_CHECK=1` (and `TENSORAGENT_USE_MODEL`)
+  and read the four `ttft` lines off `devicectl device process launch --console` —
+  first chat, follow-up, new chat, follow-up. The shape to expect is the Mac's; the
+  absolute times are the phone's.
 
 ### On a physical iPhone
 

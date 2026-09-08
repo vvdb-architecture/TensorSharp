@@ -303,6 +303,259 @@ public class RetainedFusedCacheTests
         }
     }
 
+    // ---------------------------------------------------------------------------
+    // Shared-prefix checkpoints: the prompt every conversation begins with is
+    // copied once and every later new chat starts from a clone of the copy.
+    // ---------------------------------------------------------------------------
+
+    private const int SharedPrefixLen = 48;
+    // Longer than the live-cache rewind allowance (16), so a new chat cannot be
+    // served by rewinding the previous chat's live cache and must use the checkpoint.
+    private const int FirstMessageLen = 20;
+
+    private static List<int> SharedPrefix() => Enumerable.Repeat(1, SharedPrefixLen).ToList();
+
+    /// <summary>Every switch these tests depend on, set explicitly: other test classes
+    /// flip the same variables while running in parallel.</summary>
+    private static async Task WithCheckpointsOnAsync(Func<Task> body, string budget = null)
+    {
+        string prevRetained = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
+        string prevPerSeq = Environment.GetEnvironmentVariable("TS_PER_SEQ_FUSED");
+        string prevCheckpoints = Environment.GetEnvironmentVariable("TS_PREFIX_CHECKPOINTS");
+        string prevBudget = Environment.GetEnvironmentVariable("TS_PREFIX_CHECKPOINTS_MAX");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "1");
+        Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
+        Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS", "1");
+        Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS_MAX", budget);
+        try { await body(); }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", prevRetained);
+            Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", prevPerSeq);
+            Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS", prevCheckpoints);
+            Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS_MAX", prevBudget);
+        }
+    }
+
+    private static SequenceState NewChat(string id, int firstToken, int count = FirstMessageLen, int sharedPrefix = SharedPrefixLen)
+    {
+        var prompt = SharedPrefix();
+        prompt.AddRange(Enumerable.Repeat(firstToken, count));
+        return new SequenceState(id, prompt, 4, BlockSize, SamplingConfig.Greedy, sharedPrefixTokens: sharedPrefix);
+    }
+
+    [Fact]
+    public async Task SharedPrefix_IsCheckpointedOnceAndClonedForEveryNewChat()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+
+            // The first chat: its prefill stops exactly at the shared prefix (the
+            // solo chunk would otherwise swallow the whole 51-token prompt in one
+            // pass), the model's state is copied there, and the chat carries on.
+            var first = await DrainAsync(engine.SubmitRequest(NewChat("chat-1", firstToken: 7)));
+            Assert.Equal(0, first.completion.PrefixCacheReusedTokens);
+            Assert.Single(model.Checkpoints);
+            Assert.Equal(SharedPrefixLen, model.Checkpoints.Values.Single());
+            Assert.Equal(0, model.Clones);
+
+            // A second chat with a different first message: no live cache to
+            // continue (it diverges right after the prefix) and no retained
+            // conversation matches, so it is the clone that serves it - the whole
+            // shared prefix reused, only the new message forwarded.
+            var second = await DrainAsync(engine.SubmitRequest(NewChat("chat-2", firstToken: 8)));
+            Assert.Equal(SharedPrefixLen, second.completion.PrefixCacheReusedTokens);
+            Assert.Equal(1, model.Clones);
+            Assert.Single(model.Checkpoints);   // still there: cloned, not consumed
+
+            // And a third, and no second checkpoint of the same prefix.
+            var third = await DrainAsync(engine.SubmitRequest(NewChat("chat-3", firstToken: 9)));
+            Assert.Equal(SharedPrefixLen, third.completion.PrefixCacheReusedTokens);
+            Assert.Equal(2, model.Clones);
+            Assert.Single(model.Checkpoints);
+            Assert.Empty(model.DiscardedRetainedRequestIds);
+        });
+    }
+
+    [Fact]
+    public async Task AFollowUpTurn_ContinuesItsOwnConversationRatherThanTheCheckpoint()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+
+            var first = await DrainAsync(engine.SubmitRequest(NewChat("chat-1", firstToken: 7)));
+            Assert.Single(model.Checkpoints);
+
+            // The same conversation, one turn later: prompt = the whole first turn
+            // (prompt and answer) plus a new message. That extends the live cache
+            // exactly, which is longer than the checkpoint, so it wins.
+            var followUp = SharedPrefix();
+            followUp.AddRange(Enumerable.Repeat(7, FirstMessageLen));
+            followUp.AddRange(first.output);
+            followUp.AddRange(Enumerable.Repeat(PeakToken + 1, SuffixLen));
+            var second = await DrainAsync(engine.SubmitRequest(new SequenceState(
+                "chat-1-turn-2", followUp, 4, BlockSize, SamplingConfig.Greedy, sharedPrefixTokens: SharedPrefixLen)));
+
+            Assert.Equal(followUp.Count - SuffixLen, second.completion.PrefixCacheReusedTokens);
+            Assert.True(second.completion.PrefixCacheReusedTokens > SharedPrefixLen);
+            Assert.Equal(0, model.Clones);
+            Assert.Single(model.Checkpoints);
+        });
+    }
+
+    [Fact]
+    public async Task ADifferentSharedPrefix_GetsItsOwnCheckpoint_AndTheBudgetEvictsTheOldest()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+
+            await DrainAsync(engine.SubmitRequest(NewChat("chat-1", firstToken: 7)));
+            string firstKey = model.Checkpoints.Keys.Single();
+
+            // A different system prompt (a changed skill selection, thinking toggled
+            // on a Gemma 4 template): a different prefix, its own checkpoint, and
+            // with a budget of one the old one goes.
+            var other = Enumerable.Repeat(2, SharedPrefixLen).ToList();
+            other.AddRange(Enumerable.Repeat(7, FirstMessageLen));
+            await DrainAsync(engine.SubmitRequest(new SequenceState(
+                "chat-2", other, 4, BlockSize, SamplingConfig.Greedy, sharedPrefixTokens: SharedPrefixLen)));
+
+            Assert.Equal(2, model.Checkpoints.Count);
+            Assert.Contains(firstKey, model.DiscardedRetainedRequestIds);
+
+            // The surviving prefix is cloned for its next new chat...
+            int clonesBefore = model.Clones;
+            var otherAgain = new List<int>(Enumerable.Repeat(2, SharedPrefixLen));
+            otherAgain.AddRange(Enumerable.Repeat(8, FirstMessageLen));
+            var onOther = await DrainAsync(engine.SubmitRequest(new SequenceState(
+                "chat-3", otherAgain, 4, BlockSize, SamplingConfig.Greedy, sharedPrefixTokens: SharedPrefixLen)));
+            Assert.Equal(SharedPrefixLen, onOther.completion.PrefixCacheReusedTokens);
+            Assert.Equal(clonesBefore + 1, model.Clones);
+
+            // ...and the evicted one no longer serves a new chat as a whole (the pooled
+            // block cache may still hand back its first window, which is what it did
+            // before checkpoints existed). That chat takes a fresh checkpoint of its
+            // prefix, which with a budget of one evicts the other in turn.
+            var backToFirst = await DrainAsync(engine.SubmitRequest(NewChat("chat-4", firstToken: 8)));
+            Assert.True(backToFirst.completion.PrefixCacheReusedTokens < SharedPrefixLen);
+            Assert.Equal(clonesBefore + 1, model.Clones);
+            Assert.Equal(3, model.Checkpoints.Count);
+            Assert.Equal(2, model.DiscardedRetainedRequestIds.Count);
+        }, budget: "1");
+    }
+
+    [Fact]
+    public async Task OnACircularCache_AnExactCheckpointBeatsALossyRewind()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            // The stub's pooled cap (16) marks it as a sliding-window model. Chat 1's
+            // message is short, so chat 2 COULD be served by rewinding chat 1's live
+            // cache a few tokens - which on a circular cache reads stale keys. The
+            // checkpoint serves the same prefix exactly, so it must win: a clone, and
+            // no truncation of the live cache.
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+
+            await DrainAsync(engine.SubmitRequest(NewChat("chat-1", firstToken: 7, count: 3)));
+            Assert.Single(model.Checkpoints);
+
+            var second = await DrainAsync(engine.SubmitRequest(NewChat("chat-2", firstToken: 8, count: 3)));
+            Assert.Equal(SharedPrefixLen, second.completion.PrefixCacheReusedTokens);
+            Assert.Equal(1, model.Clones);
+            Assert.Empty(model.TruncationTargets);
+        });
+    }
+
+    [Fact]
+    public async Task WhereACloneCouldNotRun_NoCheckpointIsTaken()
+    {
+        // A clone lives in a per-request fused holder and runs on the fused path. With
+        // that path switched off the planner would send the clone's request down the
+        // linear path with placeholder blocks nothing wrote, so the checkpoint must not
+        // be taken in the first place - not taken and then silently re-prefilled.
+        await WithCheckpointsOnAsync(async () =>
+        {
+            Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "0");
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+            await DrainAsync(engine.SubmitRequest(NewChat("chat-1", firstToken: 7)));
+            var second = await DrainAsync(engine.SubmitRequest(NewChat("chat-2", firstToken: 8)));
+            Assert.Empty(model.Checkpoints);
+            Assert.Equal(0, model.Clones);
+            Assert.True(second.completion.PrefixCacheReusedTokens < SharedPrefixLen);
+        });
+    }
+
+    [Fact]
+    public async Task AmongRetainedHolders_AnExactCheckpointBeatsARewoundOne_ButNotALongerExactConversation()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            // Two chats at once, so both finish on the fused path and are retained
+            // as whole-conversation holders; the shared prefix is checkpointed too.
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+            var a = engine.SubmitRequest(NewChat("chat-a", firstToken: 7, count: 3));
+            var b = engine.SubmitRequest(NewChat("chat-b", firstToken: 8, count: 3));
+            var ra = DrainAsync(a);
+            var rb = DrainAsync(b);
+            await Task.WhenAll(ra, rb);
+            var firstA = await ra;
+            Assert.Single(model.Checkpoints);
+
+            // A third, new chat: each retained conversation matches the shared prefix
+            // with a short rewind (its own message and answer), the checkpoint matches
+            // it exactly. On a circular cache the exact one must win — a clone, no
+            // truncation — and neither conversation loses its holder.
+            int clonesBefore = model.Clones;
+            var third = await DrainAsync(engine.SubmitRequest(NewChat("chat-c", firstToken: 9, count: 3)));
+            Assert.Equal(SharedPrefixLen, third.completion.PrefixCacheReusedTokens);
+            Assert.Equal(clonesBefore + 1, model.Clones);
+            Assert.Empty(model.TruncationTargets);
+
+            // Chat A's own follow-up extends its holder exactly, which is longer than
+            // the checkpoint: the conversation continues, nothing is cloned.
+            var followUp = SharedPrefix();
+            followUp.AddRange(Enumerable.Repeat(7, 3));
+            followUp.AddRange(firstA.output);
+            followUp.AddRange(Enumerable.Repeat(PeakToken + 1, SuffixLen));
+            var next = await DrainAsync(engine.SubmitRequest(new SequenceState(
+                "chat-a-turn-2", followUp, 4, BlockSize, SamplingConfig.Greedy, sharedPrefixTokens: SharedPrefixLen)));
+            Assert.Equal(followUp.Count - SuffixLen, next.completion.PrefixCacheReusedTokens);
+            Assert.Equal(clonesBefore + 1, model.Clones);
+        });
+    }
+
+    [Fact]
+    public async Task NoSharedPrefix_OrCheckpointsSwitchedOff_TakesNoCheckpoint()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            var model = new FusedStubModel();
+            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+            await DrainAsync(engine.SubmitRequest(NewChat("plain", firstToken: 7, sharedPrefix: 0)));
+            Assert.Empty(model.Checkpoints);
+
+            Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS", "0");
+            await DrainAsync(engine.SubmitRequest(NewChat("switched-off", firstToken: 8)));
+            Assert.Empty(model.Checkpoints);
+            Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS", "1");
+
+            // A model that cannot copy its state is simply never asked.
+            var cannot = new FusedStubModel { SupportsPrefixCheckpoints = false };
+            using var engine2 = new InferenceEngine(cannot, Config(), NullLogger.Instance);
+            await DrainAsync(engine2.SubmitRequest(NewChat("cannot", firstToken: 7)));
+            Assert.Empty(cannot.Checkpoints);
+        });
+    }
+
     [Fact]
     public async Task SequentialRequestIdReuse_DiscardsOldRetainedMetadataAndHolder()
     {
@@ -393,6 +646,18 @@ public class RetainedFusedCacheTests
 
             engine.Abort(partner.RequestId);
             _ = await partner.Completion;
+
+            // A Stop is how most phone turns end. The stopped sequence's holder is
+            // consistent at its last forwarded token, so it is RETAINED rather than
+            // freed, and the conversation's next turn — the prompt plus exactly the
+            // tokens the engine forwarded — continues from it.
+            var stoppedTokens = new List<int>(aborted.Sequence.PromptTokens);
+            stoppedTokens.AddRange(aborted.Sequence.OutputTokens);
+            var followUp = new List<int>(stoppedTokens);
+            followUp.AddRange(Enumerable.Repeat(PeakToken + 1, SuffixLen));
+            var next = await DrainAsync(engine.SubmitRequest(new SequenceState(
+                "abort-fused-turn-2", followUp, 4, BlockSize, SamplingConfig.Greedy)));
+            Assert.Equal(stoppedTokens.Count, next.completion.PrefixCacheReusedTokens);
         }
         finally
         {
@@ -636,6 +901,10 @@ public class RetainedFusedCacheTests
 
         private readonly Dictionary<string, Holder> _holders = new(StringComparer.Ordinal);
         private readonly Dictionary<string, Holder> _retained = new(StringComparer.Ordinal);
+        /// <summary>Checkpoint key -> the token count the active cache held when it was copied.</summary>
+        public Dictionary<string, int> Checkpoints { get; } = new(StringComparer.Ordinal);
+        public int Clones { get; private set; }
+        public bool SupportsPrefixCheckpoints { get; set; } = true;
         private readonly List<string> _releasedRequestIds = new();
         private readonly List<string> _discardedRetainedRequestIds = new();
         private readonly object _lifecycleLock = new();
@@ -816,6 +1085,23 @@ public class RetainedFusedCacheTests
             if (!_retained.Remove(requestId)) return;
             lock (_lifecycleLock)
                 _discardedRetainedRequestIds.Add(requestId);
+        }
+
+        public bool TryCheckpointActiveCache(string key)
+        {
+            if (_retained.ContainsKey(key) || _holders.ContainsKey(key)) return false;
+            _retained[key] = new Holder { SeqLen = Active.SeqLen };   // an independent copy
+            Checkpoints[key] = Active.SeqLen;
+            return true;
+        }
+
+        public bool TryCloneRetainedCache(string retainedKey, string newRequestId)
+        {
+            if (!_retained.TryGetValue(retainedKey, out var h)) return false;
+            if (_holders.ContainsKey(newRequestId)) return false;
+            _holders[newRequestId] = new Holder { SeqLen = h.SeqLen };
+            Clones++;
+            return true;
         }
 
         private sealed class StubTokenizer : ITokenizer

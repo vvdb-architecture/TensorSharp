@@ -404,6 +404,7 @@ namespace TensorSharp.Server
                         Thinking = src.Thinking,
                         RawOutputTokens = tracked.RawOutputTokens,
                         RawPromptTrailingWhitespace = tracked.RawPromptTrailingWhitespace,
+                        RawGenerationSuffix = tracked.RawGenerationSuffix,
                         CacheControl = src.CacheControl,
                         ContentCacheBreakpoints = src.ContentCacheBreakpoints,
                     });
@@ -552,7 +553,8 @@ namespace TensorSharp.Server
             List<ChatMessage> incomingHistory,
             string assistantText,
             List<int> generatedTokens,
-            string? rawPromptTrailingWhitespace = null)
+            string? rawPromptTrailingWhitespace = null,
+            string? rawGenerationSuffix = null)
         {
             trackedHistory.Clear();
             if (incomingHistory != null)
@@ -567,6 +569,7 @@ namespace TensorSharp.Server
                 Content = assistantText,
                 RawOutputTokens = generatedTokens,
                 RawPromptTrailingWhitespace = rawPromptTrailingWhitespace,
+                RawGenerationSuffix = rawGenerationSuffix,
             });
         }
 
@@ -643,6 +646,7 @@ namespace TensorSharp.Server
                 Thinking = msg.Thinking,
                 RawOutputTokens = msg.RawOutputTokens,
                 RawPromptTrailingWhitespace = msg.RawPromptTrailingWhitespace,
+                RawGenerationSuffix = msg.RawGenerationSuffix,
                 CacheControl = msg.CacheControl,
                 ContentCacheBreakpoints = msg.ContentCacheBreakpoints != null
                     ? new List<int>(msg.ContentCacheBreakpoints)
@@ -669,6 +673,7 @@ namespace TensorSharp.Server
                 Thinking = src.Thinking,
                 RawOutputTokens = src.RawOutputTokens,
                 RawPromptTrailingWhitespace = src.RawPromptTrailingWhitespace,
+                RawGenerationSuffix = src.RawGenerationSuffix,
                 CacheControl = src.CacheControl != null
                     ? new CacheControlMarker { Type = src.CacheControl.Type }
                     : null,

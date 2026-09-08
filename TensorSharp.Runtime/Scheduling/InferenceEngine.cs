@@ -75,6 +75,11 @@ namespace TensorSharp.Runtime.Scheduling
             _scheduler.AttachFusedCacheContinuation(
                 _executor.ComputeFusedContinuationLcp,
                 _executor.TryAdoptFusedContinuation);
+            // Shared-prefix checkpoints: end a prefill chunk exactly where the chat
+            // layer says the shared prompt ends, so the executor can copy the model's
+            // state there and start every later new chat from that copy.
+            if (_executor.PrefixCheckpointsSupported)
+                _scheduler.EnablePrefixCheckpoints();
 
             // One-time capability report: which execution paths are statically
             // available for this model+backend under the current configuration,
@@ -483,11 +488,14 @@ namespace TensorSharp.Runtime.Scheduling
                     {
                         // Abort bypasses ApplyResults/NotifyReleasedSequences, so run
                         // the same executor-first cleanup before freeing model state.
+                        // The executor keeps a cleanly stopped sequence's holder (the
+                        // Stop button is the ordinary way a phone turn ends) and
+                        // declines anything inconsistent itself.
                         NotifyReleasedSequence(
                             batchedAbort,
                             cmd.RequestId,
                             seen: null,
-                            retainFusedCache: false);
+                            retainFusedCache: true);
                     }
                     if (_handles.TryRemove(cmd.RequestId, out var handle))
                     {

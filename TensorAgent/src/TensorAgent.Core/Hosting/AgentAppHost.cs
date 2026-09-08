@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorAgent.Core.Catalog;
@@ -248,7 +249,9 @@ public sealed class AgentAppHost : IDisposable
         {
             StaticRoot = webRoot,
         };
-        Server.MapWebUi(Chat, Options.UploadDirectory, SkillsService, Recorder, chatFrames: null, turns: Turns);
+        // Through the gate below rather than the chat service directly: a turn must
+        // never run beside the prefix-cache warm-up, so the gate stops that first.
+        Server.MapWebUi(Chat, Options.UploadDirectory, SkillsService, Recorder, chatFrames: GatedChatFrames, turns: Turns);
         // Without this the model's "here is your PDF" link 404s: the runner emits
         // /api/code/artifacts/... and nothing served it. See MapCodeArtifacts.
         Server.MapCodeArtifacts(Artifacts);
@@ -301,6 +304,286 @@ public sealed class AgentAppHost : IDisposable
     {
         Server.Start();
         LoadSelectedModelInBackground();
+    }
+
+    // ---- making the FIRST message as fast as the second ----------------------------
+
+    private CancellationTokenSource? _warmup;
+    private Task? _warmupTask;
+    private readonly object _warmupLock = new();
+    private string? _warmUpSession;
+
+    /// <summary>
+    /// Where the warm-up's frames come from, or null for the chat service's own stream.
+    /// A seam for tests, which have no model to warm: the app never sets it.
+    /// </summary>
+    internal Func<JsonElement, CancellationToken, IAsyncEnumerable<object>>? WarmUpFrames { get; set; }
+
+    /// <summary>
+    /// Whether the prompt every conversation begins with has already been forwarded,
+    /// so the next message will reuse it instead of paying for it. False until the
+    /// warm-up finishes, and false again after a load throws the cache away.
+    /// </summary>
+    public bool PrefixCacheIsWarm { get; private set; }
+
+    /// <summary>
+    /// How many warm-ups have actually been STARTED. Counted because "did it start" and
+    /// "did it finish" are different questions and the dangerous one is the first: a
+    /// warm-up that starts beside a turn has already submitted a graph by the time it
+    /// notices, which is the whole of the bug this counts for.
+    /// </summary>
+    public long PrefixCacheWarmupsStarted { get; private set; }
+
+    /// <summary>
+    /// Forward the prompt every conversation begins with, before the user asks for
+    /// anything, so their first message does not have to.
+    ///
+    /// <para>
+    /// Measured on an iPhone 17 Pro Max, and the numbers are the whole argument. A
+    /// conversation's first turn forwards several thousand tokens of system prompt,
+    /// tool schemas and skill descriptions before the model writes a character: 0% KV
+    /// reuse, and twenty to forty seconds before the first token. Every LATER turn
+    /// reuses 99% of that and answers in under a second — and so does the first turn
+    /// of a brand new conversation, because the expensive part is shared by all of
+    /// them. So the prompt was never slow. It was paid for once, and the user was the
+    /// one paying.
+    /// </para>
+    /// <para>
+    /// This pays it instead, on a throwaway one-token request issued as soon as the
+    /// weights are in — while the user is still reading the screen — and again after
+    /// every load, which throws the cache away with the previous model. It is cancelled
+    /// the moment a real turn wants the engine, and it binds no conversation, so
+    /// nothing is recorded and no chat appears in the user's list.
+    /// </para>
+    /// <para>
+    /// The message it sends is one short word, on purpose. A sliding-window model
+    /// (Gemma 4) can continue its live cache only when the new prompt differs from
+    /// the cached one by a handful of trailing tokens (see
+    /// <c>BatchExecutor.MaxLiveContinuationRewindTokens</c>); "hi", the turn framing
+    /// and the single generated token fit inside that allowance, so the first real
+    /// message rewinds them and continues instead of re-prefilling.
+    /// </para>
+    /// </summary>
+    public void WarmThePrefixCache()
+    {
+        // Never beside a turn. The warm-up is opportunistic by definition -- it exists to
+        // save the NEXT message a wait -- so contending with a message already being
+        // answered is all cost and no benefit, and on a model that cannot take two
+        // requests at once it is a corrupted answer. The turn repopulates the cache
+        // itself on its way through.
+        if (Turns.IsBusy)
+        {
+            HostLog.LogInformation("not warming the prefix cache: a turn is already using the engine");
+            return;
+        }
+
+        CancellationTokenSource source;
+        lock (_warmupLock)
+        {
+            StopWarmingThePrefixCacheWhileHoldingTheLock();
+            _warmup = source = new CancellationTokenSource();
+            // A fresh model means a cache with nothing in it -- whatever was true a
+            // moment ago is not true now.
+            PrefixCacheIsWarm = false;
+            PrefixCacheWarmupsStarted++;
+        }
+
+        // The TOKEN, captured now: the source is disposed the moment a turn stops
+        // this warm-up, and a token copied before that stays readable afterwards
+        // where `source.Token` would throw ObjectDisposedException.
+        CancellationToken token = source.Token;
+        Task running = Task.Run(async () =>
+        {
+            try
+            {
+                // A moment for the engine to finish settling after a load. Nobody is
+                // waiting on this and the cost of being early is a crash.
+                await Task.Delay(TimeSpan.FromSeconds(2), token).ConfigureAwait(false);
+
+                // Checked again on the other side of the wait, because a turn can start
+                // during it.
+                if (Turns.IsBusy)
+                {
+                    HostLog.LogInformation("dropping the prefix-cache warm-up: a turn started while it was waiting");
+                    return;
+                }
+                token.ThrowIfCancellationRequested();
+
+                // WITH A SESSION, and that is the difference between warming the right
+                // prompt and warming a different one. A request that carries no session
+                // is served by the DEFAULT session; WorkspaceFor returns null for that
+                // one, and a chat with no workspace is declared only `shell` with no
+                // file tools, where a real turn is declared read_file, edit_file,
+                // write_file, a persisting shell and apply_patch, plus the "Working with
+                // files" instructions. KV reuse is a longest-common-PREFIX match, so a
+                // tool block that differs makes everything after it unshareable -- the
+                // warm-up would run for twenty seconds and save a real turn only the
+                // part before the tools.
+                //
+                // And with the user's thinking default, because Gemma 4's template puts
+                // its thinking marker at the very top of the system turn: a prompt
+                // warmed with thinking off shares nothing with one the user sends with
+                // it on.
+                bool think = Settings.Load().ThinkByDefault;
+                JsonElement body = JsonDocument.Parse(
+                    $$"""
+                      {"sessionId":"{{WarmUpSessionId()}}","messages":[{"role":"user","content":"hi"}],"maxTokens":1,"think":{{(think ? "true" : "false")}}}
+                      """).RootElement;
+
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                Func<JsonElement, CancellationToken, IAsyncEnumerable<object>> frames = WarmUpFrames ?? Chat.ChatStreamAsync;
+                string? failure = null;
+                await foreach (object frame in frames(body, token).ConfigureAwait(false))
+                {
+                    // Drained rather than read: nothing here wants the answer, only the
+                    // K/V the prompt leaves behind on the way to it. Except a failure,
+                    // which the chat service reports as a frame rather than a throw: a
+                    // warm-up that forwarded nothing must not be called warm.
+                    failure ??= ErrorIn(frame);
+                }
+                clock.Stop();
+                if (token.IsCancellationRequested)
+                    return;
+                if (failure is { Length: > 0 })
+                {
+                    HostLog.LogWarning("warming the prefix cache failed: {Error}", failure);
+                    Console.WriteLine("TensorAgent: warm-up failed: " + failure);
+                    return;
+                }
+                PrefixCacheIsWarm = true;
+                string line = $"the prompt every chat starts with is now in the cache ({clock.Elapsed.TotalSeconds:0.#}s)";
+                HostLog.LogInformation("{Line}", line);
+                Console.WriteLine("TensorAgent: warm-up: " + line);
+            }
+            catch (OperationCanceledException)
+            {
+                // A real turn arrived, or the app is shutting down. Either way this had
+                // one job and something more important is doing it.
+            }
+            catch (Exception ex)
+            {
+                // Never worth surfacing: the app is exactly as usable as it was before,
+                // just as slow on its first message.
+                HostLog.LogWarning(ex, "warming the prefix cache did not finish");
+                Console.WriteLine("TensorAgent: warm-up did not finish: " + ex.Message);
+            }
+        }, CancellationToken.None);
+
+        lock (_warmupLock)
+        {
+            // Only if nothing has replaced it in the meantime.
+            if (ReferenceEquals(_warmup, source))
+                _warmupTask = running;
+        }
+    }
+
+    /// <summary>
+    /// Stop a warm-up AND wait for it to actually be gone.
+    ///
+    /// <para>
+    /// Cancelling is not enough, and a device reproduction is why. Cancellation is
+    /// cooperative: the warm-up is inside a generation, and it stops at the next place
+    /// the engine looks at the token, not instantly. A caller that cancelled and carried
+    /// straight on started its own generation while the warm-up was still running one --
+    /// two at once, on a model whose scheduler says in as many words that "a second
+    /// request would corrupt attention". What that produced on an iPhone was
+    /// "Native GGML get_rows_quant failed" and, for the user who reported it,
+    /// "Object reference not set to an instance of an object".
+    /// </para>
+    /// </summary>
+    public async Task StopWarmingThePrefixCacheAndWaitAsync()
+    {
+        Task? running;
+        lock (_warmupLock)
+        {
+            running = _warmupTask;
+            StopWarmingThePrefixCacheWhileHoldingTheLock();
+        }
+        if (running is null)
+            return;
+        try
+        {
+            // Bounded: a warm-up that will not stop must not hold a turn for ever. The
+            // turn is the thing the user is waiting for.
+            await running.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Cancelled, faulted, or too slow. Nothing here is worth failing a turn over,
+            // and the wait is the point rather than the result.
+        }
+    }
+
+    /// <summary>Stop a warm-up in flight. Safe to call when there is none.</summary>
+    public void StopWarmingThePrefixCache()
+    {
+        lock (_warmupLock)
+            StopWarmingThePrefixCacheWhileHoldingTheLock();
+    }
+
+    private void StopWarmingThePrefixCacheWhileHoldingTheLock()
+    {
+        _warmupTask = null;
+        if (_warmup is null)
+            return;
+        try { _warmup.Cancel(); }
+        catch (ObjectDisposedException) { /* already gone */ }
+        _warmup.Dispose();
+        _warmup = null;
+    }
+
+    /// <summary>
+    /// A session for the warm-up to speak through, made once and kept.
+    ///
+    /// <para>
+    /// It is never bound to a conversation — <c>ConversationRecorder.Bind</c> is called
+    /// by the <c>/api/sessions</c> route, not by this — so nothing is recorded and no
+    /// chat appears in the user's list. All it supplies is the one thing the default
+    /// session cannot: a workspace, and therefore the same tool declarations a real turn
+    /// gets.
+    /// </para>
+    /// </summary>
+    private string WarmUpSessionId()
+    {
+        if (_warmUpSession is { Length: > 0 })
+            return _warmUpSession;
+        object created = Chat.CreateSession();
+        _warmUpSession = created.GetType().GetProperty("sessionId")?.GetValue(created) as string ?? string.Empty;
+        return _warmUpSession;
+    }
+
+    /// <summary>
+    /// The chat stream, with the warm-up stopped and waited for in front of it. This is
+    /// what <c>/api/chat</c> reads, so no turn ever shares the engine with a warm-up.
+    /// </summary>
+    private async IAsyncEnumerable<object> GatedChatFrames(
+        JsonElement body,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await StopWarmingThePrefixCacheAndWaitAsync().ConfigureAwait(false);
+        await foreach (object frame in Chat.ChatStreamAsync(body, cancellationToken).ConfigureAwait(false))
+            yield return frame;
+    }
+
+    private ILogger HostLog => _loggerFactory.CreateLogger("TensorAgent.Host");
+
+    // Frames are anonymous types; whether one carries an `error` string is looked up
+    // once per type. Reflection is safe on them here for the same reason the SSE
+    // writer works: these objects are serialized reflectively anyway.
+    private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> ErrorProperties = new();
+
+    private static string? ErrorIn(object? frame)
+    {
+        if (frame is null)
+            return null;
+        Type type = frame.GetType();
+        System.Reflection.PropertyInfo? property;
+        lock (ErrorProperties)
+        {
+            if (!ErrorProperties.TryGetValue(type, out property))
+                ErrorProperties[type] = property = type.GetProperty("error");
+        }
+        return property?.GetValue(frame) as string;
     }
 
     // ---- the model the user last used --------------------------------------------
@@ -433,6 +716,10 @@ public sealed class AgentAppHost : IDisposable
             state = ModelLoad.ToString(),
             loading = ModelLoad == ModelLoadState.Loading,
             error = ModelLoadError,
+            // Whether the first message will be answered as fast as the second. See
+            // WarmThePrefixCache; a probe waits on this rather than measuring the cold
+            // path it exists to remove.
+            prefixCacheWarm = PrefixCacheIsWarm,
         };
     }
 
@@ -740,9 +1027,22 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     /// <param name="model">The catalog entry to use. Its files must already be installed.</param>
     /// <returns>The backend that answered.</returns>
-    public string UseModel(CatalogModel model)
+    public string UseModel(CatalogModel model) => UseModel(model, warmAfterwards: true);
+
+    /// <param name="warmAfterwards">
+    /// Whether to forward the shared prompt afterwards so the next message reuses it
+    /// (see <see cref="WarmThePrefixCache"/>). False for a caller that is itself about
+    /// to generate.
+    /// </param>
+    public string UseModel(CatalogModel model, bool warmAfterwards)
     {
         ArgumentNullException.ThrowIfNull(model);
+
+        // Whatever was being warmed belongs to weights that are about to be unmapped.
+        // First, because the warm-up submits graphs and this is about to free the
+        // buffers they run on.
+        StopWarmingThePrefixCacheAndWaitAsync().GetAwaiter().GetResult();
+        string? loaded = null;
 
         // One load at a time, whoever asked. There are three callers now — the startup
         // load, the Models list, and the device hook — and the startup one takes twenty
@@ -807,7 +1107,8 @@ public sealed class AgentAppHost : IDisposable
                     _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
                         "using {Model} on {Backend}", model.Id, backend.Value);
                     SetModelLoad(ModelLoadState.Loaded, null);
-                    return backend.Value;
+                    loaded = backend.Value;
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -815,12 +1116,26 @@ public sealed class AgentAppHost : IDisposable
                 }
             }
 
-            var refused = new InvalidOperationException(
-                $"{model.DisplayName} could not be loaded on any backend this build offers:"
-                + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
-            SetModelLoad(ModelLoadState.Failed, refused.Message);
-            throw refused;
+            if (loaded is null)
+            {
+                var refused = new InvalidOperationException(
+                    $"{model.DisplayName} could not be loaded on any backend this build offers:"
+                    + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
+                SetModelLoad(ModelLoadState.Failed, refused.Message);
+                throw refused;
+            }
         }
+
+        // OUTSIDE the lock, and a device crash is the reason that is spelled out here.
+        // Warming the cache submits graphs, and starting it from inside the load put
+        // those graphs on the engine at the same moment the load was still finishing
+        // with it: "ggml_metal_buffer_map: error: failed to allocate buffer" and then a
+        // native fault, on every launch. The comment at the top of this lock already
+        // said what happens when two threads are inside the engine's load at once; this
+        // was the same mistake wearing a different hat.
+        if (warmAfterwards)
+            WarmThePrefixCache();
+        return loaded;
     }
 
     private readonly object _modelGate = new();
@@ -935,7 +1250,12 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     public void Dispose()
     {
-        // First of all, and this is now load-bearing: a turn no longer stops when its
+        // Before anything else: a warm-up still waiting to start would otherwise begin a
+        // generation on an engine that is being torn down. Cancelled AND waited for,
+        // because cancellation is cooperative (see StopWarmingThePrefixCacheAndWaitAsync).
+        StopWarmingThePrefixCacheAndWaitAsync().GetAwaiter().GetResult();
+
+        // And this is now load-bearing: a turn no longer stops when its
         // reader goes away, so closing the server is not enough to end one. Asking the
         // turns to stop is what lets WaitForTheEngineToStop below ever return -- and
         // that wait is the only thing between a generation on the engine's threads and

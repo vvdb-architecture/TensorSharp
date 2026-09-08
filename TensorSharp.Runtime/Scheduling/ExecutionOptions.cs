@@ -67,6 +67,18 @@ namespace TensorSharp.Runtime.Scheduling
         /// applicable. Env: <c>TS_RETAINED_FUSED_CACHE_MAX</c> (default 4).</summary>
         public int RetainedFusedCacheBudget { get; init; } = 4;
 
+        /// <summary>Take a checkpoint of the model's state at the end of the prompt
+        /// prefix every conversation shares (see
+        /// <c>IBatchedPagedModel.SupportsPrefixCheckpoints</c>) and start each new
+        /// chat from a clone of it. Env: <c>TS_PREFIX_CHECKPOINTS</c> (default on).</summary>
+        public bool PrefixCheckpointsEnabled { get; init; } = true;
+
+        /// <summary>How many distinct shared prefixes to keep checkpointed at once —
+        /// two covers a thinking toggle that changes the prefix (Gemma 4 marks it at
+        /// the top of the system turn). Env: <c>TS_PREFIX_CHECKPOINTS_MAX</c>
+        /// (default 2).</summary>
+        public int PrefixCheckpointBudget { get; init; } = 2;
+
         /// <summary>All defaults — the configuration used when no TS_* override
         /// is set. Handy for tests.</summary>
         public static ExecutionOptions Default { get; } = new();
@@ -80,6 +92,8 @@ namespace TensorSharp.Runtime.Scheduling
             BatchedFusedDecodeEnabled = ReadFlag("TS_BATCHED_FUSED_DECODE", true),
             RetainedFusedCacheEnabled = ReadFlag("TS_RETAINED_FUSED_CACHE", true),
             RetainedFusedCacheBudget = ReadNonNegativeInt("TS_RETAINED_FUSED_CACHE_MAX", 4),
+            PrefixCheckpointsEnabled = ReadFlag("TS_PREFIX_CHECKPOINTS", true),
+            PrefixCheckpointBudget = ReadNonNegativeInt("TS_PREFIX_CHECKPOINTS_MAX", 2),
         };
 
         /// <summary>One-line summary of the non-default overrides in effect
@@ -93,6 +107,8 @@ namespace TensorSharp.Runtime.Scheduling
             if (!BatchedFusedDecodeEnabled) parts.Add("TS_BATCHED_FUSED_DECODE=0");
             if (!RetainedFusedCacheEnabled) parts.Add("TS_RETAINED_FUSED_CACHE=0");
             if (RetainedFusedCacheBudget != 4) parts.Add($"TS_RETAINED_FUSED_CACHE_MAX={RetainedFusedCacheBudget}");
+            if (!PrefixCheckpointsEnabled) parts.Add("TS_PREFIX_CHECKPOINTS=0");
+            if (PrefixCheckpointBudget != 2) parts.Add($"TS_PREFIX_CHECKPOINTS_MAX={PrefixCheckpointBudget}");
             return string.Join(", ", parts);
         }
 

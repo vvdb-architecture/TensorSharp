@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TensorAgentTtftBench</RootNamespace>
+    <Description>Drives a real TensorAgent host the way the phone's page does and reports, per turn, time to first token and how much of the prompt the KV cache served.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\TensorAgent\src\TensorAgent.Core\TensorAgent.Core.csproj" />
+  </ItemGroup>
+</Project>

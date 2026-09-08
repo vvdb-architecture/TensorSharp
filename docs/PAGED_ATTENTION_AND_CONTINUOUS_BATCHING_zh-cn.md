@@ -296,6 +296,8 @@ GatedDeltaNet 递归状态作为一个混合 holder 一起保留。未声明该�
 | `TS_BATCHED_FUSED_DECODE` | `1` | `0` 在 per-seq fused 路径内关闭真正的 token 批量融合 decode（一张图同时 decode 全部 N 个序列）。 |
 | `TS_RETAINED_FUSED_CACHE` | `1` | 对声明支持的模型，保留已完成请求的 request-owned fused holder，用于精确前缀续接；`0` 关闭（限 VRAM / A/B）。支持的 holder 包括 Gemma 4 K/V，以及 Qwen 3.5/3.6 的 attention K/V 与 GDN 递归状态。 |
 | `TS_RETAINED_FUSED_CACHE_MAX` | `4` | 保留 fused holder 的 LRU 预算（每个 holder 都会占用模型完整的 per-request 续接状态）。 |
+| `TS_PREFIX_CHECKPOINTS` | `1` | 在共享提示前缀结束处（由 chat 层在请求上标记的边界）对模型完整状态做检查点，并让每个新会话从其副本开始（Gemma 4、Qwen 3.5/3.6）。`0` 关闭。 |
+| `TS_PREFIX_CHECKPOINTS_MAX` | `2` | 同时保留多少个不同共享前缀的检查点（LRU）。 |
 | `TS_KV_PAGED_QUANT_BITS` | `0` | 可选 TurboQuant 分页 KV 块编码位数（`2`、`4` 或 `8`）；带递归状态的模型可能回退到 passthrough。 |
 | `TS_MTP_SPEC` | `0` | `1` 为单序列启用 MTP / NextN 投机解码（服务端 `--spec`）。 |
 | `TS_MTP_DRAFT` | `8` | 每个投机步最多起草的 token 数（服务端 `--spec-draft`）。 |
