@@ -40,6 +40,8 @@
 //   --chunk N                 TS_SCHED_SOLO_PREFILL_CHUNK (default 1024, as the phone sets it)
 //   --device-gb N             the device memory tier to pretend to be (default 16)
 //   --warm                    wait for the host's prefix-cache warm-up before the first turn
+//   --delay <seconds>         wait this long after the load before the first turn (a
+//                             message typed while the warm-up is still forwarding)
 //   --root <dir>              where to put the host's data and cache (default: a temp dir)
 //   --out <file>              write the rows as JSON as well
 //   --verbose                 print every host log line, not only the cache-related ones
@@ -170,6 +172,11 @@ internal static class Program
         loadClock.Stop();
         Console.WriteLine($"ttft-bench: loaded on {backend} in {loadClock.Elapsed.TotalSeconds:0.0}s");
 
+        if (opts.DelaySeconds > 0)
+        {
+            Console.WriteLine($"ttft-bench: waiting {opts.DelaySeconds:0.#}s after the load before the first turn");
+            await Task.Delay(TimeSpan.FromSeconds(opts.DelaySeconds));
+        }
         if (opts.Warm)
             await WaitForWarmCacheAsync(host);
 
@@ -500,6 +507,8 @@ internal sealed class Options
     public int Chunk { get; private set; } = 1024;
     public int DeviceGb { get; private set; } = 16;
     public bool Warm { get; private set; }
+
+    public double DelaySeconds;
     public string? Root { get; private set; }
     public string? Out { get; private set; }
     public bool Verbose { get; private set; }
@@ -534,6 +543,7 @@ internal sealed class Options
                     case "--chunk": o.Chunk = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--device-gb": o.DeviceGb = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--warm": o.Warm = true; break;
+                    case "--delay": o.DelaySeconds = double.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--root": o.Root = Next(); break;
                     case "--out": o.Out = Next(); break;
                     case "--verbose": o.Verbose = true; break;
@@ -568,7 +578,7 @@ internal sealed class Options
     {
         Console.Error.WriteLine("usage: TensorAgentTtftBench --model <catalog id> (--source <dir> | --weights <file> [--projector <file>])");
         Console.Error.WriteLine("       [--backends ggml_metal,ggml_cpu] [--no-skills] [--python <root>] [--scenarios cold,newchat,think,stop,tool]");
-        Console.Error.WriteLine("       [--follow N] [--max-tokens N] [--kv f16|q8_0|q4_0] [--context N] [--chunk N] [--device-gb N] [--warm]");
+        Console.Error.WriteLine("       [--follow N] [--max-tokens N] [--kv f16|q8_0|q4_0] [--context N] [--chunk N] [--device-gb N] [--warm] [--delay S]");
         Console.Error.WriteLine("       [--root <dir>] [--out <file>] [--verbose]");
     }
 }

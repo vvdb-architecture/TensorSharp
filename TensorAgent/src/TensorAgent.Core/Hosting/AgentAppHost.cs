@@ -24,6 +24,7 @@ using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
 using TensorSharp.Chat;
 using TensorSharp.GGML;
+using TensorSharp.Runtime.Scheduling;
 using TensorSharp.Server;
 using TensorSharp.Server.Hosting;
 
@@ -199,6 +200,15 @@ public sealed class AgentAppHost : IDisposable
 
         ModelService = modelService ?? new ModelService(_loggerFactory.CreateLogger<ModelService>());
         EngineHasWorkInFlight = EngineIsProcessing;
+        // Whether the model may run at all right now. Closed by the iOS head while the
+        // app is not frontmost, because iOS refuses GPU work from the background and
+        // ggml-metal answers a refused command buffer by latching into a permanent
+        // error state. Handed to the engine host so the ENGINE's own step loop parks on
+        // it -- the engine decodes on its own thread into an unbounded channel, so a
+        // wrapper that merely stops pulling would stop nothing -- and consulted again
+        // by the stream wrapper below before anything new is submitted. See ComputeGate.
+        Compute = new ComputeGate();
+        ModelService.EngineHost.ComputeGate = Compute;
         Sessions = new SessionManager();
         Uploads = new UploadStoragePolicy(paths.UploadsDirectory);
 
@@ -235,7 +245,17 @@ public sealed class AgentAppHost : IDisposable
         // exposes for exactly that: the transcript is written on the host side, keyed
         // by the conversation the request named.
         Recorder = new ConversationRecorder(Conversations);
-        Chat.OnChatRequest = Recorder.Record;
+        Chat.OnChatRequest = (sessionId, requestBody) =>
+        {
+            // A turn being finished after a GPU fault re-sends the conversation with
+            // the half-written answer and an instruction to carry on. That is how the
+            // answer is being produced, not part of it: recording it would put words
+            // into the transcript that the user never typed and the model never chose.
+            if (requestBody.TryGetProperty(ResumedTurnMarker, out JsonElement resumed)
+                && resumed.ValueKind == JsonValueKind.True)
+                return;
+            Recorder.Record(sessionId, requestBody);
+        };
 
         // A generation belongs to the app, not to the HTTP request that asked for it.
         // See ChatTurnManager: on a phone the reader goes away constantly -- another
@@ -250,7 +270,9 @@ public sealed class AgentAppHost : IDisposable
             StaticRoot = webRoot,
         };
         // Through the gate below rather than the chat service directly: a turn must
-        // never run beside the prefix-cache warm-up, so the gate stops that first.
+        // never run beside the prefix-cache warm-up, must not submit GPU work while the
+        // app is away, and has to recognise and repair a poisoned engine. See
+        // GatedChatFrames.
         Server.MapWebUi(Chat, Options.UploadDirectory, SkillsService, Recorder, chatFrames: GatedChatFrames, turns: Turns);
         // Without this the model's "here is your PDF" link 404s: the runner emits
         // /api/code/artifacts/... and nothing served it. See MapCodeArtifacts.
@@ -282,6 +304,13 @@ public sealed class AgentAppHost : IDisposable
     public ServerHostingOptions Options { get; }
     public WebUiChatService Chat { get; }
     public ConversationRecorder Recorder { get; }
+
+    /// <summary>
+    /// Whether the model may run right now. See <see cref="ComputeGate"/>; the iOS head
+    /// closes it while the app is not in front of the user, and both the engine's step
+    /// loop and <see cref="GatedChatFrames"/> wait on it.
+    /// </summary>
+    public ComputeGate Compute { get; }
     /// <summary>Every generation this launch started, independent of any page or request.</summary>
     public ChatTurnManager Turns { get; }
     public SkillsService SkillsService { get; }
@@ -396,12 +425,18 @@ public sealed class AgentAppHost : IDisposable
         {
             try
             {
+                // Not while the app is away: the warm-up is GPU work like any other, and
+                // one started at the moment of backgrounding is refused exactly as a
+                // token would be. Waited for on both sides of the settling delay, because
+                // either can take a while and the app can leave during either.
+                await Compute.WaitAsync(token).ConfigureAwait(false);
                 // A moment for the engine to finish settling after a load. Nobody is
                 // waiting on this and the cost of being early is a crash.
                 await Task.Delay(TimeSpan.FromSeconds(2), token).ConfigureAwait(false);
+                await Compute.WaitAsync(token).ConfigureAwait(false);
 
-                // Checked again on the other side of the wait, because a turn can start
-                // during it.
+                // Checked again on the other side of the waits, because a turn can start
+                // during them.
                 if (Turns.IsBusy)
                 {
                     HostLog.LogInformation("dropping the prefix-cache warm-up: a turn started while it was waiting");
@@ -448,6 +483,12 @@ public sealed class AgentAppHost : IDisposable
                 {
                     HostLog.LogWarning("warming the prefix cache failed: {Error}", failure);
                     Console.WriteLine("TensorAgent: warm-up failed: " + failure);
+                    // The warm-up is the likeliest thing to meet a refused GPU: it runs
+                    // seconds after every load, launch included. Marking here is what
+                    // lets the user's first message rebuild BEFORE it is attempted,
+                    // rather than fail once, say so, and start again.
+                    if (ReadsLikeAPoisonedEngine(failure) is { Length: > 0 } poison)
+                        NoteEngineMayBePoisoned(poison);
                     return;
                 }
                 PrefixCacheIsWarm = true;
@@ -491,6 +532,15 @@ public sealed class AgentAppHost : IDisposable
     /// "Object reference not set to an instance of an object".
     /// </para>
     /// </summary>
+    /// <remarks>
+    /// Cancelled, not waited for to finish -- and that was measured, not assumed. A
+    /// turn arriving while the warm-up is forwarding might seem better off letting it
+    /// finish, since the tokens forwarded so far are the turn's own prefix; but the
+    /// engine already salvages them: the cancelled request's live cache stays resident
+    /// and the turn continues from it at the last chunk boundary (Qwen3.5-9B: 52%
+    /// reuse, first token 3.46 s vs 3.67 s waiting; Gemma 4 E2B: 63%, 0.77 s vs 0.82 s;
+    /// TensorAgentTtftBench --delay). Waiting only adds the warm-up's tail.
+    /// </remarks>
     public async Task StopWarmingThePrefixCacheAndWaitAsync()
     {
         Task? running;
@@ -552,38 +602,557 @@ public sealed class AgentAppHost : IDisposable
         return _warmUpSession;
     }
 
+    private ILogger HostLog => _loggerFactory.CreateLogger("TensorAgent.Host");
+
+    // ---- running the model only when the app is allowed to -------------------------
+
     /// <summary>
-    /// The chat stream, with the warm-up stopped and waited for in front of it. This is
-    /// what <c>/api/chat</c> reads, so no turn ever shares the engine with a warm-up.
+    /// The chat stream, with three things in front of it that <c>/api/chat</c> must
+    /// never do without: the warm-up stopped and waited for, the compute gate
+    /// consulted before every pull, and a poisoned engine recognised and rebuilt.
+    ///
+    /// <para>
+    /// The gate is the fix for "I switched away during an answer and it failed". iOS
+    /// refuses GPU work from an app that is not frontmost, and ggml-metal treats a
+    /// refused command buffer as terminal: it sets a sticky flag and every later
+    /// <c>graph_compute</c> returns <c>GGML_STATUS_FAILED</c> "until the backend is
+    /// recreated" (ggml-metal-context.m). So one badly-timed submission does not cost a
+    /// token, it costs the model — the turn dies AND every message after it. The
+    /// engine's own step loop parks on the same gate (see
+    /// <see cref="InferenceEngine.ComputeGate"/>), which is what actually stops the GPU
+    /// work; waiting here as well means no NEW request is submitted while the app is
+    /// away either, and that a turn started from the background — a share, a
+    /// notification — waits rather than fails.
+    /// </para>
+    /// <para>
+    /// A COUNT of closures is taken around the turn rather than a flag, because what
+    /// matters afterwards is not "is the app in front now" — by the time a failure is
+    /// handled it always is — but "was it ever away while this was running". That is
+    /// what tells a genuine engine fault apart from the one this exists for.
+    /// </para>
     /// </summary>
     private async IAsyncEnumerable<object> GatedChatFrames(
         JsonElement body,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await StopWarmingThePrefixCacheAndWaitAsync().ConfigureAwait(false);
-        await foreach (object frame in Chat.ChatStreamAsync(body, cancellationToken).ConfigureAwait(false))
-            yield return frame;
+        // Bounded, because a turn that silently regenerates forever is worse than one
+        // that reports what went wrong -- but bounded at TWO retries rather than one,
+        // and the device is why. A GPU that has just refused a command buffer does not
+        // come back the instant the app does: the run that produced this number
+        // rebuilt the backend, started the answer again, and lost that attempt to a
+        // second fault ("Discarded (victim of GPU error/recovery)") while the GPU was
+        // still settling. The message AFTER it worked first time. One more go inside
+        // the turn is the difference between the user reading an error and the user
+        // reading their answer.
+
+        // What the user has already watched appear. Kept across a retry so the answer
+        // can be carried on rather than written again from the top -- see below.
+        var written = new System.Text.StringBuilder();
+        JsonElement attemptBody = body;
+
+        for (int attempt = 0; ; attempt++)
+        {
+            // BEFORE the rebuild, not after. A rebuild unloads the model and frees the
+            // backend; doing that while a warm-up is still generating tears the weights
+            // out from under a live step. Ordering this after the rebuild protected the
+            // turn and left the rebuild itself exposed.
+            await StopWarmingThePrefixCacheAndWaitAsync().ConfigureAwait(false);
+
+            // A poisoned engine cannot answer anything, so it is rebuilt before the
+            // attempt rather than after the failure.
+            //
+            // BEHIND THE GATE, though, and a device run is the reason that is not an
+            // afterthought. Loading a model is GPU work like any other -- ggml_metal_init
+            // builds its pipelines and the load runs a warmup graph -- so a rebuild
+            // started while the app is away is refused exactly as the token that provoked
+            // it was. The first attempt at this repaired the engine at the moment of
+            // backgrounding and produced a backend that was poisoned before its first
+            // token, which reads in the trace as a repair that worked and an answer that
+            // died anyway.
+            if (EngineNeedsReload)
+            {
+                await WaitForTheAppToBeInFrontAsync(cancellationToken).ConfigureAwait(false);
+                TraceBackground("rebuilding the engine before answering");
+                // Off the calling thread: this reads a multi-gigabyte file and the caller
+                // is the response writer. And NOT followed by a warm-up: this turn is
+                // about to forward the very prompt a warm-up would forward.
+                await Task.Run(() => RecoverEngineIfNeeded(warmAfterwards: false), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            long closuresAtStart = Compute.Closures;
+            bool poisoned = false;
+
+            await using (IAsyncEnumerator<object> frames =
+                Chat.ChatStreamAsync(attemptBody, cancellationToken).GetAsyncEnumerator(cancellationToken))
+            {
+                while (true)
+                {
+                    await WaitForTheAppToBeInFrontAsync(cancellationToken).ConfigureAwait(false);
+
+                    bool more;
+                    try
+                    {
+                        more = await frames.MoveNextAsync().ConfigureAwait(false);
+                    }
+                    // A refusal is a DECISION, not a fault: "no model is loaded", a body
+                    // the parser will not take, a policy that says no. Those must not be
+                    // read as engine damage however long the app was away, or the first
+                    // message after a background switch would throw away a loaded model
+                    // to fix nothing.
+                    catch (Exception ex) when (
+                        ex is not OperationCanceledException and not WebUiRequestRejectedException)
+                    {
+                        // What is left is a fault, and a fault in a turn that ran while
+                        // the app was not in front is the signature of the sticky Metal
+                        // error: the backend cannot recover from that on its own.
+                        if (Compute.Closures != closuresAtStart || ReadsLikeAPoisonedEngine(ex.Message) is not null)
+                            NoteEngineMayBePoisoned(ex.Message);
+                        throw;
+                    }
+
+                    if (!more)
+                        yield break;
+
+                    // The failure this whole class exists for does NOT arrive as an
+                    // exception. The chat service catches it and ends the stream with a
+                    // `done` frame carrying the message, so a wrapper that only watches
+                    // for throws watches the wrong thing -- which is exactly what the
+                    // first device run showed: the turn died, the engine stayed marked
+                    // as healthy, and every message afterwards died too.
+                    if (ReadsLikeAPoisonedEngine(ErrorIn(frames.Current)) is { Length: > 0 } fault)
+                    {
+                        // Marked every time, retried while there are goes left: the
+                        // mark is what makes the NEXT message rebuild before it starts,
+                        // and a turn that gave up must still leave that behind. Without
+                        // it the last failure passes through as an ordinary error and
+                        // the app stays broken until it is force-quit.
+                        NoteEngineMayBePoisoned(fault);
+                        if (attempt < RetriesAfterAPoisonedEngine)
+                        {
+                            poisoned = true;
+                            break; // and the `done` frame is swallowed with it
+                        }
+                    }
+
+                    if (TokenIn(frames.Current) is { Length: > 0 } piece)
+                        written.Append(piece);
+                    else if (ReplaceIn(frames.Current) is { } whole)
+                        written.Clear().Append(whole);
+                    yield return frames.Current;
+                }
+            }
+
+            if (!poisoned)
+                yield break;
+
+            // Carry on rather than start again, wherever that is possible. The answer
+            // on screen is what the user has been reading; wiping it and rewriting it
+            // is the visible part of the failure, and doing that twice is worse than
+            // the failure. So the half-written answer is handed back to the model as
+            // its own and it is asked to continue -- the KV cache went with the
+            // backend, so the prompt is re-read either way, but the READER loses
+            // nothing.
+            //
+            // Not always, though. A fragment too short to be worth keeping, or one
+            // that stops in the middle of a tool call, would make the continuation
+            // harder to produce than the answer; those start cleanly instead.
+            string soFar = written.ToString();
+            if (CanBeCarriedOn(soFar))
+            {
+                attemptBody = WithTheAnswerSoFar(body, soFar);
+                yield return new
+                {
+                    restart = "The GPU was interrupted while the app was in the background. "
+                              + "Picking this answer up where it stopped.",
+                };
+            }
+            else
+            {
+                attemptBody = body;
+                written.Clear();
+                yield return new
+                {
+                    replace = string.Empty,
+                    restart = "The GPU was taken away while the app was in the background. "
+                              + "Starting this answer again.",
+                };
+            }
+        }
     }
 
-    private ILogger HostLog => _loggerFactory.CreateLogger("TensorAgent.Host");
+    /// <summary>
+    /// How many times a turn will rebuild the engine and start its answer again before
+    /// giving up and reporting the failure. See <see cref="GatedChatFrames"/>.
+    /// </summary>
+    private const int RetriesAfterAPoisonedEngine = 2;
 
-    // Frames are anonymous types; whether one carries an `error` string is looked up
-    // once per type. Reflection is safe on them here for the same reason the SSE
-    // writer works: these objects are serialized reflectively anyway.
+    /// <summary>
+    /// Hold here until the app is frontmost and the GPU is ours to use again.
+    ///
+    /// <para>
+    /// In the ordinary case this is a completed task and costs nothing: it is on the
+    /// path of every token. It says so in the trace only when it actually waits, which
+    /// is the only time anybody reads that file.
+    /// </para>
+    /// </summary>
+    private async Task WaitForTheAppToBeInFrontAsync(CancellationToken cancellationToken)
+    {
+        if (Compute.IsOpen)
+            return;
+        TraceBackground("turn paused: the app is not in front, so the GPU is not ours to use");
+        await Compute.WaitAsync(cancellationToken).ConfigureAwait(false);
+        TraceBackground($"turn resumed after {Compute.TotalClosed.TotalSeconds:0.#}s of not being in front");
+    }
+
+    /// <summary>
+    /// Whether a half-written answer is worth handing back to the model to continue.
+    ///
+    /// <para>
+    /// Two things make it not worth it. A fragment of a few characters carries no
+    /// context a continuation could use, and asking for one costs a round of prompt
+    /// tokens to save nothing. And an answer that stops inside a tool call is not text
+    /// the model can carry on writing -- the call has to be made whole or made again,
+    /// and making it again from the top is the simpler of the two.
+    /// </para>
+    /// </summary>
+    internal static bool CanBeCarriedOn(string? soFar)
+    {
+        if (soFar is not { Length: >= 40 })
+            return false;
+        foreach ((string open, string close) in StructureAModelCanBeHalfwayThrough)
+        {
+            if (soFar.LastIndexOf(open, StringComparison.Ordinal) > soFar.LastIndexOf(close, StringComparison.Ordinal))
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// The openers whose closers a half-written answer might be missing, one pair per
+    /// output syntax the engine can parse.
+    ///
+    /// <para>
+    /// Not one pair, which is what this started as. <c>&lt;tool_call&gt;</c> is Qwen's
+    /// and the ChatML parsers'; Harmony (gpt-oss) writes channels, GLM writes its own
+    /// bracketed form, and Gemma writes <c>&lt;function=</c>. Handing a model back half
+    /// of any of those and asking it to carry on is asking it to finish a structure it
+    /// cannot see the beginning of. The list is pinned by a test against
+    /// <c>TensorSharp.Runtime/OutputParser.cs</c> so a new syntax cannot be added there
+    /// without this being considered.
+    /// </para>
+    /// </summary>
+    internal static readonly (string Open, string Close)[] StructureAModelCanBeHalfwayThrough =
+    [
+        ("<tool_call>", "</tool_call>"),
+        ("<|tool_call>", "</tool_call>"),
+        ("<tool_call|>", "</tool_call>"),
+        ("<function=", "</function>"),
+        ("<parameter=", "</parameter>"),
+        ("<arg_key>", "</arg_key>"),
+        ("<arg_value>", "</arg_value>"),
+        ("<think>", "</think>"),
+        ("<|channel>", "<|message|>"),
+        ("<|channel|>", "<|message|>"),
+        ("<channel|>", "<|message|>"),
+        ("<|start|>", "<|end|>"),
+    ];
+
+    /// <summary>
+    /// The same request with the answer so far attached, so the model continues it.
+    ///
+    /// <para>
+    /// The two added messages are NOT part of the conversation: they are how this turn
+    /// is being produced, not something the user said or the model decided. They are
+    /// marked so <see cref="ConversationRecorder"/> leaves the transcript alone -- a
+    /// user who scrolled back and found an instruction they never typed would be right
+    /// to call that a bug.
+    /// </para>
+    /// </summary>
+    internal static JsonElement WithTheAnswerSoFar(JsonElement body, string soFar)
+    {
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            foreach (JsonProperty property in body.EnumerateObject())
+            {
+                if (string.Equals(property.Name, "messages", StringComparison.Ordinal)
+                    || string.Equals(property.Name, ResumedTurnMarker, StringComparison.Ordinal))
+                    continue;
+                property.WriteTo(writer);
+            }
+
+            writer.WriteBoolean(ResumedTurnMarker, true);
+            writer.WritePropertyName("messages");
+            writer.WriteStartArray();
+            if (body.TryGetProperty("messages", out JsonElement messages)
+                && messages.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement message in messages.EnumerateArray())
+                    message.WriteTo(writer);
+            }
+
+            writer.WriteStartObject();
+            writer.WriteString("role", "assistant");
+            writer.WriteString("content", soFar);
+            writer.WriteEndObject();
+
+            writer.WriteStartObject();
+            writer.WriteString("role", "user");
+            writer.WriteString("content",
+                "Your previous answer was cut off by a hardware interruption, not by you. "
+                + "Continue it from exactly where it stops. Do not repeat any of it, do not "
+                + "start again, and do not mention the interruption.");
+            writer.WriteEndObject();
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        return JsonDocument.Parse(buffer.ToArray()).RootElement.Clone();
+    }
+
+    /// <summary>
+    /// The marker on a request that is one turn being finished rather than a new one
+    /// being asked for. See <see cref="WithTheAnswerSoFar"/>.
+    /// </summary>
+    internal const string ResumedTurnMarker = "resumedTurn";
+
+    /// <summary>The token text on a stream frame, or null if it carries none.</summary>
+    private static string? TokenIn(object? frame) => PropertyIn(frame, "token", TokenProperties);
+
+    /// <summary>The whole-answer text a <c>replace</c> frame sets, or null if the frame is not one.</summary>
+    private static string? ReplaceIn(object? frame) => PropertyIn(frame, "replace", ReplaceProperties);
+
+    /// <summary>
+    /// The error text on a stream frame, or null if it carries none.
+    ///
+    /// <para>
+    /// Frames are anonymous types, so this asks each one whether it has an
+    /// <c>error</c> property and remembers the answer per type — there are a handful of
+    /// shapes in a turn and thousands of frames, and this sits on the path of every
+    /// token. Reflection is safe on them here for the same reason the SSE writer works:
+    /// these objects are already serialized reflectively one line later.
+    /// </para>
+    /// </summary>
+    private static string? ErrorIn(object? frame) => PropertyIn(frame, "error", ErrorProperties);
+
+    private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> TokenProperties = new();
+    private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> ReplaceProperties = new();
     private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> ErrorProperties = new();
 
-    private static string? ErrorIn(object? frame)
+    private static string? PropertyIn(
+        object? frame, string name, Dictionary<Type, System.Reflection.PropertyInfo?> known)
     {
         if (frame is null)
             return null;
         Type type = frame.GetType();
         System.Reflection.PropertyInfo? property;
-        lock (ErrorProperties)
+        lock (known)
         {
-            if (!ErrorProperties.TryGetValue(type, out property))
-                ErrorProperties[type] = property = type.GetProperty("error");
+            if (!known.TryGetValue(type, out property))
+                known[type] = property = type.GetProperty(name);
         }
         return property?.GetValue(frame) as string;
+    }
+
+    /// <summary>
+    /// Whether an error message is the one that means the GPU backend is finished for
+    /// the rest of the process, rather than an ordinary failure of one turn.
+    ///
+    /// <para>
+    /// Matched on the wording ggml and the OS themselves use: a command buffer that came
+    /// back with a status, Metal's own name for the background refusal, and the sticky
+    /// flag whose comment says the backend has to be recreated. Anything else — a
+    /// refusal, a bad request, running out of context — is a turn's problem, and
+    /// rebuilding the engine for it would cost the user a reload to fix nothing.
+    /// </para>
+    /// </summary>
+    internal static string? ReadsLikeAPoisonedEngine(string? error)
+    {
+        if (error is not { Length: > 0 })
+            return null;
+        bool terminal =
+            error.Contains("recreate the backend", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("cannot recover in this process", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("backend is in error state", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("BackgroundExecutionNotPermitted", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("to submit GPU work from background", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("victim of GPU error", StringComparison.OrdinalIgnoreCase)
+            || (error.Contains("command buffer", StringComparison.OrdinalIgnoreCase)
+                && error.Contains("failed with status", StringComparison.OrdinalIgnoreCase));
+        return terminal ? error : null;
+    }
+
+    /// <summary>
+    /// One line, appended to a file, about something that happened while nobody could
+    /// see the screen.
+    ///
+    /// <para>
+    /// It exists because of how this class's worst failure is observed. Everything else
+    /// the app says goes to stdout, and on a phone stdout is only readable while a
+    /// console is attached — which detaches the moment the app is backgrounded, which is
+    /// precisely the moment worth reading about. "It broke while I was in another app"
+    /// left no record at all. This is that record: small, always on, and pullable off a
+    /// device afterwards with <c>devicectl device copy from</c>.
+    /// </para>
+    /// </summary>
+    public void TraceBackground(string line)
+    {
+        string stamped = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff} {line}";
+        Console.WriteLine("TensorAgent: bgtrace " + line);
+        try
+        {
+            string path = Path.Combine(Paths.LogsDirectory, "background.log");
+            // Rotated once rather than deleted: the previous megabyte moves aside and
+            // the current run keeps its earlier lines, which are exactly the ones a
+            // check reads back. Growing without limit on a device the user cannot see
+            // it on would be the only worse outcome.
+            if (new FileInfo(path) is { Exists: true, Length: > 1024 * 1024 })
+                File.Move(path, Path.Combine(Paths.LogsDirectory, "background.1.log"), overwrite: true);
+            File.AppendAllText(path, stamped + Environment.NewLine);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A diagnostic that cannot be written is not worth failing anything over.
+        }
+    }
+
+    /// <summary>
+    /// Whether the engine is believed to be in the unrecoverable state a refused GPU
+    /// submission leaves behind, and must be rebuilt before it is used again.
+    /// </summary>
+    public bool EngineNeedsReload { get; private set; }
+
+    /// <summary>
+    /// How many times the engine has been thrown away and loaded again after a refused
+    /// GPU submission. Zero on a healthy run; a check reports it because
+    /// <see cref="EngineNeedsReload"/> is cleared by the repair and so says nothing
+    /// afterwards about whether one was needed.
+    /// </summary>
+    public long EngineRebuilds { get; private set; }
+
+    /// <summary>Raised when <see cref="EngineNeedsReload"/> becomes true.</summary>
+    public event Action<string>? EnginePoisoned;
+
+    private void NoteEngineMayBePoisoned(string cause)
+    {
+        if (EngineNeedsReload)
+            return;
+        EngineNeedsReload = true;
+        TraceBackground("a turn FAILED in a way only a rebuilt engine recovers from: " + cause);
+        HostLog.LogWarning("the GPU backend is poisoned and will be rebuilt: {Cause}", cause);
+        try { EnginePoisoned?.Invoke(cause); }
+        catch (Exception) { /* a listener must not break the turn */ }
+    }
+
+    /// <summary>
+    /// Rebuild the engine after a refused GPU submission poisoned it.
+    ///
+    /// <para>
+    /// There is nothing gentler available: ggml-metal's error flag is cleared only by
+    /// <c>ggml_metal_init</c>, so the backend is torn down and built again and the
+    /// model loaded onto the new one. It costs the seconds a load costs, which is why
+    /// it happens once — on the way back to the foreground when nothing is running,
+    /// or at the start of the next turn otherwise.
+    /// </para>
+    /// </summary>
+    /// <returns>Whether a reload was needed and done.</returns>
+    public bool RecoverEngineIfNeeded() => RecoverEngineIfNeeded(warmAfterwards: true);
+
+    /// <param name="warmAfterwards">
+    /// Whether to repopulate the prefix cache after the reload. False when a TURN is
+    /// driving the recovery: that turn is about to forward the very prompt the warm-up
+    /// would forward, so warming would not save it a second and would run a second
+    /// generation beside it.
+    /// </param>
+    public bool RecoverEngineIfNeeded(bool warmAfterwards)
+    {
+        // Serialized, because two callers race for it by design: the turn that hit the
+        // failure rebuilds before answering again, and coming back to the foreground
+        // rebuilds too. Whichever arrives second must wait and then find nothing left to
+        // do, rather than load the weights a second time on top of the first.
+        lock (_recoveryLock)
+            return RecoverEngineWhileHoldingTheLock(warmAfterwards);
+    }
+
+    private readonly object _recoveryLock = new();
+
+    private bool RecoverEngineWhileHoldingTheLock(bool warmAfterwards)
+    {
+        if (!EngineNeedsReload)
+            return false;
+
+        AppSettings settings = Settings.Load();
+        if (settings.SelectedModelId is not { Length: > 0 } id || ModelCatalog.Find(id) is not { } model)
+        {
+            // Nothing to reload onto. Clear the flag rather than trying forever: with no
+            // model selected there is no poisoned engine either.
+            EngineNeedsReload = false;
+            return false;
+        }
+
+        try
+        {
+            // The order here is the whole repair, and each step is load-bearing.
+            //
+            // Reloading the weights ALONE does nothing, which took a device to find
+            // out: the ggml backend is a process global that a model load never
+            // touches, so the rebuilt engine was the same poisoned Metal context with
+            // fresh weights in it, and the answer failed again with the same sentence.
+            // Only recreating the backend clears ggml-metal's latched has_error.
+            //
+            // And the model has to go FIRST. Its tensors live in buffers the recreate
+            // frees; releasing them afterwards is a crash rather than an error. The
+            // warm-up is stopped and waited for before either, because it is a live
+            // generation on the weights about to be unmapped.
+            StopWarmingThePrefixCacheAndWaitAsync().GetAwaiter().GetResult();
+            TraceBackground($"releasing {model.Id} and rebuilding the GPU backend");
+
+            // Under the same lock every other load takes, so a user tapping "Use" on
+            // the Models list during the rebuild waits for it rather than loading
+            // weights onto a backend that is being freed underneath them. (Monitor is
+            // re-entrant, so UseModel below taking it again is fine.)
+            lock (_modelGate)
+            {
+                SetModelLoad(ModelLoadState.Loading, null);
+                // Nothing may be inside a graph compute when the backend goes away.
+                // The turn that asked for this has stopped reading, but another
+                // conversation's turn could still be stepping; the gate is open here, so
+                // whatever is in flight finishes or is aborted, and this waits for that.
+                WaitForTheEngineToStop();
+                if (!ModelService.UnloadModelAndRecreateBackend())
+                {
+                    TraceBackground("the GPU backend could not be rebuilt; the model is not reloaded");
+                    SetModelLoad(ModelLoadState.Failed, "The GPU backend could not be rebuilt.");
+                    return false;
+                }
+
+                UseModel(model, warmAfterwards);
+            }
+
+            // Loading is GPU work too. If the app left during it, the new backend is
+            // poisoned before its first token; the flag stays set so the next turn
+            // rebuilds again rather than failing on a backend already marked dead.
+            if (GgmlBasicOps.HasBackendFailure())
+            {
+                TraceBackground("the rebuilt backend failed during the reload (the app left again?); it will be rebuilt once more");
+                return false;
+            }
+
+            EngineNeedsReload = false;
+            EngineRebuilds++;
+            TraceBackground($"the engine is back: {model.Id} reloaded on a new backend");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Left set on purpose: a reload that failed has not fixed anything, and the
+            // next attempt should still try.
+            TraceBackground("the recovery reload FAILED: " + ex.Message);
+            HostLog.LogWarning(ex, "rebuilding the engine after a GPU fault failed");
+            return false;
+        }
     }
 
     // ---- the model the user last used --------------------------------------------
@@ -1057,6 +1626,24 @@ public sealed class AgentAppHost : IDisposable
             settings.SelectedModelId = model.Id;
             Settings.Save(settings);
 
+            // Loading is GPU work too -- ggml_metal_init and the load's own warm-up
+            // graph -- and it is refused from the background exactly as a token is.
+            // The startup load begins a few seconds BEFORE UIKit calls the process
+            // active, which on the phone produced a backend poisoned before its first
+            // token: the warm-up failed and the user's first message opened on "backend
+            // is in error state". So a load holds here until the app is in front.
+            // Bounded, because every caller is off the UI thread but the wait must never
+            // become a way for a stuck gate to make "Use" hang for ever.
+            if (!Compute.IsOpen)
+            {
+                TraceBackground("holding the model load until the app is in front");
+                try { Compute.Wait(new CancellationTokenSource(TimeSpan.FromMinutes(2)).Token); }
+                catch (OperationCanceledException)
+                {
+                    TraceBackground("the app did not come to the front within two minutes; loading anyway");
+                }
+            }
+
             string weights = Paths.SelectedModelPath(settings);
             if (!File.Exists(weights))
             {
@@ -1250,9 +1837,16 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     public void Dispose()
     {
-        // Before anything else: a warm-up still waiting to start would otherwise begin a
-        // generation on an engine that is being torn down. Cancelled AND waited for,
-        // because cancellation is cooperative (see StopWarmingThePrefixCacheAndWaitAsync).
+        // Before the turns are asked to stop, because a turn parked on a closed gate --
+        // and an engine step loop parked on it -- is not running and cannot notice that
+        // it should stop; shutting down while the app is not frontmost is the ordinary
+        // case, not the odd one. Cancellation does release the waiters on its own, but
+        // opening costs nothing and removes the question.
+        Compute.Open();
+
+        // A warm-up still waiting to start would otherwise begin a generation on an
+        // engine that is being torn down. Cancelled AND waited for, because
+        // cancellation is cooperative (see StopWarmingThePrefixCacheAndWaitAsync).
         StopWarmingThePrefixCacheAndWaitAsync().GetAwaiter().GetResult();
 
         // And this is now load-bearing: a turn no longer stops when its

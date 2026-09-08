@@ -112,6 +112,41 @@ namespace TensorSharp.Runtime.Scheduling
         public int RunningCount => _scheduler.RunningCount;
         public int WaitingCount => _scheduler.WaitingCount;
 
+        /// <summary>
+        /// Whether the step loop may run right now, or null for "always".
+        ///
+        /// <para>
+        /// Consulted on the worker thread between two steps, which is the one place
+        /// where no command buffer is in flight. A closed gate parks the loop there:
+        /// nothing is scheduled, nothing is submitted to the GPU, and the sequences keep
+        /// their place and their cache until it opens. It exists for iOS, where an app
+        /// that is not frontmost may not submit GPU work and ggml-metal treats a refused
+        /// command buffer as terminal — but nothing here knows that; a host that never
+        /// closes it pays one volatile read per step. See <see cref="ComputeGate"/>.
+        /// </para>
+        /// <para>
+        /// The engine cannot enforce this by being pulled less: tokens go out through an
+        /// unbounded channel and the loop runs whether or not anyone reads them, which is
+        /// what makes a reader that walks away harmless — and is also exactly why a
+        /// reader that merely stops reading cannot stop the GPU.
+        /// </para>
+        /// </summary>
+        public ComputeGate ComputeGate
+        {
+            get => Volatile.Read(ref _computeGate);
+            set => Volatile.Write(ref _computeGate, value);
+        }
+
+        private ComputeGate _computeGate;
+        private long _stepsHeldByGate;
+
+        /// <summary>
+        /// How many times the step loop was actually held by a closed
+        /// <see cref="ComputeGate"/>. Zero on any host that never closes it; a check
+        /// reads it to prove the loop parked rather than merely that the gate closed.
+        /// </summary>
+        public long StepsHeldByGate => Interlocked.Read(ref _stepsHeldByGate);
+
         /// <summary>Submit a sequence for inference. Returns immediately with a
         /// handle whose <see cref="InferenceRequestHandle.Tokens"/> channel
         /// streams sampled tokens.</summary>
@@ -174,7 +209,29 @@ namespace TensorSharp.Runtime.Scheduling
                 _shutdownCts.Cancel();
                 _commands.Writer.TryComplete();
             }
-            try { _worker.Join(2000); } catch { /* best effort */ }
+            // Wait for the worker to actually leave its step. The caller is about to
+            // free the model's buffers and, on a recovery, the GPU backend itself; a
+            // worker still inside a graph compute when that happens is a use-after-free
+            // in a kernel, not an error. A step is bounded (one decode, or one prefill
+            // chunk), so this returns; the cap only stops a wedged native call from
+            // holding a shutdown forever. A worker parked on the compute gate leaves at
+            // once, because the gate wait uses the shutdown token.
+            if (_worker.IsAlive && Thread.CurrentThread != _worker)
+            {
+                bool left;
+                try { left = _worker.Join(TimeSpan.FromSeconds(60)); } catch { left = true; }
+                if (!left)
+                    _logger.LogWarning("InferenceEngine worker did not leave its step within 60s of shutdown; releasing anyway");
+            }
+            // Nobody is going to finish these now. A consumer awaiting one of them --
+            // another conversation's turn, on a phone -- would otherwise wait forever.
+            var abandoned = new ObjectDisposedException(nameof(InferenceEngine),
+                "The inference engine was shut down while this request was in flight.");
+            foreach (var entry in _handles)
+            {
+                if (_handles.TryRemove(entry.Key, out var handle))
+                    handle.CompleteWithError(abandoned);
+            }
         }
 
         private void WorkerLoop()
@@ -197,6 +254,20 @@ namespace TensorSharp.Runtime.Scheduling
                         if (!_commands.Reader.WaitToReadAsync(_shutdownCts.Token).AsTask().GetAwaiter().GetResult())
                             break;
                     }
+                    catch (OperationCanceledException) { break; }
+                    continue;
+                }
+
+                // Not while the host says the GPU is not ours. Between steps, so no
+                // command buffer is in flight when the loop parks; and BEFORE Schedule,
+                // so nothing is admitted or preempted on the strength of a step that is
+                // not about to run. Commands that queue while the loop is held (an Abort,
+                // a Submit) are drained at the top of the next pass, before the step they
+                // would have changed.
+                if (Volatile.Read(ref _computeGate) is ComputeGate gate && !gate.IsOpen)
+                {
+                    Interlocked.Increment(ref _stepsHeldByGate);
+                    try { gate.Wait(_shutdownCts.Token); }
                     catch (OperationCanceledException) { break; }
                     continue;
                 }

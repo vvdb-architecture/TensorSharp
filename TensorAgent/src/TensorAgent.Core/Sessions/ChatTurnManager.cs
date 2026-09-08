@@ -434,6 +434,13 @@ public sealed class ChatTurnManager : IDisposable
                 content.Clear().Append(whole);
             else if (root.TryGetProperty("thinking", out JsonElement thought) && thought.GetString() is { } reasoning)
                 thinking.Append(reasoning);
+            // The host is answering again after a GPU fault (see AgentAppHost
+            // .GatedChatFrames). The page drops the reasoning box on this frame, and the
+            // transcript must say what the page showed: the reasoning of the attempt
+            // that died is not part of the answer that replaced it. (An empty `replace`
+            // rides on the same frame when the answer itself starts over.)
+            if (root.TryGetProperty("restart", out _))
+                thinking.Clear();
 
             // A tool's ordinary `files` field is provisional: a guarded workflow can
             // produce a syntactically valid-looking file and then reject it for stale

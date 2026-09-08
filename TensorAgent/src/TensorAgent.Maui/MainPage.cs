@@ -292,6 +292,186 @@ public sealed class MainPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// Device E2E hook (Debug builds only): a real generation, on the real engine,
+    /// carried across a real background switch.
+    ///
+    /// <para>
+    /// This exists for the one bug that cannot be reproduced anywhere else. Leaving
+    /// TensorAgent mid-answer used to fail that answer AND every answer after it,
+    /// because iOS refuses GPU work from an app that is not frontmost and ggml-metal
+    /// answers a refused command buffer by latching an error flag that only recreating
+    /// the backend clears. A simulator cannot show the refusal -- there is no Metal
+    /// there -- but it CAN show the gate: the engine's step count must stop moving while
+    /// the app is away and start again when it is back. A unit test can show neither,
+    /// because the whole mechanism is a UIKit lifecycle notification and a GPU.
+    /// </para>
+    /// <para>
+    /// So this asks the app's own <c>/api/chat</c> for a long answer and reports what
+    /// becomes of it through <see cref="Core.Hosting.AgentAppHost.TraceBackground"/> as
+    /// well as stdout: stdout on a phone is readable only while a console is attached,
+    /// and the interesting part happens after the app has left the screen. Launched
+    /// with <c>TENSORAGENT_BACKGROUND_CHECK=1</c>; <c>scripts/verify-background.sh</c>
+    /// sends the app away and back while this runs and reads the trace afterwards. One
+    /// <c>bgcheck</c> line per event; a heartbeat every few seconds carries the token
+    /// count, the engine's step count, and whether the gate is open, which is what
+    /// proves the model stopped rather than merely that the page did.
+    /// </para>
+    /// </summary>
+    private async Task RunBackgroundProbeAsync()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_BACKGROUND_CHECK"), "1", StringComparison.Ordinal))
+            return;
+
+        Core.Hosting.AgentAppHost app = _host.App;
+        void Say(string line)
+        {
+            Console.WriteLine("TensorAgent: bgcheck " + line);
+            app.TraceBackground("bgcheck " + line);
+        }
+        long Steps() => app.ModelService.EngineHost.TryGetEngine()?.TotalStepsRun ?? -1;
+        long Held() => app.ModelService.EngineHost.TryGetEngine()?.StepsHeldByGate ?? -1;
+
+        try
+        {
+            // Named, so a script reading the trace afterwards can find THIS run's lines
+            // without trusting two clocks to agree. The file outlives launches.
+            if (Environment.GetEnvironmentVariable("TENSORAGENT_BACKGROUND_RUN") is { Length: > 0 } run)
+                Say($"run {run}");
+
+            // The model loads in the background at startup and takes as long as it
+            // takes; there is nothing to generate with until it is there.
+            for (int i = 0; i < 300 && app.ModelLoad != Core.Hosting.AgentAppHost.ModelLoadState.Loaded; i++)
+                await Task.Delay(1000);
+            if (app.ModelLoad != Core.Hosting.AgentAppHost.ModelLoadState.Loaded)
+            {
+                Say($"FAIL no model to generate with (state {app.ModelLoad})");
+                return;
+            }
+            // Not beside the warm-up, whose cancellation would otherwise be the first
+            // thing this measures.
+            for (int i = 0; i < 90 && !app.PrefixCacheIsWarm; i++)
+                await Task.Delay(1000);
+
+            string prompt = Environment.GetEnvironmentVariable("TENSORAGENT_BACKGROUND_PROMPT") is { Length: > 0 } asked
+                ? asked
+                : "Count from one to three hundred. Write each number in words on its own line, "
+                  + "and after each one add a short sentence about that number.";
+            int maxTokens = int.TryParse(Environment.GetEnvironmentVariable("TENSORAGENT_BACKGROUND_TOKENS"), out int t) ? t : 4096;
+
+            using var client = new HttpClient
+            {
+                BaseAddress = new Uri(_host.BaseUrl),
+                Timeout = Timeout.InfiniteTimeSpan,
+            };
+            client.DefaultRequestHeaders.Add("Cookie", $"tensoragent_token={_host.Token}");
+
+            // Through a real session, like the page: the default session is declared a
+            // different tool set and would warm nothing for the message after this.
+            async Task<string> NewSessionAsync()
+            {
+                using HttpResponseMessage made = await client.PostAsync("/api/sessions?conversation=new", content: null);
+                using JsonDocument answer = JsonDocument.Parse(await made.Content.ReadAsStringAsync());
+                return answer.RootElement.GetProperty("sessionId").GetString()!;
+            }
+
+            async Task<(int Tokens, string? Error, int Restarts)> AskAsync(string sessionId, string question, int budget, bool heartbeat)
+            {
+                var body = new
+                {
+                    sessionId,
+                    messages = new[] { new { role = "user", content = question } },
+                    maxTokens = budget,
+                    think = false,
+                };
+                using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat")
+                {
+                    Content = new StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json"),
+                };
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                int tokens = 0, restarts = 0;
+                string? error = null;
+                TimeSpan lastSaid = TimeSpan.Zero;
+
+                using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                await using Stream stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    if (!line.StartsWith("data: ", StringComparison.Ordinal))
+                        continue;
+                    using JsonDocument frame = JsonDocument.Parse(line[6..]);
+                    JsonElement root = frame.RootElement;
+                    if (root.TryGetProperty("token", out _))
+                        tokens++;
+                    if (root.TryGetProperty("restart", out JsonElement restart) && restart.ValueKind == JsonValueKind.String)
+                    {
+                        restarts++;
+                        Say($"restart: {restart.GetString()}");
+                    }
+                    if (root.TryGetProperty("error", out JsonElement e) && e.ValueKind == JsonValueKind.String)
+                        error = e.GetString();
+
+                    // A heartbeat, so the trace shows the answer still moving rather than
+                    // only its beginning and its end -- and the ENGINE's step count next to
+                    // the token count, because the claim is that the model stops, not
+                    // that the page stops reading.
+                    if (heartbeat && clock.Elapsed - lastSaid > TimeSpan.FromSeconds(3))
+                    {
+                        lastSaid = clock.Elapsed;
+                        Say($"{tokens} tokens after {clock.Elapsed.TotalSeconds:0}s, engine steps {Steps()}, held {Held()}, gate {(app.Compute.IsOpen ? "open" : "CLOSED")}");
+                    }
+                    if (root.TryGetProperty("done", out JsonElement done) && done.ValueKind == JsonValueKind.True)
+                        break;
+                }
+                clock.Stop();
+                return (tokens, error, restarts);
+            }
+
+            string session = await NewSessionAsync();
+            Say($"asking for a long answer (engine steps {Steps()})");
+            long closuresAtStart = app.Compute.Closures;
+            long rebuildsAtStart = app.EngineRebuilds;
+            var whole = System.Diagnostics.Stopwatch.StartNew();
+            (int tokens, string? error, int restarts) = await AskAsync(session, prompt, maxTokens, heartbeat: true);
+            whole.Stop();
+
+            long pauses = app.Compute.Closures - closuresAtStart;
+            string away = pauses > 0 ? $", paused {pauses} time(s) for {app.Compute.TotalClosed.TotalSeconds:0.#}s, engine held {Held()} time(s)" : "";
+            Say(error is { Length: > 0 }
+                ? $"FAIL after {tokens} tokens{away}: {error}"
+                : $"ok {tokens} tokens in {whole.Elapsed.TotalSeconds:0.#}s{away}, {restarts} restart(s)");
+            Say($"the engine was rebuilt {app.EngineRebuilds - rebuildsAtStart} time(s) during the turn");
+
+            // And then the question the whole fix turns on. A refused command buffer
+            // poisons ggml-metal for the rest of the process, so the only proof the app
+            // is not quietly finished is a SECOND answer, asked afterwards, that works.
+            if (pauses > 0)
+            {
+                if (app.EngineNeedsReload)
+                {
+                    Say("the engine is marked for a rebuild; waiting for it");
+                    for (int i = 0; i < 120 && app.EngineNeedsReload; i++)
+                        await Task.Delay(1000);
+                }
+                (int secondTokens, string? secondError, _) = await AskAsync(
+                    await NewSessionAsync(), "In one short sentence, what is a transistor?", 64, heartbeat: false);
+                Say(secondError is { Length: > 0 }
+                    ? "FAIL the next answer after coming back failed too: " + secondError
+                    : $"the next answer after coming back worked ({secondTokens} tokens)");
+            }
+            else
+            {
+                Say("the app was never sent away, so nothing was checked about coming back");
+            }
+            Say($"done: rebuilt {app.EngineRebuilds} time(s) this launch");
+        }
+        catch (Exception ex)
+        {
+            Say("FAIL " + ex.Message);
+        }
+    }
+
     /// <summary>A valid PNG of a given size, big enough that its IDAT cannot be tiny.</summary>
     private static byte[] SolidPng(int width, int height)
     {
@@ -557,13 +737,25 @@ public sealed class MainPage : ContentPage
             return;
 
         Core.Hosting.AgentAppHost app = _host.App;
+        // To stdout AND to a file: a device console detaches (or will not attach at
+        // all when the developer disk image is wedged), and the numbers are the whole
+        // point. Pulled back with `devicectl device copy from`.
+        string ttftLog = Path.Combine(app.Paths.LogsDirectory, "ttft.log");
+        void Say(string line)
+        {
+            Console.WriteLine("TensorAgent: " + line);
+            try { File.AppendAllText(ttftLog, $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff} {line}{Environment.NewLine}"); }
+            catch (Exception) { /* diagnostic only */ }
+        }
         try
         {
+            if (Environment.GetEnvironmentVariable("TENSORAGENT_TTFT_RUN") is { Length: > 0 } run)
+                Say($"ttft run {run}");
             for (int i = 0; i < 180 && app.ModelLoad != Core.Hosting.AgentAppHost.ModelLoadState.Loaded; i++)
                 await Task.Delay(1000);
             if (app.ModelLoad != Core.Hosting.AgentAppHost.ModelLoadState.Loaded)
             {
-                Console.WriteLine($"TensorAgent: ttft FAIL no model (state {app.ModelLoad})");
+                Say($"ttft FAIL no model (state {app.ModelLoad})");
                 return;
             }
 
@@ -580,9 +772,9 @@ public sealed class MainPage : ContentPage
             // forever and never sees the thing it exists to measure.
             for (int i = 0; i < 90 && !app.PrefixCacheIsWarm; i++)
                 await Task.Delay(1000);
-            Console.WriteLine(app.PrefixCacheIsWarm
-                ? "TensorAgent: ttft asking with the cache already warm"
-                : "TensorAgent: ttft asking WITHOUT a warm cache (the warm-up did not finish in time)");
+            Say(app.PrefixCacheIsWarm
+                ? "ttft asking with the cache already warm"
+                : "ttft asking WITHOUT a warm cache (the warm-up did not finish in time)");
 
             // Through a REAL session, exactly as the page does: a request with no
             // session is served by the default one, which has no workspace and is
@@ -646,9 +838,9 @@ public sealed class MainPage : ContentPage
                 clock.Stop();
 
                 history.Add(new { role = "assistant", content = answer.ToString() });
-                Console.WriteLine(error is { Length: > 0 }
-                    ? $"TensorAgent: ttft {label} FAILED: {error}"
-                    : $"TensorAgent: ttft {label}: first token {firstToken.TotalSeconds:0.0}s, "
+                Say(error is { Length: > 0 }
+                    ? $"ttft {label} FAILED: {error}"
+                    : $"ttft {label}: first token {firstToken.TotalSeconds:0.0}s, "
                       + $"{prompt} prompt tokens, {reused} reused ({(prompt > 0 ? 100.0 * reused / prompt : 0):0}%), "
                       + $"whole turn {clock.Elapsed.TotalSeconds:0.0}s");
             }
@@ -657,11 +849,11 @@ public sealed class MainPage : ContentPage
             await AskAsync("turn 2 (same chat)", "Now say: banana.", sameConversation: true);
             await AskAsync("turn 3 (new chat)", "Say the single word: cherry.", sameConversation: false);
             await AskAsync("turn 4 (same chat)", "Now say: date.", sameConversation: true);
-            Console.WriteLine("TensorAgent: ttft done");
+            Say("ttft done");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("TensorAgent: ttft FAIL " + ex.Message);
+            Say("ttft FAIL " + ex.Message);
         }
     }
 
@@ -1413,6 +1605,7 @@ public sealed class MainPage : ContentPage
                     Console.WriteLine("TensorAgent: selftest " + check);
             });
             _ = RunUploadProbeAsync();
+            _ = RunBackgroundProbeAsync();
             RunNetworkProbe();
             DownloadIfAsked();
 #endif

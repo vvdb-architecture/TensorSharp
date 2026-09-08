@@ -289,6 +289,29 @@ else
     echo "ok  the answer kept being written while the chat was off screen, and the page took it back up"
 fi
 
+# 10b. The generation carried across a BACKGROUND switch: the engine's step count must
+#      stop while the app is away and the answer must finish -- and, on a device, a
+#      second answer must work afterwards. Opt-in, needs a loaded model, and needs
+#      something to send the app away: run verify-background.sh, which launches with
+#      TENSORAGENT_BACKGROUND_CHECK=1, does the switching, and asserts the same lines.
+BGCHECKS="$(grep -o 'bgcheck .*' "${LOG}" || true)"
+if [[ -z "${BGCHECKS}" ]]; then
+    echo "--  the background switch check did not run; run verify-background.sh to include it"
+else
+    sed 's/^/    /' <<<"${BGCHECKS}"
+    grep -q 'FAIL' <<<"${BGCHECKS}" && fail "the generation did not survive the app being sent to the background"
+    grep -q 'bgcheck ok ' <<<"${BGCHECKS}" || fail "the background check never reported a finished answer"
+    if grep -q 'paused [1-9]' <<<"${BGCHECKS}"; then
+        grep -q 'engine held [1-9]' <<<"${BGCHECKS}" \
+            || fail "the app was away but the engine's step loop was never held by the gate"
+        grep -q 'the next answer after coming back worked' <<<"${BGCHECKS}" \
+            || fail "the answer after coming back did not work"
+        echo "ok  the model stopped while the app was away, the answer finished, and the next one worked"
+    else
+        echo "--  the app was never sent away during the background check; nothing was proved about the gate"
+    fi
+fi
+
 # 11. The network switch, both ways, in one running process: refused when it is off,
 #      and reaching the internet the moment it is turned on -- without a relaunch, which
 #      is the whole of the bug. Opt-in, because it goes out to the network:

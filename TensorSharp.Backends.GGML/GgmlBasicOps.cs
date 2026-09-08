@@ -1535,8 +1535,15 @@ namespace TensorSharp.GGML
         public static long DeviceCopyCacheResidentBytes() => GgmlNative.DeviceCopyCacheResidentBytes();
         public static bool TryGetBackendMemory(out long freeBytes, out long totalBytes) => GgmlNative.TryGetBackendMemory(out freeBytes, out totalBytes);
         /// <summary>True once a GPU command buffer has failed in this process; see
-        /// <see cref="GgmlNative.HasBackendFailure"/>. Sticky and unrecoverable in-process.</summary>
+        /// <see cref="GgmlNative.HasBackendFailure"/>. Sticky until <see cref="RecreateBackend"/>.</summary>
         public static bool HasBackendFailure() => GgmlNative.HasBackendFailure();
+
+        /// <summary>
+        /// Throw the GPU backend away and build a new one. Clears
+        /// <see cref="HasBackendFailure"/>; the loaded model must be released first.
+        /// See <see cref="GgmlNative.RecreateBackend"/>.
+        /// </summary>
+        public static bool RecreateBackend() => GgmlNative.RecreateBackend();
         /// <summary>What ggml logged about that failure, or an empty string.</summary>
         public static string BackendFailureText() => GgmlNative.BackendFailureText();
         /// <summary>True if the active GGML backend device is an integrated GPU (unified-memory iGPU).</summary>

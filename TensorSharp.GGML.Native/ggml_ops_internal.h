@@ -230,7 +230,15 @@ namespace tsg
     // --- Global state ---
 
     extern thread_local std::string g_last_error;
-    extern std::once_flag g_backend_init_once;
+    // A one-shot that can be UN-shot. This was a std::once_flag, which is exactly
+    // right for "initialise the backend once" and exactly wrong for the one thing
+    // that turned out to be needed: on Metal a refused command buffer latches
+    // has_error inside ggml-metal, and the ONLY way to clear it is to build the
+    // backend again. A once_flag cannot be reset, so recovery was impossible in
+    // process and an iPhone that had been sent to the background at the wrong
+    // moment stayed broken until it was force-quit. See TSGgml_RecreateBackend.
+    extern std::mutex g_backend_init_mutex;
+    extern bool g_backend_initialized;
     extern int g_backend_type;
 
     enum class CachedBufferMode
@@ -460,9 +468,8 @@ namespace tsg
     // These two drop-ins keep ggml's signatures and return values and add the one
     // thing missing: any error ggml logs while a compute or a drain is in flight
     // belongs to that command buffer, so latch it. The flag is sticky because the
-    // backend is — ggml-metal clears has_error only by being recreated, and
-    // TSGgml_Shutdown consumes this process's one-shot backend init, so nothing
-    // short of a restart recovers.
+    // backend is — ggml-metal clears has_error only by being recreated. That is what
+    // TSGgml_RecreateBackend exists for, and it is the only thing that clears this.
     inline ggml_status compute_graph(ggml_backend_t backend, ggml_cgraph* graph)
     {
         const std::uint64_t before = g_ggml_error_count.load(std::memory_order_acquire);

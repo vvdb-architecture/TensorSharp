@@ -92,9 +92,14 @@ public static class MauiProgram
         // The Web UI is TensorSharp.Server/wwwroot linked into the bundle as
         // webui/ (see the BundleResource item in the csproj).
         string webRoot = Path.Combine(NSBundle.MainBundle.BundlePath, "webui");
-        // Console logging is what `simctl launch --console` shows and what a device
-        // log capture picks up; there is nowhere else for a phone to log to.
+        // Console logging is what `simctl launch --console` shows and what a device log
+        // capture picks up -- while something is attached to it. A device console
+        // detaches the moment the app is backgrounded, which is when the failures worth
+        // reading about happen, so warnings and errors are ALSO written to a file that
+        // comes back off the phone afterwards. See DurableErrorLog.
         builder.Logging.AddConsole();
+        builder.Logging.AddProvider(new Core.Hosting.DurableErrorLog(
+            Hosting.LoopbackWebHost.DeviceLogsDirectory()));
         builder.Services.AddSingleton(sp => new LoopbackWebHost(
             webRoot, sp.GetService<ILoggerFactory>()));
         builder.Services.AddSingleton<MainPage>();

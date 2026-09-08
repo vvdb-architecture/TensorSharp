@@ -1065,6 +1065,9 @@
    * The host replays every frame from the beginning, so the answer is rebuilt exactly
    * as it would have been had nobody looked away, and then continues live.
    */
+  /** Restart notices already shown, by turn id and ordinal; see read(). */
+  var restartsSaid = {};
+
   function attachTurn(id) {
     var view = liveView();
     setGenerating(true);
@@ -1121,7 +1124,7 @@
    */
   function read(res, view) {
     var answer = '', thinking = '', thinkBox = null, thinkBody = null;
-    var steps = '', offered = false, draft = '';
+    var steps = '', offered = false, draft = '', restarts = 0;
     // What this turn PRODUCED: the files its tools wrote, and a picture it made.
     // Kept so the history entry carries them, because the history is what the next
     // request rewrites the saved transcript from -- an entry that has forgotten the
@@ -1160,14 +1163,33 @@
         progress('Thinking…');
         progressTail(thinking);
       }
-      if (f.token || f.replace) {
+      if (f.token || typeof f.replace === 'string') {
         // The answer is on the screen from here on, so the live tail would only
         // be a second, staler copy of it.
         progress('Writing the answer…');
         progressTail('');
       }
       if (f.token) { answer += f.token; view.bubble.innerHTML = render(answer); }
-      if (f.replace) { answer = f.replace; view.bubble.innerHTML = render(answer); }
+      // Compared against undefined rather than tested for truth: an EMPTY replace is
+      // the one that matters most — it is how the host wipes a half-written answer
+      // before starting it again, and treating it as "no frame" left the fragment on
+      // screen with the fresh answer glued to the end of it.
+      if (typeof f.replace === 'string') { answer = f.replace; view.bubble.innerHTML = render(answer); }
+      // The host has thrown away a dying engine and is answering again -- carrying
+      // the text on screen on, or starting over. Said plainly, because the
+      // alternative is an answer that visibly stalls or restarts for no reason the
+      // reader can see.
+      if (f.restart) {
+        thinking = ''; draft = '';
+        if (thinkBox) { thinkBox.remove(); thinkBox = null; thinkBody = null; }
+        // Said once per restart, not once per READ of it: the host replays every frame
+        // from the beginning when this page re-attaches to a running turn, and a
+        // notice that came back with every glance at another screen would read as the
+        // GPU failing again and again.
+        var restartKey = (state.turn || 'live') + ':' + (++restarts);
+        if (!restartsSaid[restartKey]) { restartsSaid[restartKey] = true; notice(String(f.restart)); }
+        progress(typeof f.replace === 'string' ? 'Starting again…' : 'Carrying on…');
+      }
       // Before trace(): the host's record of the call arrives just ahead of the
       // tool's `finished`, and it is what makes that line name a skill instead of
       // a category.

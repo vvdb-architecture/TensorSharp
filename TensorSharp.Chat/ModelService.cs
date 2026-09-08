@@ -161,6 +161,38 @@ namespace TensorSharp.Server
         }
 
         /// <summary>
+        /// Release the loaded model AND throw the GPU backend away, so the next load
+        /// builds a new one.
+        ///
+        /// <para>
+        /// For one failure only: a GPU command buffer that came back refused. ggml-metal
+        /// latches an error flag when that happens and clears it in exactly one place —
+        /// <c>ggml_metal_init</c> — so every graph afterwards fails until the backend is
+        /// built again. <see cref="LoadModel"/> alone cannot fix it, because the backend
+        /// is a process global that loading weights never touches; the reloaded model
+        /// runs on the same poisoned context and fails identically.
+        /// </para>
+        /// <para>
+        /// iOS is where this is reached: an app that is not frontmost may not submit GPU
+        /// work, so a turn interrupted by the user switching apps can poison the engine
+        /// for the rest of the process. Everywhere else the flag stays terminal, which
+        /// is why this is a separate call rather than something a failed graph does by
+        /// itself — recreating a backend under a host that has other models on it would
+        /// take those down too.
+        /// </para>
+        /// <para>
+        /// The model is released FIRST, and that order is not cosmetic: its tensors live
+        /// in buffers the recreate frees, and freeing them twice is a crash.
+        /// </para>
+        /// </summary>
+        /// <returns>Whether a working backend is standing afterwards.</returns>
+        public bool UnloadModelAndRecreateBackend()
+        {
+            UnloadModel();
+            return TensorSharp.GGML.GgmlBasicOps.RecreateBackend();
+        }
+
+        /// <summary>
         /// Legacy compatibility shim for older callers. There is no
         /// service-owned KV cache to invalidate; this clears only the intrinsic
         /// tracked history used by non-session-aware overloads.

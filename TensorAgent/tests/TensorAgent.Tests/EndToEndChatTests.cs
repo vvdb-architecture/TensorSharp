@@ -248,7 +248,27 @@ public sealed class EndToEndChatTests : LiveModelHarness
             think = false,
             newChat = true,
         }));
-        Assert.Equal(0, fresh.ReusedTokens);
+
+        // Not zero any more, and deliberately so: a new chat starts from the
+        // shared-prefix checkpoint -- a copy of the engine's state at the end of the
+        // system prompt every conversation begins with -- which is what makes its first
+        // token as fast as a follow-up's. What it must NOT reuse is the previous
+        // conversation: its user turn and its answer. So the bound is the shared prompt
+        // itself, measured the only honest way -- as what a brand new session reuses on
+        // its very first turn -- and the old chat's second turn, which reused all of
+        // that AND its own first exchange, must have reused strictly more.
+        JsonElement another = await OpenSessionAsync();
+        TurnStats shared = StatsOf(await StreamAsync(new
+        {
+            sessionId = another.GetProperty("sessionId").GetString(),
+            messages = new[] { new { role = "user", content = "Say ok." } },
+            maxTokens = 32,
+            think = false,
+        }));
+        Assert.True(fresh.ReusedTokens <= shared.ReusedTokens,
+            $"the new chat reused {fresh.ReusedTokens} tokens but the shared prompt is only {shared.ReusedTokens}: the old conversation's context came with it");
+        Assert.True(fresh.ReusedTokens < reused.ReusedTokens,
+            $"the new chat reused {fresh.ReusedTokens} tokens, as much as a follow-up in the old chat ({reused.ReusedTokens})");
     }
 
     [LiveModelFact]

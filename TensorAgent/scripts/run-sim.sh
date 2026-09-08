@@ -15,6 +15,10 @@
 #                   types this prompt into the composer and sends it, so the
 #                   canned /api/chat stream renders on screen without anyone
 #                   tapping the simulator (simctl cannot type into a WebView).
+#   TENSORAGENT_BACKGROUND_CHECK=1  Debug builds only: ask the loaded model for a long
+#                   answer and report, one 'bgcheck' line at a time, what becomes of it
+#                   when the app is sent to the background and brought back. Pair it
+#                   with verify-background.sh, which does the sending and the reading.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,10 +71,12 @@ fi
 if [[ -n "${TENSORAGENT_UI_CHECK:-}" ]]; then
     export SIMCTL_CHILD_TENSORAGENT_UI_CHECK="${TENSORAGENT_UI_CHECK}"
 fi
-# Debug builds only: start a catalog download and log what it does, stopping after
-# TENSORAGENT_DOWNLOAD_SECONDS. Mostly for a physical device, where leaving the app is
-# the only way to exercise the background-task assertion.
-for VAR in TENSORAGENT_DOWNLOAD TENSORAGENT_DOWNLOAD_SECONDS; do
+# Debug builds only: a generation carried across a background switch (see the header
+# and verify-background.sh), and the start-a-download probe, which stops after
+# TENSORAGENT_DOWNLOAD_SECONDS. Both are mostly for a physical device, where leaving
+# the app is the only way to exercise the background-task assertion and the GPU rule.
+for VAR in TENSORAGENT_BACKGROUND_CHECK TENSORAGENT_BACKGROUND_PROMPT TENSORAGENT_BACKGROUND_TOKENS \
+           TENSORAGENT_DOWNLOAD TENSORAGENT_DOWNLOAD_SECONDS; do
     if [[ -n "${!VAR:-}" ]]; then
         export "SIMCTL_CHILD_${VAR}=${!VAR}"
     fi

@@ -47,6 +47,33 @@ namespace TensorSharp.Server
         /// </summary>
         public SchedulerConfig SchedulerConfigOverride { get; set; }
 
+        private ComputeGate _computeGate;
+
+        /// <summary>
+        /// The gate every engine this host builds runs behind, or null for none.
+        ///
+        /// <para>
+        /// Set once by a host whose platform can take the GPU away — the iOS app, while
+        /// it is not frontmost — and handed to each engine as it is built, AND to the
+        /// one already standing, because the engine is rebuilt on every model swap and
+        /// a gate that only reached the first one would silently stop working the
+        /// first time the user changed models. See <see cref="ComputeGate"/>.
+        /// </para>
+        /// </summary>
+        public ComputeGate ComputeGate
+        {
+            get { lock (_gate) return _computeGate; }
+            set
+            {
+                lock (_gate)
+                {
+                    _computeGate = value;
+                    if (_engine != null)
+                        _engine.ComputeGate = value;
+                }
+            }
+        }
+
         internal InferenceEngineHost(ModelLifecycleService lifecycle, ILogger logger)
         {
             _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
@@ -80,7 +107,7 @@ namespace TensorSharp.Server
                 SchedulerConfig cfg = SchedulerConfigOverride;
                 string cfgSource = cfg != null ? "host" : "environment";
                 cfg ??= SchedulerConfig.FromEnvironment();
-                _engine = new InferenceEngine(model, cfg, _logger);
+                _engine = new InferenceEngine(model, cfg, _logger) { ComputeGate = _computeGate };
                 _fingerprint = fp;
                 var poolStats = _engine.PoolStats;
                 _logger.LogInformation(

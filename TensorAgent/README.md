@@ -164,7 +164,10 @@ turn reused 99% of that, so the prompt was never slow; it was paid for once, by 
 user. Two things now pay it instead. As soon as the weights are in, the app forwards
 that shared prompt on a throwaway one-token request (`AgentAppHost.WarmThePrefixCache`)
 while the user is still reading the screen; a real message cancels it and waits for it
-to be gone, so nobody ever shares the engine with it. And the engine keeps a
+to be gone, so nobody ever shares the engine with it — and loses little by doing so,
+because the cancelled warm-up's cache stays resident and the message continues from it
+at the last chunk boundary (measured with `--delay`: letting the warm-up finish instead
+was a wash on both Qwen 3.5 and Gemma 4). And the engine keeps a
 **checkpoint** of the model's complete state at the end of that shared prefix — a deep
 copy, kept apart from the per-conversation caches and never consumed — so every NEW
 chat starts from a clone of it and re-prefills only its own message. That copy is what
@@ -213,6 +216,7 @@ TensorAgent/scripts/verify-sim.sh           # drive the running app's API from t
                                             #  is the phone's, so it skips the API half and
                                             #  checks everything the app logged about itself)
 TensorAgent/scripts/deploy-device.sh         # Release build: auto-sign, install, and launch
+TensorAgent/scripts/verify-background.sh     # send the app away mid-answer and read what happened
 ```
 
 `deploy-device.sh` selects the only connected physical iPhone, an installed
@@ -344,6 +348,71 @@ at a message, not long enough for five gigabytes. What makes that survivable is 
 nothing is ever lost: every file is written through its `.part`, so a transfer the
 system does eventually stop resumes from the byte it reached, and the app restarts it
 by itself when it comes back to the foreground. The user never taps twice.
+
+**Leaving the APP mid-answer no longer costs the answer.** Leaving the chat is
+`ChatTurnManager`'s problem; leaving TensorAgent altogether is a different problem with a
+harder rule behind it. iOS does not let an app that is not frontmost submit work to the
+GPU — there is no entitlement for it and no background mode that grants it on an iPhone
+— and ggml-metal's reaction to a refused command buffer is not to retry but to latch:
+`ggml_metal_synchronize` reports `command buffer 0 failed with status 5 | error:
+Insufficient Permission (to submit GPU work from background)`, sets a sticky `has_error`,
+and every `graph_compute` after it returns `GGML_STATUS_FAILED` "until the backend is
+recreated". One badly-timed submission therefore did not cost a token. It cost the model
+for the rest of the process, so the answer died AND every message after it, until the app
+was force-quit. Holding a background-task assertion made it worse rather than better: it
+guaranteed thirty seconds of submissions the GPU was never going to accept.
+
+Three things now stand between the user and that. A `ComputeGate`
+(`TensorSharp.Runtime.Scheduling`) is closed on `willResignActive` — several hundred
+milliseconds before `didEnterBackground`, which is the difference between stopping in
+time and not — and opened on `didBecomeActive`. The **engine's own step loop** parks on
+it between two steps (`InferenceEngine.ComputeGate`), which is what actually stops the
+GPU: the engine decodes on its own thread into an unbounded channel, so a page or a
+wrapper that merely stops reading stops nothing. The host's stream wrapper waits on the
+same gate before every pull, so no new request — and no cache warm-up — is submitted
+from the background either. The turn does not fail, it pauses, and carries on from the
+same token when the user comes back. A locked screen is the same event and takes the
+same path.
+
+The gate cannot be perfect, because a step already in flight when the user swipes away
+is already doomed — iOS offers no barrier to wait behind, and a prefill step can take
+seconds. So the second thing is that the fault is recognised when it happens, and the
+third is that it is repaired.
+
+Recognition had to be taught the shape the fault actually arrives in. The chat service
+catches the failure and ends the stream with a `done` frame carrying the message, so a
+wrapper watching only for exceptions watches the wrong thing — which is exactly what the
+first device run showed: the turn dead, the engine still marked healthy, and every
+message afterwards dying too. A frame whose error names a refused command buffer, the
+background-execution refusal, or the backend needing to be recreated now marks the
+engine (`AgentAppHost.ReadsLikeAPoisonedEngine`).
+
+The repair took a device to get right, twice. Reloading the weights does nothing: the
+ggml backend is a process global that a model load never touches, so the "repaired"
+engine was the same poisoned Metal context with fresh weights in it and the answer failed
+again with the identical sentence. The native layer said as much in a comment — a
+`std::once_flag` made the backend a one-shot and the honest advice was to restart the
+host, which on a phone means the app. `TSGgml_RecreateBackend` is the missing half: it
+tears the backend down the way shutdown does, un-shoots that one-shot, clears the latched
+failure, and builds a new one. The model is released FIRST, because its tensors live in
+the buffers being freed (`ModelService.UnloadModelAndRecreateBackend`). And the rebuild
+itself waits for the gate, which is the second thing the device taught: loading a model
+is GPU work too, so a repair attempted at the moment of backgrounding produces a backend
+that is poisoned before its first token.
+
+What the user sees is a sentence saying the GPU was interrupted, and then their answer
+carrying on. The half-written text is handed back to the model as its own words with an
+instruction to continue from exactly where it stopped — the KV cache went with the
+backend so the prompt is re-read either way, but the READER loses nothing. Those two
+extra messages are marked so they stay out of the transcript. A fragment too short to be
+worth continuing, or one that stops inside a tool call, is started cleanly instead, and
+says so.
+
+Warnings and errors are also written to `Library/Caches/TensorAgent/logs/errors.log`,
+with their stacks, and every lifecycle event and gate wait to `logs/background.log`:
+`devicectl --console` detaches the moment the app is backgrounded, which is when the
+failures worth reading about happen, and the files come back with `devicectl device
+copy from`.
 
 **Metal.** On a device `ggml_metal` is the default and the first backend offered.
 The simulator slice has no Metal at all — the simulator GPU is Apple1/Apple2 and
@@ -573,7 +642,24 @@ a whole turn   prompt -> shell tool -> in-process CPython -> answer, recorded to
                conversation store on the device
 downloads      157 MB fetched in 40 s, still arriving after the app was sent to the
                background, cancelled cleanly, and the app was not terminated by iOS
+away mid-decode
+               Qwen3.5-9B: the engine parked on the gate twice (21.9 s and 12.2 s away),
+               resumed each time, finished a 4,093-token answer with no fault, no
+               restart and no rebuild; the next answer worked
+away mid-prefill
+               left 1 s after the answer was asked for: the GPU refused the step
+               ("cannot recover in this process"), the turn was marked, the retry
+               waited behind the gate, the backend was rebuilt and Qwen3.5-9B reloaded
+               in 2.2 s, the 519-token answer finished (1 restart, 1 rebuild); the
+               next answer worked
 ```
+
+Both of the last two are `scripts/verify-background.sh device` (and `sim`, where the
+gate is proved but no refusal can occur): it launches a Debug build with
+`TENSORAGENT_BACKGROUND_CHECK=1`, brings Settings to the front once tokens are flowing
+(`LEAVE_DURING=prefill` leaves the moment the answer is asked for, with a long prompt),
+brings the app back, and reads `logs/background.log`. On the simulator pass
+`TENSORAGENT_BACKGROUND_TOKENS=120`: a 4,096-token answer takes hours on its CPU.
 
 Two things that run only here and nowhere else: the device slice of the engine (the
 simulator's has no Metal at all) and the device staging of CPython, where every

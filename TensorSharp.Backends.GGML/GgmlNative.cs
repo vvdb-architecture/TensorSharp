@@ -1688,6 +1688,10 @@ internal enum GgmlIndexReductionOp
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial IntPtr TSGgml_GetBackendFailureText();
 
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial int TSGgml_RecreateBackend();
+
         [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial int TSGgml_SetNativeEnvironmentVariable(
@@ -6776,9 +6780,26 @@ internal enum GgmlIndexReductionOp
         /// is an unrelated op failing one or more forwards later, over results that
         /// were already undefined.
         ///
-        /// Sticky and unrecoverable in-process: see TSGgml_HasBackendFailure.
+        /// Sticky: cleared only by <see cref="RecreateBackend"/>.
         /// </summary>
         public static bool HasBackendFailure() => TSGgml_HasBackendFailure() != 0;
+
+        /// <summary>
+        /// Free the GPU backend and build a new one, in this process.
+        ///
+        /// <para>
+        /// The only way to clear ggml-metal's latched <c>has_error</c>, and therefore
+        /// the only recovery from a command buffer that was refused — which on iOS is
+        /// what happens to any GPU work an app submits while it is not frontmost.
+        /// </para>
+        /// <para>
+        /// THE LOADED MODEL MUST BE RELEASED FIRST. Its tensors live in buffers this
+        /// frees; releasing them afterwards is a crash rather than an error. The order
+        /// that works is unload, recreate, load again.
+        /// </para>
+        /// </summary>
+        /// <returns>Whether a working backend is standing afterwards.</returns>
+        public static bool RecreateBackend() => TSGgml_RecreateBackend() != 0;
 
         /// <summary>What ggml logged about the failure, or an empty string.</summary>
         public static string BackendFailureText()

@@ -120,15 +120,21 @@ namespace tsg
     // --- Global state definitions ---
 
     thread_local std::string g_last_error;
-    std::once_flag g_backend_init_once;
+    std::mutex g_backend_init_mutex;
+    bool g_backend_initialized = false;
     int g_backend_type = 0;
+    // The CPU backend's thread pools, one per backend instance ever created. They
+    // used to be a function-local "process-lifetime" static, which was true while a
+    // backend was created exactly once; TSGgml_RecreateBackend creates another, so
+    // TSGgml_Shutdown frees them after the backend that used them is gone.
+    std::vector<ggml_threadpool_t> g_cpu_pools;
 
     DeviceState g_device_states[TSG_MAX_DEVICES];
     std::atomic<int> g_device_count{1};
     thread_local int g_active_rank = 0;
     // Vulkan device index requested via TSGgml_SetVulkanDeviceIndex. Must be set
     // before the first backend init (create_backend_instance runs once under
-    // g_backend_init_once); later calls with a different index fail. Indices are
+    // g_backend_init_mutex); later calls with a different index fail. Indices are
     // positions in ggml-vulkan's enumeration order (after any
     // GGML_VK_VISIBLE_DEVICES filtering applied at process launch).
     std::atomic<int> g_vulkan_device_index{0};
@@ -574,10 +580,9 @@ namespace tsg
                 cpu_threads = available_cpu_parallelism();
             ggml_backend_cpu_set_n_threads(backend, cpu_threads);
             ggml_threadpool_params tpp = ggml_threadpool_params_default(cpu_threads);
-            static std::vector<ggml_threadpool_t> s_cpu_pools; // process-lifetime
             if (ggml_threadpool_t pool = ggml_threadpool_new(&tpp))
             {
-                s_cpu_pools.push_back(pool);
+                g_cpu_pools.push_back(pool);
                 ggml_backend_cpu_set_threadpool(backend, pool);
             }
             return backend;
@@ -677,7 +682,18 @@ namespace tsg
             return false;
         }
 
-        std::call_once(g_backend_init_once, initialize_backend);
+        {
+            // Once, exactly as std::call_once did -- including the part where an
+            // initialize_backend that RETURNS having failed is not tried again, so a
+            // machine with no usable device does not pay for the attempt on every op.
+            // TSGgml_RecreateBackend is the only thing that puts this back.
+            std::lock_guard<std::mutex> guard(g_backend_init_mutex);
+            if (!g_backend_initialized)
+            {
+                initialize_backend();
+                g_backend_initialized = true;
+            }
+        }
         return g_backend != nullptr;
     }
 
@@ -2883,10 +2899,10 @@ TSG_EXPORT const char* TSGgml_GetLastError()
 // command buffer returns SUCCESS — ggml_backend_synchronize has no way to say
 // otherwise — and only the NEXT graph fails.
 //
-// It never clears. On Metal the backend latches its own has_error and recovers
-// only by being recreated, and TSGgml_Shutdown consumes this process's one-shot
-// backend init (std::call_once on g_backend_init_once), so there is no in-process
-// recovery to offer: the honest answer is that the host has to restart.
+// It does not clear by itself. On Metal the backend latches its own has_error and
+// recovers only by being recreated -- which TSGgml_RecreateBackend now does, and is
+// the only thing that clears this flag. Callers that cannot rebuild (every host
+// except the iOS app, so far) should still read it as terminal.
 TSG_EXPORT int TSGgml_HasBackendFailure()
 {
     return g_backend_compute_failed.load(std::memory_order_acquire) ? 1 : 0;
@@ -3115,8 +3131,17 @@ TSG_EXPORT void TSGgml_ClearHostBufferCache()
 // and the assertion fires inside __cxa_finalize_ranges, aborting the
 // process. Freeing the backend here drains every Metal command buffer and
 // releases the resource-set entries before the device deleter runs.
+// One teardown at a time. TSGgml_Shutdown is reached from three places that can
+// overlap: AgentAppHost.Dispose, the ProcessExit hook the app installs, and
+// TSGgml_RecreateBackend on a recovery. Two of them inside ggml_backend_free on the
+// same context at once is a double free, and "the user quit the app while it was
+// rebuilding the engine" is an ordinary way to get there. Recursive, because the
+// recreate holds it across its call to the shutdown.
+static std::recursive_mutex g_teardown_mutex;
+
 TSG_EXPORT void TSGgml_Shutdown()
 {
+    std::lock_guard<std::recursive_mutex> teardown(g_teardown_mutex);
     // Tear the TP communicator down first: it holds NCCL communicators and
     // pinned staging buffers that reference every rank's backend.
     tp_comm_free();
@@ -3209,8 +3234,72 @@ TSG_EXPORT void TSGgml_Shutdown()
         }
         tsg::dev(r).device_index = -1;
     }
+    // After the backend: a CPU backend still references its pool until it is freed.
+    for (ggml_threadpool_t pool : tsg::g_cpu_pools)
+        ggml_threadpool_free(pool);
+    tsg::g_cpu_pools.clear();
     tsg::g_device_count.store(1, std::memory_order_release);
     g_pending_gpu_work.store(false, std::memory_order_release);
+}
+
+// Throw the GPU backend away and build it again, in this process.
+//
+// The failure this exists for belongs to iOS. An app that is not frontmost may not
+// submit work to the GPU, and a command buffer committed a moment after the user
+// swipes away comes back with
+// kIOGPUCommandBufferCallbackErrorBackgroundExecutionNotPermitted ("Insufficient
+// Permission (to submit GPU work from background)"). ggml-metal's reaction is to
+// latch has_error, and its own comment says the backend must be recreated to clear
+// it -- so one badly-timed submission did not cost a token, it cost the model for the
+// rest of the process. Every message after it failed too, and the only cure was
+// force-quitting the app. On a phone that is the whole app.
+//
+// Reloading the weights was not enough and it took a device to show why: g_backend is
+// a process global that a model load never touches, so the "repaired" engine was the
+// same poisoned one with new weights in it. This is the missing half.
+//
+// The caller must release the loaded model FIRST. Its tensors live in buffers this
+// frees, and freeing them twice is a crash rather than an error. The order that works
+// is: unload the model, recreate the backend, load the model again.
+//
+// Returns 1 when a working backend is standing afterwards.
+TSG_EXPORT int TSGgml_RecreateBackend()
+{
+    std::lock_guard<std::recursive_mutex> teardown(g_teardown_mutex);
+    clear_last_error();
+
+    const int backend_type = tsg::g_backend_type;
+    if (backend_type == 0)
+    {
+        // Nothing was ever initialised, so there is nothing to repair and the next op
+        // will build one anyway.
+        return 1;
+    }
+
+    // The full teardown, reused rather than reimplemented: it drains every command
+    // buffer, releases the caches that hold MTLBuffer wrappers, and frees the backend
+    // in the order the Metal device's deleter asserts on.
+    TSGgml_Shutdown();
+
+    {
+        std::lock_guard<std::mutex> guard(tsg::g_backend_init_mutex);
+        tsg::g_backend_initialized = false;
+    }
+    // Shutdown leaves the TYPE alone on purpose; the app is not switching backends,
+    // it is replacing the one it has with an identical, healthy one.
+    tsg::g_backend_type = backend_type;
+
+    // Cleared only here. Anything latched belonged to the backend that has just been
+    // freed, and keeping it would make the new one look broken from its first graph.
+    tsg::g_backend_compute_failed.store(false, std::memory_order_release);
+    {
+        std::lock_guard<std::mutex> lock(tsg::g_ggml_error_log_mutex);
+        tsg::g_ggml_failure_log.clear();
+    }
+
+    if (!tsg::ensure_backend(backend_type))
+        return 0;
+    return 1;
 }
 
 // Release the reusable per-graph compute buffer + gallocr WITHOUT tearing down the

@@ -169,6 +169,12 @@ namespace TensorSharp.Models
             // back / desyncs positions.
             RestorePrimaryCache();
 
+            // Torn down underneath a step (the engine is disposed before a model is
+            // released, but this is the same guard every sibling hook carries): decline
+            // rather than dereference a dictionary that no longer exists.
+            if (_fusedHolders == null)
+                return false;
+
             var holders = new Qwen35KvCacheHolder[n];
             for (int i = 0; i < n; i++)
             {

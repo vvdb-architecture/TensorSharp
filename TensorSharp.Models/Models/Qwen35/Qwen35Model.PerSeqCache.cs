@@ -412,6 +412,17 @@ namespace TensorSharp.Models
         {
             if (_activeFusedKey == null)
                 return;
+            // Null-checked like its four siblings (OnSequenceReleased, RetainSequenceCache,
+            // TryRebindRetainedCache, DiscardRetainedCache), and this was the one that was
+            // not. DisposeAllFusedHolders frees the dictionary and only clears
+            // _activeFusedKey afterwards, so a step racing a teardown found exactly the
+            // state this now returns from -- reported from an iPhone as the whole of the
+            // failure: "Object reference not set to an instance of an object".
+            if (_fusedHolders == null)
+            {
+                _activeFusedKey = null;
+                return;
+            }
             _fusedHolders[_activeFusedKey] = SnapshotActiveCache();
             _activeFusedKey = null;
             if (_primaryHolder != null)
@@ -725,6 +736,10 @@ namespace TensorSharp.Models
         /// freed by the normal cache teardown).</summary>
         private void DisposeAllFusedHolders()
         {
+            // Read once, before the key is cleared: the primary-holder block below
+            // still has to know whether a fused holder was active, and the key itself
+            // must not outlive the dictionary it indexes (see RestorePrimaryCache).
+            bool fusedWasActive = _activeFusedKey != null;
             if (_fusedHolders != null)
             {
                 foreach (var kv in _fusedHolders)
@@ -735,6 +750,11 @@ namespace TensorSharp.Models
                 }
                 _fusedHolders.Clear();
                 _fusedHolders = null;
+                // Before anything else can look: _activeFusedKey is a key INTO the
+                // dictionary just freed, and every reader that trusts the key to name a
+                // live entry is correct only while both are true together. Clearing it
+                // last left a window in which the key outlived what it pointed at.
+                _activeFusedKey = null;
             }
             if (_retainedFusedHolders != null)
             {
@@ -751,10 +771,10 @@ namespace TensorSharp.Models
             }
             if (_primaryHolder != null)
             {
-                // If a fused holder is active, the primary snapshot owns distinct
+                // If a fused holder was active, the primary snapshot owns distinct
                 // arrays that must be freed; if the primary is active it shares the
                 // model fields and is freed by the main teardown.
-                if (_activeFusedKey != null)
+                if (fusedWasActive)
                     DisposeHolder(_primaryHolder);
                 _primaryHolder = null;
             }

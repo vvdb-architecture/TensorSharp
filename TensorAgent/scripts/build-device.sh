@@ -16,6 +16,13 @@
 #                     a stale unsigned bundle can never be reused)
 #   TENSORAGENT_REBUILD_XCFRAMEWORK=1  rebuild the device + simulator native
 #                     slices even when the xcframework already exists
+#   TENSORAGENT_DOTNET_ARGS  extra arguments for `dotnet build`. The one that earns
+#                     its keep is -m:1: AdvUtils (and a few siblings) write a single
+#                     bin\ regardless of configuration, and an iOS build reaches them
+#                     under more than one property set, so two MSBuild nodes can race
+#                     for the same deps.json ("The process cannot access the file ...
+#                     AdvUtils.deps.json because it is being used by another process",
+#                     MSB4018 from GenerateDepsFile). Single-node builds cannot.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -57,6 +64,10 @@ else
     [[ -n "${CODESIGN_PROVISION:-}" ]] && ARGS+=( -p:CodesignProvision="${CODESIGN_PROVISION}" )
 fi
 [[ "${NO_INCREMENTAL:-0}" == "1" ]] && ARGS+=( --no-incremental )
+if [[ -n "${TENSORAGENT_DOTNET_ARGS:-}" ]]; then
+    # shellcheck disable=SC2206
+    ARGS+=( ${TENSORAGENT_DOTNET_ARGS} )
+fi
 
 echo "==> dotnet $(dotnet --version): TensorAgent.Maui (${CONFIGURATION}, ios-arm64)"
 dotnet build "${ARGS[@]}"

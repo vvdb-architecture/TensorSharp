@@ -77,7 +77,7 @@ public sealed class LoopbackWebHost : IDisposable
         _backgroundDownloads = new Platforms.iOS.BackgroundDownloads(_host.Downloads);
         // And the same for a generation, which needs it more: a turn takes a minute and
         // the display sleeps in less than that.
-        _backgroundGeneration = new Platforms.iOS.BackgroundGeneration(_host.Turns, _host.Settings);
+        _backgroundGeneration = new Platforms.iOS.BackgroundGeneration(_host);
     }
 
     /// <summary>
@@ -125,6 +125,12 @@ public sealed class LoopbackWebHost : IDisposable
     /// rather than as an error. <see cref="Core.Catalog.ModelStore"/> already does.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Where a durable log belongs on this device. Exposed because logging is
+    /// configured before the host exists, and the two must agree on the directory.
+    /// </summary>
+    public static string DeviceLogsDirectory() => DevicePaths().LogsDirectory;
+
     private static AgentPaths DevicePaths()
     {
         string data = NSSearchPath.GetDirectories(NSSearchPathDirectory.ApplicationSupportDirectory, NSSearchPathDomain.User, true)[0];
