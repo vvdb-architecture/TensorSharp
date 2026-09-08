@@ -101,6 +101,13 @@ namespace TensorSharp.Runtime
         /// </summary>
         void PrepareForPrefill(int requiredContextTokens) { }
 
+        /// <summary>Release memory that only serves the NEXT request's speed — parked
+        /// per-request holders, pooled host buffers — because the host has been told
+        /// the process is about to run out. Called on the engine thread between steps,
+        /// so no forward is in flight; a live cache is never touched. Default: nothing
+        /// to release.</summary>
+        void TrimIdleMemory() { }
+
         /// <summary>
         /// Stable identifier tying snapshots to a specific (model, layer count, head
         /// counts, head dim, KV dtype) tuple. Snapshots are only safe to restore into

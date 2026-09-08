@@ -151,6 +151,30 @@ namespace TensorSharp.GGML
             FreeToSystem(block);
         }
 
+        /// <summary>
+        /// Free every block the pool is holding for reuse and return the bytes released.
+        /// Outstanding blocks are untouched; the pool refills itself on demand, so the
+        /// only cost of trimming is that the next few allocations map fresh memory.
+        /// </summary>
+        public long Trim()
+        {
+            List<PoolBlock> release;
+            lock (_lock)
+            {
+                if (_available.Count == 0)
+                    return 0;
+                release = new List<PoolBlock>(_available);
+                _available.Clear();
+            }
+            long bytes = 0;
+            foreach (PoolBlock block in release)
+            {
+                bytes += (long)block.Size;
+                FreeToSystem(block);
+            }
+            return bytes;
+        }
+
         private nuint AlignSize(nuint size)
         {
             if (size == 0) return (nuint)_pageSize;

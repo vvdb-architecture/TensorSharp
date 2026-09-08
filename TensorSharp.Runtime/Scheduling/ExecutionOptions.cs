@@ -79,6 +79,34 @@ namespace TensorSharp.Runtime.Scheduling
         /// (default 2).</summary>
         public int PrefixCheckpointBudget { get; init; } = 2;
 
+        /// <summary>Tokens of K/V a cache is given when it is CREATED — the model's
+        /// primary cache at load, and every per-request holder — before any request
+        /// has declared a budget of its own. 0 keeps the engine's policy: the whole
+        /// window when <c>MAX_CONTEXT</c> is explicit, otherwise a backend-tuned
+        /// default. The cache still grows on demand and a request still reserves what
+        /// it declares (see <see cref="KvGenerationReserveMax"/>); this only decides
+        /// what is committed before then. It matters where memory is the limit: every
+        /// holder the engine keeps — the idle primary cache once the per-request path
+        /// takes over, each retained conversation, each parked holder — is paid at
+        /// this size, host copy and device mirror both, whether or not a token was
+        /// ever written to it. Env: <c>TS_KV_INITIAL_TOKENS</c> (default 0).</summary>
+        public int KvInitialTokens { get; init; }
+
+        /// <summary>Cap on the GENERATION share of the K/V a request reserves before
+        /// its first prefill chunk (<c>BatchExecutor.BuildPrefillChunk</c> reserves
+        /// prompt + max_new_tokens in one allocation). A reply limit larger than the
+        /// window otherwise reserves the whole window for every request, however short
+        /// the conversation is. Past the cap the cache grows on demand while the reply
+        /// runs. 0 = no cap. Env: <c>TS_KV_GENERATION_RESERVE_MAX</c> (default 0).</summary>
+        public int KvGenerationReserveMax { get; init; }
+
+        /// <summary>How many released per-request holders a model may PARK for reuse
+        /// instead of freeing. Parking keeps stable host pointers (and, on discrete
+        /// GPUs, the device mirrors) so a later request skips allocation and graph
+        /// capture; each parked holder costs its whole K/V allocation for as long as it
+        /// waits. Env: <c>TS_KV_HOLDER_POOL_MAX</c> (default 64).</summary>
+        public int KvHolderPoolMax { get; init; } = 64;
+
         /// <summary>All defaults — the configuration used when no TS_* override
         /// is set. Handy for tests.</summary>
         public static ExecutionOptions Default { get; } = new();
@@ -94,6 +122,9 @@ namespace TensorSharp.Runtime.Scheduling
             RetainedFusedCacheBudget = ReadNonNegativeInt("TS_RETAINED_FUSED_CACHE_MAX", 4),
             PrefixCheckpointsEnabled = ReadFlag("TS_PREFIX_CHECKPOINTS", true),
             PrefixCheckpointBudget = ReadNonNegativeInt("TS_PREFIX_CHECKPOINTS_MAX", 2),
+            KvInitialTokens = ReadNonNegativeInt("TS_KV_INITIAL_TOKENS", 0),
+            KvGenerationReserveMax = ReadNonNegativeInt("TS_KV_GENERATION_RESERVE_MAX", 0),
+            KvHolderPoolMax = ReadNonNegativeInt("TS_KV_HOLDER_POOL_MAX", 64),
         };
 
         /// <summary>One-line summary of the non-default overrides in effect
@@ -109,6 +140,9 @@ namespace TensorSharp.Runtime.Scheduling
             if (RetainedFusedCacheBudget != 4) parts.Add($"TS_RETAINED_FUSED_CACHE_MAX={RetainedFusedCacheBudget}");
             if (!PrefixCheckpointsEnabled) parts.Add("TS_PREFIX_CHECKPOINTS=0");
             if (PrefixCheckpointBudget != 2) parts.Add($"TS_PREFIX_CHECKPOINTS_MAX={PrefixCheckpointBudget}");
+            if (KvInitialTokens != 0) parts.Add($"TS_KV_INITIAL_TOKENS={KvInitialTokens}");
+            if (KvGenerationReserveMax != 0) parts.Add($"TS_KV_GENERATION_RESERVE_MAX={KvGenerationReserveMax}");
+            if (KvHolderPoolMax != 64) parts.Add($"TS_KV_HOLDER_POOL_MAX={KvHolderPoolMax}");
             return string.Join(", ", parts);
         }
 

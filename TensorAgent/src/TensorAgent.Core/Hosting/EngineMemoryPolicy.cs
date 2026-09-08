@@ -55,6 +55,50 @@ public static class EngineMemoryPolicy
     public const string KvCacheDtypeVariable = "KV_CACHE_DTYPE";
 
     /// <summary>
+    /// What the engine keeps beyond the one cache a turn is using, and how much of the
+    /// window it commits before a request says what it needs. Each is an engine knob
+    /// (<c>ExecutionOptions</c>) with a desktop default written for a machine with
+    /// memory to spare; these are the phone's values, and every one is a measured
+    /// number, not a guess.
+    ///
+    /// <para>
+    /// The jetsam reports the phone kept tell the whole story. Every kill was a
+    /// system-wide page shortage with 7.5-10 GB of the 12 GB wired while TensorAgent's
+    /// own footprint was 2.3-5.6 GB: the weights are wired by Metal outside the
+    /// footprint (see <see cref="ProcessMemory"/>), so the app has roughly 12 GB minus
+    /// the weights minus ~3 GB of kernel and system to live in -- about 3.5 GB for a
+    /// 5 GB model -- and the K/V cache is paid TWICE in it, host copy and Metal mirror.
+    /// The phone's settings had the reply length at 262,144 tokens, so every request
+    /// reserved the entire 32k window for its holder; the engine then kept up to four
+    /// finished conversations' holders and parked up to 64 more, every one sized to
+    /// the whole window, and the primary cache the engine loads with (also the whole
+    /// window) sat idle behind them once the per-request path took over.
+    /// </para>
+    ///
+    /// <para>
+    /// The values: a cache starts at 2,048 tokens and grows as the conversation does
+    /// (four doublings to reach 32k, each a copy of what is resident -- measured under
+    /// a second in total on the phone); a request pre-reserves at most 1,024 tokens of
+    /// reply beyond its prompt and grows on demand past that; one finished
+    /// conversation stays resident for the follow-up turn (the shared-prefix
+    /// checkpoint, kept separately, is what makes a NEW chat fast); and nothing is
+    /// parked. Measured on the Mac with the phone's settings and the research-then-
+    /// pptx prompt that was killing the app, 27 tool rounds to a 29k-token context:
+    /// the host held 3.7 GB before, and the reduction is reported by the bench
+    /// (benchmarks/TensorAgentTtftBench --scenarios agentic).
+    /// </para>
+    /// </summary>
+    public const string KvInitialTokensVariable = "TS_KV_INITIAL_TOKENS";
+    public const string KvGenerationReserveMaxVariable = "TS_KV_GENERATION_RESERVE_MAX";
+    public const string KvHolderPoolMaxVariable = "TS_KV_HOLDER_POOL_MAX";
+    public const string RetainedFusedCacheMaxVariable = "TS_RETAINED_FUSED_CACHE_MAX";
+
+    public const int KvInitialTokens = 2048;
+    public const int KvGenerationReserveMax = 1024;
+    public const int KvHolderPoolMax = 0;
+    public const int RetainedFusedCacheMax = 1;
+
+    /// <summary>
     /// The K/V cache precisions the Settings screen offers, widest first.
     ///
     /// <para>
@@ -129,12 +173,23 @@ public static class EngineMemoryPolicy
         // without this call the variable above would be as inert as it was before.
         TensorSharp.Models.KvCacheDtypeConfig.ConfigureFromEnvironment();
 
+        // What the engine may keep besides the cache in use, and how much it commits
+        // ahead of a request. Read by the engine on every step and by the model at
+        // construction, so setting them here -- before the load, on every load -- is
+        // enough. See the summary on the constants for the numbers.
+        Environment.SetEnvironmentVariable(KvInitialTokensVariable, KvInitialTokens.ToString());
+        Environment.SetEnvironmentVariable(KvGenerationReserveMaxVariable, KvGenerationReserveMax.ToString());
+        Environment.SetEnvironmentVariable(KvHolderPoolMaxVariable, KvHolderPoolMax.ToString());
+        Environment.SetEnvironmentVariable(RetainedFusedCacheMaxVariable, RetainedFusedCacheMax.ToString());
+
         Console.WriteLine(
             $"TensorAgent: engine budget for {model.Id} -- context {(context > 0 ? context.ToString() : "from GGUF")}, " +
             $"KV cache {(string.IsNullOrWhiteSpace(dtype) ? "auto" : dtype)}"
             + (string.Equals(dtype, model.KvCacheDtype, StringComparison.OrdinalIgnoreCase)
                 ? string.Empty
-                : $" (setting; this entry asks for {model.KvCacheDtype})"));
+                : $" (setting; this entry asks for {model.KvCacheDtype})")
+            + $"; caches start at {KvInitialTokens} tokens, pre-reserve at most {KvGenerationReserveMax} of reply, "
+            + $"{RetainedFusedCacheMax} finished conversation kept, {KvHolderPoolMax} parked");
 
         return context;
     }

@@ -141,6 +141,17 @@ namespace TensorSharp.Runtime.Scheduling
         private long _stepsHeldByGate;
 
         /// <summary>
+        /// Where shared-prefix checkpoints outlive the process, or null for nowhere;
+        /// forwarded to the executor, which reads it on its own thread. See
+        /// <see cref="IPrefixCheckpointStore"/>.
+        /// </summary>
+        public IPrefixCheckpointStore PrefixCheckpointStore
+        {
+            get => _executor.PrefixCheckpointStore;
+            set => _executor.PrefixCheckpointStore = value;
+        }
+
+        /// <summary>
         /// How many times the step loop was actually held by a closed
         /// <see cref="ComputeGate"/>. Zero on any host that never closes it; a check
         /// reads it to prove the loop parked rather than merely that the gate closed.
@@ -198,6 +209,18 @@ namespace TensorSharp.Runtime.Scheduling
                 Kind = EngineCommandKind.Abort,
                 RequestId = requestId,
             });
+        }
+
+        /// <summary>
+        /// Release memory that only serves the next request's speed (retained
+        /// conversation holders beyond the newest, parked per-request holders, pooled
+        /// host buffers). Queued like an abort and applied on the engine thread between
+        /// steps, because those buffers belong to the model and a forward may be reading
+        /// them right now. Safe to call at any time; a no-op after disposal.
+        /// </summary>
+        public void TrimIdleMemory()
+        {
+            _commands.Writer.TryWrite(new EngineCommand { Kind = EngineCommandKind.Trim });
         }
 
         public void Dispose()
@@ -553,6 +576,18 @@ namespace TensorSharp.Runtime.Scheduling
                     }
                     break;
 
+                case EngineCommandKind.Trim:
+                    try
+                    {
+                        _logger.LogInformation("Idle memory trimmed on the host's request: {Summary}",
+                            _executor.TrimIdleMemory());
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Trimming idle memory failed");
+                    }
+                    break;
+
                 case EngineCommandKind.Abort:
                     _scheduler.Abort(cmd.RequestId);
                     if (_model is Runtime.Scheduling.IBatchedPagedModel batchedAbort)
@@ -739,6 +774,7 @@ namespace TensorSharp.Runtime.Scheduling
         {
             Submit,
             Abort,
+            Trim,
         }
     }
 }

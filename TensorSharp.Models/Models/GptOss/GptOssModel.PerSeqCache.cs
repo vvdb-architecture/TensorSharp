@@ -80,7 +80,6 @@ namespace TensorSharp.Models
         // parked holder costs only its grown host arrays, while overflow
         // disposes tensors and (via the invalidate hooks) retires native
         // decode state - far more expensive than parking under churn.
-        private const int HolderPoolMax = 64;
         private string _lastBatchedDeclineLogged;
         // Staging for the batched kernel's packed [vocab, N] logits output;
         // grown on demand, reused every step.
@@ -293,8 +292,11 @@ namespace TensorSharp.Models
             }
 
             _fusedHolders.Remove(requestId);
-            _holderPool ??= new List<GptOssKvCacheHolder>(HolderPoolMax);
-            if (_holderPool.Count < HolderPoolMax)
+            // Bounded by the same knob as Qwen's pool (TS_KV_HOLDER_POOL_MAX): a parked
+            // holder costs its whole K/V allocation for as long as it waits.
+            int poolMax = Runtime.Scheduling.ExecutionOptions.FromEnvironment().KvHolderPoolMax;
+            _holderPool ??= new List<GptOssKvCacheHolder>(Math.Max(1, poolMax));
+            if (_holderPool.Count < poolMax)
             {
                 // Park the allocation for the next request. The tensors stay
                 // alive, so the native decode-graph pools (keyed on these host

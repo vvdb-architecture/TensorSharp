@@ -1,0 +1,28 @@
+diff --git a/src/ggml-metal/ggml-metal-ops.cpp b/src/ggml-metal/ggml-metal-ops.cpp
+index 3db8bca..818c79a 100644
+--- a/src/ggml-metal/ggml-metal-ops.cpp
++++ b/src/ggml-metal/ggml-metal-ops.cpp
+@@ -3066,10 +3066,19 @@ size_t ggml_metal_op_flash_attn_ext_extra_tmp(const ggml_tensor * op) {
+ size_t ggml_metal_op_flash_attn_ext_extra_kv_f16(const ggml_tensor * op) {
+     assert(op->op == GGML_OP_FLASH_ATTN_EXT);
+ 
+-    // note: always reserve the temp buffer to avoid graph reallocations
+-    //if (!ggml_metal_op_flash_attn_ext_use_kv_f16(op)) {
+-    //    return 0;
+-    //}
++    // TensorSharp: reserve the F16 dequant scratch only for ops that will use it.
++    // Upstream always reserves it "to avoid graph reallocations", but the scratch is
++    // an F16 copy of the WHOLE K/V window per flash-attention node, and a
++    // persistently allocated decode graph (one node per attention layer, unique
++    // slots, Metal residency set) turns that into resident memory the size of an
++    // F16 K/V cache at full capacity -- 2.1 GB for a 16-layer hybrid at 32k tokens,
++    // on top of the quantized cache it never reads through. A single-token decode
++    // (ne01 < 32) never dequantizes, and neither does an F16/F32 cache. A graph
++    // whose shape later crosses the 32-row threshold is re-allocated by gallocr
++    // like any other shape change.
++    if (!ggml_metal_op_flash_attn_ext_use_kv_f16(op)) {
++        return 0;
++    }
+ 
+     GGML_TENSOR_LOCALS( int32_t, ne2, op->src[2], ne);
+ 

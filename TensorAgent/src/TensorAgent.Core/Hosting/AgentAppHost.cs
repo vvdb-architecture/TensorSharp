@@ -97,6 +97,12 @@ public sealed class AgentAppHost : IDisposable
         // no delete button, and it is gigabytes. Swept once per launch, before anything
         // reads the store.
         Models.SweepOrphanedModels();
+        // And the checkpoints of models the catalog no longer has: a directory no
+        // entry claims has no delete button either.
+        PrefixCheckpointFileStore.SweepOrphans(
+            Path.Combine(Paths.CacheRoot, "prefix-cache"),
+            id => ModelCatalog.Find(id) is not null,
+            HostLog);
         // The downloads belong to the APP, not to the model list: a five-gigabyte
         // transfer must not end because the user went back to the chat. See
         // ModelDownloadManager.
@@ -262,6 +268,19 @@ public sealed class AgentAppHost : IDisposable
         // screen, another app, a display that dimmed -- and every one of those used to
         // be an answer thrown away halfway through.
         Turns = new ChatTurnManager(Recorder);
+        // One line per finished turn saying what the process is charged and what the
+        // device has left. A jetsam kill leaves no message of its own; these lines,
+        // and the one the memory warning writes, are the evidence it leaves behind.
+        Turns.BusyChanged += busy =>
+        {
+            if (busy)
+                StartMemoryTrace();
+            else
+            {
+                StopMemoryTrace();
+                LogMemory("after the turn");
+            }
+        };
 
         SkillsService = new SkillsService(Skills, Options, Uploads, _loggerFactory);
 
@@ -421,6 +440,7 @@ public sealed class AgentAppHost : IDisposable
         // this warm-up, and a token copied before that stays readable afterwards
         // where `source.Token` would throw ObjectDisposedException.
         CancellationToken token = source.Token;
+        bool rebuildAfterwards = false;
         Task running = Task.Run(async () =>
         {
             try
@@ -483,18 +503,27 @@ public sealed class AgentAppHost : IDisposable
                 {
                     HostLog.LogWarning("warming the prefix cache failed: {Error}", failure);
                     Console.WriteLine("TensorAgent: warm-up failed: " + failure);
-                    // The warm-up is the likeliest thing to meet a refused GPU: it runs
-                    // seconds after every load, launch included. Marking here is what
-                    // lets the user's first message rebuild BEFORE it is attempted,
-                    // rather than fail once, say so, and start again.
+                    // The warm-up is the likeliest thing to meet a dead GPU: it runs
+                    // seconds after every load, launch included, and a GPU reset caused by
+                    // the previous process being killed mid-compute lands on it twice a day
+                    // in testing. Marking is what makes the next message rebuild before it
+                    // is attempted -- but a rebuild at the next message still costs that
+                    // message the whole prompt (40 s on the phone, measured), because the
+                    // checkpoint went with the backend. Nothing is running right now, so
+                    // the rebuild AND the re-warm happen here, while the user is still
+                    // reading, and the message pays nothing. See RebuildAfterAPoisonedWarmUp.
                     if (ReadsLikeAPoisonedEngine(failure) is { Length: > 0 } poison)
+                    {
                         NoteEngineMayBePoisoned(poison);
+                        rebuildAfterwards = true;
+                    }
                     return;
                 }
                 PrefixCacheIsWarm = true;
                 string line = $"the prompt every chat starts with is now in the cache ({clock.Elapsed.TotalSeconds:0.#}s)";
                 HostLog.LogInformation("{Line}", line);
                 Console.WriteLine("TensorAgent: warm-up: " + line);
+                LogMemory("after the warm-up");
             }
             catch (OperationCanceledException)
             {
@@ -507,6 +536,13 @@ public sealed class AgentAppHost : IDisposable
                 // just as slow on its first message.
                 HostLog.LogWarning(ex, "warming the prefix cache did not finish");
                 Console.WriteLine("TensorAgent: warm-up did not finish: " + ex.Message);
+            }
+            finally
+            {
+                // From a task of its own, after this one is out of the way: the rebuild
+                // stops and waits for "the warm-up", which is this very task.
+                if (rebuildAfterwards)
+                    RebuildAfterAPoisonedWarmUp();
             }
         }, CancellationToken.None);
 
@@ -678,6 +714,11 @@ public sealed class AgentAppHost : IDisposable
                 // about to forward the very prompt a warm-up would forward.
                 await Task.Run(() => RecoverEngineIfNeeded(warmAfterwards: false), cancellationToken)
                     .ConfigureAwait(false);
+                // Unless the rebuild had already been done by another path -- the return
+                // to the foreground, or a warm-up that met the dead backend -- while this
+                // turn waited for the recovery lock: THAT rebuild warms afterwards, and
+                // its warm-up must not run beside this turn either.
+                await StopWarmingThePrefixCacheAndWaitAsync().ConfigureAwait(false);
             }
 
             long closuresAtStart = Compute.Closures;
@@ -1035,6 +1076,74 @@ public sealed class AgentAppHost : IDisposable
     /// <summary>Raised when <see cref="EngineNeedsReload"/> becomes true.</summary>
     public event Action<string>? EnginePoisoned;
 
+    private int _rebuildsAfterPoisonedWarmUps;
+
+    /// <summary>
+    /// How many times a warm-up that met a dead backend has had the engine rebuilt on
+    /// the spot rather than leaving it to the next message. See
+    /// <see cref="RebuildAfterAPoisonedWarmUp"/>.
+    /// </summary>
+    public int RebuildsAfterPoisonedWarmUps => Volatile.Read(ref _rebuildsAfterPoisonedWarmUps);
+
+    /// <summary>
+    /// The engine is dead and nothing is running: rebuild it now and warm it again,
+    /// so the user's next message finds a working, warm engine instead of paying for
+    /// the rebuild and the whole prompt itself.
+    ///
+    /// <para>
+    /// Three attempts per launch, and not back to back. On the phone the fault that
+    /// reaches a warm-up is a GPU reset — every command buffer for the next minute or so
+    /// comes back "victim of GPU error/recovery", whatever backend submits it — so a
+    /// rebuild that follows the fault immediately meets the same storm (three warm-ups
+    /// faulted in 53 s on three fresh backends, observed). The second and third attempts
+    /// therefore wait, and a GPU that is still poisoning warm-ups after that is not one a
+    /// loop of reloads will cure: the next message still rebuilds on its own. Not while
+    /// the app is away (loading is GPU work; the resume path rebuilds then) and not
+    /// beside a turn (the turn rebuilds for itself, and a rebuild under a live
+    /// generation is a crash).
+    /// </para>
+    /// </summary>
+    private void RebuildAfterAPoisonedWarmUp()
+    {
+        int attempt = Interlocked.Increment(ref _rebuildsAfterPoisonedWarmUps);
+        if (attempt > RebuildBackoff.Length)
+        {
+            TraceBackground("the warm-up met a dead backend again; leaving the rebuild to the next message");
+            return;
+        }
+        TimeSpan wait = RebuildBackoff[attempt - 1];
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (wait > TimeSpan.Zero)
+                {
+                    TraceBackground($"the warm-up met a dead backend; waiting {wait.TotalSeconds:0}s for the GPU to settle before rebuilding again");
+                    await Task.Delay(wait).ConfigureAwait(false);
+                }
+                if (!Compute.IsOpen || Turns.IsBusy || !EngineNeedsReload)
+                {
+                    TraceBackground("the warm-up met a dead backend; the app is away, a turn is running, or it has been rebuilt already, so this leaves it");
+                    return;
+                }
+                TraceBackground("the warm-up met a dead backend: rebuilding the engine now, while nothing is running");
+                RecoverEngineIfNeeded();
+            }
+            catch (Exception ex)
+            {
+                TraceBackground("rebuilding after a poisoned warm-up threw: " + ex.Message);
+            }
+        });
+    }
+
+    /// <summary>How long each proactive rebuild waits before it starts; the length is the attempt cap.</summary>
+    private static readonly TimeSpan[] RebuildBackoff =
+    [
+        TimeSpan.Zero,
+        TimeSpan.FromSeconds(15),
+        TimeSpan.FromSeconds(60),
+    ];
+
     private void NoteEngineMayBePoisoned(string cause)
     {
         if (EngineNeedsReload)
@@ -1289,7 +1398,102 @@ public sealed class AgentAppHost : IDisposable
             // WarmThePrefixCache; a probe waits on this rather than measuring the cold
             // path it exists to remove.
             prefixCacheWarm = PrefixCacheIsWarm,
+            // The numbers a kill is decided on, so a probe (and a bench) can read them
+            // without a console attached. See ProcessMemory.
+            memory = ProcessMemory.Describe(),
         };
+    }
+
+    private Timer? _memoryTrace;
+
+    /// <summary>
+    /// While a turn runs, one memory line every half minute. A turn on a phone is
+    /// minutes of tool rounds, and a kill in the middle of one leaves no report of its
+    /// own often enough; the trace is what says how much the process was charged and
+    /// how much the device had left at the last half-minute before it stopped.
+    /// </summary>
+    private void StartMemoryTrace()
+    {
+        Timer? previous = Interlocked.Exchange(ref _memoryTrace, new Timer(
+            _ => LogMemory("during the turn"), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30)));
+        previous?.Dispose();
+    }
+
+    private void StopMemoryTrace() => Interlocked.Exchange(ref _memoryTrace, null)?.Dispose();
+
+    /// <summary>
+    /// Write one memory line to the console and the host log: what this process is
+    /// charged, what the device has wired and free. The label says which moment.
+    /// </summary>
+    private void LogMemory(string moment)
+    {
+        try
+        {
+            string line = $"memory {moment} -- {ProcessMemory.Describe()}";
+            Console.WriteLine("TensorAgent: " + line);
+            HostLog.LogInformation("{Line}", line);
+        }
+        catch (Exception)
+        {
+            // A memory line must never be what breaks the moment it describes.
+        }
+    }
+
+    /// <summary>
+    /// The system has asked for memory back; give what can be given without touching
+    /// the turn in progress.
+    ///
+    /// <para>
+    /// Until this existed the warning was only logged, on the grounds that the weights
+    /// are a mapping the engine reads and the K/V cache belongs to a generation that
+    /// may be mid-token. Both remain true, and both are untouched here. What IS free
+    /// to go is everything the engine keeps only so that the NEXT request is faster:
+    /// finished conversations' caches beyond the newest (each a whole window of K/V,
+    /// paid twice on Metal), holders parked for reuse, the host memory pool's spare
+    /// blocks. The engine releases them on its own thread between steps, so a forward
+    /// in flight is never underneath the free; this only queues the request. Then the
+    /// managed heap is collected, which returns what the transcript, the page's frames
+    /// and the tool outputs of a long agentic turn left behind.
+    /// </para>
+    /// <para>
+    /// It cannot promise survival -- a page shortage can kill the process before any
+    /// of this runs -- which is why the budget the engine is given up front
+    /// (EngineMemoryPolicy) is the real defence and this is the second line.
+    /// </para>
+    /// </summary>
+    public void RelieveMemoryPressure()
+    {
+        LogMemory("at the memory warning");
+        // Off the caller's thread: iOS delivers the warning on the UI thread, and a
+        // blocking collection there -- or a wait on an engine that is mid-swap -- is
+        // how an app earns a watchdog kill on top of a memory one. The request itself
+        // is queued to the engine and returns at once; the collection is what takes time.
+        _ = Task.Run(() =>
+        {
+            bool asked = false;
+            try
+            {
+                asked = ModelService.TrimIdleMemory();
+            }
+            catch (Exception ex)
+            {
+                HostLog.LogWarning(ex, "asking the engine to trim idle memory failed");
+            }
+            try
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
+            catch (Exception)
+            {
+                // Nothing to do about a collector that will not run; the log below says so.
+            }
+            HostLog.LogInformation(
+                asked ? "memory warning: the engine was asked to release idle caches; managed heap collected"
+                      : "memory warning: the engine was busy loading or not built, so nothing was asked of it; managed heap collected");
+            LogMemory("after the memory warning was acted on");
+        });
     }
 
     /// <summary>
@@ -1598,6 +1802,18 @@ public sealed class AgentAppHost : IDisposable
     /// <returns>The backend that answered.</returns>
     public string UseModel(CatalogModel model) => UseModel(model, warmAfterwards: true);
 
+    /// <summary>
+    /// Remove a model's files and everything kept about it: the weights (and a partial
+    /// download), and the shared-prefix checkpoints saved for it, which are its state
+    /// and are useless without it.
+    /// </summary>
+    public void DeleteModel(CatalogModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        Models.Delete(model);
+        new PrefixCheckpointFileStore(Paths.PrefixCheckpointDirectoryFor(model), log: HostLog).Clear();
+    }
+
     /// <param name="warmAfterwards">
     /// Whether to forward the shared prompt afterwards so the next message reuses it
     /// (see <see cref="WarmThePrefixCache"/>). False for a caller that is itself about
@@ -1621,95 +1837,137 @@ public sealed class AgentAppHost : IDisposable
         // fault in a kernel with nothing to do with either of them.
         lock (_modelGate)
         {
-            SetModelLoad(ModelLoadState.Loading, null);
             AppSettings settings = Settings.Load();
             settings.SelectedModelId = model.Id;
             Settings.Save(settings);
-
-            // Loading is GPU work too -- ggml_metal_init and the load's own warm-up
-            // graph -- and it is refused from the background exactly as a token is.
-            // The startup load begins a few seconds BEFORE UIKit calls the process
-            // active, which on the phone produced a backend poisoned before its first
-            // token: the warm-up failed and the user's first message opened on "backend
-            // is in error state". So a load holds here until the app is in front.
-            // Bounded, because every caller is off the UI thread but the wait must never
-            // become a way for a stuck gate to make "Use" hang for ever.
-            if (!Compute.IsOpen)
-            {
-                TraceBackground("holding the model load until the app is in front");
-                try { Compute.Wait(new CancellationTokenSource(TimeSpan.FromMinutes(2)).Token); }
-                catch (OperationCanceledException)
-                {
-                    TraceBackground("the app did not come to the front within two minutes; loading anyway");
-                }
-            }
-
             string weights = Paths.SelectedModelPath(settings);
-            if (!File.Exists(weights))
+
+            // The model that is asked for is the one already standing: nothing to load.
+            // Two callers reach here for the same model at launch -- the startup load of
+            // the remembered choice and the device hook -- and the second used to reload
+            // it: twenty seconds of the user's time, and a swap of the weights under the
+            // turn the first load had already let through. Only a load that FINISHED is
+            // trusted; a failed one is retried by loading again.
+            if (ModelLoad == ModelLoadState.Loaded
+                && string.Equals(ModelService.LoadedModelPath, weights, StringComparison.Ordinal)
+                && ModelService.LoadedBackend is { Length: > 0 } standing)
             {
-                var missing = new FileNotFoundException($"{model.DisplayName} is not downloaded yet.", weights);
-                SetModelLoad(ModelLoadState.Failed, missing.Message);
-                throw missing;
+                HostLog.LogInformation("{Model} is already loaded on {Backend}; not loading it again", model.Id, standing);
+                loaded = standing;
             }
-
-            // A filename existing is not enough: an interrupted optional download can
-            // leave a truncated destination behind. Only a catalog-size-complete
-            // projector is safe to hand to the engine. Optional projectors may be
-            // absent for text-only use; required ones make the install incomplete.
-            string? projector = Models.CompanionPath(model, CatalogFileRole.Projector);
-            if (model.Projector is { Optional: false } requiredProjector && projector is null)
+            else
             {
-                string path = Models.PathFor(model, requiredProjector);
-                var missing = new FileNotFoundException(
-                    $"{model.DisplayName}'s image projector is not downloaded yet.", path);
-                SetModelLoad(ModelLoadState.Failed, missing.Message);
-                throw missing;
-            }
+                SetModelLoad(ModelLoadState.Loading, null);
 
-            // Before the load, not after: the engine reads its context length and KV
-            // dtype when the model is constructed. This is the only funnel for a load
-            // (startup, the Models list, the device hook all arrive here), which is why
-            // it is the right place for the budget. See EngineMemoryPolicy for the
-            // measurements -- this is what stops a pasted document from growing the KV
-            // cache until jetsam kills the app.
-            EngineMemoryPolicy.Apply(model, settings);
-
-            // The entry's own card values, for the same reason and in the same place.
-            // CatalogModel.Sampling was written for every entry and read by nothing, so
-            // every model was sampled at the built-in Ollama-compatible default
-            // (temperature 0.8, top-k 40, top-p 0.9) whatever its card said -- Gemma 4
-            // asks for 1.0 / 64 / 0.95 and Qwen for 0.7 / 20 / 0.8. A wrong sampler does
-            // not fail, it just answers worse, which is the hardest kind of setting to
-            // notice is inert.
-            Options.RepointSamplingDefaults(SamplingDefaultsFor(model));
-
-            Options.RepointHostedModel(weights, projector);
-
-            var refusals = new List<string>();
-            foreach (BackendOption backend in Options.SupportedBackends)
-            {
-                try
+                // Loading is GPU work too -- ggml_metal_init and the load's own warm-up
+                // graph -- and it is refused from the background exactly as a token is.
+                // The startup load begins a few seconds BEFORE UIKit calls the process
+                // active, which on the phone produced a backend poisoned before its first
+                // token: the warm-up failed and the user's first message opened on "backend
+                // is in error state". So a load holds here until the app is in front.
+                // Bounded, because every caller is off the UI thread but the wait must never
+                // become a way for a stuck gate to make "Use" hang for ever.
+                if (!Compute.IsOpen)
                 {
-                    ModelService.LoadModel(weights, projector, backend.Value);
-                    _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
-                        "using {Model} on {Backend}", model.Id, backend.Value);
-                    SetModelLoad(ModelLoadState.Loaded, null);
-                    loaded = backend.Value;
-                    break;
+                    TraceBackground("holding the model load until the app is in front");
+                    try { Compute.Wait(new CancellationTokenSource(TimeSpan.FromMinutes(2)).Token); }
+                    catch (OperationCanceledException)
+                    {
+                        TraceBackground("the app did not come to the front within two minutes; loading anyway");
+                    }
                 }
-                catch (Exception ex)
-                {
-                    refusals.Add($"{backend.Value}: {ex.Message}");
-                }
-            }
 
-            if (loaded is null)
-            {
-                var refused = new InvalidOperationException(
-                    $"{model.DisplayName} could not be loaded on any backend this build offers:"
-                    + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
-                SetModelLoad(ModelLoadState.Failed, refused.Message);
-                throw refused;
+                if (!File.Exists(weights))
+                {
+                    var missing = new FileNotFoundException($"{model.DisplayName} is not downloaded yet.", weights);
+                    SetModelLoad(ModelLoadState.Failed, missing.Message);
+                    throw missing;
+                }
+
+                // A filename existing is not enough: an interrupted optional download can
+                // leave a truncated destination behind. Only a catalog-size-complete
+                // projector is safe to hand to the engine. Optional projectors may be
+                // absent for text-only use; required ones make the install incomplete.
+                string? projector = Models.CompanionPath(model, CatalogFileRole.Projector);
+                if (model.Projector is { Optional: false } requiredProjector && projector is null)
+                {
+                    string path = Models.PathFor(model, requiredProjector);
+                    var missing = new FileNotFoundException(
+                        $"{model.DisplayName}'s image projector is not downloaded yet.", path);
+                    SetModelLoad(ModelLoadState.Failed, missing.Message);
+                    throw missing;
+                }
+
+                // Before the load, not after: the engine reads its context length and KV
+                // dtype when the model is constructed. This is the only funnel for a load
+                // (startup, the Models list, the device hook all arrive here), which is why
+                // it is the right place for the budget. See EngineMemoryPolicy for the
+                // measurements -- this is what stops a pasted document from growing the KV
+                // cache until jetsam kills the app.
+                // A load releases the model that is standing, and a turn may be running on
+                // it: the engine's threads read weights that LoadModel is about to unmap, and
+                // the request pipeline holds tensors that the model's disposal frees. The
+                // phone showed the result -- a segmentation fault in managed code the moment
+                // the second load landed under the first turn. So the turns are stopped
+                // (recorded as stopped, like the Stop button) and the engine is drained
+                // before the swap, the same order the host's own shutdown uses.
+                if (Turns.IsBusy)
+                {
+                    HostLog.LogWarning("loading {Model} stops the turn in progress", model.Id);
+                    Turns.StopAll();
+                }
+                WaitForTheEngineToStop();
+
+                EngineMemoryPolicy.Apply(model, settings);
+
+                // The entry's own card values, for the same reason and in the same place.
+                // CatalogModel.Sampling was written for every entry and read by nothing, so
+                // every model was sampled at the built-in Ollama-compatible default
+                // (temperature 0.8, top-k 40, top-p 0.9) whatever its card said -- Gemma 4
+                // asks for 1.0 / 64 / 0.95 and Qwen for 0.7 / 20 / 0.8. A wrong sampler does
+                // not fail, it just answers worse, which is the hardest kind of setting to
+                // notice is inert.
+                Options.RepointSamplingDefaults(SamplingDefaultsFor(model));
+
+                Options.RepointHostedModel(weights, projector);
+
+                // Where this model's shared-prefix checkpoint outlives the process: set BEFORE
+                // the load, so the engine built for it is born with it, and named by these
+                // weights, so a file made from other weights of the same shape is never
+                // restored. The warm-up that follows reads it back instead of prefilling it,
+                // and a first message sent before the warm-up finds it too.
+                ModelService.EngineHost.PrefixCheckpointStore = new PrefixCheckpointFileStore(
+                    Paths.PrefixCheckpointDirectoryFor(model),
+                    PrefixCheckpointFileStore.WeightsIdentityOf(weights, projector),
+                    HostLog);
+
+                var refusals = new List<string>();
+                foreach (BackendOption backend in Options.SupportedBackends)
+                {
+                    try
+                    {
+                        ModelService.LoadModel(weights, projector, backend.Value);
+                        _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
+                            "using {Model} on {Backend}", model.Id, backend.Value);
+                        LogMemory($"after loading {model.Id}");
+                        SetModelLoad(ModelLoadState.Loaded, null);
+                        loaded = backend.Value;
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        refusals.Add($"{backend.Value}: {ex.Message}");
+                    }
+                }
+
+                if (loaded is null)
+                {
+                    var refused = new InvalidOperationException(
+                        $"{model.DisplayName} could not be loaded on any backend this build offers:"
+                        + Environment.NewLine + "  " + string.Join(Environment.NewLine + "  ", refusals));
+                    SetModelLoad(ModelLoadState.Failed, refused.Message);
+                    throw refused;
+                }
             }
         }
 
@@ -1837,6 +2095,8 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     public void Dispose()
     {
+        StopMemoryTrace();
+
         // Before the turns are asked to stop, because a turn parked on a closed gate --
         // and an engine step loop parked on it -- is not running and cannot notice that
         // it should stop; shutting down while the app is not frontmost is the ordinary
@@ -1903,6 +2163,12 @@ public sealed record AgentPaths(string DataRoot, string CacheRoot)
     public string ScratchDirectory => Path.Combine(CacheRoot, "scratch");
     public string ArtifactsDirectory => Path.Combine(CacheRoot, "artifacts");
     public string LogsDirectory => Path.Combine(CacheRoot, "logs");
+
+    /// <summary>Where a model's shared-prefix checkpoints are kept between launches
+    /// (a cache: the engine rebuilds one it cannot read). Beside the models, not
+    /// inside a model's own directory, which the store's completeness check walks.</summary>
+    public string PrefixCheckpointDirectoryFor(CatalogModel model)
+        => Path.Combine(CacheRoot, "prefix-cache", model.Id);
     public string InstalledSkillsDirectory => Path.Combine(DataRoot, "skills");
     public string BundledSkillsDirectory { get; init; } = string.Empty;
 

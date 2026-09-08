@@ -45,6 +45,10 @@
 //   --root <dir>              where to put the host's data and cache (default: a temp dir)
 //   --out <file>              write the rows as JSON as well
 //   --verbose                 print every host log line, not only the cache-related ones
+//   --prompt <text>           the message the "agentic" scenario sends (a research + document task by default)
+//   --network                 allow the skills' scripts to reach the network (the app's Network switch)
+//   --agentic-max-tokens N    answer budget for the agentic turn (default 2048, the app's default)
+//   --hold S                  keep the host alive S seconds after the last turn, for an external memory snapshot
 
 using System.Diagnostics;
 using System.Globalization;
@@ -146,6 +150,8 @@ internal static class Program
             settings.KvCacheDtype = kv;
         if (opts.ContextLength is int ctx && ctx > 0)
             settings.ContextLength = ctx;
+        if (opts.Network)
+            settings.AllowNetwork = true;
         settingsStore.Save(settings);
 
         // What MauiProgram sets for the phone. A desktop default of 8192 tokens per solo
@@ -206,6 +212,15 @@ internal static class Program
                     case "tool":
                         await runner.ToolTurnAsync();
                         break;
+                    case "agentic":
+                        await runner.AgenticAsync();
+                        break;
+                    case "concurrent":
+                        await runner.ConcurrentAsync();
+                        break;
+                    case "restore":
+                        await runner.RestoreAsync();
+                        break;
                     default:
                         Console.Error.WriteLine($"unknown scenario '{scenario}'");
                         break;
@@ -214,6 +229,12 @@ internal static class Program
         }
         finally
         {
+            Console.WriteLine($"ttft-bench: memory after the last turn -- {ProcessMemoryProbe.Describe()}");
+            if (opts.HoldSeconds > 0)
+            {
+                Console.WriteLine($"ttft-bench: holding the host for {opts.HoldSeconds:0}s (pid {Environment.ProcessId})");
+                await Task.Delay(TimeSpan.FromSeconds(opts.HoldSeconds));
+            }
             PrintTable(rows, model, backend);
             if (opts.Out is { Length: > 0 } outPath)
             {
@@ -370,6 +391,64 @@ internal sealed class Runner
         await AskAsync(chat, "tool", "turn 2", "Now say: banana.", _opts.MaxTokens, think: false);
     }
 
+    /// <summary>
+    /// The conversation shape that was killing the app: one user request that the model
+    /// answers through several tool rounds (research on the open web, then a document
+    /// built by a script), with thinking on. What matters here is not the first-token time
+    /// but how much memory the host holds by the end of it.
+    /// </summary>
+    public async Task AgenticAsync()
+    {
+        Chat chat = await NewChatSessionAsync();
+        string prompt = _opts.Prompt
+            ?? "请找出apple这周发布会的安排与内容，然后做个pptx发给我";
+        await AskAsync(chat, "agentic", "turn 1 (agentic)", prompt, _opts.AgenticMaxTokens, think: true);
+        Console.WriteLine($"    memory: {ProcessMemoryProbe.Describe()}");
+        await AskAsync(chat, "agentic", "turn 2", "Now say: banana.", _opts.MaxTokens, think: false);
+        Console.WriteLine($"    memory: {ProcessMemoryProbe.Describe()}");
+    }
+
+    /// <summary>
+    /// Two chats at once, several times over: the per-sequence fused path (N >= 2)
+    /// with holders created, adopted, retained, evicted and disposed under the host's
+    /// own knobs. On a phone the prefix warm-up can land beside the user's first
+    /// message, which is exactly this shape.
+    /// </summary>
+    public async Task ConcurrentAsync()
+    {
+        for (int round = 0; round < 3; round++)
+        {
+            Chat a = await NewChatSessionAsync();
+            Chat b = await NewChatSessionAsync();
+            // A long first message, so A is still in its prefill when B arrives and both
+            // sequences really share the engine (N == 2), as the phone saw.
+            string longTask = string.Concat(Enumerable.Repeat(
+                "The quick brown fox jumps over the lazy dog while the orchestra tunes its strings before the evening concert begins. ", 120))
+                + " After all of that, say the single word: apple.";
+            Task<TurnRow> ta = AskAsync(a, "concurrent", $"round {round + 1} A", longTask, 8, think: false);
+            await Task.Delay(250);
+            Task<TurnRow> tb = AskAsync(b, "concurrent", $"round {round + 1} B", "Say the single word: pear.", 1, think: false);
+            await Task.WhenAll(ta, tb);
+            await AskAsync(a, "concurrent", $"round {round + 1} A follow", "Now say: fig.", 8, think: false);
+            Console.WriteLine($"    memory: {ProcessMemoryProbe.Describe()}");
+        }
+    }
+
+    /// <summary>
+    /// The first message of a launch, sent the moment the model is loaded and before
+    /// any warm-up has had time to run -- which is what a person does. Run it twice
+    /// against the same --root: the first run prefills the shared prompt and saves the
+    /// checkpoint, the second restores it, and the first-token time of "turn 1" is the
+    /// difference the saved checkpoint makes.
+    /// </summary>
+    public async Task RestoreAsync()
+    {
+        Chat chat = await NewChatSessionAsync();
+        await AskAsync(chat, "restore", "turn 1 (first message of the launch)", "Say the single word: apple.", _opts.MaxTokens, think: false);
+        Chat second = await NewChatSessionAsync();
+        await AskAsync(second, "restore", "turn 2 (a new chat)", "Say the single word: pear.", _opts.MaxTokens, think: false);
+    }
+
     private async Task<Chat> NewChatSessionAsync()
     {
         using HttpResponseMessage response = await _client.PostAsync("/api/sessions?conversation=new", null);
@@ -479,6 +558,7 @@ internal sealed class Runner
                           $"{(error is { Length: > 0 } ? " ERROR " + Program.Shorten(error, 120) : "")}");
         if (thinking.Length > 0)
             Console.WriteLine($"    thinking: {Program.Shorten(thinking.ToString(), 100)}");
+        Console.WriteLine($"    memory: {ProcessMemoryProbe.Describe()}");
         Console.WriteLine($"    answer: {Program.Shorten(answerText, 140)}");
         return row;
     }
@@ -509,6 +589,10 @@ internal sealed class Options
     public bool Warm { get; private set; }
 
     public double DelaySeconds;
+    public string? Prompt { get; private set; }
+    public bool Network { get; private set; }
+    public int AgenticMaxTokens { get; private set; } = 2048;
+    public double HoldSeconds { get; private set; }
     public string? Root { get; private set; }
     public string? Out { get; private set; }
     public bool Verbose { get; private set; }
@@ -544,6 +628,10 @@ internal sealed class Options
                     case "--device-gb": o.DeviceGb = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--warm": o.Warm = true; break;
                     case "--delay": o.DelaySeconds = double.Parse(Next(), CultureInfo.InvariantCulture); break;
+                    case "--prompt": o.Prompt = Next(); break;
+                    case "--network": o.Network = true; break;
+                    case "--agentic-max-tokens": o.AgenticMaxTokens = int.Parse(Next(), CultureInfo.InvariantCulture); break;
+                    case "--hold": o.HoldSeconds = double.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--root": o.Root = Next(); break;
                     case "--out": o.Out = Next(); break;
                     case "--verbose": o.Verbose = true; break;
@@ -563,7 +651,7 @@ internal sealed class Options
         if (o.Scenarios.Contains("all"))
         {
             o.Scenarios.Clear();
-            o.Scenarios.AddRange(new[] { "cold", "newchat", "think", "stop", "tool" });
+            o.Scenarios.AddRange(new[] { "cold", "newchat", "think", "stop", "tool", "agentic", "concurrent", "restore" });
         }
         if (string.IsNullOrWhiteSpace(o.ModelId))
         {
@@ -577,8 +665,9 @@ internal sealed class Options
     private static void Usage()
     {
         Console.Error.WriteLine("usage: TensorAgentTtftBench --model <catalog id> (--source <dir> | --weights <file> [--projector <file>])");
-        Console.Error.WriteLine("       [--backends ggml_metal,ggml_cpu] [--no-skills] [--python <root>] [--scenarios cold,newchat,think,stop,tool]");
+        Console.Error.WriteLine("       [--backends ggml_metal,ggml_cpu] [--no-skills] [--python <root>] [--scenarios cold,newchat,think,stop,tool,agentic,concurrent,restore]");
         Console.Error.WriteLine("       [--follow N] [--max-tokens N] [--kv f16|q8_0|q4_0] [--context N] [--chunk N] [--device-gb N] [--warm] [--delay S]");
+        Console.Error.WriteLine("       [--prompt <text>] [--network] [--agentic-max-tokens N] [--hold S]");
         Console.Error.WriteLine("       [--root <dir>] [--out <file>] [--verbose]");
     }
 }
@@ -633,6 +722,58 @@ internal sealed class StdoutLoggerFactory : ILoggerFactory
             Console.WriteLine($"    log[{logLevel}] {_category}: {Program.Shorten(message, 600)}");
             if (exception is not null)
                 Console.WriteLine($"    log[{logLevel}] {exception.GetType().Name}: {exception.Message}");
+        }
+    }
+}
+
+
+/// <summary>
+/// What the kernel charges this process and the whole machine, read the way jetsam
+/// reads it. <c>phys_footprint</c> is the number a per-process limit is judged
+/// against; the wired total is where Metal's claim on the mapped weights and on
+/// every device buffer shows up, which the footprint does NOT include -- so a host
+/// that only watches its own footprint is watching the wrong number on a phone.
+/// </summary>
+internal static class ProcessMemoryProbe
+{
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern int task_info(uint target, int flavor, byte[] info, ref int count);
+
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern uint mach_task_self();
+
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern uint mach_host_self();
+
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern int host_statistics64(uint host, int flavor, byte[] info, ref int count);
+
+    public static string Describe()
+    {
+        if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsIOS())
+            return "n/a";
+        try
+        {
+            // task_vm_info: phys_footprint at byte 144 (TASK_VM_INFO_REV0 layout).
+            var vm = new byte[152];
+            int count = vm.Length / 4;
+            long footprint = task_info(mach_task_self(), 22, vm, ref count) == 0 ? BitConverter.ToInt64(vm, 144) : -1;
+            // vm_statistics64: free 0, active 4, inactive 8, wire 12 (natural_t), compressor_page_count 128.
+            var st = new byte[152];
+            int hc = st.Length / 4;
+            long page = Environment.SystemPageSize;
+            string system = "system n/a";
+            if (host_statistics64(mach_host_self(), 4, st, ref hc) == 0)
+            {
+                long free = BitConverter.ToUInt32(st, 0) * page, wired = BitConverter.ToUInt32(st, 12) * page;
+                long compressor = BitConverter.ToUInt32(st, 128) * page;
+                system = $"system wired {wired / 1048576} MB, free {free / 1048576} MB, compressor {compressor / 1048576} MB";
+            }
+            return $"footprint {footprint / 1048576} MB; {system}";
+        }
+        catch (Exception ex)
+        {
+            return "probe failed: " + ex.Message;
         }
     }
 }

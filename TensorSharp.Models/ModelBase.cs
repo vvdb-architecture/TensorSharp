@@ -211,6 +211,19 @@ namespace TensorSharp.Models
         /// Default no-op; models with a grow-on-demand KV cache override to pre-size it.</summary>
         public virtual void PrepareForPrefill(int requiredContextTokens) { }
 
+        /// <summary>
+        /// Release what only makes the NEXT request faster: the host memory pool's
+        /// unused blocks here, and whatever a model parks for reuse in its override.
+        /// The engine calls this between steps when the host reports memory pressure,
+        /// so no forward is in flight. Never touches a live cache.
+        /// </summary>
+        public virtual void TrimIdleMemory()
+        {
+            long released = _ggmlContext?.ReleasePooledMemory() ?? 0;
+            if (released > 0)
+                Console.WriteLine($"[memory] released {released / (1024 * 1024)} MB of pooled host buffers to the system");
+        }
+
         // Timing
         protected long _linearTicks;
         protected long _attnTicks;
@@ -650,6 +663,19 @@ namespace TensorSharp.Models
                 !string.IsNullOrWhiteSpace(maxContextOverride) &&
                 int.TryParse(maxContextOverride, out int explicitContext) &&
                 explicitContext > 0;
+
+            // An explicit initial size beats both policies below. It exists for the
+            // device where memory, not latency, is the limit: the phone sets MAX_CONTEXT
+            // as the ceiling it can afford and this as what to commit before a request
+            // says what it needs, because every cache the engine keeps (the primary,
+            // each retained conversation, each parked holder) is paid at this size in
+            // host memory and again in its device mirror, whether a token was ever
+            // written to it or not. The cache still grows on demand and a request still
+            // reserves prompt + generation budget up front (PrepareForPrefill).
+            int initialOverride = Runtime.Scheduling.ExecutionOptions.FromEnvironment().KvInitialTokens;
+            if (initialOverride > 0)
+                return Math.Max(1, Math.Min(requestedContextLength, initialOverride));
+
             if (isGpuBackend && !hasValidExplicitContext)
             {
                 // Direct GPU backends benefit from a smaller initial KV allocation so

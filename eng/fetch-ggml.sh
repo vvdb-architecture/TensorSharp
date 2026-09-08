@@ -12,6 +12,15 @@
 #   TENSORSHARP_GGML_GIT_REF   branch/tag/commit      (default: master, the ggml default branch)
 #   TENSORSHARP_GGML_NO_UPDATE if set to 1/ON/true and a checkout already exists,
 #                              skip the network fetch and use what is on disk.
+#
+# Local patches: every eng/ggml-patches/*.patch is applied to the checkout, in name
+# order, after a clone, after an update, and on the no-update path (idempotently:
+# a patch that already applies in reverse is already in). A patch that fits neither
+# way is an ERROR, not a warning -- a build that silently ran without a patch it was
+# written to carry would reintroduce the exact behaviour the patch removes (the
+# first one exists because ggml-metal reserved an F16 copy of the whole K/V window
+# per attention layer in every persistent graph, gigabytes on a phone). When
+# upstream moves under a patch, update the patch or pin TENSORSHARP_GGML_GIT_REF.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,9 +54,32 @@ is_truthy() {
     esac
 }
 
+PATCH_DIR="${SCRIPT_DIR}/ggml-patches"
+apply_local_patches() {
+    local patch applied=0
+    shopt -s nullglob
+    for patch in "${PATCH_DIR}"/*.patch; do
+        if git -C "${GGML_DIR}" apply --reverse --check "${patch}" >/dev/null 2>&1; then
+            : # already carried by this checkout
+        elif git -C "${GGML_DIR}" apply --check "${patch}" >/dev/null 2>&1; then
+            git -C "${GGML_DIR}" apply "${patch}"
+            echo "ggml: applied $(basename "${patch}")"
+            applied=$((applied + 1))
+        else
+            echo "ggml: ERROR - $(basename "${patch}") applies to neither direction of the checkout at" \
+                 "$(git -C "${GGML_DIR}" rev-parse --short HEAD); update the patch under ${PATCH_DIR}" \
+                 "or pin TENSORSHARP_GGML_GIT_REF to a revision it fits." >&2
+            exit 1
+        fi
+    done
+    shopt -u nullglob
+    return 0
+}
+
 if [[ -d "${GGML_DIR}/.git" ]]; then
     if is_truthy "${NO_UPDATE_RAW}"; then
         echo "ggml: TENSORSHARP_GGML_NO_UPDATE set; using existing checkout at ${GGML_DIR}"
+        apply_local_patches
         exit 0
     fi
 
@@ -59,6 +91,7 @@ if [[ -d "${GGML_DIR}/.git" ]]; then
     else
         echo "ggml: WARNING - could not fetch ${GIT_REF} (offline?); using existing checkout" >&2
     fi
+    apply_local_patches
     exit 0
 fi
 
@@ -81,3 +114,4 @@ else
     git -C "${GGML_DIR}" checkout -q FETCH_HEAD
 fi
 git -C "${GGML_DIR}" rev-parse --short HEAD | sed 's/^/ggml: cloned at /'
+apply_local_patches

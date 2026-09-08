@@ -86,7 +86,6 @@ namespace TensorSharp.Models
         // broader InvalidateHostBuffer teardown on every completion. Reused
         // holders are re-zeroed by ResetHolderForReuse.
         private List<Qwen35KvCacheHolder> _holderPool;
-        private const int HolderPoolMax = 64;
 
         private void DiscardArenaSlotForHolder(Qwen35KvCacheHolder h)
         {
@@ -538,8 +537,14 @@ namespace TensorSharp.Models
             // state is no longer observable. Retire the mapping before this stable
             // pointer can be reassigned to another request.
             DiscardArenaSlotForHolder(holder);
-            _holderPool ??= new List<Qwen35KvCacheHolder>(HolderPoolMax);
-            if (_holderPool.Count < HolderPoolMax)
+            // A parked holder is re-zeroed and re-seeded when it is next handed out
+            // (ResetHolderForReuse), so its Metal mirrors are dead weight from this
+            // moment on: evict them now rather than at reuse, which may be never.
+            // Metal only, exactly as at reuse -- CUDA keeps its mirrors and graphs.
+            InvalidateHolderDeviceCopiesForReuse(holder);
+            int poolMax = ExecutionOptions.FromEnvironment().KvHolderPoolMax;
+            _holderPool ??= new List<Qwen35KvCacheHolder>(Math.Max(1, poolMax));
+            if (_holderPool.Count < poolMax)
             {
                 _holderPool.Add(holder);
             }
@@ -547,6 +552,27 @@ namespace TensorSharp.Models
             {
                 DisposeHolder(holder);
             }
+        }
+
+        /// <summary>Free every parked holder, then the host memory pool (base). What the
+        /// pool buys -- a later request skipping allocation, zero-fill and graph
+        /// capture -- is worth nothing to a process about to be killed for memory.</summary>
+        public override void TrimIdleMemory()
+        {
+            if (_holderPool != null && _holderPool.Count > 0)
+            {
+                // Taken out of the pool BEFORE anything is disposed, so a dispose that
+                // throws part-way cannot leave a freed holder where CreateFreshHolder
+                // would hand it out again. Whatever survives the throw is simply leaked
+                // until the model is disposed, which is the safe direction.
+                var parked = _holderPool;
+                _holderPool = null;
+                int count = parked.Count;
+                foreach (var holder in parked)
+                    DisposeHolder(holder);
+                Console.WriteLine($"[memory] Qwen35: freed {count} parked K/V holder(s)");
+            }
+            base.TrimIdleMemory();
         }
 
         // ---- Shared-prefix checkpoints (IBatchedPagedModel) ----
@@ -600,6 +626,195 @@ namespace TensorSharp.Models
             if (source.KvHostDirty || source.GdnHostDirty || source.ArenaStateResident)
                 return false;
             _fusedHolders.Add(newRequestId, DeepCopyHolder(source));
+            return true;
+        }
+
+        // ---- Checkpoints on disk (IBatchedPagedModel) ----
+        //
+        // A checkpoint's host bytes are the truth (never bound, every residency flag
+        // off), which is exactly what lets them be written to a file: attention K/V
+        // rows per layer, and per recurrent layer the conv ring, its write index and
+        // the delta state read through the offset pointer the Metal in-place layout
+        // requires. The file names the model's K/V identity and every dimension it
+        // depends on, and an import that finds anything different creates nothing.
+
+        public bool SupportsRetainedCacheSerialization => SupportsPrefixCheckpoints;
+
+        private const uint CheckpointFileMagic = 0x51354B43;   // "Q5KC"
+        private const int CheckpointFileVersion = 1;
+
+        public unsafe bool TryExportRetainedCache(string key, System.IO.Stream destination)
+        {
+            if (!SupportsPrefixCheckpoints || destination == null || string.IsNullOrEmpty(key)
+                || _retainedFusedHolders == null || _isRecurrent == null)
+                return false;
+            if (!_retainedFusedHolders.TryGetValue(key, out var h) || h.K == null)
+                return false;
+            // Only host-authoritative state can be written: a checkpoint is never bound.
+            if (h.KvHostDirty || h.GdnHostDirty || h.ArenaStateResident || h.FdStateResident)
+                return false;
+
+            int rows = Math.Max(0, Math.Min(h.CacheSeqLen, h.KvCapacity));
+            int numLayers = h.K.Length;
+            int qkvDim = _headKDim * _numKHeads * 2 + _headVDim * _numVHeads;
+            var w = new System.IO.BinaryWriter(destination, System.Text.Encoding.UTF8, leaveOpen: true);
+            w.Write(CheckpointFileMagic);
+            w.Write(CheckpointFileVersion);
+            w.Write(KVStateFingerprint ?? string.Empty);
+            w.Write(numLayers);
+            w.Write(rows);
+            w.Write(Config.NumKVHeads);
+            w.Write(Config.HeadDim);
+            w.Write(_convKernel);
+            w.Write(qkvDim);
+            for (int l = 0; l < numLayers; l++)
+            {
+                bool recurrent = l < _isRecurrent.Length && _isRecurrent[l];
+                w.Write(recurrent);
+                if (!recurrent)
+                {
+                    WriteCacheRows(w, h.K[l], rows);
+                    WriteCacheRows(w, h.V[l], rows);
+                    continue;
+                }
+                float[] conv = h.ConvState[l];
+                w.Write(conv?.Length ?? 0);
+                if (conv != null && conv.Length > 0)
+                {
+                    w.Flush();
+                    destination.Write(MemoryMarshal.AsBytes(conv.AsSpan()));
+                }
+                w.Write(h.ConvWriteIdx[l]);
+                Tensor delta = h.DeltaState[l];
+                long deltaBytes = delta == null ? 0 : GdnDeltaStateBytes(delta);
+                w.Write(deltaBytes);
+                if (delta != null && deltaBytes > 0)
+                {
+                    delta.Storage.EnsureHostReadable();
+                    w.Flush();
+                    destination.Write(new ReadOnlySpan<byte>((void*)GdnDeltaStatePointer(delta), checked((int)deltaBytes)));
+                }
+            }
+            w.Flush();
+            return true;
+        }
+
+        public unsafe bool TryImportRetainedCache(string key, System.IO.Stream source)
+        {
+            if (!SupportsPrefixCheckpoints || source == null || string.IsNullOrEmpty(key) || _isRecurrent == null)
+                return false;
+            _retainedFusedHolders ??= new Dictionary<string, Qwen35KvCacheHolder>(StringComparer.Ordinal);
+            if (_retainedFusedHolders.ContainsKey(key) || (_fusedHolders != null && _fusedHolders.ContainsKey(key)))
+                return false;
+
+            var r = new System.IO.BinaryReader(source, System.Text.Encoding.UTF8, leaveOpen: true);
+            if (r.ReadUInt32() != CheckpointFileMagic || r.ReadInt32() != CheckpointFileVersion)
+                return false;
+            if (!string.Equals(r.ReadString(), KVStateFingerprint ?? string.Empty, StringComparison.Ordinal))
+                return false;
+            int numLayers = r.ReadInt32();
+            int rows = r.ReadInt32();
+            if (numLayers != _kvCacheK.Length || rows < 0 || rows > _maxContextLength)
+                return false;
+            if (r.ReadInt32() != Config.NumKVHeads || r.ReadInt32() != Config.HeadDim)
+                return false;
+            int qkvDim = _headKDim * _numKHeads * 2 + _headVDim * _numVHeads;
+            if (r.ReadInt32() != _convKernel || r.ReadInt32() != qkvDim)
+                return false;
+
+            int cap = Math.Max(1, Math.Min(_maxContextLength, CacheCapacityFor(rows)));
+            Qwen35KvCacheHolder h = AllocateHolder(cap);
+            bool ok = false;
+            try
+            {
+                for (int l = 0; l < numLayers; l++)
+                {
+                    bool recurrent = r.ReadBoolean();
+                    bool expected = l < _isRecurrent.Length && _isRecurrent[l];
+                    if (recurrent != expected)
+                        return false;
+                    if (!recurrent)
+                    {
+                        if (!ReadCacheRows(r, h.K[l], rows) || !ReadCacheRows(r, h.V[l], rows))
+                            return false;
+                        InvalidateTensorDeviceCache(h.K[l]);
+                        InvalidateTensorDeviceCache(h.V[l]);
+                        continue;
+                    }
+                    int convLen = r.ReadInt32();
+                    if (convLen != (h.ConvState[l]?.Length ?? 0))
+                        return false;
+                    if (convLen > 0)
+                        source.ReadExactly(MemoryMarshal.AsBytes(h.ConvState[l].AsSpan()));
+                    h.ConvWriteIdx[l] = r.ReadInt32();
+                    long deltaBytes = r.ReadInt64();
+                    Tensor delta = h.DeltaState[l];
+                    long expectedBytes = delta == null ? 0 : GdnDeltaStateBytes(delta);
+                    if (deltaBytes != expectedBytes)
+                        return false;
+                    if (deltaBytes > 0)
+                    {
+                        delta.Storage.EnsureHostReadable();
+                        source.ReadExactly(new Span<byte>((void*)GdnDeltaStatePointer(delta), checked((int)deltaBytes)));
+                        if (IsGgmlBackend)
+                            InvalidateGdnDeltaStateDeviceCaches(delta);
+                    }
+                }
+                h.CacheSeqLen = rows;
+                h.KvHostDirty = false;
+                h.GdnHostDirty = false;
+                h.FdStateResident = false;
+                h.ArenaStateResident = false;
+                h.Logits = null;
+                _retainedFusedHolders.Add(key, h);
+                ok = true;
+                return true;
+            }
+            catch (System.IO.EndOfStreamException)
+            {
+                return false;
+            }
+            finally
+            {
+                if (!ok)
+                    DisposeHolder(h);
+            }
+        }
+
+        /// <summary>The written rows of one K or V cache tensor, head by head: the
+        /// per-head stride is the tensor's CAPACITY, which the reader may size
+        /// differently, so only the rows are written.</summary>
+        private static unsafe void WriteCacheRows(System.IO.BinaryWriter w, Tensor t, int rows)
+        {
+            long heads = t.Sizes[0];
+            long cap = t.Sizes[1];
+            long rowBytes = heads * cap == 0 ? 0 : t.Storage.ByteLength / (heads * cap);
+            w.Write((int)heads);
+            w.Write(rowBytes);
+            if (rows == 0 || heads == 0 || rowBytes == 0)
+                return;
+            t.Storage.EnsureHostReadable();
+            byte* src = (byte*)t.Storage.PtrAtElement(0);
+            w.Flush();
+            for (long head = 0; head < heads; head++)
+                w.BaseStream.Write(new ReadOnlySpan<byte>(src + head * cap * rowBytes, checked((int)(rows * rowBytes))));
+        }
+
+        private static unsafe bool ReadCacheRows(System.IO.BinaryReader r, Tensor t, int rows)
+        {
+            long heads = t.Sizes[0];
+            long cap = t.Sizes[1];
+            long rowBytes = heads * cap == 0 ? 0 : t.Storage.ByteLength / (heads * cap);
+            if (r.ReadInt32() != heads || r.ReadInt64() != rowBytes)
+                return false;
+            if (rows > cap)
+                return false;
+            if (rows == 0 || heads == 0 || rowBytes == 0)
+                return true;
+            t.Storage.EnsureHostReadable();
+            byte* dst = (byte*)t.Storage.PtrAtElement(0);
+            for (long head = 0; head < heads; head++)
+                r.BaseStream.ReadExactly(new Span<byte>(dst + head * cap * rowBytes, checked((int)(rows * rowBytes))));
             return true;
         }
 

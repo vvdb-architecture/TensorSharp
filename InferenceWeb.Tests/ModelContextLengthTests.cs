@@ -1,3 +1,4 @@
+using TensorSharp.Runtime.Scheduling;
 namespace InferenceWeb.Tests;
 
 public class ModelContextLengthTests
@@ -239,6 +240,64 @@ public class ModelContextLengthTests
         Assert.Equal(0, fitted % 256);
         // Half the spare is the KV share; the rest covers graph scratch.
         Assert.True((long)fitted * Qwen3827BKvBytesPerToken <= spare / 2);
+    }
+
+    // --- What a request reserves before its first chunk (BatchExecutor.ResolvePrefillReservation) ---
+    //
+    // Regression: the phone's reply length was set to its largest rung, 262,144 tokens,
+    // inside a 32,768-token window. prompt + max_new_tokens capped to the window is the
+    // WHOLE window, so every request -- "hi" included -- reserved 32k rows of K/V in its
+    // holder, paid in host memory and again in the Metal mirror, and the engine kept
+    // several such holders. The cap on the generation share is what a memory-bound host
+    // sets; the cache still grows on demand past it.
+
+    [Fact]
+    public void ResolvePrefillReservation_CapsTheGenerationShareButNeverThePrompt()
+    {
+        // Uncapped: today's arithmetic, prompt + budget bounded by the window.
+        Assert.Equal(32768, BatchExecutor.ResolvePrefillReservation(5878, 262144, 32768, generationReserveMax: 0));
+        Assert.Equal(7926, BatchExecutor.ResolvePrefillReservation(5878, 2048, 32768, generationReserveMax: 0));
+
+        // Capped: the prompt is always reserved whole, the reply share at most the cap,
+        // and the sum snapped up to the 2,048-token step so a conversation growing a
+        // thousand tokens a round reallocates every other round, not every round.
+        Assert.Equal(8192, BatchExecutor.ResolvePrefillReservation(5878, 262144, 32768, generationReserveMax: 1024));
+        Assert.Equal(8192, BatchExecutor.ResolvePrefillReservation(5878, 512, 32768, generationReserveMax: 1024));
+        Assert.Equal(10240, BatchExecutor.ResolvePrefillReservation(8193, 262144, 32768, generationReserveMax: 1024));
+        Assert.Equal(2048, BatchExecutor.ResolvePrefillReservation(100, 100, 32768, generationReserveMax: 1024));
+
+        // A prompt that already fills the window is bounded by the window, not refused.
+        Assert.Equal(32768, BatchExecutor.ResolvePrefillReservation(32768, 262144, 32768, generationReserveMax: 1024));
+
+        // No window known: nothing to bound against.
+        Assert.Equal(263168, BatchExecutor.ResolvePrefillReservation(1024, 262144, 0, generationReserveMax: 0));
+    }
+
+    [Fact]
+    public void ResolveInitialCacheAllocationLength_HonoursAnExplicitInitialSizeEvenWithMaxContext()
+    {
+        // The phone: MAX_CONTEXT is the ceiling it can afford, TS_KV_INITIAL_TOKENS what to
+        // commit before a request declares its need. Without the second, an explicit
+        // context allocated the whole window for the primary cache and for every holder.
+        string prevCtx = Environment.GetEnvironmentVariable("MAX_CONTEXT");
+        string prevInitial = Environment.GetEnvironmentVariable("TS_KV_INITIAL_TOKENS");
+        try
+        {
+            Environment.SetEnvironmentVariable("MAX_CONTEXT", "32768");
+            Environment.SetEnvironmentVariable("TS_KV_INITIAL_TOKENS", null);
+            Assert.Equal(32768, ModelBase.ResolveInitialCacheAllocationLength(BackendType.GgmlMetal, 32768));
+
+            Environment.SetEnvironmentVariable("TS_KV_INITIAL_TOKENS", "2048");
+            Assert.Equal(2048, ModelBase.ResolveInitialCacheAllocationLength(BackendType.GgmlMetal, 32768));
+            // Never more than the window itself, and the knob applies to every backend.
+            Assert.Equal(1024, ModelBase.ResolveInitialCacheAllocationLength(BackendType.GgmlCpu, 1024));
+            Assert.Equal(2048, ModelBase.ResolveInitialCacheAllocationLength(BackendType.GgmlCuda, 65536));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("MAX_CONTEXT", prevCtx);
+            Environment.SetEnvironmentVariable("TS_KV_INITIAL_TOKENS", prevInitial);
+        }
     }
 
     [Fact]

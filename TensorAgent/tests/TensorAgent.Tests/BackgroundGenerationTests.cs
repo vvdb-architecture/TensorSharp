@@ -364,6 +364,59 @@ public sealed class BackgroundGenerationTests : IDisposable
     }
 
     [Fact]
+    public async Task AWarmUpThatMeetsADeadBackendHasTheEngineRebuiltNowRatherThanAtTheNextMessage()
+    {
+        // Measured on the phone: a warm-up that hit a GPU reset marked the engine, and
+        // the user's first new chat then paid the rebuild AND the whole prompt -- a
+        // 40 s first token. Nothing was running at the time, so the rebuild belongs
+        // there, not at the message. With no model selected here, "rebuilding" is the
+        // recovery finding nothing to reload onto and clearing the mark; what is
+        // proved is that the path runs, from the warm-up, without being asked.
+        AgentAppHost host = Start();
+        var poisoned = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        host.EnginePoisoned += cause => poisoned.TrySetResult(cause);
+        host.WarmUpFrames = (_, _) => DeadBackend();
+
+        static async IAsyncEnumerable<object> DeadBackend()
+        {
+            await Task.Yield();
+            yield return new
+            {
+                done = true,
+                error = "ggml_metal_synchronize: error: command buffer 0 failed with status 5 | error: "
+                        + "Discarded (victim of GPU error/recovery) (00000005:kIOGPUCommandBufferCallbackErrorInnocentVictim)",
+            };
+        }
+
+        host.WarmThePrefixCache();
+        string cause = await poisoned.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        Assert.Contains("victim of GPU error", cause, StringComparison.Ordinal);
+
+        // The rebuild ran on its own, and the engine is no longer marked.
+        for (int i = 0; i < 200 && (host.RebuildsAfterPoisonedWarmUps == 0 || host.EngineNeedsReload); i++)
+            await Task.Delay(50);
+        Assert.Equal(1, host.RebuildsAfterPoisonedWarmUps);
+        Assert.False(host.EngineNeedsReload);
+    }
+
+    [Fact]
+    public void TheTurnStopsTheWarmUpAgainAfterARebuildThatMayHaveStartedOne()
+    {
+        // The rebuild a turn asks for is serialized with the one the resume path, or
+        // a poisoned warm-up, may already be running; those warm afterwards, so by the
+        // time the turn holds the lock a fresh warm-up can be forwarding. Read from the
+        // source: the second stop must come AFTER the recovery call in the retry loop.
+        string host = File.ReadAllText(Path.Combine(
+            FindRepoRoot(), "TensorAgent", "src", "TensorAgent.Core", "Hosting", "AgentAppHost.cs"));
+        int loop = host.IndexOf("for (int attempt = 0; ; attempt++)", StringComparison.Ordinal);
+        int rebuild = host.IndexOf("RecoverEngineIfNeeded(warmAfterwards: false)", loop, StringComparison.Ordinal);
+        int stopAgain = host.IndexOf("StopWarmingThePrefixCacheAndWaitAsync", rebuild, StringComparison.Ordinal);
+        int firstPull = host.IndexOf("Chat.ChatStreamAsync(attemptBody", rebuild, StringComparison.Ordinal);
+        Assert.True(rebuild > 0 && stopAgain > 0 && firstPull > 0, "the retry loop has changed shape");
+        Assert.True(stopAgain < firstPull, "a warm-up started by another path's rebuild must be stopped before the turn pulls");
+    }
+
+    [Fact]
     public async Task AWarmUpWaitsForTheGateRatherThanSubmittingFromTheBackground()
     {
         // The warm-up is GPU work like any other. One started while the app is away is

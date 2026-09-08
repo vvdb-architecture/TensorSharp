@@ -26,8 +26,63 @@ public static class MauiProgram
     private const string SoloPrefillChunkVariable = "TS_SCHED_SOLO_PREFILL_CHUNK";
     private const string PrefixCheckpointBudgetVariable = "TS_PREFIX_CHECKPOINTS_MAX";
 
+    /// <summary>
+    /// ggml-metal reads this at device init to decide whether to keep every Metal
+    /// buffer in a residency set. The set is what pins the weights.
+    /// </summary>
+    private const string MetalNoResidencyVariable = "GGML_METAL_NO_RESIDENCY";
+
+    // Native, not Environment.SetEnvironmentVariable: on this runtime the managed
+    // call updates a managed copy that a C getenv never sees.
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern int setenv(string name, string value, int overwrite);
+
+    [System.Runtime.InteropServices.DllImport("libSystem.dylib")]
+    private static extern int unsetenv(string name);
+
     public static MauiApp CreateMauiApp()
     {
+        // No Metal residency set on the phone. The set keeps every buffer -- the
+        // 4.9 GB of Qwen 9B weights included -- wired for the life of the model, so
+        // a 12 GB phone sits at 7.0-7.1 GB wired for the whole of an agentic turn,
+        // tool rounds included, when the GPU is idle for a minute at a time and the
+        // weights could be reclaimed and re-faulted from flash. MEASURED on the
+        // iPhone 17 Pro Max with the same prompt and settings, Debug build:
+        //   residency set on:  killed (jetsam, no report) at a 10k-token context,
+        //                      wired 7.0-7.1 GB throughout, the app itself at 0.96 GB
+        //   residency set off: 23k+ tokens of context alive, wired 6.2-7.1 GB as
+        //                      buffers come and go, decode within run-to-run noise
+        //                      (6.8-7.7 vs 7.3-8.3 tok/s on the interpreter build)
+        // The set exists so a Mac near its working-set limit does not thrash
+        // re-requesting residency; a phone near its limit is killed instead, which
+        // is the worse of the two. A value already in the environment (a devicectl
+        // launch experimenting the other way) is respected.
+        // ggml-metal tests the variable's PRESENCE, so "0" would still switch the set
+        // off; here "0" means "keep the residency set" and is removed from the
+        // environment, which is how a devicectl launch A/Bs the two on the phone.
+        string? residency = Environment.GetEnvironmentVariable(MetalNoResidencyVariable);
+        bool residencySetsOn;
+        try
+        {
+            if (residency == "0")
+            {
+                unsetenv(MetalNoResidencyVariable);
+                residencySetsOn = true;
+            }
+            else
+            {
+                if (residency is not { Length: > 0 })
+                    setenv(MetalNoResidencyVariable, "1", 1);
+                residencySetsOn = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TensorAgent: could not set {MetalNoResidencyVariable}: {ex.Message}");
+            residencySetsOn = residency is not { Length: > 0 };
+        }
+        Console.WriteLine($"TensorAgent: Metal residency sets {(residencySetsOn ? "on" : "off")} (ggml-metal reads {MetalNoResidencyVariable} at device init)");
+
         // Media before anything else can decode: a photo from Photos is HEIC, a clip from
         // the camera roll is H.264 and a Voice Memo is .m4a, and MediaCodecs starts on
         // managed defaults that read none of those — they throw a "register a platform

@@ -340,7 +340,7 @@ namespace TensorSharp.Server
                 contextLimit = engineContextLimit;
             int hardPromptLimit = contextLimit > 1 ? contextLimit - 1 : 0;
             int requestedReserve = contextLimit > 1
-                ? Math.Clamp(maxTokens, 1, contextLimit - 1)
+                ? HistoryCompactionReserve(maxTokens, contextLimit)
                 : 0;
             int targetPromptLimit = contextLimit > 1
                 ? contextLimit - requestedReserve
@@ -368,9 +368,9 @@ namespace TensorSharp.Server
                     out generationPromptTrailingWhitespace,
                     tools: tools, enableThinking: enableThinking);
                 _logger.LogWarning(LogEventIds.PromptTruncated,
-                    "prompt.history_compacted from {OriginalTokens} to {KeptTokens} tokens by removing {RemovedMessages} old messages (contextLimit={ContextLimit}, requestedGenerationReserve={GenerationReserve}, sessionId={SessionId}); leading instructions, latest user task, and newest repair round were preserved",
+                    "prompt.history_compacted from {OriginalTokens} to {KeptTokens} tokens by removing {RemovedMessages} old messages (contextLimit={ContextLimit}, historyReserve={HistoryReserve} for a requested reply of {RequestedTokens}, sessionId={SessionId}); leading instructions, latest user task, and newest repair round were preserved",
                     window.OriginalPromptTokens, inputTokens.Count, window.RemovedMessages,
-                    contextLimit, requestedReserve, session?.Id ?? "(none)");
+                    contextLimit, requestedReserve, maxTokens, session?.Id ?? "(none)");
             }
 
             bool hasMultimodal = RequiresMultimodalPreparation(renderHistory);
@@ -1103,6 +1103,32 @@ namespace TensorSharp.Server
             int RemovedMessages);
 
         /// <summary>
+        /// How much of the window the compactor sets aside for the reply BEFORE it
+        /// starts removing history: the requested reply length, but never more than a
+        /// quarter of the window (a 1,024-token floor where the window allows).
+        ///
+        /// <para>
+        /// The reply length is a ceiling the user chose for the answer, not a claim on
+        /// the conversation. Honouring it literally here meant that a limit at or above
+        /// the window -- the largest rung the phone's settings offer, inside a 32k
+        /// window -- left the prompt one token of room, and the compactor removed the
+        /// whole conversation on every tool round but the instructions, the latest
+        /// request and the newest round: observed on a phone as an agent that fetched
+        /// the same page eight times because each round had forgotten the last. What
+        /// the reply actually gets is decided AFTER compaction by
+        /// <see cref="ClampGenerationReserve"/>: everything the kept prompt leaves,
+        /// which in a short conversation is still the whole window.
+        /// </para>
+        /// </summary>
+        internal static int HistoryCompactionReserve(int requestedGenerationTokens, int contextLimit)
+        {
+            if (contextLimit <= 1)
+                return Math.Max(1, requestedGenerationTokens);
+            int cap = Math.Max(1024, contextLimit / 4);
+            return Math.Clamp(Math.Min(requestedGenerationTokens, cap), 1, contextLimit - 1);
+        }
+
+        /// <summary>
         /// Apply the same context/reply budget policy used by live generation before
         /// adopting a message-boundary compaction result. The protected minimum may
         /// exceed the preferred reply reserve, but it must still fit the hard prompt
@@ -1126,7 +1152,7 @@ namespace TensorSharp.Server
                     history, originalPromptTokens, originalPromptTokens, RemovedMessages: 0);
             }
 
-            int reserve = Math.Clamp(requestedGenerationTokens, 1, contextLimit - 1);
+            int reserve = HistoryCompactionReserve(requestedGenerationTokens, contextLimit);
             int promptLimit = contextLimit - reserve;
             ContextHistoryWindow window = CompactHistoryForContext(
                 history, originalPromptTokens, promptLimit, countPromptTokens);

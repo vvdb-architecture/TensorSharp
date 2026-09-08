@@ -400,6 +400,16 @@ itself waits for the gate, which is the second thing the device taught: loading 
 is GPU work too, so a repair attempted at the moment of backgrounding produces a backend
 that is poisoned before its first token.
 
+The one place a dead backend is met with nothing running is the warm-up itself — a GPU
+reset caused by the previous process being killed mid-compute lands there — and the
+warm-up then rebuilds the backend and warms the new one immediately
+(`RebuildAfterAPoisonedWarmUp`: now, then after 15 s, then after 60 s, because the reset
+that causes the fault discards every command buffer for the next minute or so — three
+fresh backends faulted in 53 s, observed — and never more than three times per launch),
+because leaving it to the
+next message cost that message the rebuild AND the whole prompt: a 40 s first token on
+a new chat, measured, where the user had done nothing wrong.
+
 What the user sees is a sentence saying the GPU was interrupted, and then their answer
 carrying on. The half-written text is handed back to the model as its own words with an
 instruction to continue from exactly where it stopped — the KV cache went with the
@@ -539,6 +549,69 @@ Only the new message and the previous answer are processed on each turn. Rewriti
 an earlier turn invalidates from the point the histories diverge, and the model then
 answers from the rewritten history. (Starting a new chat used to drop reuse to zero
 as well; see the next section for what changed.)
+
+### Memory on the phone
+
+A jetsam kill leaves no stack and no message, so the app now writes the two numbers
+the kill is decided on: what the process is charged (`phys_footprint`) and what the
+device has wired and free (`host_statistics64`), after a load, after the warm-up,
+every half minute of a turn, after it, and at a memory warning (`ProcessMemory`;
+`/api/agent/engine` carries the same line). The second number is the one that
+matters. The weights are a file mapping that Metal wires while the model is loaded,
+and wired file pages are charged to the machine rather than to the process, so a
+5 GB model reads as nothing in the footprint and as +5 GB in the wired total. Every
+jetsam report the phone kept showed the app at 2-5 GB with the device at 8-10 GB of
+its 12 GB wired.
+
+What the engine holds beyond the cache a turn is using is set in `EngineMemoryPolicy`
+on every load, and each value is measured: caches start at 2,048 tokens and grow;
+a request pre-reserves at most 1,024 tokens of reply beyond its prompt, in 2,048-token
+steps; one finished conversation stays resident, plus the shared-prefix checkpoint;
+nothing is parked. (The reply length setting used to decide the reservation: at its
+top rung, 262,144 tokens, every request reserved the whole 32k window, host copy and
+Metal mirror both.) ggml-metal's residency set is off on the phone, so the weights can
+be reclaimed while a tool runs; a local patch under `eng/ggml-patches` stops every
+flash-attention node of a persistent graph reserving an F16 copy of the whole K/V
+window it never reads. The memory warning now asks the engine to release what only
+serves the next request's speed, on the engine's own thread between steps.
+
+Measured on the Mac with the phone's settings and the research-then-slides prompt
+that was killing the app (`--scenarios agentic --network`), footprint at the end of
+the turn: Qwen3.5 9B IQ4_XS 3.7 GB before, 1.7-1.8 GB after; Bonsai 27B Q1_0 9.7 GB
+before, 4.0-5.8 GB after (its recurrent state is 216 MB per resident copy). On the
+iPhone 17 Pro Max with the user's own settings, the same prompt runs past 24,000
+tokens of context at a 1.7 GB footprint where it used to die.
+
+### The first message of a launch
+
+Every chat starts from a copy of the model's state at the end of the prompt they all
+share, but in a fresh process that state has to be made first: the warm-up after a
+load prefills it, and on the phone that is 36-48 s for Qwen3.5 9B and 152 s for
+Bonsai 27B, which a first message sent sooner pays in full. The checkpoint is now
+written to `Library/Caches/TensorAgent/prefix-cache/<model id>/` the first time it is
+taken (`PrefixCheckpointFileStore`) and read back by the next load
+(`IPrefixCheckpointStore`, consulted by the engine at admission), so the first
+message of every later launch clones it like any other new chat. A file is named
+and checked by the model's K/V identity and the exact prefix tokens, written under a
+temporary name and renamed, and at most three are kept per model; one that no
+longer describes its model is deleted and the prefix is prefilled and saved again.
+Deleting a model deletes its checkpoints. The same idea as llama.cpp's prompt-cache
+files, scoped to the one prefix the app cares about. `benchmarks/TensorAgentTtftBench
+--scenarios restore`, run twice against the same `--root`, measures the difference;
+on the Mac (M5 Pro), first message of a launch, no warm-up waited for:
+
+| Model | Cold launch | Next launch | Checkpoint file |
+| --- | ---: | ---: | ---: |
+| Qwen3.5 9B IQ4_XS | 5.51 s | 0.41 s | 102 MB, restored in 39 ms |
+| Bonsai 27B Q1_0 | 16.43 s | 0.84 s | 253 MB, restored in 127 ms |
+
+On the iPhone 17 Pro Max, Qwen3.5 9B: the first launch wrote 117 MB in 386 ms after a
+54 s cold first message; the next launch restored it in 44-284 ms and the warm-up (a
+full first request, one-time graph builds included) took 1.2 s on the Release build
+where it took ~40 s before. A message sent after that warm-up starts in ~0.6 s.
+
+`PrefixCheckpointExactnessTests` proves the restored copy is the model: a chat started
+from it produces the same tokens as a cold prefill, on Metal, for Qwen 3.5 and Gemma 4.
 
 ### Every conversation shape, on Metal
 

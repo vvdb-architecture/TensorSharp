@@ -451,7 +451,7 @@ public sealed class ModelsPage : ContentPage
         {
             return;
         }
-        _app.Models.Delete(row.Model);
+        _app.DeleteModel(row.Model);
         Refresh();
     }
 }

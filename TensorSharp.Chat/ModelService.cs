@@ -109,6 +109,13 @@ namespace TensorSharp.Server
         public InferenceEngineHost EngineHost => _engineHost;
 
         /// <summary>
+        /// Release the memory the engine keeps only for the next request's speed. For a
+        /// host that has just been told it is about to be killed for memory; see
+        /// <see cref="InferenceEngineHost.TrimIdleMemory"/>. False when no engine stands.
+        /// </summary>
+        public bool TrimIdleMemory() => _engineHost.TrimIdleMemory();
+
+        /// <summary>
         /// Builds the on-node tensor-parallel group a model load shards across, or null
         /// (the default) for a single-node load. Hosts that carry TensorSharp.Distributed
         /// (the Server, the CLI) set it; this library does not reference that assembly,

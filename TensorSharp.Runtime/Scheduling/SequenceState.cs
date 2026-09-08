@@ -190,6 +190,11 @@ namespace TensorSharp.Runtime.Scheduling
         /// hits) at admission time. Diagnostic only.</summary>
         public int PrefixCacheReusedTokens { get; internal set; }
 
+        /// <summary>Whether the executor has reserved this request's K/V — prompt plus
+        /// generation budget — on the cache it runs in. Set by the FIRST prefill chunk,
+        /// which for a request continuing an adopted cache is not at token zero.</summary>
+        internal bool PrefillReservationTaken { get; set; }
+
         /// <summary>Cumulative NextN/MTP speculative-decoding counters for this
         /// request, attached by the executor when speculation arms. Null when
         /// the sequence never ran speculatively. Diagnostic only; the engine
@@ -252,6 +257,9 @@ namespace TensorSharp.Runtime.Scheduling
             // continuation claim is stale (its blocks were freed and the model's live
             // cache has since moved on), so drop it and let admission re-decide.
             UsesLiveCacheContinuation = false;
+            // And it reserves its K/V again on its first chunk back: the cache it ran in
+            // may have been released with it.
+            PrefillReservationTaken = false;
         }
 
         /// <summary>Abandon a planned live-cache continuation (see

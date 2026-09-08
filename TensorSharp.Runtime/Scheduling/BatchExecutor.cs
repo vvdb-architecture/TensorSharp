@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp.Runtime.Paged;
@@ -92,6 +93,15 @@ namespace TensorSharp.Runtime.Scheduling
         // CLONE. Most recent at the tail; evicted from the head past the budget.
         private readonly LinkedList<RetainedFusedCache> _prefixCheckpoints = new();
         private int _prefixCheckpointSerial;
+
+        // Checkpoint keys name holders the MODEL owns, and a model outlives the executors
+        // built on it (every reload builds a new engine on the same weights in tests; a
+        // host may rebuild an engine for other reasons). "prefix:1" from a previous
+        // executor would collide with this one's first key and make the model decline
+        // the checkpoint -- observed as a saved-nothing store. So the key carries the
+        // executor's own number.
+        private static int s_executorSerial;
+        private readonly string _checkpointKeyPrefix = $"prefix:{Interlocked.Increment(ref s_executorSerial)}.";
         // A retained holder can include one or two generated control tokens (most
         // commonly EOS) that the chat history intentionally does not render. After
         // re-keying such a holder, truncate its active model cache to this target
@@ -2114,7 +2124,7 @@ namespace TensorSharp.Runtime.Scheduling
                 }
             }
 
-            string key = $"prefix:{++_prefixCheckpointSerial}";
+            string key = $"{_checkpointKeyPrefix}{++_prefixCheckpointSerial}";
             var sw = Stopwatch.StartNew();
             bool taken;
             try
@@ -2147,17 +2157,12 @@ namespace TensorSharp.Runtime.Scheduling
                 IsPrefixCheckpoint = true,
             });
 
-            int budget = Math.Max(1, ExecutionOptions.FromEnvironment().PrefixCheckpointBudget);
-            while (_prefixCheckpoints.Count > budget)
-            {
-                var victim = _prefixCheckpoints.First.Value;
-                _prefixCheckpoints.RemoveFirst();
-                fused.DiscardRetainedCache(victim.RequestId);
-            }
+            EvictPrefixCheckpointsBeyondBudget(fused);
             _logger.LogInformation(
                 "Shared-prefix checkpoint {Key} taken at {Tokens} tokens for {RequestId} in {Ms:F0} ms " +
                 "({Count} kept); a new chat that starts with this prefix will continue from a copy of it.",
                 key, n, seq.RequestId, sw.Elapsed.TotalMilliseconds, _prefixCheckpoints.Count);
+            SavePrefixCheckpointToStore(fused, key, tokens);
         }
 
         /// <summary>Longest reusable prefix from a retained fused holder, or 0 when
@@ -2172,10 +2177,176 @@ namespace TensorSharp.Runtime.Scheduling
         /// admission (same worker thread as the executor).</summary>
         public int ComputeFusedContinuationLcp(SequenceState seq)
         {
-            if (seq == null || (_retainedFused.Count == 0 && _prefixCheckpoints.Count == 0)) return 0;
+            if (seq == null) return 0;
+            // A checkpoint saved by an earlier process is worth reading only for a
+            // prompt that would clone it, and only once: after this it is in memory.
+            TryRestorePrefixCheckpointFromStore(seq);
+            if (_retainedFused.Count == 0 && _prefixCheckpoints.Count == 0) return 0;
             if (!ModelUsesRetainableFusedCache()) return 0;
             FindRetainedFusedMatch(seq, out int lcp);
             return lcp;
+        }
+
+        /// <summary>
+        /// Where shared-prefix checkpoints outlive the process, or null for nowhere.
+        /// Set by the host; read on the engine thread at admission (restore) and at
+        /// the prefix boundary (save). See <see cref="IPrefixCheckpointStore"/>.
+        /// </summary>
+        public IPrefixCheckpointStore PrefixCheckpointStore
+        {
+            get => Volatile.Read(ref _checkpointStore);
+            set => Volatile.Write(ref _checkpointStore, value);
+        }
+
+        private IPrefixCheckpointStore _checkpointStore;
+
+        // Prefix hashes the store answered with bytes this model rejected, or whose
+        // restored copy could not be cloned: not asked for again in this process, or
+        // every new chat would stream the same hundreds of megabytes back in only to
+        // throw them away. The next successful checkpoint of that prefix overwrites the
+        // file anyway.
+        private readonly HashSet<long> _storeLookupsToSkip = new();
+
+        private static long PrefixHash(SequenceState seq, int n)
+        {
+            unchecked
+            {
+                long h = 1469598103934665603L ^ n;
+                for (int i = 0; i < n; i++)
+                    h = (h ^ seq.PromptTokens[i]) * 1099511628211L;
+                return h;
+            }
+        }
+
+        /// <summary>What a saved checkpoint is filed under: the model's own K/V
+        /// identity plus the file format the executor speaks.</summary>
+        private string CheckpointModelFingerprint =>
+            (_model.KVStateFingerprint ?? string.Empty) + "|prefix-checkpoint-v1";
+
+        private bool HasPrefixCheckpointFor(SequenceState seq, int n)
+        {
+            foreach (var existing in _prefixCheckpoints)
+            {
+                if (existing.Tokens.Length != n) continue;
+                bool same = true;
+                for (int i = 0; i < n && same; i++)
+                    same = existing.Tokens[i] == seq.PromptTokens[i];
+                if (same) return true;
+            }
+            return false;
+        }
+
+        private void EvictPrefixCheckpointsBeyondBudget(IBatchedPagedModel fused)
+        {
+            int budget = Math.Max(1, ExecutionOptions.FromEnvironment().PrefixCheckpointBudget);
+            while (_prefixCheckpoints.Count > budget)
+            {
+                var victim = _prefixCheckpoints.First.Value;
+                _prefixCheckpoints.RemoveFirst();
+                fused.DiscardRetainedCache(victim.RequestId);
+            }
+        }
+
+        /// <summary>
+        /// A prompt about to be admitted starts with a shared prefix no checkpoint in
+        /// memory covers: if a store has one from an earlier process, read it in now,
+        /// so admission finds it exactly as it would find one taken minutes ago. On the
+        /// engine thread, once per prefix per process; the read is the checkpoint's
+        /// size (a hundred to a few hundred megabytes) from local storage.
+        /// </summary>
+        private void TryRestorePrefixCheckpointFromStore(SequenceState seq)
+        {
+            var store = PrefixCheckpointStore;
+            if (store == null || seq.SharedPrefixTokens <= 0 || seq.PrefixCheckpointTaken || seq.CacheBreakpoints != null)
+                return;
+            if (!ModelSupportsPrefixCheckpoints() || _model is not IBatchedPagedModel fused
+                || !fused.SupportsRetainedCacheSerialization)
+                return;
+            int n = seq.SharedPrefixTokens;
+            if (n > seq.PromptTokens.Count || HasPrefixCheckpointFor(seq, n))
+                return;
+            long prefixHash = PrefixHash(seq, n);
+            if (_storeLookupsToSkip.Contains(prefixHash))
+                return;
+
+            var tokens = new int[n];
+            for (int i = 0; i < n; i++) tokens[i] = seq.PromptTokens[i];
+            System.IO.Stream payload = null;
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                if (!store.TryOpen(CheckpointModelFingerprint, tokens, out payload) || payload == null)
+                    return;
+                long bytes = payload.CanSeek ? payload.Length - payload.Position : -1;
+                string key = $"{_checkpointKeyPrefix}{++_prefixCheckpointSerial}";
+                if (!fused.TryImportRetainedCache(key, payload))
+                {
+                    _storeLookupsToSkip.Add(prefixHash);
+                    _logger.LogWarning(
+                        "A saved shared-prefix checkpoint for {Tokens} tokens does not fit this model and was ignored; the prefix is prefilled and saved again.",
+                        n);
+                    return;
+                }
+                _prefixCheckpoints.AddLast(new RetainedFusedCache
+                {
+                    RequestId = key,
+                    Tokens = tokens,
+                    MediaFingerprint = null,
+                    IsPrefixCheckpoint = true,
+                });
+                EvictPrefixCheckpointsBeyondBudget(fused);
+                _logger.LogInformation(
+                    "Shared-prefix checkpoint {Key} restored from disk for {RequestId}: {Tokens} tokens, {MB:F0} MB in {Ms:F0} ms; " +
+                    "this and every later chat that starts with this prefix continue from a copy of it.",
+                    key, seq.RequestId, n, bytes / 1048576.0, sw.Elapsed.TotalMilliseconds);
+            }
+            catch (Exception ex)
+            {
+                _storeLookupsToSkip.Add(prefixHash);
+                _logger.LogWarning(ex,
+                    "Restoring a shared-prefix checkpoint from disk failed; the prefix is prefilled and saved again.");
+            }
+            finally
+            {
+                payload?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// A checkpoint was just taken in memory: keep it for the next process too.
+        /// The model writes its bytes straight into the store's stream on this thread
+        /// (a sequential local write of the checkpoint's size), so no second copy of
+        /// the state is ever held in memory.
+        /// </summary>
+        private void SavePrefixCheckpointToStore(IBatchedPagedModel fused, string key, int[] tokens)
+        {
+            var store = PrefixCheckpointStore;
+            if (store == null || !fused.SupportsRetainedCacheSerialization)
+                return;
+            var sw = Stopwatch.StartNew();
+            long written = 0;
+            try
+            {
+                bool saved = store.Save(CheckpointModelFingerprint, tokens, stream =>
+                {
+                    long start = stream.CanSeek ? stream.Position : 0;
+                    if (!fused.TryExportRetainedCache(key, stream))
+                        throw new InvalidOperationException("the model declined to export the checkpoint");
+                    written = stream.CanSeek ? stream.Position - start : 0;
+                });
+                if (saved)
+                    _logger.LogInformation(
+                        "Shared-prefix checkpoint {Key} saved to disk: {MB:F0} MB in {Ms:F0} ms; the next launch starts from it.",
+                        key, written / 1048576.0, sw.Elapsed.TotalMilliseconds);
+                else
+                    _logger.LogWarning(
+                        "Shared-prefix checkpoint {Key} could not be saved; the next launch prefills the prefix again.", key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Saving shared-prefix checkpoint {Key} failed; the next launch prefills the prefix again.", key);
+            }
         }
 
         /// <summary>Adopt a retained fused holder for <paramref name="seq"/>: re-key
@@ -2223,12 +2394,14 @@ namespace TensorSharp.Runtime.Scheduling
                 if (match.IsPrefixCheckpoint)
                 {
                     // Declined once, declined always: drop it so the next request does
-                    // not pay the search for a copy the model will not make.
+                    // not pay the search for a copy the model will not make -- and not
+                    // read it back from the store either, which would be the same copy.
                     _logger.LogWarning(
                         "Shared-prefix checkpoint {Key} could not be cloned for {RequestId}; discarding it.",
                         match.RequestId, seq.RequestId);
                     _prefixCheckpoints.Remove(match);
                     fused.DiscardRetainedCache(match.RequestId);
+                    _storeLookupsToSkip.Add(PrefixHash(seq, Math.Min(match.Tokens.Length, seq.PromptTokens.Count)));
                 }
                 return false;
             }
@@ -2592,17 +2765,25 @@ namespace TensorSharp.Runtime.Scheduling
 
         private int[] BuildPrefillChunk(SequenceState seq, ScheduledSequenceWork work)
         {
-            if (seq.NumComputedTokens == 0)
+            if (!seq.PrefillReservationTaken)
             {
                 // Reserve the prompt plus its declared generation budget in a
                 // single model-specific allocation. Hybrid models with large
                 // attention caches can otherwise cross a power-of-two boundary
                 // during decode and perform a multi-gigabyte grow/copy mid-stream.
-                long requested = (long)seq.PromptTokens.Count + seq.MaxNewTokens;
-                int maxContext = _model.MaxContextLength;
-                if (maxContext > 0)
-                    requested = Math.Min(requested, maxContext);
-                _model.PrepareForPrefill((int)Math.Min(requested, int.MaxValue));
+                //
+                // Once per request, on its FIRST chunk -- which is not always at token
+                // zero. A request that continues a retained holder or the live cache
+                // starts at the reused prefix, and reserving only at zero left every
+                // such continuation to grow geometrically inside the forward instead
+                // (2048 -> 4096 -> ... -> the whole window), each doubling a copy of
+                // the cache and a rebuild of the graphs bound to it.
+                seq.PrefillReservationTaken = true;
+                _model.PrepareForPrefill(ResolvePrefillReservation(
+                    seq.PromptTokens.Count,
+                    seq.MaxNewTokens,
+                    _model.MaxContextLength,
+                    ExecutionOptions.FromEnvironment().KvGenerationReserveMax));
             }
 
             int want = work.NumScheduledTokens;
@@ -2610,6 +2791,70 @@ namespace TensorSharp.Runtime.Scheduling
             for (int i = 0; i < want; i++)
                 buf[i] = seq.TokenAt(seq.NumComputedTokens + i);
             return buf;
+        }
+
+        /// <summary>How many K/V rows a request reserves before its first prefill
+        /// chunk: the prompt plus its generation budget, the latter capped by
+        /// <see cref="ExecutionOptions.KvGenerationReserveMax"/> when one is set, and
+        /// the whole never past the window. The cap exists because a reply limit at or
+        /// above the window (a phone user asking for the longest reply the app offers)
+        /// otherwise reserves the ENTIRE window for every request, however short the
+        /// conversation -- and on a device where the K/V is paid twice, in host memory
+        /// and in its device mirror, that reservation is what got the app killed. Past
+        /// the cap the cache still grows on demand while the reply runs.</summary>
+        internal static int ResolvePrefillReservation(
+            int promptTokens, int maxNewTokens, int maxContext, int generationReserveMax)
+        {
+            long generation = Math.Max(0, maxNewTokens);
+            long requested;
+            if (generationReserveMax > 0)
+            {
+                generation = Math.Min(generation, generationReserveMax);
+                // Capped mode is memory-bound mode, where a conversation's every tool
+                // round arrives as a continuation a thousand tokens longer than the last.
+                // Reserved to the token, each round would grow the cache -- a copy of
+                // every resident row, a rebuild of the graphs bound to it, a re-upload of
+                // the device mirror -- so the reservation is snapped up to a coarse step
+                // and a growth is paid once per step instead. The slack is bounded (one
+                // step of K/V) where geometric doubling was unbounded (half the window).
+                requested = Math.Max(0, promptTokens) + generation;
+                requested = (requested + CappedReservationStep - 1) / CappedReservationStep * CappedReservationStep;
+            }
+            else
+            {
+                requested = Math.Max(0, promptTokens) + generation;
+            }
+            if (maxContext > 0)
+                requested = Math.Min(requested, maxContext);
+            return (int)Math.Min(requested, int.MaxValue);
+        }
+
+        /// <summary>Granularity of a capped reservation; see <see cref="ResolvePrefillReservation"/>.</summary>
+        internal const int CappedReservationStep = 2048;
+
+        /// <summary>
+        /// Give memory back while it is still ours to give. Keeps the newest retained
+        /// conversation holder (the turn most likely to continue) and every shared-prefix
+        /// checkpoint (small, and what makes a new chat fast); evicts every other retained
+        /// holder, then lets the model drop whatever it parked for reuse. Engine thread
+        /// only, between steps. Returns a one-line account for the log.
+        /// </summary>
+        public string TrimIdleMemory()
+        {
+            int evicted = 0;
+            if (_model is IBatchedPagedModel fused)
+            {
+                while (_retainedFused.Count > 1)
+                {
+                    var victim = _retainedFused.First.Value;
+                    _retainedFused.RemoveFirst();
+                    fused.DiscardRetainedCache(victim.RequestId);
+                    evicted++;
+                }
+            }
+            _model.TrimIdleMemory();
+            return $"evicted {evicted} retained holder(s); kept {_retainedFused.Count} retained and "
+                + $"{_prefixCheckpoints.Count} shared-prefix checkpoint(s)";
         }
 
         /// <summary>Consume a token the batched greedy path sampled on-device
@@ -3039,6 +3284,30 @@ namespace TensorSharp.Runtime.Scheduling
         /// fresh active holder for <paramref name="newRequestId"/>, leaving the retained
         /// one intact so the next request can clone it too.</summary>
         bool TryCloneRetainedCache(string retainedKey, string newRequestId) => false;
+
+        // ---- Checkpoints that outlive the process --------------------------------
+        //
+        // A checkpoint is host bytes: never bound, never device-dirty, complete. That
+        // is what makes it the one kind of holder that can be written to a file and
+        // read back by a later process running the same weights (see
+        // IPrefixCheckpointStore). The model owns the format and validates it on the
+        // way in; the executor decides when to write and when to read.
+
+        /// <summary>Whether <see cref="TryExportRetainedCache"/> and
+        /// <see cref="TryImportRetainedCache"/> are implemented. Default false.</summary>
+        bool SupportsRetainedCacheSerialization => false;
+
+        /// <summary>Write the complete state of the retained holder <paramref name="key"/>
+        /// to <paramref name="destination"/>, in a format only this model family reads.
+        /// False (and nothing written) when the holder is not one whose host bytes are
+        /// the truth, or does not exist.</summary>
+        bool TryExportRetainedCache(string key, System.IO.Stream destination) => false;
+
+        /// <summary>Create the retained holder <paramref name="key"/> from bytes an
+        /// earlier <see cref="TryExportRetainedCache"/> wrote on the same model. False
+        /// (and nothing created) when the bytes do not describe this model: another
+        /// architecture, geometry, K/V precision or format version.</summary>
+        bool TryImportRetainedCache(string key, System.IO.Stream source) => false;
 
         /// <summary>TRUE token-batched decode: decode ONE token for each of N
         /// concurrent sequences in a single fused graph (one compute buffer,

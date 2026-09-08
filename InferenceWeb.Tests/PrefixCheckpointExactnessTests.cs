@@ -121,11 +121,64 @@ public class PrefixCheckpointExactnessTests
                 $"chat B reused {reusedByB} tokens; expected the whole {prefix.Count}-token prefix from the checkpoint clone");
             Assert.Equal(NewTokens, coldB.Count);
             Assert.Equal(coldB, clonedB);
+
+            // 4. The checkpoint written to a store by one engine and read back by
+            //    another with nothing in memory -- the launch-after-launch case. The
+            //    bytes went through the model's own export and import, and chat B from
+            //    the restored copy must still match the cold reference token for token.
+            var store = new BytesCheckpointStore();
+            using (var engine = new InferenceEngine(model, Config(), NullLogger.Instance) { PrefixCheckpointStore = store })
+            {
+                var a = await GenerateAsync(engine, promptA, prefix.Count, "chat-a-save");
+                Assert.Equal(0, a.completion.PrefixCacheReusedTokens);
+            }
+            Assert.Equal(1, store.Saves);
+            _output.WriteLine($"[store] {store.Bytes / 1048576.0:F1} MB saved");
+            using (var engine = new InferenceEngine(model, Config(), NullLogger.Instance) { PrefixCheckpointStore = store })
+            {
+                var b = await GenerateAsync(engine, promptB, prefix.Count, "chat-b-restored");
+                Assert.Equal(1, store.Opens);
+                Assert.True(b.completion.PrefixCacheReusedTokens == prefix.Count,
+                    $"chat B reused {b.completion.PrefixCacheReusedTokens} tokens from the restored checkpoint; expected {prefix.Count}");
+                _output.WriteLine($"[B from disk] {Decode(model, b.output)}");
+                Assert.Equal(coldB, b.output);
+            }
         }
         finally
         {
             Environment.SetEnvironmentVariable("TS_PREFIX_CHECKPOINTS", prevCheckpoints);
             Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", prevRetained);
+        }
+    }
+
+    /// <summary>A store that keeps the bytes in memory: the framing a file adds is
+    /// tested elsewhere; here the model's export and import are what is under test.</summary>
+    private sealed class BytesCheckpointStore : IPrefixCheckpointStore
+    {
+        private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
+        public int Saves { get; private set; }
+        public int Opens { get; private set; }
+        public long Bytes { get; private set; }
+
+        private static string KeyFor(string fp, ReadOnlySpan<int> tokens) => fp + "|" + string.Join(",", tokens.ToArray());
+
+        public bool TryOpen(string modelFingerprint, ReadOnlySpan<int> prefixTokens, out Stream payload)
+        {
+            payload = null;
+            if (!_files.TryGetValue(KeyFor(modelFingerprint, prefixTokens), out byte[] bytes)) return false;
+            Opens++;
+            payload = new MemoryStream(bytes, writable: false);
+            return true;
+        }
+
+        public bool Save(string modelFingerprint, ReadOnlySpan<int> prefixTokens, Action<Stream> writePayload)
+        {
+            var ms = new MemoryStream();
+            writePayload(ms);
+            _files[KeyFor(modelFingerprint, prefixTokens)] = ms.ToArray();
+            Bytes = ms.Length;
+            Saves++;
+            return true;
         }
     }
 

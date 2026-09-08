@@ -74,6 +74,28 @@ namespace TensorSharp.Server
             }
         }
 
+        /// <summary>
+        /// Where the engine keeps shared-prefix checkpoints between processes, or null
+        /// for nowhere. Handed to every engine this host builds and to the one standing,
+        /// for the same reason as <see cref="ComputeGate"/>: the engine is rebuilt on
+        /// every model swap, and the host sets this per model.
+        /// </summary>
+        public IPrefixCheckpointStore PrefixCheckpointStore
+        {
+            get { lock (_gate) return _checkpointStore; }
+            set
+            {
+                lock (_gate)
+                {
+                    _checkpointStore = value;
+                    if (_engine != null)
+                        _engine.PrefixCheckpointStore = value;
+                }
+            }
+        }
+
+        private IPrefixCheckpointStore _checkpointStore;
+
         internal InferenceEngineHost(ModelLifecycleService lifecycle, ILogger logger)
         {
             _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
@@ -107,7 +129,11 @@ namespace TensorSharp.Server
                 SchedulerConfig cfg = SchedulerConfigOverride;
                 string cfgSource = cfg != null ? "host" : "environment";
                 cfg ??= SchedulerConfig.FromEnvironment();
-                _engine = new InferenceEngine(model, cfg, _logger) { ComputeGate = _computeGate };
+                _engine = new InferenceEngine(model, cfg, _logger)
+                {
+                    ComputeGate = _computeGate,
+                    PrefixCheckpointStore = _checkpointStore,
+                };
                 _fingerprint = fp;
                 var poolStats = _engine.PoolStats;
                 _logger.LogInformation(
@@ -139,6 +165,33 @@ namespace TensorSharp.Server
                 waiting = _engine.WaitingCount;
                 totalCompleted = _engine.TotalCompleted;
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Ask the standing engine, if there is one, to release what only speeds up the
+        /// next request. Never constructs an engine: a memory warning must not be what
+        /// allocates a block pool. Returns false when nothing was there to ask.
+        /// </summary>
+        public bool TrimIdleMemory()
+        {
+            // Never WAITS for the gate. Reset and Dispose hold it while they join the
+            // engine's worker thread for the rest of an in-flight step, which can be tens
+            // of seconds -- and a memory warning arrives on the UI thread. A load or
+            // unload in progress is also exactly the moment there is nothing sensible to
+            // trim: the engine is being torn down or has not been built yet.
+            if (!System.Threading.Monitor.TryEnter(_gate, 0))
+                return false;
+            try
+            {
+                if (_disposed || _engine == null)
+                    return false;
+                _engine.TrimIdleMemory();
+                return true;
+            }
+            finally
+            {
+                System.Threading.Monitor.Exit(_gate);
             }
         }
 

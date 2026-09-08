@@ -329,6 +329,9 @@ Models that do not advertise this capability ignore the retained-cache setting.
 | `TS_RETAINED_FUSED_CACHE_MAX` | `4` | LRU budget of retained fused holders (each pins the model's complete per-request continuation state). |
 | `TS_PREFIX_CHECKPOINTS` | `1` | Checkpoint the model's complete state at the end of the shared prompt prefix (the boundary the chat layer marks on the request) and start each new chat from a clone of it, on models that can copy their state (Gemma 4, Qwen 3.5/3.6). `0` disables. |
 | `TS_PREFIX_CHECKPOINTS_MAX` | `2` | How many distinct shared prefixes stay checkpointed at once (LRU). |
+| `TS_KV_INITIAL_TOKENS` | `0` | Tokens of K/V a cache is given when created, before any request declares a budget; `0` keeps the engine policy (the whole window when `MAX_CONTEXT` is explicit). The cache still grows on demand. |
+| `TS_KV_GENERATION_RESERVE_MAX` | `0` | Cap on the generation share of a request's up-front K/V reservation (prompt + max_new_tokens); `0` = uncapped. Past the cap the cache grows on demand. |
+| `TS_KV_HOLDER_POOL_MAX` | `64` | How many released per-request holders a model may park for reuse; each costs its whole K/V allocation while parked. |
 | `TS_KV_PAGED_QUANT_BITS` | `0` | Optional TurboQuant codec bits for paged KV blocks (`2`, `4`, or `8`); recurrent-state models may fall back to passthrough. |
 | `TS_MTP_SPEC` | `0` | `1` enables MTP / NextN speculative decoding for solo sequences (server `--spec`). |
 | `TS_MTP_DRAFT` | `8` | Max tokens drafted per speculative step (server `--spec-draft`). |
@@ -338,6 +341,17 @@ Models that do not advertise this capability ignore the retained-cache setting.
 | `DIFFUSION_STEPS` | `48` | Web UI DiffusionGemma denoising steps per block. This is separate from autoregressive scheduler step budgets. |
 | `DIFFUSION_MAX_BATCH` | `2` | Maximum active DiffusionGemma Web UI requests in the diffusion scheduler. |
 | `DIFFUSION_BATCHED_FORWARD` | `0` | Enables true batched canvas decode for active DiffusionGemma canvases; the default favors the fused single-canvas path. |
+
+A host can make a shared-prefix checkpoint outlive the process by attaching an
+`IPrefixCheckpointStore` to the engine (`InferenceEngine.PrefixCheckpointStore`, or
+`InferenceEngineHost.PrefixCheckpointStore` in TensorSharp.Chat). The executor then
+reads a saved checkpoint at admission for a prompt whose shared prefix no in-memory
+checkpoint covers, and writes one the moment it takes a checkpoint; the model family
+owns the byte format (`IBatchedPagedModel.TryExportRetainedCache` /
+`TryImportRetainedCache`, implemented by Qwen 3.5/3.6 and Gemma 4) and validates it
+on the way in. TensorAgent's `PrefixCheckpointFileStore` is the file-backed store;
+it is what makes the first message after a launch as fast as the second.
+
 
 Server CLI aliases:
 

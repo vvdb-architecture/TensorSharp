@@ -401,6 +401,62 @@ public sealed class ChatGenerationPipelineContextWindowTests
         Assert.DoesNotContain("OLD_ANSWER", compacted, StringComparison.Ordinal);
     }
 
+    // Regression, from a phone's log: the reply length set to 262,144 tokens inside a
+    // 32,768-token window made the compactor's reserve 32,767 and its prompt budget ONE
+    // token, so every tool round removed the whole conversation but the instructions,
+    // the latest request and the newest round ("prompt.history_compacted from 13544 to
+    // 7789 tokens by removing 16 old messages") -- an agent that fetched the same page
+    // eight times because each round had forgotten the last. The reserve the compactor
+    // protects is now at most a quarter of the window; the reply still gets whatever the
+    // kept prompt leaves (ClampGenerationReserve), which in a short chat is the window.
+    [Fact]
+    public void HistoryCompactionReserve_IsAtMostAQuarterOfTheWindow()
+    {
+        Assert.Equal(8192, ChatGenerationPipeline.HistoryCompactionReserve(262144, 32768));
+        Assert.Equal(8192, ChatGenerationPipeline.HistoryCompactionReserve(32767, 32768));
+        Assert.Equal(2048, ChatGenerationPipeline.HistoryCompactionReserve(2048, 32768));
+        Assert.Equal(4096, ChatGenerationPipeline.HistoryCompactionReserve(262144, 16384));
+        // A small window keeps a 1,024-token floor rather than a quarter.
+        Assert.Equal(1024, ChatGenerationPipeline.HistoryCompactionReserve(262144, 2048));
+        // Never the whole window, whatever was asked.
+        Assert.Equal(511, ChatGenerationPipeline.HistoryCompactionReserve(262144, 512));
+        // And never below one.
+        Assert.Equal(1, ChatGenerationPipeline.HistoryCompactionReserve(0, 4096));
+    }
+
+    [Fact]
+    public void AReplyLimitAboveTheWindow_NoLongerEmptiesTheConversation()
+    {
+        // Twelve completed tool rounds of 1,000 tokens after 6,000 of instructions:
+        // 18,000 tokens of prompt in a 32,768 window fits with 8,192 held for the reply.
+        var history = new List<ChatMessage> { new() { Role = "system", Content = "instructions" } };
+        for (int i = 0; i < 12; i++)
+        {
+            history.Add(new() { Role = "user", Content = $"task {i}" });
+            history.Add(new() { Role = "assistant", Content = $"tool call {i}" });
+        }
+        history.Add(new() { Role = "user", Content = "latest task" });
+
+        static int Count(List<ChatMessage> messages) => 6000 + (messages.Count - 1) * 500;
+
+        ChatGenerationPipeline.ContextHistoryWindow window =
+            ChatGenerationPipeline.CompactHistoryForContextBudget(
+                history, originalPromptTokens: Count(history), contextLimit: 32768,
+                requestedGenerationTokens: 262144, preserveAllInput: false, Count);
+
+        Assert.Equal(0, window.RemovedMessages);
+        Assert.Same(history, window.History);
+
+        // The same request with the OLD reserve (the whole window) would have kept only
+        // the protected minimum; prove the budget the compactor now works to.
+        ChatGenerationPipeline.ContextHistoryWindow tight =
+            ChatGenerationPipeline.CompactHistoryForContextBudget(
+                history, originalPromptTokens: Count(history), contextLimit: 20000,
+                requestedGenerationTokens: 262144, preserveAllInput: false, Count);
+        Assert.True(tight.RemovedMessages > 0, "a genuinely tight window still compacts");
+        Assert.True(tight.FinalPromptTokens <= 20000 - 5000, "to the window minus a quarter for the reply");
+    }
+
     [Fact]
     public void HistoryThatFits_IsReturnedUnchangedWithoutAnotherRender()
     {

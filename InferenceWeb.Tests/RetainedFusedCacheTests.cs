@@ -379,6 +379,104 @@ public class RetainedFusedCacheTests
         });
     }
 
+    /// <summary>A store that keeps checkpoints in memory, keyed exactly as a file store would.</summary>
+    private sealed class MemoryCheckpointStore : IPrefixCheckpointStore
+    {
+        private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
+        public int Saves { get; private set; }
+        public int Opens { get; private set; }
+        public int Count => _files.Count;
+        public bool Corrupt { get; set; }
+
+        private static string KeyFor(string fp, ReadOnlySpan<int> tokens) => fp + "|" + string.Join(",", tokens.ToArray());
+
+        public bool TryOpen(string modelFingerprint, ReadOnlySpan<int> prefixTokens, out System.IO.Stream payload)
+        {
+            payload = null;
+            if (!_files.TryGetValue(KeyFor(modelFingerprint, prefixTokens), out byte[] bytes)) return false;
+            Opens++;
+            payload = new System.IO.MemoryStream(Corrupt ? new byte[] { 9, 9, 9, 9, 9, 9, 9, 9 } : bytes, writable: false);
+            return true;
+        }
+
+        public bool Save(string modelFingerprint, ReadOnlySpan<int> prefixTokens, Action<System.IO.Stream> writePayload)
+        {
+            var ms = new System.IO.MemoryStream();
+            writePayload(ms);
+            _files[KeyFor(modelFingerprint, prefixTokens)] = ms.ToArray();
+            Saves++;
+            return true;
+        }
+    }
+
+    [Fact]
+    public async Task ACheckpointSavedByOneProcess_ServesTheFirstChatOfTheNext()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            var store = new MemoryCheckpointStore();
+
+            // Process 1: the first chat crosses the shared prefix, the checkpoint is
+            // taken in memory AND written to the store.
+            var first = new FusedStubModel();
+            using (var engine = new InferenceEngine(first, Config(), NullLogger.Instance) { PrefixCheckpointStore = store })
+            {
+                var chat = await DrainAsync(engine.SubmitRequest(NewChat("p1-chat-1", firstToken: 7)));
+                Assert.Equal(0, chat.completion.PrefixCacheReusedTokens);
+                Assert.Single(first.Checkpoints);
+                Assert.Equal(1, first.Exports);
+                Assert.Equal(1, store.Saves);
+            }
+
+            // Process 2: a fresh model, nothing in memory. Its very first chat is served
+            // from the store -- the whole prefix reused, no checkpoint prefilled, one
+            // read -- and the chat after it from the same restored copy.
+            var second = new FusedStubModel();
+            using (var engine = new InferenceEngine(second, Config(), NullLogger.Instance) { PrefixCheckpointStore = store })
+            {
+                var chat = await DrainAsync(engine.SubmitRequest(NewChat("p2-chat-1", firstToken: 8)));
+                Assert.Equal(SharedPrefixLen, chat.completion.PrefixCacheReusedTokens);
+                Assert.Equal(1, second.Imports);
+                Assert.Equal(1, second.Clones);
+                Assert.Empty(second.Checkpoints);      // restored, never prefilled
+                Assert.Equal(1, store.Opens);
+
+                var next = await DrainAsync(engine.SubmitRequest(NewChat("p2-chat-2", firstToken: 9)));
+                Assert.Equal(SharedPrefixLen, next.completion.PrefixCacheReusedTokens);
+                Assert.Equal(1, second.Imports);       // in memory now: no second read
+                Assert.Equal(1, store.Opens);
+                Assert.Equal(2, second.Clones);
+            }
+            Assert.Equal(1, store.Saves);              // nothing new to save in process 2
+        });
+    }
+
+    [Fact]
+    public async Task AStoredCheckpointTheModelRejects_IsPrefilledAndSavedAgain()
+    {
+        await WithCheckpointsOnAsync(async () =>
+        {
+            var store = new MemoryCheckpointStore();
+            var first = new FusedStubModel();
+            using (var engine = new InferenceEngine(first, Config(), NullLogger.Instance) { PrefixCheckpointStore = store })
+                await DrainAsync(engine.SubmitRequest(NewChat("p1-chat-1", firstToken: 7)));
+            Assert.Equal(1, store.Saves);
+
+            store.Corrupt = true;
+            var second = new FusedStubModel();
+            using (var engine = new InferenceEngine(second, Config(), NullLogger.Instance) { PrefixCheckpointStore = store })
+            {
+                var chat = await DrainAsync(engine.SubmitRequest(NewChat("p2-chat-1", firstToken: 8)));
+                // Not served from the bad bytes: prefilled like a cold chat, the
+                // checkpoint taken in memory, and the store given a good copy again.
+                Assert.Equal(0, chat.completion.PrefixCacheReusedTokens);
+                Assert.Equal(0, second.Imports);
+                Assert.Single(second.Checkpoints);
+                Assert.Equal(2, store.Saves);
+            }
+        });
+    }
+
     [Fact]
     public async Task AFollowUpTurn_ContinuesItsOwnConversationRatherThanTheCheckpoint()
     {
@@ -1101,6 +1199,35 @@ public class RetainedFusedCacheTests
             if (_holders.ContainsKey(newRequestId)) return false;
             _holders[newRequestId] = new Holder { SeqLen = h.SeqLen };
             Clones++;
+            return true;
+        }
+
+        // A checkpoint on disk is the holder's token count, which is all the state
+        // this stub has; a real model writes its K/V and recurrent state the same way.
+        public int Exports { get; private set; }
+        public int Imports { get; private set; }
+        public bool SupportsRetainedCacheSerialization { get; set; } = true;
+
+        public bool TryExportRetainedCache(string key, System.IO.Stream destination)
+        {
+            if (!_retained.TryGetValue(key, out var h)) return false;
+            var w = new System.IO.BinaryWriter(destination, System.Text.Encoding.UTF8, leaveOpen: true);
+            w.Write(0x53545542u);   // "STUB"
+            w.Write(h.SeqLen);
+            w.Flush();
+            Exports++;
+            return true;
+        }
+
+        public bool TryImportRetainedCache(string key, System.IO.Stream source)
+        {
+            if (_retained.ContainsKey(key) || _holders.ContainsKey(key)) return false;
+            var r = new System.IO.BinaryReader(source, System.Text.Encoding.UTF8, leaveOpen: true);
+            if (r.ReadUInt32() != 0x53545542u) return false;
+            int seqLen = r.ReadInt32();
+            if (seqLen <= 0) return false;
+            _retained[key] = new Holder { SeqLen = seqLen };
+            Imports++;
             return true;
         }
 

@@ -446,4 +446,44 @@ public class ExecutionPlannerTests
         Assert.Contains("TS_BATCHED_FUSED_DECODE=0", description);
         Assert.DoesNotContain("TS_BATCHED_FUSED_DECODE=1", description);
     }
+
+    // The three K/V memory knobs a memory-constrained host sets (see
+    // TensorAgent's EngineMemoryPolicy): they must parse, default to "engine policy",
+    // and show up in the override summary so a log line names what is in force.
+    [Fact]
+    public void ExecutionOptions_KvMemoryKnobs_ParseAndDescribe()
+    {
+        string prevInitial = Environment.GetEnvironmentVariable("TS_KV_INITIAL_TOKENS");
+        string prevReserve = Environment.GetEnvironmentVariable("TS_KV_GENERATION_RESERVE_MAX");
+        string prevPool = Environment.GetEnvironmentVariable("TS_KV_HOLDER_POOL_MAX");
+        try
+        {
+            Environment.SetEnvironmentVariable("TS_KV_INITIAL_TOKENS", null);
+            Environment.SetEnvironmentVariable("TS_KV_GENERATION_RESERVE_MAX", null);
+            Environment.SetEnvironmentVariable("TS_KV_HOLDER_POOL_MAX", null);
+            ExecutionOptions defaults = ExecutionOptions.FromEnvironment();
+            Assert.Equal(0, defaults.KvInitialTokens);
+            Assert.Equal(0, defaults.KvGenerationReserveMax);
+            Assert.Equal(64, defaults.KvHolderPoolMax);
+            Assert.DoesNotContain("TS_KV_", defaults.DescribeOverrides());
+
+            Environment.SetEnvironmentVariable("TS_KV_INITIAL_TOKENS", "2048");
+            Environment.SetEnvironmentVariable("TS_KV_GENERATION_RESERVE_MAX", "1024");
+            Environment.SetEnvironmentVariable("TS_KV_HOLDER_POOL_MAX", "0");
+            ExecutionOptions phone = ExecutionOptions.FromEnvironment();
+            Assert.Equal(2048, phone.KvInitialTokens);
+            Assert.Equal(1024, phone.KvGenerationReserveMax);
+            Assert.Equal(0, phone.KvHolderPoolMax);
+            string description = phone.DescribeOverrides();
+            Assert.Contains("TS_KV_INITIAL_TOKENS=2048", description);
+            Assert.Contains("TS_KV_GENERATION_RESERVE_MAX=1024", description);
+            Assert.Contains("TS_KV_HOLDER_POOL_MAX=0", description);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TS_KV_INITIAL_TOKENS", prevInitial);
+            Environment.SetEnvironmentVariable("TS_KV_GENERATION_RESERVE_MAX", prevReserve);
+            Environment.SetEnvironmentVariable("TS_KV_HOLDER_POOL_MAX", prevPool);
+        }
+    }
 }

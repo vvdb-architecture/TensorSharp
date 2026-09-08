@@ -66,9 +66,15 @@ internal static class DeviceState
     {
         long available = AvailableMemoryBytes();
         double physical = NSProcessInfo.ProcessInfo.PhysicalMemory / 1_000_000_000.0;
-        return available > 0
+        string headroom = available > 0
             ? $"device {physical:0.0} GB, this process may still take {available / 1_000_000_000.0:0.00} GB"
             : $"device {physical:0.0} GB, per-process headroom unavailable";
+        // The per-process figure above is the one the app used to trust, and it is the
+        // wrong one on a phone: the weights are wired outside the footprint it is judged
+        // against, so it can read "4 GB left" on a device with none. The kernel's own
+        // numbers -- what this process is charged and what the device has wired and
+        // free -- are the ones a jetsam report will show. See ProcessMemory.
+        return headroom + "; " + TensorAgent.Core.Hosting.ProcessMemory.Describe();
     }
 
     /// <summary>

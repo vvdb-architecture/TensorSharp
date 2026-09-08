@@ -207,6 +207,59 @@ public sealed class BackgroundGenerationLiveTests : LiveModelHarness
             $"the new chat after a rebuilt engine reused only {afterwards.ReusedTokens} of {afterwards.PromptTokens} tokens: the shared-prefix checkpoint was not re-taken");
     }
 
+    [LiveModelFact]
+    public async Task AWarmUpThatMeetsADeadBackendLeavesAWarmEngineBehindOnANewBackend()
+    {
+        // The phone's own sequence, replayed: a warm-up meets a GPU fault while nothing
+        // is running. The host must rebuild the backend then and there and warm the
+        // NEW one, so the next new chat is fast rather than paying the rebuild and the
+        // whole prompt (40 s on the phone).
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        AgentAppHost host = Start(model, weights, maxTokens: 64);
+        await LoadAsync(model);
+        PublishTheWayTheAppInstalls(host, model, weights);
+
+        // The first warm-up "meets" the fault; the one the rebuild starts is real.
+        int calls = 0;
+        host.WarmUpFrames = (body, ct) => ++calls == 1 ? DeadBackend() : host.Chat.ChatStreamAsync(body, ct);
+        static async IAsyncEnumerable<object> DeadBackend()
+        {
+            await Task.Yield();
+            yield return new
+            {
+                done = true,
+                error = "ggml_metal_synchronize: error: command buffer 0 failed with status 5 | error: "
+                        + "Insufficient Permission (to submit GPU work from background)",
+            };
+        }
+
+        host.WarmThePrefixCache();
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed < TimeSpan.FromMinutes(3) && !(host.EngineRebuilds >= 1 && host.PrefixCacheIsWarm))
+            await Task.Delay(100);
+
+        Assert.Equal(1, host.RebuildsAfterPoisonedWarmUps);
+        Assert.Equal(1, host.EngineRebuilds);
+        Assert.False(host.EngineNeedsReload);
+        Assert.True(host.PrefixCacheIsWarm, "the rebuilt engine was not warmed again");
+        Assert.Equal(AgentAppHost.ModelLoadState.Loaded, host.ModelLoad);
+
+        // And a new chat pays nothing for any of it.
+        JsonElement session = await OpenSessionAsync();
+        List<JsonElement> frames = await StreamAsync(new
+        {
+            sessionId = session.GetProperty("sessionId").GetString(),
+            messages = new[] { new { role = "user", content = "Reply with exactly the word: papaya" } },
+            maxTokens = 32,
+            think = false,
+        });
+        TurnStats stats = StatsOf(frames);
+        Console.WriteLine($"live model: new chat after a poisoned warm-up's rebuild: {stats}");
+        Assert.True(stats.ReusedTokens > 0.9 * stats.PromptTokens,
+            $"the new chat after the proactive rebuild reused only {stats.ReusedTokens} of {stats.PromptTokens} tokens");
+        Assert.Contains("papaya", TextOf(frames), StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Put the weights where a recovery reload will look for them.
     ///

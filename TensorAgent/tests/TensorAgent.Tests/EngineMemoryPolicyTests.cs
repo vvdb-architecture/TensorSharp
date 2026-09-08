@@ -21,11 +21,19 @@ public sealed class EngineMemoryPolicyTests : IDisposable
 {
     private readonly string? _savedContext = Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable);
     private readonly string? _savedDtype = Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvCacheDtypeVariable);
+    private readonly string? _savedInitial = Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvInitialTokensVariable);
+    private readonly string? _savedReserve = Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvGenerationReserveMaxVariable);
+    private readonly string? _savedPool = Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvHolderPoolMaxVariable);
+    private readonly string? _savedRetained = Environment.GetEnvironmentVariable(EngineMemoryPolicy.RetainedFusedCacheMaxVariable);
 
     public void Dispose()
     {
         Environment.SetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable, _savedContext);
         Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvCacheDtypeVariable, _savedDtype);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvInitialTokensVariable, _savedInitial);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvGenerationReserveMaxVariable, _savedReserve);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvHolderPoolMaxVariable, _savedPool);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.RetainedFusedCacheMaxVariable, _savedRetained);
     }
 
     private static CatalogModel Entry(string id) =>
@@ -41,6 +49,35 @@ public sealed class EngineMemoryPolicyTests : IDisposable
         Assert.Equal(
             qwen.ContextLength.ToString(),
             Environment.GetEnvironmentVariable(EngineMemoryPolicy.MaxContextVariable));
+    }
+
+    [Fact]
+    public void ThePhonesKvKnobsReachTheEngineOnEveryLoad()
+    {
+        // Each of these is an engine default written for a machine with memory to spare;
+        // the phone's values are the ones EngineMemoryPolicy documents and measured.
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvInitialTokensVariable, null);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvGenerationReserveMaxVariable, null);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.KvHolderPoolMaxVariable, null);
+        Environment.SetEnvironmentVariable(EngineMemoryPolicy.RetainedFusedCacheMaxVariable, null);
+
+        EngineMemoryPolicy.Apply(Entry("qwen3.5-9b-iq4xs"), new AppSettings());
+
+        Assert.Equal(EngineMemoryPolicy.KvInitialTokens.ToString(),
+            Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvInitialTokensVariable));
+        Assert.Equal(EngineMemoryPolicy.KvGenerationReserveMax.ToString(),
+            Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvGenerationReserveMaxVariable));
+        Assert.Equal(EngineMemoryPolicy.KvHolderPoolMax.ToString(),
+            Environment.GetEnvironmentVariable(EngineMemoryPolicy.KvHolderPoolMaxVariable));
+        Assert.Equal(EngineMemoryPolicy.RetainedFusedCacheMax.ToString(),
+            Environment.GetEnvironmentVariable(EngineMemoryPolicy.RetainedFusedCacheMaxVariable));
+
+        // And the engine reads exactly those spellings.
+        var options = TensorSharp.Runtime.Scheduling.ExecutionOptions.FromEnvironment();
+        Assert.Equal(EngineMemoryPolicy.KvInitialTokens, options.KvInitialTokens);
+        Assert.Equal(EngineMemoryPolicy.KvGenerationReserveMax, options.KvGenerationReserveMax);
+        Assert.Equal(EngineMemoryPolicy.KvHolderPoolMax, options.KvHolderPoolMax);
+        Assert.Equal(EngineMemoryPolicy.RetainedFusedCacheMax, options.RetainedFusedCacheBudget);
     }
 
     [Fact]

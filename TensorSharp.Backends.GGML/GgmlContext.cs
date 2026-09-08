@@ -16,6 +16,14 @@ namespace TensorSharp.GGML
     {
         internal GgmlMemoryPool MemoryPool { get; }
 
+        /// <summary>
+        /// Return every pooled-but-unused host block to the operating system and report
+        /// how many bytes that was. The pool keeps freed blocks so the next allocation
+        /// is cheap; on a device that is about to be killed for memory, cheap is not
+        /// the point.
+        /// </summary>
+        public long ReleasePooledMemory() => MemoryPool.Trim();
+
         public GgmlContext(int[] deviceIds, GgmlBackendType backendType)
             : this(deviceIds, backendType, enableCollectives: true)
         {

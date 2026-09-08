@@ -9,6 +9,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using Foundation;
+using TensorAgent.Core.Hosting;
 using TensorAgent.Maui.Platforms.iOS;
 using UIKit;
 
@@ -21,21 +22,32 @@ public class AppDelegate : MauiUIApplicationDelegate
 
     /// <summary>
     /// iOS asking for memory back is the last warning before jetsam, and the app used
-    /// to ignore it entirely.
+    /// to only write it down.
     ///
     /// <para>
-    /// There is nothing safe to free from here -- the weights are a mapping the engine
-    /// is reading, and the KV cache belongs to a generation that may be mid-token -- so
-    /// this does not try. What it does is leave a record. A jetsam kill produces no
-    /// stack, no exception and no message of its own; the app simply stops. Without
-    /// this line the log of a kill ends at whatever the user happened to be doing, and
-    /// the question "was it memory?" has no answer in it. With it, the warning and the
-    /// remaining headroom are the last thing written.
+    /// The record stays -- a jetsam kill produces no stack, no exception and no message
+    /// of its own, so the warning and the headroom at that moment are the last thing
+    /// written -- and now the host is asked to give back what it can:
+    /// <see cref="AgentAppHost.RelieveMemoryPressure"/>. That is not the weights (a
+    /// mapping the engine is reading) nor the cache of the turn in progress (mid-token),
+    /// but everything the engine keeps only for the NEXT request's speed: finished
+    /// conversations' caches beyond the newest, holders parked for reuse, the pool's
+    /// spare host blocks, and the managed heap a long agentic turn leaves behind. The
+    /// engine frees them on its own thread between steps; this only asks.
     /// </para>
     /// </summary>
     [Export("applicationDidReceiveMemoryWarning:")]
     public void DidReceiveMemoryWarning(UIApplication application)
     {
         Console.WriteLine($"TensorAgent: iOS memory warning -- {DeviceState.DescribeMemory()}");
+        try
+        {
+            Services?.GetService<Hosting.LoopbackWebHost>()?.App.RelieveMemoryPressure();
+        }
+        catch (Exception ex)
+        {
+            // The warning must never be what crashes the app it is trying to save.
+            Console.WriteLine($"TensorAgent: relieving memory pressure failed: {ex.Message}");
+        }
     }
 }
