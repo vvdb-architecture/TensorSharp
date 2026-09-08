@@ -1793,6 +1793,8 @@ namespace TensorSharp.Chat
             // as a "response was truncated" hint, so a user staring at a sentence that
             // stops mid-word knows to raise max tokens rather than blame the model.
             bool turnTruncated = false;
+            string turnFinishReason = null;
+            bool turnRepetitionExplained = false;
             // Whether the turn ever produced ANSWER text, as opposed to thinking or a
             // tool call. tokenCount cannot answer that: it counts every streamed piece,
             // so a turn that ran a skill and then stopped without writing anything has a
@@ -1858,6 +1860,8 @@ namespace TensorSharp.Chat
                         turnPromptTokens = update.PromptTokens;
                         turnKvReusedTokens = update.KvCacheReusedTokens;
                         turnTruncated = FinishReasonMapper.IsTruncated(update.FinishReason);
+                        turnFinishReason = update.FinishReason;
+                        turnRepetitionExplained = update.RepetitionExplained;
                         continue;
                     }
 
@@ -1975,6 +1979,8 @@ namespace TensorSharp.Chat
                             turnPromptTokens = update.PromptTokens;
                             turnKvReusedTokens = update.KvCacheReusedTokens;
                             turnTruncated = FinishReasonMapper.IsTruncated(update.FinishReason);
+                            turnFinishReason = update.FinishReason;
+                        turnRepetitionExplained = update.RepetitionExplained;
                             continue;
                         }
                         if (string.IsNullOrEmpty(update.Piece))
@@ -1997,7 +2003,8 @@ namespace TensorSharp.Chat
             }
 
             foreach (object frame in FinalFrames(sawParsedUpdate ? null : uiParser, aborted, inferenceError, chatSession, sw, tokenCount,
-                turnPromptTokens, turnKvReusedTokens, turnTruncated, sawContent))
+                turnPromptTokens, turnKvReusedTokens, turnTruncated, sawContent, turnFinishReason,
+                turnRepetitionExplained))
             {
                 yield return frame;
             }
@@ -2408,7 +2415,8 @@ namespace TensorSharp.Chat
         private static IEnumerable<object> FinalFrames(
             IOutputParser uiParser, bool aborted, string inferenceError,
             ChatSession chatSession, Stopwatch sw, int tokenCount, int turnPromptTokens, int turnKvReusedTokens,
-            bool truncated, bool sawContent = true)
+            bool truncated, bool sawContent = true, string finishReason = null,
+            bool repetitionExplained = false)
         {
             if (uiParser != null && !aborted)
             {
@@ -2434,6 +2442,20 @@ namespace TensorSharp.Chat
                     + " written after it. Ask it to summarise the result, or try again.)_");
             }
 
+            // A turn the engine ended for repeating itself is the one truncation that IS
+            // worth a sentence in the transcript: the user has just watched the same
+            // phrase scroll by for a while and the alternative reading -- that the model
+            // meant it -- is worse than a note. The skill loop says the same thing with
+            // the repeated text quoted; this is the plain-chat path, which has no tools
+            // to retry with.
+            if (!aborted && inferenceError == null && !repetitionExplained
+                && FinishReasonMapper.IsRepetition(finishReason))
+            {
+                yield return WebUiSseEvents.Token(
+                    "\n\n_(The model's output started repeating itself and was stopped."
+                    + " Ask it to try a different approach, or rephrase the request.)_");
+            }
+
             // A turn truncated before it wrote anything used to explain itself here, in
             // the answer, as a paragraph about token budgets and thinking channels. It
             // read as the model's reply and it was not one -- the user asked a question
@@ -2443,8 +2465,14 @@ namespace TensorSharp.Chat
 
             sw.Stop();
             double tokPerSec = tokenCount > 0 ? tokenCount / sw.Elapsed.TotalSeconds : 0;
+            // `truncated` is the page's "truncated (max tokens reached)" chip, and a
+            // repetition stop is not that: the budget was nowhere near spent. The
+            // protocols still call it a length stop (FinishReasonMapper.IsTruncated), which
+            // is what stops a client dispatching a half-written tool call; the chip is a
+            // sentence shown to a person and it would be a false one.
             yield return WebUiSseEvents.Done(tokenCount, sw.Elapsed.TotalSeconds, tokPerSec, aborted, inferenceError, chatSession.Id,
-                turnPromptTokens, turnKvReusedTokens, truncated);
+                turnPromptTokens, turnKvReusedTokens,
+                truncated && !FinishReasonMapper.IsRepetition(finishReason));
         }
     }
 }

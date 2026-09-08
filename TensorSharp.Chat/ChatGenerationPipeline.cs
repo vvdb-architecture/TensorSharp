@@ -71,6 +71,19 @@ namespace TensorSharp.Server
         public static ChatStreamUpdate Text(string piece) => new(piece, false, 0, 0, 0, 0, 0, 0, null);
 
         /// <summary>
+        /// True on a terminal update whose own stream has ALREADY told the user, in the
+        /// answer, that generation was stopped for repeating itself.
+        ///
+        /// <para>
+        /// The skills loop says it with the repeated text quoted, which is the better
+        /// sentence; an adapter that adds its own plain note on top prints the same fact
+        /// twice. Set by the producer that wrote the note, read by every UI that would
+        /// otherwise add one.
+        /// </para>
+        /// </summary>
+        public bool RepetitionExplained { get; init; }
+
+        /// <summary>
         /// The token ids this round actually generated. Set on the TERMINAL update only,
         /// and null everywhere else.
         ///

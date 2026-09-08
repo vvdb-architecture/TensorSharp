@@ -61,7 +61,8 @@ public sealed class LivePythonFactAttribute : FactAttribute
 public sealed class LiveStagedPythonFactAttribute : FactAttribute
 {
     /// <summary>What the staged runtime carries and a bare interpreter does not.</summary>
-    private static readonly string[] Staged = ["reportlab", "openpyxl", "pypdf", "PIL", "defusedxml", "certifi"];
+    private static readonly string[] Staged =
+        ["reportlab", "openpyxl", "pypdf", "PIL", "defusedxml", "certifi", "lxml", "pptx", "docx"];
 
     public LiveStagedPythonFactAttribute()
     {

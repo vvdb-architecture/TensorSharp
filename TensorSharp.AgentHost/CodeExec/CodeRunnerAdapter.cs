@@ -32,6 +32,8 @@ namespace TensorSharp.AgentHost.CodeExec
         private readonly Action<CodeExecResult>? _onCompleted;
         private readonly string? _packageInstallInstructions;
         private readonly string? _networkExecutionInstructions;
+        private readonly string? _providedPackagesInstructions;
+        private readonly string? _executionInstructions;
         private readonly Func<bool>? _networkInstructionsAvailable;
         private readonly Func<IReadOnlyList<string>>? _networkHosts;
 
@@ -65,13 +67,17 @@ namespace TensorSharp.AgentHost.CodeExec
             string? packageInstallInstructions = null,
             string? networkExecutionInstructions = null,
             Func<bool>? networkInstructionsAvailable = null,
-            Func<IReadOnlyList<string>>? networkHosts = null)
+            Func<IReadOnlyList<string>>? networkHosts = null,
+            string? providedPackagesInstructions = null,
+            string? executionInstructions = null)
         {
             _runner = runner ?? throw new ArgumentNullException(nameof(runner));
             _options = options ?? runner.Options;
             _onCompleted = onCompleted;
             _packageInstallInstructions = packageInstallInstructions;
             _networkExecutionInstructions = networkExecutionInstructions;
+            _providedPackagesInstructions = providedPackagesInstructions;
+            _executionInstructions = executionInstructions;
             _networkInstructionsAvailable = networkInstructionsAvailable;
             _networkHosts = networkHosts;
         }
@@ -147,7 +153,9 @@ namespace TensorSharp.AgentHost.CodeExec
                         networkConfinementGuaranteed: _runner.NetworkConfinementGuaranteed,
                         packageInstallInstructions: PackageInstallInstructions(),
                         networkExecutionInstructions: NetworkExecutionInstructions(),
-                        networkHosts: _networkHosts?.Invoke()),
+                        networkHosts: _networkHosts?.Invoke(),
+                        providedPackagesInstructions: _providedPackagesInstructions,
+                        executionInstructions: _executionInstructions),
                 };
             }
 
@@ -166,7 +174,9 @@ namespace TensorSharp.AgentHost.CodeExec
                     networkConfinementGuaranteed: _runner.NetworkConfinementGuaranteed,
                     packageInstallInstructions: PackageInstallInstructions(),
                     networkExecutionInstructions: NetworkExecutionInstructions(),
-                    networkHosts: _networkHosts?.Invoke()),
+                    networkHosts: _networkHosts?.Invoke(),
+                        providedPackagesInstructions: _providedPackagesInstructions,
+                        executionInstructions: _executionInstructions),
                 ShellTools.DeclarePatch(),
             };
         }

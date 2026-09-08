@@ -309,11 +309,25 @@ namespace TensorSharp.AgentHost.Skills
                 }
             }
 
+            // How long each catalog line may be. Normally the caller's cap, but when the
+            // catalog does not fit at that length the entries are SHORTENED rather than
+            // dropped, because a skill the model never hears of cannot be asked for.
+            //
+            // This is not hypothetical. TensorAgent bundles 13 skills whose descriptions
+            // come to ~1,450 tokens against a 1,024-token budget, and the fill below is
+            // ordinal by id — so `documents` and `research`, the two the app's own router
+            // depends on, were evicted by alphabetical luck while two 990-character
+            // entries ahead of them took half the budget. Asked to look something up, the
+            // model listed the skills it could see, found nothing that fetches a page,
+            // and refused. One sentence each about all 13 beats three sentences each
+            // about 7; the full text is one skills_read away either way.
+            int describeChars = FitCatalogDescriptions(discoverable, options, budget - spent);
+
             var listed = new List<Skill>();
             int omitted = 0;
             foreach (Skill skill in discoverable)
             {
-                int cost = SkillTextBudget.ApproximateTokens(skill.Description) + 16;
+                int cost = CatalogEntryTokens(skill, describeChars);
                 if (listed.Count >= options.MaxCatalogEntries || spent + cost > budget)
                 {
                     omitted++;
@@ -323,7 +337,7 @@ namespace TensorSharp.AgentHost.Skills
                 spent += cost;
             }
 
-            string instructions = Render(inlined, deferred, listed, omitted, options);
+            string instructions = Render(inlined, deferred, listed, omitted, options, describeChars);
             return new SkillPlan(
                 instructions,
                 chosen,
@@ -490,7 +504,8 @@ namespace TensorSharp.AgentHost.Skills
             IReadOnlyList<Skill> deferred,
             IReadOnlyList<Skill> catalog,
             int omitted,
-            SkillPromptOptions options)
+            SkillPromptOptions options,
+            int describeChars)
         {
             var sb = new StringBuilder();
             sb.Append(BlockHeading).Append('\n');
@@ -537,7 +552,7 @@ namespace TensorSharp.AgentHost.Skills
                 foreach (Skill skill in catalog)
                 {
                     sb.Append("- ").Append(skill.Id).Append(": ")
-                      .Append(Trim(skill.Description, options.MaxCatalogDescriptionChars)).Append('\n');
+                      .Append(Trim(skill.Description, describeChars)).Append('\n');
                 }
                 if (omitted > 0)
                 {
@@ -625,6 +640,52 @@ namespace TensorSharp.AgentHost.Skills
         }
 
         private static string Trim(string text, int maxChars) => SkillTextBudget.Truncate(text, maxChars);
+
+        /// <summary>
+        /// What one catalog line costs at a given description length. Charged against
+        /// the SAME text <see cref="Render"/> will emit — the two used to disagree, so a
+        /// shorter cap shortened the line without buying any room.
+        /// </summary>
+        private static int CatalogEntryTokens(Skill skill, int describeChars) =>
+            SkillTextBudget.ApproximateTokens(Trim(skill.Description, describeChars)) + 16;
+
+        /// <summary>
+        /// The longest description length at which EVERY catalog entry fits the budget,
+        /// or the caller's cap when they already do.
+        ///
+        /// <para>
+        /// A ladder rather than a solve: the lengths are few, the catalog is short, and a
+        /// value that moves smoothly with the number of skills would change the rendered
+        /// prompt — and so the KV-cache prefix — every time a skill is installed. Below
+        /// the floor nothing is shortened further and the caller's fill runs as before,
+        /// reporting what it had to omit.
+        /// </para>
+        /// </summary>
+        private static int FitCatalogDescriptions(
+            IReadOnlyList<Skill> discoverable, SkillPromptOptions options, int room)
+        {
+            int cap = options.MaxCatalogDescriptionChars;
+            if (discoverable.Count == 0)
+                return cap;
+
+            // Only the entries that can be LISTED need to fit: past MaxCatalogEntries the
+            // fill stops anyway. Bailing out to the full cap here instead was the original
+            // bug restored at exactly the size where it hurts most — the more skills are
+            // installed, the longer each entry was allowed to be, and the fewer got in.
+            int fitting = Math.Min(discoverable.Count, options.MaxCatalogEntries);
+
+            foreach (int candidate in new[] { cap, 512, 320, 240, 160 })
+            {
+                if (candidate > cap)
+                    continue;
+                long total = 0;
+                for (int i = 0; i < fitting; i++)
+                    total += CatalogEntryTokens(discoverable[i], candidate);
+                if (total <= room)
+                    return candidate;
+            }
+            return Math.Min(cap, 160);
+        }
 
         /// <summary>
         /// Guidance for the normal case, where the model can fetch what it needs.

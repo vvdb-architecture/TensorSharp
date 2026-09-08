@@ -161,7 +161,9 @@ namespace TensorSharp.AgentHost.CodeExec
             bool fileTools = false, bool networkConfinementGuaranteed = false,
             string? packageInstallInstructions = null,
             string? networkExecutionInstructions = null,
-            IReadOnlyList<string>? networkHosts = null)
+            IReadOnlyList<string>? networkHosts = null,
+            string? providedPackagesInstructions = null,
+            string? executionInstructions = null)
         {
             ArgumentNullException.ThrowIfNull(options);
             ArgumentNullException.ThrowIfNull(shell);
@@ -203,6 +205,26 @@ namespace TensorSharp.AgentHost.CodeExec
             {
                 description.Append("\nHost execution guidance: ")
                     .Append(networkExecutionInstructions.Trim()).Append('\n');
+            }
+
+            // Host guidance about writing and running a command, shown whatever the
+            // switches say. Separate from the network paragraph below because none of it
+            // is about the network: advice on quoting a multi-line program was, for a
+            // while, visible only to a model whose user had turned networking on.
+            if (!string.IsNullOrWhiteSpace(executionInstructions))
+            {
+                description.Append("\nWriting a command here: ")
+                    .Append(executionInstructions.Trim()).Append('\n');
+            }
+
+            // What the host ships regardless of any switch. Separate from the install
+            // guidance below because that is shown only when installing is allowed, and
+            // a model with installs OFF still has to know that lxml, numpy and the
+            // document libraries are there -- or it reimplements them, badly, by hand.
+            if (!string.IsNullOrWhiteSpace(providedPackagesInstructions))
+            {
+                description.Append("\nAlready available: ")
+                    .Append(providedPackagesInstructions.Trim()).Append('\n');
             }
 
             if (options.AllowInstall)

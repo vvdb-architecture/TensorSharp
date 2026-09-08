@@ -290,6 +290,7 @@ GatedDeltaNet 递归状态作为一个混合 holder 一起保留。未声明该�
 | `TS_SCHED_NUM_BLOCKS` | `256` | 引擎块池物理块数。 |
 | `TS_SCHED_BLOCK_SIZE` | `256` | 每块 token 数。 |
 | `TS_SCHED_PREFIX_CACHE` | `1` | 设为 `0` 关闭块哈希前缀复用。 |
+| `TS_SCHED_STOP_REPETITION` | `1` | 设为 `0` 时，陷入重复循环的生成会继续跑到 token 上限，而不是以 `repetition` 结束原因停止。 |
 | `TS_SCHED_DECODE_QUANTUM` | `256` | 在偏回退路径中，允许切换序列前的 decode token 数。 |
 | `TS_BATCHED_N1_FAST_PATH` | `1` | solo 单序列步骤走融合 N=1 快速路径 decode；设为 `0` 可强制这些步骤走完全批处理路径（A/B 测试）。 |
 | `TS_PER_SEQ_FUSED` | `1` | fused 能力模型上的并发（N≥2）序列走 per-request 融合 Forward；设为 `0` 强制走逐算子批处理分页路径（A/B 测试）。 |

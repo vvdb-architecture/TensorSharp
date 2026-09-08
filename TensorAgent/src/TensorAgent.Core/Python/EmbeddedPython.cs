@@ -50,6 +50,7 @@ public sealed class EmbeddedPython : IPythonRuntime
     private readonly object _initGate = new();
     private PythonInterpreter? _interpreter;
     private PythonRuntimeLayout? _layout;
+    private IReadOnlyList<BundledDistribution>? _bundled;
     private string? _reason;
     private bool _tried;
     private long _runId;
@@ -132,6 +133,34 @@ public sealed class EmbeddedPython : IPythonRuntime
         {
             EnsureInitialized();
             return _interpreter?.Version ?? string.Empty;
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Read from the staged package directory's <c>dist-info</c> entries, and read
+    /// WITHOUT starting the interpreter: the answer is a directory listing, and asking
+    /// for it must not be what pays CPython's startup on a launch that never runs a
+    /// script. Computed once; the bundle does not change while the app runs.
+    /// </remarks>
+    public IReadOnlyList<BundledDistribution> BundledDistributions
+    {
+        get
+        {
+            IReadOnlyList<BundledDistribution>? bundled = Volatile.Read(ref _bundled);
+            if (bundled is not null)
+                return bundled;
+
+            string? root = _root;
+            lock (s_gate)
+                root ??= s_configuredRoot;
+            bundled = !string.IsNullOrWhiteSpace(root)
+                && PythonRuntimeLayout.TryDiscover(root, out PythonRuntimeLayout? layout, out _)
+                && layout is not null
+                    ? BundledPackages.Scan(layout.Packages)
+                    : Array.Empty<BundledDistribution>();
+            Volatile.Write(ref _bundled, bundled);
+            return bundled;
         }
     }
 

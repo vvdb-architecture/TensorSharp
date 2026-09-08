@@ -701,6 +701,7 @@ Unix IPC 并非完整隔离边界：macOS 为兼容性保留共享临时目录�
 | `TS_SCHED_NUM_BLOCKS` | 引擎块池的物理块数（默认：`256`）。 |
 | `TS_SCHED_BLOCK_SIZE` | 引擎侧每块的 token 数（默认：`256`）。 |
 | `TS_SCHED_PREFIX_CACHE` | `0` 关闭跨请求的块级哈希前缀共享。 |
+| `TS_SCHED_STOP_REPETITION` | `0` 允许陷入重复循环的生成继续跑到 token 上限，而不是被提前结束。 |
 | `TS_SCHED_DECODE_QUANTUM` | 在允许切换序列前的 token 数（默认与 block size 相同）。 |
 | `TS_RETAINED_FUSED_CACHE` | `1`（默认）在请求结束后保留其融合 holder，使前缀完全一致的续写不必重新 prefill；仅对声明支持的模型有效（Gemma 4 的 K/V；Qwen 3.5/3.6 的注意力 K/V 加 GatedDeltaNet 递归状态）。`0` 关闭（用于限制显存或做 A/B）。 |
 | `TS_RETAINED_FUSED_CACHE_MAX` | 保留的融合 holder 的 LRU 预算（默认 `4`）；每个都钉住一份完整的按请求续写状态。 |

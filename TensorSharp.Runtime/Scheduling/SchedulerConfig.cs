@@ -63,6 +63,15 @@ namespace TensorSharp.Runtime.Scheduling
         /// when the free queue is empty. Default true.</summary>
         public bool EnablePrefixCaching { get; init; } = true;
 
+        /// <summary>
+        /// End a sequence whose output has locked into a loop (see
+        /// <see cref="RepetitionGuard"/>) with the finish reason <c>repetition</c>,
+        /// instead of running it to its token limit. On by default; a harness that
+        /// deliberately generates the same token thousands of times turns it off.
+        /// Env: <c>TS_SCHED_STOP_REPETITION</c>.
+        /// </summary>
+        public bool StopRepetition { get; init; } = true;
+
         /// <summary>How many decode steps a running sequence is allowed to run
         /// consecutively before the scheduler may swap to another sequence.
         /// In the current C# executor each session-switch pays a KV-state
@@ -94,6 +103,7 @@ namespace TensorSharp.Runtime.Scheduling
                 NumBlocks = ReadInt("TS_SCHED_NUM_BLOCKS", 256),
                 BlockSize = ReadInt("TS_SCHED_BLOCK_SIZE", 256),
                 EnablePrefixCaching = ReadBool("TS_SCHED_PREFIX_CACHE", true),
+                StopRepetition = ReadBool("TS_SCHED_STOP_REPETITION", true),
                 DecodeQuantumTokens = ReadInt("TS_SCHED_DECODE_QUANTUM", 256),
                 Speculation = SpeculationOptions.FromEnvironment(),
             };

@@ -43,6 +43,15 @@ namespace TensorSharp.AgentHost.CodeExec
         bool CanInstallLanguage(CodeLanguage language) => CanInstall;
 
         /// <summary>
+        /// Whether <paramref name="package"/> (a name, or <c>name==version</c>) is
+        /// already provided by the host itself — compiled into the app, in a host that
+        /// ships its interpreter's packages — so that a request to install it fetches
+        /// nothing and needs neither the network nor the install switch. The default is
+        /// false: a desktop host provides nothing ahead of pip.
+        /// </summary>
+        bool IsProvided(CodeLanguage language, string package) => false;
+
+        /// <summary>
         /// Install <paramref name="packages"/> into <paramref name="workspace"/>'s
         /// environment.
         /// </summary>

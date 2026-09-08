@@ -96,6 +96,18 @@ namespace TensorSharp.Cli
         private readonly List<Skill> _activeSkills = new();
         private string _skillSystemBlock;
         private SkillToolContext _skillToolContext;
+
+        /// <summary>
+        /// The skill ids a call could reach, so a skill name used as a tool name is
+        /// answered with how to reach it rather than "there is no such tool".
+        /// </summary>
+        private static IReadOnlyList<string> ReachableSkillIds(SkillToolContext? context)
+        {
+            var ids = new List<string>();
+            foreach (Skill skill in context?.Reachable ?? (IReadOnlyList<Skill>)Array.Empty<Skill>())
+                ids.Add(skill.Id);
+            return ids;
+        }
         private bool _enableThinking;
         private int _maxTokens;
         private bool _multilineInput;
@@ -1159,7 +1171,9 @@ namespace TensorSharp.Cli
                     {
                         Console.WriteLine($"[tool call] {call.Name} (no such tool)");
                         _history.Add(BuildSkillResultMessage(
-                            SkillTools.DescribeUnknownTool(call.Name, _tools), call.Name));
+                            SkillTools.DescribeUnknownTool(
+                                call.Name, _tools, ReachableSkillIds(_skillToolContext)),
+                            call.Name));
                     }
 
                     _generationCts.Token.ThrowIfCancellationRequested();

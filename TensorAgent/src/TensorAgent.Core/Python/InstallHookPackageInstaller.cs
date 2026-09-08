@@ -26,78 +26,138 @@ namespace TensorAgent.Core.Python;
 /// This bridge keeps the shared parser and ledger while handing the validated request
 /// to the wheel unpacker that the app actually provides.
 /// </para>
+/// <para>
+/// It also answers for the bundle before the hook is asked. A model types
+/// <c>pip install lxml</c> out of habit, before <c>import lxml</c>; on this platform the
+/// only lxml that can ever load is the one compiled into the app, and sending that
+/// request to the index found nothing but compiled wheels and refused it — in words
+/// that told the model lxml was unavailable on a phone where it had been importable
+/// the whole time. Observed: a deck that became an HTML file. So a request for a
+/// distribution the bundle already ships is reported as already there, and a request
+/// to REPLACE a compiled one is refused by name, because no download can do that.
+/// </para>
 /// </summary>
 internal sealed class InstallHookPackageInstaller : IPackageInstaller
 {
     private const int MaxPackages = 16;
 
-    internal const string ModelExecutionHost = "query1.finance.yahoo.com";
-
     /// <summary>
-    /// Stable, host-specific guidance for the model. It is a constant rather than a
-    /// description of the session ledger, so installing a package does not change the
-    /// next turn's tool prefix and forfeit KV-cache reuse.
+    /// Guidance for a turn that may reach the network, appended to the shell tool's
+    /// description. Every sentence has to be TRUE OF EVERY TASK — including the turns
+    /// where the answer IS an interpretation. It says what may not be INVENTED, never
+    /// that a fetched number may not be explained or a new figure derived: an earlier
+    /// draft kept the screener's own answer shape ("no cause or explanation for a
+    /// number you fetched, and no figure you did not fetch"), which forbade the very
+    /// analysis users ask for and contradicted this same tool description's own
+    /// "running code is more reliable than doing arithmetic in your head".
+    ///
+    /// <para>
+    /// This was, for a while, a complete working Yahoo Finance screener program —
+    /// 3,204 characters of it, url and response fields and a ten-row markdown table —
+    /// added to make one stock-gainers request come out right. It did. It also sat in
+    /// the model's context on every networked turn, and a whole worked program in the
+    /// tool description is not guidance, it is a demonstration of what code here looks
+    /// like: the reported symptom was a model reaching for finance APIs on requests
+    /// that had nothing to do with finance. A tool description is read on every turn,
+    /// so anything in it that is true of only one task is a bias on all the others.
+    /// Fix a specific task in a SKILL, which is injected only when it is selected.
+    /// </para>
+    /// <para>
+    /// A constant rather than a description of the session, so the tool prefix is the
+    /// same text on every launch and the prefix cache is worth something.
+    /// </para>
     /// </summary>
     internal const string ModelExecutionInstructions =
-        "For simple web/API lookups, first use Python's standard-library `urllib.request` and `json` "
-        + "against a structured JSON/CSV endpoint; do not install a finance or HTTP client merely to make a GET. "
-        + "For exactly ten current stocks with the most gains today, use one ranked screener response, filter its "
-        + "instrument type to equities, and use this exact quote-safe single-call shape; do not replace the quoted "
-        + "heredoc with inline `-c` code:\n"
-        + "python3 - <<'PY'\n"
-        + "import json, urllib.request\n"
-        + "from datetime import datetime, timezone\n"
-        + "url = \"https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&scrIds=day_gainers&count=100&start=0\"\n"
-        + "request = urllib.request.Request(url, headers={\"User-Agent\": \"Mozilla/5.0\", \"Accept\": \"application/json\"})\n"
-        + "with urllib.request.urlopen(request, timeout=15) as response:\n"
-        + "    data = json.load(response)\n"
-        + "try:\n"
-        + "    quotes = data[\"finance\"][\"result\"][0][\"quotes\"]\n"
-        + "except (KeyError, IndexError, TypeError) as error:\n"
-        + "    raise RuntimeError(\"Yahoo Finance returned no screener rows\") from error\n"
-        + "fields = (\"symbol\", \"shortName\", \"currency\", \"regularMarketPrice\", \"regularMarketChange\", \"regularMarketChangePercent\", \"regularMarketVolume\", \"regularMarketTime\")\n"
-        + "numeric_fields = (\"regularMarketPrice\", \"regularMarketChange\", \"regularMarketChangePercent\", \"regularMarketVolume\", \"regularMarketTime\")\n"
-        + "eligible = [row for row in quotes if row.get(\"quoteType\") == \"EQUITY\" and row.get(\"currency\") == \"USD\" and all(row.get(field) is not None for field in fields) and all(isinstance(row.get(field), (int, float)) and not isinstance(row.get(field), bool) for field in numeric_fields) and row[\"regularMarketChange\"] > 0 and row[\"regularMarketChangePercent\"] > 0]\n"
-        + "rows = sorted(eligible, key=lambda row: row[\"regularMarketChangePercent\"], reverse=True)[:10]\n"
-        + "if len(rows) != 10:\n"
-        + "    raise RuntimeError(\"Yahoo Finance returned fewer than 10 complete equity rows\")\n"
-        + "as_of = datetime.fromtimestamp(max(row[\"regularMarketTime\"] for row in rows), timezone.utc).strftime(\"%Y-%m-%d %H:%M:%S UTC\")\n"
-        + "print(\"Top 10 equity gainers as of {} (Source: Yahoo Finance):\".format(as_of))\n"
-        + "print()\n"
-        + "print(\"| Rank | Symbol | Company | Price (USD) | Change (USD) | Change % | Volume |\")\n"
-        + "print(\"|---:|---|---|---:|---:|---:|---:|\")\n"
-        + "for rank, row in enumerate(rows, 1):\n"
-        + "    name = str(row[\"shortName\"]).replace(\"|\", \"/\")\n"
-        + "    print(\"| {} | {} | {} | {} | {} | {}% | {} |\".format(rank, row[\"symbol\"], name, row[\"regularMarketPrice\"], row[\"regularMarketChange\"], row[\"regularMarketChangePercent\"], row[\"regularMarketVolume\"]))\n"
-        + "PY\n"
-        + "If that command succeeds, its stdout is already the complete final answer: copy every sourced cell and the "
-        + "timestamp without rounding or alteration, make no more tool calls, and add no Note, observation, catalyst, or "
-        + "explanation. The response supports the displayed company names, USD currency, and EQUITY classification, but it does not "
-        + "support a story about why a price moved. Do not narrate the lookup before the call. For a different count or "
-        + "for decliners, adapt the source key, count, heading, and loop instead of reusing this literal ten-gainer recipe. "
-        + "If the response is missing the validated fields or the request fails, do not fabricate rows or retry the same endpoint.";
+        "Reach for the standard library first: `urllib.request` with `json` against a structured JSON or CSV "
+        + "endpoint answers most lookups, and installing an HTTP or domain-specific client merely to make a GET "
+        + "costs a round and often fails on this device. "
+        + "Quote what a response actually contained rather than what you expected it to contain, and if a "
+        + "request fails or arrives without what you needed, say so instead of inventing it — and change "
+        + "something before running it again.";
 
-    internal const string ModelInstallInstructions =
+    /// <summary>
+    /// Shell guidance with nothing to do with the network, so it must not appear and
+    /// disappear with the network switch. The quoting rule is about writing Python at
+    /// all, and it used to be shown only to a model whose user had turned networking on.
+    /// </summary>
+    internal const string ModelShellInstructions =
+        "Write anything longer than one line as a quoted heredoc — `python3 - <<'PY' ... PY` — rather than "
+        + "`python3 -c`. Quoting is what breaks first in a `-c` one-liner once the program contains quotes of "
+        + "its own, and the failure looks like a syntax error in code that is actually fine. "
+        + "Do not narrate a command before running it, and when its output already answers the question, quote "
+        + "what it printed rather than retyping it from memory.";
+
+    /// <summary>
+    /// The distributions <c>prepare-python.sh</c> stages into the bundle, as the model
+    /// should think of them: the distribution name, with the import name after it where
+    /// the two differ. Spelled out here rather than read off the bundle at startup
+    /// because the tool prefix must be the same text on every launch for the prefix
+    /// cache to be worth anything; <c>BundledPackagesTests</c> holds this list to the
+    /// staging script so the two cannot drift apart.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> BundledPackageNames = new[]
+    {
+        "numpy",
+        "Pillow (import PIL)",
+        "lxml",
+        "python-pptx (import pptx)",
+        "python-docx (import docx)",
+        "openpyxl",
+        "XlsxWriter (import xlsxwriter)",
+        "reportlab",
+        "pypdf",
+        "defusedxml",
+        "PyYAML (import yaml)",
+        "certifi",
+        "imageio",
+        "charset-normalizer",
+        "typing_extensions",
+        "et_xmlfile",
+    };
+
+    /// <summary>The bundled distributions whose extension modules make them irreplaceable.</summary>
+    internal static readonly IReadOnlyList<string> CompiledBundledPackageNames = new[] { "numpy", "Pillow", "lxml" };
+
+    /// <summary>
+    /// What the bundle ships, told to the model on EVERY launch -- with the network
+    /// switch off as much as on, because the switch gates fetching and these need no
+    /// fetch. Shown by the shell tool ahead of the install guidance.
+    /// </summary>
+    internal static readonly string ModelProvidedPackagesInstructions =
+        "Python packages already built into this app and importable with no install at all: "
+        + string.Join(", ", BundledPackageNames) + ". "
+        + "Installing one of those is a no-op, and the compiled ones (" + string.Join(", ", CompiledBundledPackageNames)
+        + ") cannot be replaced by another version.";
+
+    internal static readonly string ModelInstallInstructions =
         "Python packages only. Use `pip install <name>` or `python3 -m pip install <name>`. "
         + "The host performs the install, so name packages plainly; options that change the source or target are refused. "
-        + "This device can install only pure-Python wheels tagged `none-any` for Python 3. "
+        + "Beyond the packages already built in, this device can install only pure-Python wheels tagged `none-any` for Python 3. "
         + "It does not resolve dependencies: if an import names another missing dependency, install that distribution "
-        + "explicitly only if it is also pure Python. Packages requiring compiled/native extensions or a source build, "
+        + "explicitly only if it is also pure Python. Other packages requiring compiled/native extensions or a source build, "
         + "npm/JavaScript packages, and native programs cannot be installed. "
         + "Do not retry a package the host reports as incompatible.";
 
     private readonly IInstallHook _hook;
     private readonly CodeExecOptions _options;
     private readonly Func<IReadOnlyList<string>> _networkHosts;
+    private readonly Func<IReadOnlyList<BundledDistribution>> _bundled;
 
+    /// <param name="bundled">
+    /// What the app bundle already ships, asked on every install because the answer
+    /// is cheap and the runtime may not have been discovered yet when this is built.
+    /// Null means "nothing is known to be bundled", which is the desktop's situation.
+    /// </param>
     public InstallHookPackageInstaller(
         IInstallHook hook,
         CodeExecOptions options,
-        Func<IReadOnlyList<string>> networkHosts)
+        Func<IReadOnlyList<string>> networkHosts,
+        Func<IReadOnlyList<BundledDistribution>>? bundled = null)
     {
         _hook = hook ?? throw new ArgumentNullException(nameof(hook));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _networkHosts = networkHosts ?? throw new ArgumentNullException(nameof(networkHosts));
+        _bundled = bundled ?? (static () => Array.Empty<BundledDistribution>());
     }
 
     /// <inheritdoc />
@@ -113,6 +173,30 @@ internal sealed class InstallHookPackageInstaller : IPackageInstaller
         language == CodeLanguage.Python && CanInstall;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// True for a bundled distribution asked for by name or pinned to the bundled
+    /// version, and for a COMPILED bundled distribution whatever the pin: no version of
+    /// it can be fetched, so the request never needs the switch -- <see cref="Install"/>
+    /// answers a mismatched pin by name. A pin to another version of a pure one is a
+    /// real download and is not provided.
+    /// </remarks>
+    public bool IsProvided(CodeLanguage language, string package)
+    {
+        if (language != CodeLanguage.Python || string.IsNullOrWhiteSpace(package)
+            || !WheelInstaller.TrySplit(package, out string name, out string? version, out _))
+        {
+            return false;
+        }
+        string canonical = CanonicalPackageName(name);
+        BundledDistribution? shipped = _bundled().FirstOrDefault(
+            d => string.Equals(d.CanonicalName, canonical, StringComparison.Ordinal));
+        return shipped is not null
+            && (shipped.Compiled
+                || version is null
+                || string.Equals(version, shipped.Version, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
     public string? Install(
         SessionWorkspace workspace,
         CodeLanguage language,
@@ -124,15 +208,8 @@ internal sealed class InstallHookPackageInstaller : IPackageInstaller
         ArgumentNullException.ThrowIfNull(workspace);
         packages ??= Array.Empty<string>();
 
-        if (!_options.AllowInstall)
-        {
-            return "installing packages is not enabled on this host "
-                 + $"(an operator turns it on with {CodeExecOptions.AllowInstallFlag})";
-        }
         if (language != CodeLanguage.Python)
             return "TensorAgent installs Python packages only; npm packages are not available on this host";
-        if (!_hook.CanInstall)
-            return _hook.UnavailableReason ?? "the in-process Python package installer is unavailable";
         if (packages.Count == 0)
             return "no Python packages were named";
         if (packages.Count > MaxPackages)
@@ -157,6 +234,60 @@ internal sealed class InstallHookPackageInstaller : IPackageInstaller
             validated.Add((spec.Trim(), name, CanonicalPackageName(name), version));
         }
 
+        // The bundle is consulted BEFORE the switches. A request for something the app
+        // already ships needs no network and no installer, and a model whose network is
+        // off must still hear "lxml is built in" rather than "installing is not enabled"
+        // -- the second sentence sends it looking for a setting it does not need.
+        IReadOnlyList<BundledDistribution> bundled = _bundled();
+        var pending = new List<(string Spec, string Name, string LedgerName, string? Version)>(validated.Count);
+        var handledRequests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var request in validated)
+        {
+            // PEP 503 treats runs of '-', '_' and '.' as equivalent. Use that
+            // canonical spelling in the session ledger and when de-duplicating one
+            // command, otherwise `zope.interface zope-interface` downloads the same
+            // distribution twice. A pinned request still runs on a later call because
+            // it may intentionally replace the installed version.
+            string requestKey = request.LedgerName
+                + (request.Version is null ? string.Empty : "==" + request.Version);
+            if (!handledRequests.Add(requestKey))
+                continue;
+
+            BundledDistribution? shipped = bundled.FirstOrDefault(
+                d => string.Equals(d.CanonicalName, request.LedgerName, StringComparison.Ordinal));
+            if (shipped is null)
+            {
+                pending.Add(request);
+                continue;
+            }
+            if (request.Version is null
+                || string.Equals(request.Version, shipped.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                onOutput?.Invoke($"{shipped.Name} {shipped.Version} is built into this app; nothing to install");
+                continue;
+            }
+            if (shipped.Compiled)
+            {
+                return $"Could not install {request.Spec}: {shipped.Name} {shipped.Version} is compiled into this app "
+                     + $"and cannot be replaced by version {request.Version}. Import the bundled one.";
+            }
+            // A pure-Python distribution CAN be shadowed: the session's package
+            // directory precedes the bundle on sys.path, and the bootstrap evicts the
+            // bundled copy from sys.modules when a session installs its own. So a
+            // pinned request for another version of one goes through like any other.
+            pending.Add(request);
+        }
+        if (pending.Count == 0)
+            return null;
+
+        if (!_options.AllowInstall)
+        {
+            return "installing packages is not enabled on this host "
+                 + $"(an operator turns it on with {CodeExecOptions.AllowInstallFlag})";
+        }
+        if (!_hook.CanInstall)
+            return _hook.UnavailableReason ?? "the in-process Python package installer is unavailable";
+
         TimeSpan timeout = _options.InstallTimeout > TimeSpan.Zero
             ? _options.InstallTimeout
             : TimeSpan.FromMilliseconds(1);
@@ -173,24 +304,13 @@ internal sealed class InstallHookPackageInstaller : IPackageInstaller
         };
 
         var installedBeforeFailure = new List<string>();
-        var handledRequests = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var deadline = new CancellationTokenSource())
         {
             deadline.CancelAfter(timeout);
-            foreach (var (spec, name, ledgerName, version) in validated)
+            foreach (var (spec, name, ledgerName, version) in pending)
             {
-                // PEP 503 treats runs of '-', '_' and '.' as equivalent. Use that
-                // canonical spelling in the session ledger and when de-duplicating one
-                // command, otherwise `zope.interface zope-interface` downloads the same
-                // distribution twice. A pinned request still runs on a later call because
-                // it may intentionally replace the installed version.
-                string requestKey = ledgerName
-                    + (version is null ? string.Empty : "==" + version);
-                if (!handledRequests.Add(requestKey)
-                    || (version is null && workspace.IsInstalled("python", ledgerName)))
-                {
+                if (version is null && workspace.IsInstalled("python", ledgerName))
                     continue;
-                }
 
                 ExecutionResult result;
                 try
@@ -241,24 +361,7 @@ internal sealed class InstallHookPackageInstaller : IPackageInstaller
         return null;
     }
 
-    private static string CanonicalPackageName(string name)
-    {
-        var canonical = new System.Text.StringBuilder(name.Length);
-        bool separator = false;
-        foreach (char character in name)
-        {
-            if (character is '-' or '_' or '.')
-            {
-                separator = true;
-                continue;
-            }
-            if (separator && canonical.Length > 0)
-                canonical.Append('-');
-            canonical.Append(char.ToLowerInvariant(character));
-            separator = false;
-        }
-        return canonical.ToString();
-    }
+    private static string CanonicalPackageName(string name) => BundledPackages.Canonical(name);
 
     private static string Failure(
         string package, string reason, IReadOnlyList<string> installedBeforeFailure)

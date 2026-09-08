@@ -12,6 +12,7 @@ using System.Formats.Tar;
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
+using TensorAgent.Core.Python;
 using TensorAgent.Core.Sandbox;
 
 namespace TensorAgent.Core.Shell;
@@ -460,14 +461,26 @@ internal static partial class ShellBuiltins
                 break;
             case "list" or "freeze":
             {
+                // The session's own installs first, then what the app bundle ships
+                // (numpy, Pillow, lxml, python-pptx, ...), minus anything the session has
+                // shadowed. A model that runs `pip list` to find out whether lxml is here
+                // must see it, or it concludes the opposite and stops trying.
+                var seen = new HashSet<string>(StringComparer.Ordinal);
                 string? root = exec.Policy.PackageRoot;
-                if (root is null || !Directory.Exists(root))
-                    return 0;
-                foreach (string info in Directory.GetDirectories(root, "*.dist-info").OrderBy(d => d, StringComparer.Ordinal))
+                if (root is not null && Directory.Exists(root))
                 {
-                    string name = Path.GetFileNameWithoutExtension(info);
-                    int dash = name.LastIndexOf('-');
-                    io.Out.WriteLine(dash > 0 ? $"{name[..dash]}=={name[(dash + 1)..]}" : name);
+                    foreach (string info in Directory.GetDirectories(root, "*.dist-info").OrderBy(d => d, StringComparer.Ordinal))
+                    {
+                        string name = Path.GetFileNameWithoutExtension(info);
+                        int dash = name.LastIndexOf('-');
+                        seen.Add(BundledPackages.Canonical(dash > 0 ? name[..dash] : name));
+                        io.Out.WriteLine(dash > 0 ? $"{name[..dash]}=={name[(dash + 1)..]}" : name);
+                    }
+                }
+                foreach (BundledDistribution shipped in exec.Context.Python?.BundledDistributions ?? [])
+                {
+                    if (seen.Add(shipped.CanonicalName))
+                        io.Out.WriteLine($"{shipped.Name}=={shipped.Version}");
                 }
                 return 0;
             }

@@ -2,12 +2,14 @@
 """The OOXML package machinery the .docx and .pptx writers share, and the
 structural validator that decides whether what they wrote is a package at all.
 
-Why this file exists: python-docx and python-pptx cannot be bundled here. Both
-do `from lxml import etree` at module scope, lxml is a C extension, and there is
-no iOS wheel for it on PyPI or on BeeWare's index. An OOXML file is a ZIP of XML
-parts plus two kinds of index -- `[Content_Types].xml`, which gives every part a
-MIME type, and the `.rels` parts, which say which part points at which -- so the
-standard library can write one. That is what this does.
+Why this file exists: the .docx and .pptx writers predate this app compiling
+lxml for iOS, so they build the OOXML with the standard library and validate
+their own output; python-docx and python-pptx (and lxml) are bundled too, for
+what those writers do not do -- see Limits in SKILL.md. An OOXML file is a ZIP
+of XML parts plus two kinds of index -- `[Content_Types].xml`, which gives every
+part a MIME type, and the `.rels` parts, which say which part points at which --
+so the standard library can write one. That is what this does, and
+`validate_package` checks any OOXML file, whichever library wrote it.
 
 What it deliberately does NOT do is claim the result renders. Nothing on this
 device can open a .docx, so `validate_package` checks the only thing that can be

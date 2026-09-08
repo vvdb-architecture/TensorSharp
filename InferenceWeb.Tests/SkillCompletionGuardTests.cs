@@ -1014,6 +1014,107 @@ public sealed class SkillCompletionGuardTests : IDisposable
         Assert.NotEqual(invalid.Url, file.GetProperty("url").GetString());
     }
 
+    /// <summary>
+    /// The failure this answers, from a phone: a tool call whose script degenerated into
+    /// <c>","+","+"</c> for five minutes. The engine now ends such a round with
+    /// <c>repetition</c>; the loop must not dispatch what that round wrote, must tell
+    /// the model what repeated, and must let it try once more, differently.
+    /// </summary>
+    [Fact]
+    public async Task ARoundTheEngineStoppedForLooping_IsNotDispatched_AndTheModelIsToldWhatRepeated()
+    {
+        SessionWorkspace workspace = _workspaces.GetOrCreate("looping");
+        var runner = new ArtifactRunner(_artifacts, ArtifactMode.None);
+        SkillRequestPlan plan = Plan(runner, workspace, guarded: false);
+        // A CLOSED call first, so the round really does carry a parsed tool call for the
+        // loop to refuse; the runaway one after it is the truncated JSON a real
+        // repetition stop leaves behind, and parses to nothing.
+        string looping = "<think>write the deck</think><tool_call>\n"
+            + "{\"name\": \"shell\", \"arguments\": {\"command\": \"mkdir deck\"}}\n"
+            + "</tool_call><tool_call>\n"
+            + "{\"name\": \"shell\", \"arguments\": {\"command\": \"python3 -c 'theme = \\\"<a:latin bon=\\\"Aa+"
+            + string.Concat(Enumerable.Repeat("\",\"+", 80));
+        var replay = new ReplayGeneration(looping, "<think>use a loop instead</think>Written differently.")
+        {
+            FinishReasons = new[] { "repetition", "stop" },
+        };
+
+        List<ChatStreamUpdate> updates = await Run(plan, replay.Invoke);
+
+        Assert.Equal(2, replay.Calls);
+        // The round DID carry a dispatchable call, and it was not dispatched.
+        Assert.Contains(replay.MessageHistories[1], m =>
+            m.Role == "assistant" && m.ToolCalls is { Count: > 0 });
+        Assert.Equal(0, runner.Executions);
+        string content = Content(updates);
+        Assert.Contains("Written differently.", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("\",\"+\",\"+", content, StringComparison.Ordinal);
+        Assert.Contains("started repeating itself", Thinking(updates), StringComparison.Ordinal);
+        string secondHistory = replay.Histories[1];
+        Assert.Contains("Host: your previous output was stopped because it began repeating itself", secondHistory, StringComparison.Ordinal);
+        Assert.Contains("repeated `\",\"+` 80 times in a row", secondHistory, StringComparison.Ordinal);
+        Assert.Contains("nothing from it was run", secondHistory, StringComparison.Ordinal);
+        Assert.Single(updates, update => update.Done);
+    }
+
+    /// <summary>
+    /// The one-shot artifact correction EXECUTES what it parses, and it is the last
+    /// round there is — so a correction the engine stopped for looping must not have its
+    /// half-written tool call run. Reported instead, with the deck honestly declared
+    /// missing.
+    /// </summary>
+    [Fact]
+    public async Task ACorrectionRoundStoppedForLooping_RunsNothingAndSaysTheDeckIsMissing()
+    {
+        SessionWorkspace workspace = _workspaces.GetOrCreate("correction-loops");
+        var runner = new ArtifactRunner(_artifacts, ArtifactMode.Valid);
+        SkillRequestPlan plan = Plan(runner, workspace, guarded: true);
+        var replay = new ReplayGeneration(
+            "<think>done</think>I made it: [report](fake.pptx).",
+            "<think>repairing</think><tool_call>\n"
+                + "{\"name\": \"shell\", \"arguments\": {\"command\": \"make deck\"}}\n"
+                + "</tool_call>then it drifts: " + string.Concat(Enumerable.Repeat("na ", 60)))
+        {
+            FinishReasons = new[] { "stop", "repetition" },
+        };
+
+        List<ChatStreamUpdate> updates = await Run(plan, replay.Invoke);
+
+        Assert.Equal(2, replay.Calls);
+        // The correction carried a dispatchable call and it was NOT run.
+        Assert.Equal(0, runner.Executions);
+        string content = Content(updates);
+        Assert.Contains("couldn\'t complete the PowerPoint report", content, StringComparison.Ordinal);
+        Assert.Contains("started repeating itself and was stopped", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("fake.pptx", content, StringComparison.Ordinal);
+        Assert.Single(updates, update => update.Done);
+    }
+
+    /// <summary>One retry, not a loop of retries: a second looping round ends the turn with the note.</summary>
+    [Fact]
+    public async Task ASecondLoopingRound_EndsTheTurnWithTheExplanation()
+    {
+        SessionWorkspace workspace = _workspaces.GetOrCreate("looping-twice");
+        var runner = new ArtifactRunner(_artifacts, ArtifactMode.None);
+        SkillRequestPlan plan = Plan(runner, workspace, guarded: false);
+        string looping = "Here it is: " + string.Concat(Enumerable.Repeat("again and ", 40));
+        var replay = new ReplayGeneration(looping, looping, "never reached")
+        {
+            FinishReasons = new[] { "repetition", "repetition", "stop" },
+        };
+
+        List<ChatStreamUpdate> updates = await Run(plan, replay.Invoke);
+
+        Assert.Equal(2, replay.Calls);
+        string content = Content(updates);
+        Assert.Contains("The model's output started repeating itself and was stopped", content, StringComparison.Ordinal);
+        Assert.Contains("repeated `again and ` 40 times in a row", content, StringComparison.Ordinal);
+        ChatStreamUpdate done = Assert.Single(updates, update => update.Done);
+        Assert.Equal("repetition", done.FinishReason);
+        // The quoted note above IS the explanation, so a UI must not add a plain one.
+        Assert.True(done.RepetitionExplained);
+    }
+
     private SkillRequestPlan Plan(
         ArtifactRunner runner,
         SessionWorkspace workspace,
@@ -1447,6 +1548,9 @@ public sealed class SkillCompletionGuardTests : IDisposable
 
         public ReplayGeneration(params string[] rounds) => _rounds = rounds;
 
+        /// <summary>A finish reason per round, when one round must end differently from the rest.</summary>
+        public string[]? FinishReasons { get; init; }
+
         public int Calls { get; private set; }
         public string FinishReason { get; init; } = "stop";
         public List<string> Histories { get; } = new();
@@ -1461,7 +1565,11 @@ public sealed class SkillCompletionGuardTests : IDisposable
                 throw new InvalidOperationException("The loop generated more turns than this bounded test allows.");
             Histories.Add(string.Join("\n", messages.Select(message => message.Content)));
             MessageHistories.Add(new List<ChatMessage>(messages));
-            return Emit(_rounds[Calls++], FinishReason, cancellationToken);
+            int index = Calls++;
+            string finish = FinishReasons != null && index < FinishReasons.Length && FinishReasons[index] != null
+                ? FinishReasons[index]
+                : FinishReason;
+            return Emit(_rounds[index], finish, cancellationToken);
         }
 
         internal static async IAsyncEnumerable<ChatStreamUpdate> Emit(

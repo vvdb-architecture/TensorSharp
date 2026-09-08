@@ -48,6 +48,16 @@ namespace TensorSharp.Server.ProtocolAdapters
         /// </summary>
         public const string PipelineThinkingBudget = "thinking_budget";
 
+        /// <summary>
+        /// The engine ended the turn because the output had locked into a loop — the
+        /// same few tokens over and over (<c>RepetitionGuard</c>). To a client this is
+        /// also a length stop: the answer is incomplete, and a tool call cut in half
+        /// must not be dispatched. What differs is that the layer that talks to the
+        /// model can say WHY, so the next attempt is written differently rather than
+        /// continued from where the loop began.
+        /// </summary>
+        public const string PipelineRepetition = "repetition";
+
         // ---- OpenAI /v1/chat/completions --------------------------------------
 
         /// <summary>Truncated by the token budget.</summary>
@@ -155,6 +165,11 @@ namespace TensorSharp.Server.ProtocolAdapters
         /// </summary>
         public static bool IsTruncated(string pipelineReason) =>
             string.Equals(pipelineReason, PipelineMaxTokens, StringComparison.Ordinal)
-            || string.Equals(pipelineReason, PipelineThinkingBudget, StringComparison.Ordinal);
+            || string.Equals(pipelineReason, PipelineThinkingBudget, StringComparison.Ordinal)
+            || string.Equals(pipelineReason, PipelineRepetition, StringComparison.Ordinal);
+
+        /// <summary>True when the engine's repetition guard ended the turn.</summary>
+        public static bool IsRepetition(string pipelineReason) =>
+            string.Equals(pipelineReason, PipelineRepetition, StringComparison.Ordinal);
     }
 }

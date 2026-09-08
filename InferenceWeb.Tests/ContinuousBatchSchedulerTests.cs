@@ -586,6 +586,39 @@ public class ContinuousBatchSchedulerTests
         }
     }
 
+    /// <summary>
+    /// A model that emits the same token forever used to run to MaxTokens, which on a
+    /// phone whose reply limit the user raised is hundreds of thousands of tokens of
+    /// the same phrase. The guard ends it at the first provable loop and says so.
+    /// </summary>
+    [Fact]
+    public void Engine_StopsARunawayLoopBeforeMaxTokens_AndSaysWhy()
+    {
+        var model = new StubModel("fp-loop", peakToken: 5);
+        // A pool of 512 slots: room for the 400 tokens the request asks for, so the
+        // guard -- not the pool -- is what ends the run, at 128.
+        var config = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 256,
+            MaxNumRunningSequences = 8,
+            MaxPrefillChunkSize = 64,
+            NumBlocks = 64,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = true,
+            DecodeQuantumTokens = BlockSize,
+        };
+        using var engine = new InferenceEngine(model, config, NullLogger.Instance);
+        var seq = NewSequence("loop", promptLen: 4, maxNew: 400);
+        var handle = engine.SubmitRequest(seq);
+
+        var completion = handle.Completion.GetAwaiter().GetResult();
+        Assert.Equal(SequenceStatus.FinishedStopped, completion.Status);
+        Assert.Equal(RepetitionGuard.FinishReason, completion.FinishReason);
+        Assert.Equal(RepetitionGuard.MinSpan, completion.OutputTokenCount);
+        Assert.Equal(RepetitionGuard.MinSpan, seq.OutputTokens.Count);
+        Assert.All(seq.OutputTokens, token => Assert.Equal(5, token));
+    }
+
     [Fact]
     public void Engine_RespectsMaxTokens()
     {

@@ -48,8 +48,10 @@ internal sealed record PyPiFile(
 /// It installs less than pip does, on purpose. A wheel with compiled extensions
 /// cannot be installed at all — iOS will not load a dynamic library that was not
 /// signed into the app bundle, which is why the binary packages the app needs
-/// (<c>numpy</c>, <c>Pillow</c>) are staged at build time by
-/// <c>prepare-python.sh</c> and why anything else must be pure Python. And
+/// (<c>numpy</c>, <c>Pillow</c>, and <c>lxml</c>, which the repository compiles
+/// itself) are staged at build time by <c>prepare-python.sh</c> and why anything
+/// else must be pure Python. A request for one of those never reaches this class:
+/// <see cref="InstallHookPackageInstaller"/> answers for the bundle first. And
 /// dependencies are not resolved: a name the model did not ask for is a name the
 /// user did not agree to fetch, so a missing dependency is reported and left for
 /// the model to ask for by name.

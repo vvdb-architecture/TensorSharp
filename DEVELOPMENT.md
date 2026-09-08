@@ -333,7 +333,7 @@ TensorSharp/
 │   │   └── WebUi/               # The one script appended to the Server's index.html, so the page itself is never forked
 │   ├── src/TensorAgent.Maui/    # The net10.0-ios head: WebView + attachments + dictation, the models / chats / settings pages, and where the files live on this device
 │   ├── skills/                  # The skills that were verified to work here, with verdicts.json recording why each one is in or out
-│   └── scripts/                 # build / run / verify for the simulator, prepare-python.sh, verify-skills.py
+│   └── scripts/                 # build / run / verify for the simulator, prepare-python.sh, build-lxml-ios.sh, verify-skills.py
 ├── InferenceWeb.Tests/          # xUnit unit tests covering ops, KV cache, paged scheduler, batched-model correctness, web/server helpers
 ├── AdvUtils/                    # Utility library (logger)
 ├── docs/                        # Developer reference

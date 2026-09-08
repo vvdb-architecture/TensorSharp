@@ -235,7 +235,7 @@ CHECKS="$(grep -o 'selftest .*' "${LOG}" || true)"
 [[ -n "${CHECKS}" ]] || fail "no 'selftest' lines in ${LOG}; the self-test is Debug-only, is this a Debug build?"
 sed 's/^/    /' <<<"${CHECKS}"
 grep -q 'FAIL' <<<"${CHECKS}" && fail "a startup self-test check failed"
-for CHECK in shell python python:stdlib python:numpy python:pillow node sandbox:write sandbox:network; do
+for CHECK in shell python python:stdlib python:numpy python:pillow python:lxml python:pptx python:docx node sandbox:write sandbox:network; do
     grep -q "ok   ${CHECK}:" <<<"${CHECKS}" || fail "self-test check '${CHECK}' is missing or did not pass"
 done
 echo "ok  startup self-test: shell, python, node and both sandbox refusals"

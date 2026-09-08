@@ -31,6 +31,7 @@ namespace TensorSharp.Runtime.Scheduling
     {
         private readonly IModelArchitecture _model;
         private readonly ILogger _logger;
+        private readonly bool _stopRepetition;
         private readonly BlockPool _pool;
         private readonly ContinuousBatchScheduler _scheduler;
         private readonly BatchExecutor _executor;
@@ -55,6 +56,7 @@ namespace TensorSharp.Runtime.Scheduling
             _model = model ?? throw new ArgumentNullException(nameof(model));
             ArgumentNullException.ThrowIfNull(cfg);
             _logger = logger ?? NullLogger.Instance;
+            _stopRepetition = cfg.StopRepetition;   // cfg is null-checked above
 
             long blockBytes = ComputeBlockByteSize(model, cfg.BlockSize);
             int numBlocks = ResolveEffectiveNumBlocks(model, cfg, _logger);
@@ -677,6 +679,32 @@ namespace TensorSharp.Runtime.Scheduling
                             TruncateUnpublishedTail(seq, emittedCount);
                             LogSpeculationStatsIfAny(seq);
                             _scheduler.NotifyStop(seq, SequenceStatus.FinishedLengthCapped, "max_tokens", output);
+                            handle?.CompleteFinished();
+                            _handles.TryRemove(seq.RequestId, out _);
+                            Interlocked.Increment(ref _totalCompleted);
+                            finished = true;
+                            break;
+                        }
+
+                        // Stop a generation that has locked into a loop. It would
+                        // otherwise run to max-new-tokens -- hundreds of thousands
+                        // of tokens on a phone whose reply limit the user raised --
+                        // streaming the same phrase until somebody presses Stop.
+                        // Reported as its own reason so the layers above can say
+                        // what happened rather than "the answer was cut off".
+                        if (_stopRepetition
+                            && (seq.SamplingConfig?.StopRepetition ?? true)
+                            && RepetitionGuard.IsLooping(seq.OutputTokens, emittedCount, out int period, out int repeats))
+                        {
+                            TruncateUnpublishedTail(seq, emittedCount);
+                            LogSpeculationStatsIfAny(seq);
+                            _logger.LogWarning(
+                                "Request {RequestId} stopped after {Emitted} tokens: {What} (period {Period})",
+                                seq.RequestId, emittedCount,
+                                RepetitionGuard.Describe(seq.OutputTokens, emittedCount, period, repeats,
+                                    ids => _model.Tokenizer?.Decode(ids)),
+                                period);
+                            _scheduler.NotifyStop(seq, SequenceStatus.FinishedStopped, RepetitionGuard.FinishReason, output);
                             handle?.CompleteFinished();
                             _handles.TryRemove(seq.RequestId, out _);
                             Interlocked.Increment(ref _totalCompleted);

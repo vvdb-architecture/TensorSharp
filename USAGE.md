@@ -749,6 +749,7 @@ These can be set with either the `--paged-kv*` / `--continuous-batching` CLI fla
 | `TS_SCHED_NUM_BLOCKS` | Physical blocks in the engine block pool (default: `256`). |
 | `TS_SCHED_BLOCK_SIZE` | Tokens per block on the engine side (default: `256`). |
 | `TS_SCHED_PREFIX_CACHE` | `0` disables block-hash prefix sharing across requests. |
+| `TS_SCHED_STOP_REPETITION` | `0` lets a generation that has locked into a loop run to its token limit instead of being stopped. |
 | `TS_SCHED_DECODE_QUANTUM` | Tokens before a sequence-switch is allowed (default: block size). |
 | `TS_RETAINED_FUSED_CACHE` | `1` (default) retains a finished request's fused holder so an exact-prefix continuation skips re-prefilling it, on models that advertise support (Gemma 4 K/V; Qwen 3.5/3.6 attention K/V plus GatedDeltaNet recurrent state). `0` disables it (VRAM cap / A-B). |
 | `TS_RETAINED_FUSED_CACHE_MAX` | LRU budget of retained fused holders (default: `4`); each pins a complete per-request continuation state. |

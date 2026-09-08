@@ -23,10 +23,11 @@ namespace TensorAgent.Tests;
 /// adopted from upstream: <c>skills/documents</c>.
 ///
 /// <para>
-/// The published docx/pptx/xlsx/pdf skills cannot ship here — they need lxml,
-/// which has no iOS wheel, and they shell out to LibreOffice, which iOS cannot
-/// launch. `documents` replaces them with scripts that use only what
-/// prepare-python.sh actually stages. That is the invariant these tests hold,
+/// The published docx/pptx/xlsx/pdf skills cannot ship here — they shell out to
+/// LibreOffice, which iOS cannot launch (they also needed lxml, which the
+/// repository now compiles itself; see scripts/build-lxml-ios.sh). `documents`
+/// replaces them with scripts that use only what prepare-python.sh actually
+/// stages. That is the invariant these tests hold,
 /// and it is one a future edit breaks by accident in two directions: a script
 /// that starts importing something new, and a staging list that stops shipping
 /// something a script already imports. Both are checked, against the real files,
@@ -77,6 +78,15 @@ public sealed class DocumentSkillTests
         // Not imported by any skill script: it is the CA bundle the interpreter points
         // OpenSSL at, so https:// works on a device that has no system trust store.
         ["certifi"] = "certifi",
+        // The XML library the repository compiles itself (scripts/build-lxml-ios.sh),
+        // and the two document libraries that exist only because it does. The skill's
+        // own writers do not import them -- they predate lxml being buildable and use
+        // zipfile + xml.etree -- but a model reaching for python-pptx by habit does.
+        ["lxml"] = "lxml",
+        ["python-pptx"] = "pptx",
+        ["python-docx"] = "docx",
+        ["xlsxwriter"] = "xlsxwriter",
+        ["typing_extensions"] = "typing_extensions",
     };
 
     /// <summary>
@@ -268,7 +278,7 @@ public sealed class DocumentSkillTests
     {
         string script = File.ReadAllText(Path.Combine(Repo, "TensorAgent", "scripts", "prepare-python.sh"));
         var modules = new HashSet<string>(StringComparer.Ordinal);
-        foreach (string list in new[] { "BINARY_PACKAGES", "PURE_PACKAGES" })
+        foreach (string list in new[] { "BINARY_PACKAGES", "LOCAL_BINARY_PACKAGES", "PURE_PACKAGES" })
         {
             Match block = Regex.Match(script, list + @"=\((?<body>.*?)\n\)", RegexOptions.Singleline);
             Assert.True(block.Success, $"prepare-python.sh no longer declares {list}");
@@ -919,6 +929,200 @@ public sealed class DocumentSkillTests
         new(StringComparer.Ordinal) { "reportlab", "pypdf", "openpyxl", "defusedxml", "PIL" };
 
     private static string Quote(string value) => "'" + value.Replace("'", "\\'") + "'";
+
+    /// <summary>
+    /// The list the model is TOLD is built in, against what a real staged package
+    /// directory SCANS to. The static drift test holds the list to the staging script's
+    /// arrays; this holds it to the dist-info the staging leaves behind, which is what
+    /// the installer answers from at run time. PyYAML was the gap: staged from an sdist
+    /// with no dist-info, promised as built in, and sent to the index by the scan.
+    /// </summary>
+    [LiveStagedPythonFact]
+    public void EveryPackageTheModelIsToldIsBuiltInIsSeenByTheBundleScan()
+    {
+        var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+        IReadOnlyList<BundledDistribution> scanned = python.BundledDistributions;
+        Assert.True(scanned.Count >= 10, $"the scan found only {scanned.Count} distributions; the root is not a staged runtime");
+
+        var seen = scanned.Select(d => d.CanonicalName).ToHashSet(StringComparer.Ordinal);
+        string[] missing = InstallHookPackageInstaller.BundledPackageNames
+            .Select(entry => BundledPackages.Canonical(entry.Split(' ')[0]))
+            .Where(name => !seen.Contains(name))
+            .ToArray();
+        Assert.True(missing.Length == 0,
+            "told to the model as built in, but the bundle scan does not see: " + string.Join(", ", missing)
+            + " -- `pip install` of these goes to the index and is refused");
+
+        foreach (string compiled in InstallHookPackageInstaller.CompiledBundledPackageNames)
+        {
+            BundledDistribution? d = scanned.FirstOrDefault(x => x.CanonicalName == BundledPackages.Canonical(compiled));
+            Assert.NotNull(d);
+            Assert.True(d!.Compiled, $"{compiled} is told to be compiled but its RECORD names no extension module");
+        }
+    }
+
+    /// <summary>
+    /// lxml, through the app's own interpreter and sandbox. It is the one distribution
+    /// this repository compiles itself (scripts/build-lxml-ios.sh), seven extension
+    /// modules linking libxml2 and libxslt statically, and "it imports" proves only
+    /// that dlopen worked. What a document library asks of it is parsing, XPath, XSLT,
+    /// serialisation, the HTML parser and objectify -- so those are what is run, one
+    /// statement per compiled module, and the answer is compared, not just the exit
+    /// code.
+    /// </summary>
+    [LiveStagedPythonFact]
+    public async Task TheStagedRuntimeRunsLxmlParsingXPathXsltAndHtml()
+    {
+        var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+        Assert.True(python.IsAvailable, python.UnavailableReason);
+
+        string work = Path.Combine(Path.GetTempPath(), "tensoragent-lxml-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(work);
+        try
+        {
+            var policy = new ExecutionPolicy(
+                AllowScripts: true,
+                AllowNetwork: false,
+                WorkRoot: work,
+                ReadableRoots: Array.Empty<string>(),
+                TempRoot: work);
+            var context = new InterpreterContext(work, new Dictionary<string, string> { ["HOME"] = work }, policy);
+
+            const string probe = """
+                from lxml import etree, objectify, html, sax, builder
+                import lxml.html.diff
+                doc = etree.XML('<r><a n="1">x</a><a n="2">y</a></r>')
+                print('xpath', doc.xpath('sum(//a/@n)'), doc.find('a[@n="2"]').text)
+                xslt = etree.XSLT(etree.XML(
+                    '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">'
+                    '<xsl:template match="/"><o><xsl:value-of select="count(//a)"/></o></xsl:template></xsl:stylesheet>'))
+                print('xslt', etree.tostring(xslt(doc)).decode())
+                print('serial', etree.tostring(doc, pretty_print=True).decode().count('\n'))
+                page = html.fromstring('<html><body><p class="k">Hello <b>world</b></p></body></html>')
+                print('html', page.text_content().strip())
+                obj = objectify.fromstring('<root><n>3</n><n>4</n></root>')
+                print('objectify', sum(int(v) for v in obj.n))
+                print('diff', 'ins' in lxml.html.diff.htmldiff('<p>a</p>', '<p>a b</p>'))
+                E = builder.ElementMaker()
+                print('builder', etree.tostring(E.root(E.child('t'))).decode())
+                print('unicode', etree.tostring(etree.fromstring('<u>✓ ünïcode</u>'), encoding='unicode'))
+                print('version', etree.LXML_VERSION, etree.LIBXML_VERSION, etree.LIBXSLT_VERSION)
+                """;
+
+            ExecutionResult result = await python.RunCodeAsync(probe, [], context, CancellationToken.None);
+            Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
+            Assert.Contains("xpath 3.0 y", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("xslt <o>2</o>", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("html Hello world", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("objectify 7", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("diff True", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("builder <root><child>t</child></root>", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("unicode <u>✓ ünïcode</u>", result.Stdout, StringComparison.Ordinal);
+            Assert.Contains("version (6, 1, 3, 0)", result.Stdout, StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { Directory.Delete(work, true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// The turn that failed on the phone, end to end and with no model in it: a
+    /// python-pptx deck of the day's gainers and a python-docx note, written the way a
+    /// model writes them, then checked by the skill's own validator and read back by
+    /// its reader. python-pptx and python-docx exist here only because lxml does, and
+    /// the validator is what a model is told to run on anything it assembled itself.
+    /// </summary>
+    [LiveStagedPythonFact]
+    public void PythonPptxAndPythonDocxWriteDocumentsTheSkillValidatesAndReads()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-pptx-lib-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var python = new EmbeddedPython(Environment.GetEnvironmentVariable(LivePythonFactAttribute.RootVariable));
+            Assert.True(python.IsAvailable, python.UnavailableReason);
+            var manager = new SessionWorkspaceManager(Path.Combine(root, "sessions"));
+            SessionWorkspace workspace = manager.GetOrCreate("gainers");
+            string work = workspace.WorkDirectory;
+            IShellBackend backend = new InProcessShellBackend(python);
+            var session = new ShellSession(workspace, ShellProgram.InProcess());
+
+            ConfinedResult Run(string command) => backend.Run(new ShellLaunch
+            {
+                Command = command,
+                Session = session,
+                WorkingDirectory = work,
+                WriteDirectory = work,
+                ReadOnlyDirectory = Scripts,
+                Timeout = TimeSpan.FromSeconds(60),
+            });
+
+            File.WriteAllText(Path.Combine(work, "make.py"), """
+                from pptx import Presentation
+                from pptx.util import Inches, Pt
+                import docx
+
+                rows = [("ROIV", "Roivant Sciences Ltd.", 40.97, 17.29), ("SEI", "Solaris Energy Infrastructure", 63.34, 15.15),
+                        ("PHVS", "Pharvaris N.V.", 40.30, 14.33)]
+                prs = Presentation()
+                title = prs.slides.add_slide(prs.slide_layouts[0])
+                title.shapes.title.text = "Top Gainers Today"
+                title.placeholders[1].text = "Source: Yahoo Finance"
+                slide = prs.slides.add_slide(prs.slide_layouts[5])
+                slide.shapes.title.text = "By change"
+                table = slide.shapes.add_table(len(rows) + 1, 4, Inches(0.5), Inches(1.5), Inches(9), Inches(2)).table
+                for c, head in enumerate(("Symbol", "Company", "Price", "Change %")):
+                    table.cell(0, c).text = head
+                for r, (sym, name, price, pct) in enumerate(rows, 1):
+                    table.cell(r, 0).text = sym
+                    table.cell(r, 1).text = name
+                    table.cell(r, 2).text = f"{price:.2f}"
+                    table.cell(r, 3).text = f"{pct:.2f}%"
+                notes = slide.notes_slide.notes_text_frame
+                notes.text = "Speaker notes survive"
+                prs.save("gainers.pptx")
+
+                d = docx.Document()
+                d.add_heading("Top Gainers Today", 1)
+                t = d.add_table(rows=1, cols=2)
+                t.rows[0].cells[0].text = "Symbol"
+                t.rows[0].cells[1].text = "Change %"
+                for sym, _, _, pct in rows:
+                    cells = t.add_row().cells
+                    cells[0].text = sym
+                    cells[1].text = f"{pct:.2f}%"
+                d.add_paragraph("Generated on device.")
+                d.save("gainers.docx")
+                print("written", len(Presentation("gainers.pptx").slides), len(docx.Document("gainers.docx").paragraphs))
+                """);
+
+            ConfinedResult made = Run("python3 make.py");
+            Assert.True(made.Ok && made.ExitCode == 0, made.Stdout + made.Stderr);
+            Assert.Contains("written 2 ", made.Stdout, StringComparison.Ordinal);
+
+            ConfinedResult validated = Run($"python3 '{Path.Combine(Scripts, "validate_document.py")}' gainers.pptx gainers.docx");
+            Assert.True(validated.Ok && validated.ExitCode == 0,
+                "the skill's validator rejects what python-pptx/python-docx wrote:" + Environment.NewLine
+                + validated.Stdout + validated.Stderr);
+            Assert.Contains("PASS", validated.Stdout, StringComparison.Ordinal);
+            Assert.DoesNotContain("FAIL", validated.Stdout, StringComparison.Ordinal);
+
+            ConfinedResult deck = Run($"python3 '{Path.Combine(Scripts, "read_document.py")}' gainers.pptx");
+            Assert.True(deck.Ok && deck.ExitCode == 0, deck.Stdout + deck.Stderr);
+            foreach (string expected in new[] { "Top Gainers Today", "ROIV", "Pharvaris N.V.", "15.15%" })
+                Assert.Contains(expected, deck.Stdout, StringComparison.Ordinal);
+
+            ConfinedResult note = Run($"python3 '{Path.Combine(Scripts, "read_document.py")}' gainers.docx");
+            Assert.True(note.Ok && note.ExitCode == 0, note.Stdout + note.Stderr);
+            Assert.Contains("Generated on device.", note.Stdout, StringComparison.Ordinal);
+            Assert.Contains("SEI", note.Stdout, StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
 
     /// <summary>
     /// The skill's own scripts, run the way the app runs them, actually produce

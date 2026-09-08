@@ -26,6 +26,14 @@ public interface IPythonRuntime
     /// <summary>The interpreter's version, e.g. <c>3.13.2</c>; empty when unavailable.</summary>
     string Version { get; }
 
+    /// <summary>
+    /// The distributions staged into the app at build time, so an installer can answer
+    /// for them without a network and <c>pip list</c> can show them. Empty when the
+    /// runtime has no staged package directory, which is the default for a runtime
+    /// that is not the embedded one.
+    /// </summary>
+    IReadOnlyList<BundledDistribution> BundledDistributions => Array.Empty<BundledDistribution>();
+
     Task<ExecutionResult> RunScriptAsync(string scriptPath, IReadOnlyList<string> arguments, InterpreterContext context, CancellationToken cancellationToken);
 
     Task<ExecutionResult> RunCodeAsync(string source, IReadOnlyList<string> arguments, InterpreterContext context, CancellationToken cancellationToken);

@@ -218,19 +218,270 @@ public sealed class AgentAppHostTests : IDisposable
 
         foreach (ToolFunction shell in new[] { persistent, stateless })
         {
-            Assert.Contains("scrIds=day_gainers", shell.Description, StringComparison.Ordinal);
-            Assert.Contains("quoteType", shell.Description, StringComparison.Ordinal);
+            // The network guidance is present, and every sentence of it is true of any
+            // request. It used to carry a whole Yahoo Finance screener program, which is
+            // what made the model reach for finance APIs on unrelated turns.
+            Assert.Contains("quoted heredoc", shell.Description, StringComparison.Ordinal);
             Assert.Contains("python3 - <<'PY'", shell.Description, StringComparison.Ordinal);
-            Assert.DoesNotContain("python3 -c", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("standard library first", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("instead of inventing it", shell.Description, StringComparison.Ordinal);
+            // What may not be INVENTED, never a ban on explaining or deriving: the turns
+            // where the answer IS an interpretation are turns too.
+            Assert.DoesNotContain("no figure you did not fetch", shell.Description, StringComparison.Ordinal);
             Assert.Contains("pure-Python wheels tagged `none-any`", shell.Description, StringComparison.Ordinal);
             Assert.Contains("does not resolve dependencies", shell.Description, StringComparison.Ordinal);
             Assert.Contains("compiled/native extensions", shell.Description, StringComparison.Ordinal);
             Assert.DoesNotContain("npm install", shell.Description, StringComparison.Ordinal);
+            // And what it need not install at all: the model that produced an HTML file
+            // instead of a deck did so because nothing told it lxml was already here.
+            Assert.Contains("already built into this app", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("lxml", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("python-pptx (import pptx)", shell.Description, StringComparison.Ordinal);
+            Assert.Contains("cannot be replaced by another version", shell.Description, StringComparison.Ordinal);
         }
     }
 
+    /// <summary>
+    /// The network switch defaults to off, and off is where most users live. The
+    /// install guidance is rightly hidden then -- but the bundle is not something the
+    /// switch changes, and a model that is not told lxml and python-pptx are here
+    /// reimplements OOXML by hand, badly, for the rest of the turn.
+    /// </summary>
     [Fact]
-    public void ARestrictedNetworkDeclarationDoesNotRecommendABlockedMarketSource()
+    public void WithNetworkOff_TheModelIsStillToldWhatIsBuiltIn()
+    {
+        AgentAppHost host = Start(settings =>
+        {
+            AppSettings offline = settings.Load();
+            offline.AllowNetwork = false;
+            settings.Save(offline);
+        });
+
+        ToolFunction shell = host.CodeRunner!.DeclareTools(persists: true)
+            .Single(tool => tool.Name == ShellTools.ShellToolName);
+
+        Assert.False(host.CodeRunner.CanInstallPackages);
+        // The quoting advice is about writing Python, not about the network, so it is
+        // here with the switch off too. It used to be inside the network paragraph.
+        Assert.Contains("quoted heredoc", shell.Description, StringComparison.Ordinal);
+        Assert.Contains("Already available:", shell.Description, StringComparison.Ordinal);
+        Assert.Contains("already built into this app", shell.Description, StringComparison.Ordinal);
+        Assert.Contains("lxml", shell.Description, StringComparison.Ordinal);
+        Assert.Contains("python-pptx (import pptx)", shell.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain("pure-Python wheels tagged `none-any`", shell.Description, StringComparison.Ordinal);
+    }
+
+    // =====================================================================================
+    // the bundle answers before the index
+    // =====================================================================================
+
+    private static readonly BundledDistribution[] PhoneBundle =
+    {
+        new("lxml", "lxml", "6.1.3", Compiled: true),
+        new("python-pptx", "python-pptx", "1.0.2", Compiled: false),
+    };
+
+    private AgentAppHost StartWithBundle(bool network, RecordingInstallHook installer, out PackageProbePython python)
+    {
+        AgentPaths paths = Paths;
+        paths.EnsureCreated();
+        var settings = new SettingsStore(paths.SettingsFile);
+        AppSettings enabled = settings.Load();
+        enabled.AllowCodeExecution = true;
+        enabled.AllowNetwork = network;
+        settings.Save(enabled);
+
+        python = new PackageProbePython();
+        python.Bundled.AddRange(PhoneBundle);
+        _host = new AgentAppHost(paths, python: python, installer: installer);
+        return _host;
+    }
+
+    /// <summary>
+    /// The scenario off the phone: <c>pip install lxml</c>, typed out of habit before
+    /// <c>import lxml</c>. The index was consulted, found only compiled wheels, and
+    /// refused in words that said lxml was unavailable — on a device where lxml was
+    /// importable the whole time. Now the bundle is asked first, nothing is fetched,
+    /// and the rest of the line runs.
+    /// </summary>
+    [Theory]
+    [InlineData("pip install lxml")]
+    [InlineData("python3 -m pip install lxml==6.1.3")]
+    [InlineData("pip install python-pptx lxml")]
+    [InlineData("pip install Python_PPTX")]
+    public void ABundledPackageIsReportedAsAlreadyThereWithoutTouchingTheIndex(string command)
+    {
+        var installer = new RecordingInstallHook();
+        AgentAppHost host = StartWithBundle(network: true, installer, out _);
+        SessionWorkspace workspace = host.Workspaces.GetOrCreate("bundled");
+
+        SkillToolResult result = host.CodeRunner!.Execute(
+            ShellCall(command + " && echo AFTER"), workspace: workspace);
+
+        Assert.True(result.Ok, result.Content);
+        // The sentence the change exists to deliver, not the ledger's generic one: the
+        // model must read that the package is part of the app, not that it installed
+        // it earlier in this session.
+        Assert.Contains("Built into this host, nothing to install", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Already installed this session", result.Content, StringComparison.Ordinal);
+        Assert.Contains("AFTER", result.Content, StringComparison.Ordinal);
+        Assert.Empty(installer.Requests);
+    }
+
+    /// <summary>
+    /// The network switch is about fetching, and a bundled package fetches nothing:
+    /// with the switch OFF the same request is still answered from the bundle, while a
+    /// package the bundle does not have is still refused for the switch.
+    /// </summary>
+    [Fact]
+    public void WithTheNetworkOffABundledPackageIsStillAnsweredFromTheBundle()
+    {
+        var installer = new RecordingInstallHook();
+        AgentAppHost host = StartWithBundle(network: false, installer, out _);
+        SessionWorkspace workspace = host.Workspaces.GetOrCreate("offline");
+
+        SkillToolResult bundled = host.CodeRunner!.Execute(
+            ShellCall("pip install lxml && echo AFTER"), workspace: workspace);
+        Assert.True(bundled.Ok, bundled.Content);
+        Assert.Contains("Built into this host, nothing to install: lxml", bundled.Content, StringComparison.Ordinal);
+        Assert.Contains("AFTER", bundled.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("installing is not enabled", bundled.Content, StringComparison.Ordinal);
+
+        // A pin to another version of a COMPILED bundled package fetches nothing either,
+        // so with the switch off it is still answered by name rather than by the switch.
+        SkillToolResult pinned = host.CodeRunner!.Execute(
+            ShellCall("pip install lxml==5.3.0 && echo AFTER"), workspace: workspace);
+        Assert.False(pinned.Ok);
+        Assert.Contains("lxml 6.1.3 is compiled into this app", pinned.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("installing is not enabled", pinned.Content, StringComparison.Ordinal);
+
+        SkillToolResult fetched = host.CodeRunner!.Execute(
+            ShellCall("pip install requests && echo AFTER"), workspace: workspace);
+        Assert.False(fetched.Ok);
+        Assert.Contains("installing is not enabled", fetched.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("AFTER", fetched.Content, StringComparison.Ordinal);
+
+        // Half bundled is not bundled: the fetch half decides.
+        SkillToolResult mixed = host.CodeRunner!.Execute(
+            ShellCall("pip install lxml requests && echo AFTER"), workspace: workspace);
+        Assert.False(mixed.Ok);
+        Assert.Contains("installing is not enabled", mixed.Content, StringComparison.Ordinal);
+
+        Assert.Empty(installer.Requests);
+    }
+
+    /// <summary>
+    /// A compiled distribution is the one that shipped, full stop: a pin to another
+    /// version is refused by name rather than sent to an index that cannot help. A
+    /// pure one can be shadowed by a session install, so the same pin goes through.
+    /// </summary>
+    [Fact]
+    public void ReplacingABundledPackageIsRefusedWhenCompiledAndAllowedWhenPure()
+    {
+        var installer = new RecordingInstallHook();
+        AgentAppHost host = StartWithBundle(network: true, installer, out _);
+        SessionWorkspace workspace = host.Workspaces.GetOrCreate("replace");
+
+        SkillToolResult compiled = host.CodeRunner!.Execute(
+            ShellCall("pip install lxml==5.3.0 && echo AFTER"), workspace: workspace);
+        Assert.False(compiled.Ok);
+        Assert.Contains("lxml 6.1.3 is compiled into this app", compiled.Content, StringComparison.Ordinal);
+        Assert.Contains("cannot be replaced by version 5.3.0", compiled.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("AFTER", compiled.Content, StringComparison.Ordinal);
+        Assert.Empty(installer.Requests);
+
+        SkillToolResult pure = host.CodeRunner!.Execute(
+            ShellCall("pip install python-pptx==0.6.23"), workspace: workspace);
+        Assert.True(pure.Ok, pure.Content);
+        InstallRequest request = Assert.Single(installer.Requests);
+        Assert.Equal(new[] { "python-pptx==0.6.23" }, request.Packages);
+    }
+
+    /// <summary>
+    /// <c>pip list</c> is how a model finds out what is here, and an answer that omits
+    /// the bundle says lxml is absent. The session's own installs come first; a bundled
+    /// distribution the session has shadowed is listed once, as the session's.
+    /// </summary>
+    [Fact]
+    public void PipListShowsTheBundleBehindTheSessionsOwnInstalls()
+    {
+        var installer = new RecordingInstallHook();
+        AgentAppHost host = StartWithBundle(network: true, installer, out _);
+        SessionWorkspace workspace = host.Workspaces.GetOrCreate("listing");
+        Directory.CreateDirectory(Path.Combine(workspace.EnvDirectory, "python_pptx-0.6.23.dist-info"));
+
+        SkillToolResult listed = host.CodeRunner!.Execute(ShellCall("pip list"), workspace: workspace);
+
+        Assert.True(listed.Ok, listed.Content);
+        Assert.Contains("python_pptx==0.6.23", listed.Content, StringComparison.Ordinal);
+        Assert.Contains("lxml==6.1.3", listed.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("python-pptx==1.0.2", listed.Content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// No tool description may name a vendor, product, market or worked example.
+    ///
+    /// <para>
+    /// This is the test for a reported bug, and the bug was a prompt: a complete Yahoo
+    /// Finance screener program — 3,204 characters of url, response fields and a
+    /// ten-row table — had been added to the shell tool's description to make one
+    /// stock-gainers request come out right. A tool description is read on EVERY turn,
+    /// so it did not read as guidance, it read as a demonstration of what code here
+    /// looks like, and the model reached for finance APIs on requests that had nothing
+    /// to do with finance. Whatever is in a declaration has to be true of every task;
+    /// a specific one belongs in a skill, which is injected only when it is selected.
+    /// </para>
+    /// <para>
+    /// The vocabulary below is a sample, not a definition — the real rule is the
+    /// sentence above, and this catches the shape it takes in practice.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void NoToolDescriptionNamesAVendorProductOrWorkedExample()
+    {
+        AgentAppHost host = Start(settings =>
+        {
+            AppSettings everything = settings.Load();
+            everything.AllowCodeExecution = true;
+            everything.AllowNetwork = true;      // the widest declaration this host emits
+            settings.Save(everything);
+        });
+
+        string[] mustNotAppear =
+        {
+            // The one that caused the report, and its neighbours.
+            "yahoo", "yfinance", "day_gainers", "scrIds", "quoteType", "regularMarket",
+            "screener", "gainers", "ticker", "NASDAQ", "S&P",
+            // Other domains a future well-meaning fix might paste in whole.
+            "openai", "github.com/", "api_key", "bitcoin", "weather.com",
+        };
+
+        foreach (ToolFunction tool in host.CodeRunner!.DeclareTools(persists: true)
+                     .Concat(host.CodeRunner.DeclareTools(persists: false)))
+        {
+            foreach (string banned in mustNotAppear)
+            {
+                Assert.False(
+                    tool.Description.Contains(banned, StringComparison.OrdinalIgnoreCase),
+                    $"the '{tool.Name}' tool description names '{banned}'. A declaration is read on every "
+                    + "turn, so a task-specific example in it biases every unrelated request; put it in a "
+                    + "skill instead.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A narrowed allow-list narrows what the declaration RECOMMENDS, and nothing else.
+    ///
+    /// <para>
+    /// The general execution guidance used to be shown only when one particular finance
+    /// host was allow-listed, because the guidance WAS that host's API. Now that every
+    /// sentence of it is true of any request, an operator restricting egress must not
+    /// also lose the advice about heredoc quoting and not inventing data.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void ARestrictedNetworkDeclarationStillCarriesTheGeneralGuidanceAndNamesNoHost()
     {
         AgentAppHost host = Start(settings =>
         {
@@ -243,8 +494,9 @@ public sealed class AgentAppHostTests : IDisposable
         string declaration = host.CodeRunner!.Declare().Description;
         Assert.Contains("ENABLED only for these host suffixes: pypi.org", declaration,
             StringComparison.Ordinal);
-        Assert.DoesNotContain("query1.finance.yahoo.com", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("ENABLED and unrestricted", declaration, StringComparison.Ordinal);
+        Assert.Contains("standard library first", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("query1.finance.yahoo.com", declaration, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -546,7 +798,7 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.False(host.Options.SkillsAllowNetwork);
         Assert.False(host.Installer!.CanInstall);
         Assert.Contains("network off", host.DescribeEngine(), StringComparison.Ordinal);
-        Assert.DoesNotContain("scrIds=day_gainers", host.CodeRunner!.Declare().Description,
+        Assert.DoesNotContain("standard library first", host.CodeRunner!.Declare().Description,
             StringComparison.Ordinal);
 
         AppSettings on = host.Settings.Load();
@@ -559,7 +811,7 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.True(host.Options.SkillsAllowNetwork);
         Assert.True(host.Installer.CanInstall);
         Assert.Contains("network on", host.DescribeEngine(), StringComparison.Ordinal);
-        Assert.Contains("scrIds=day_gainers", host.CodeRunner!.Declare().Description,
+        Assert.Contains("standard library first", host.CodeRunner!.Declare().Description,
             StringComparison.Ordinal);
 
         // And back off again, because a switch that can only be turned on is half a
@@ -575,7 +827,7 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.False(host.Installer.CanInstall);
         Assert.False(host.CodeRunner!.CanRun);
         Assert.Contains("code execution off", host.DescribeEngine(), StringComparison.Ordinal);
-        Assert.DoesNotContain("scrIds=day_gainers", host.CodeRunner.Declare().Description,
+        Assert.DoesNotContain("standard library first", host.CodeRunner.Declare().Description,
             StringComparison.Ordinal);
     }
 
@@ -1172,6 +1424,11 @@ public sealed class AgentAppHostTests : IDisposable
     private sealed class PackageProbePython : IPythonRuntime
     {
         public List<string> ModuleCalls { get; } = new();
+
+        /// <summary>What this probe claims the app bundle ships; empty by default.</summary>
+        public List<BundledDistribution> Bundled { get; } = new();
+
+        public IReadOnlyList<BundledDistribution> BundledDistributions => Bundled;
 
         public TaskCompletionSource<bool> CodeEntered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);

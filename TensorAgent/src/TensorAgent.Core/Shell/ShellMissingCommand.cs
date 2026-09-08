@@ -86,7 +86,8 @@ internal static class ShellMissingCommand
         // transient missing command that can be repaired, and sends the model straight
         // back to another npm spelling.
         ["npm"] = "npm/JavaScript packages cannot be installed on this device; use Node's built-in modules "
-                + "or write it in python3, whose pure-Python `none-any` wheels can be installed",
+                + "or write it in python3, whose pure-Python `none-any` wheels can be installed and which already "
+                + "has numpy, Pillow, lxml, python-pptx and python-docx built in",
 
         ["sudo"] = "there is nothing to escalate to; run the command by itself",
         ["su"] = "there is nothing to escalate to; run the command by itself",
@@ -100,7 +101,8 @@ internal static class ShellMissingCommand
     private const string PackageManagers =
         "there is no system package manager on this device and no native program can be installed. "
         + "Only Python libraries distributed as pure-Python `none-any` wheels can be installed when "
-        + "network access is on: use `pip install <name>` or `python3 -m pip install <name>`. "
+        + "network access is on: use `pip install <name>` or `python3 -m pip install <name>`; "
+        + "numpy, Pillow, lxml, python-pptx, python-docx and openpyxl are already built in and need no install. "
         + "Dependencies are not resolved automatically, and npm/JavaScript packages cannot be installed";
 
     /// <summary>

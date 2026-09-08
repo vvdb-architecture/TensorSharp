@@ -419,7 +419,12 @@ namespace TensorSharp.AgentHost.CodeExec
             var notes = new List<string>();
             if (ShellCommand.ContainsInstall(command))
             {
-                if (!_options.AllowInstall)
+                // The switch is about FETCHING. A request for something the host already
+                // provides fetches nothing, so it goes through to the installer, which
+                // answers for the bundle -- otherwise a model whose network is off and who
+                // types `pip install lxml` out of habit is told installing is disabled, on
+                // a device where lxml was importable the whole time.
+                if (!_options.AllowInstall && !EveryPackageIsProvided(command, workspace))
                 {
                     return CodeExecResult.Refused(
                         "this command installs packages, and installing is not enabled on this host "
@@ -695,6 +700,32 @@ namespace TensorSharp.AgentHost.CodeExec
         }
 
         /// <summary>
+        /// True when every install on the line names only packages the host itself
+        /// provides (<see cref="IPackageInstaller.IsProvided"/>). A manifest install
+        /// fetches by definition, and an unreadable line is not vouched for.
+        /// </summary>
+        private bool EveryPackageIsProvided(string command, SessionWorkspace workspace)
+        {
+            if (!ShellInstall.TryRead(command, RelativeReader(workspace),
+                    out IReadOnlyList<ShellInstallRequest> installs, out _)
+                || installs.Count == 0)
+            {
+                return false;
+            }
+            foreach (ShellInstallRequest install in installs)
+            {
+                if (install.Packages.Count == 0)
+                    return false;
+                foreach (string package in install.Packages)
+                {
+                    if (!_installer.IsProvided(install.Language, package))
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Rewrite every host path in the output into the model's frame of reference.
         ///
         /// <para>
@@ -859,7 +890,9 @@ namespace TensorSharp.AgentHost.CodeExec
                             ? "Installed: " + string.Join(", ", install.Packages)
                             : "Installed the dependencies named by the manifest."
                         : install.Packages.Count > 0
-                            ? "Already installed this session: " + string.Join(", ", install.Packages)
+                            ? (install.Packages.All(p => _installer.IsProvided(install.Language, p))
+                                ? "Built into this host, nothing to install: " + string.Join(", ", install.Packages)
+                                : "Already installed this session: " + string.Join(", ", install.Packages))
                             : "The manifest named no new dependencies to install.");
                 }
                 else

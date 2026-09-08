@@ -33,9 +33,10 @@ internal static class TensorAgentSkillRouter
 
     /// <summary>
     /// Small enough for an 8K model and forceful enough to avoid the measured fallback:
-    /// Qwen overlooked the documents catalog entry, tried python-pptx/lxml on iOS, then
-    /// hand-wrote OOXML into /tmp. The actual skills already contain all implementation
-    /// detail, so none of their ~25 KB of bodies is duplicated here.
+    /// Qwen overlooked the documents catalog entry, tried python-pptx/lxml on iOS (which
+    /// could not be installed then; both ship in the bundle now), then hand-wrote OOXML
+    /// into /tmp. The actual skills already contain all implementation detail, so none
+    /// of their ~25 KB of bodies is duplicated here.
     /// </summary>
     internal const string ActivationInstructions =
         "### Required research-to-PPTX workflow\n"
@@ -57,7 +58,7 @@ internal static class TensorAgentSkillRouter
         + "for documents/scripts/make_pptx.py with `--spec pptx_spec.json --out report.pptx`, without reading, copying, "
         + "or rewriting that script. `make_pptx.py` validates its own output; after it succeeds, stop immediately "
         + "and answer without calling validate_document, shell, or any package installer. Do not install "
-        + "python-pptx/lxml or hand-build OOXML. The task is incomplete "
+        + "python-pptx/lxml (both are already built in) or hand-build OOXML. The task is incomplete "
         + "until a real .pptx exists in the shared workspace and is returned as a downloadable artifact. If the "
         + "spec or run fails, use read_file/edit_file on only the broken region and rerun; never regenerate it.";
 

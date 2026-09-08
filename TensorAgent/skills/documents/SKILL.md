@@ -8,7 +8,8 @@ description: Read and write real documents on the device - PDF, XLSX, DOCX, PPTX
 Six scripts. Every one runs under the interpreter bundled in this app, with the
 packages that are already there: reportlab, pypdf, openpyxl, Pillow and
 defusedxml, plus the standard library. Nothing here needs the network, a child
-process, or a package the user has to install.
+process, or a package the user has to install. python-pptx, python-docx and
+lxml are bundled too (see **Limits**) for the things these writers do not do.
 
 Read **Limits** before promising the user anything. Two of them change what you
 should say in your answer.
@@ -320,14 +321,22 @@ root element and children its kind requires. That is a real check and it catches
 the mistakes that make a file unopenable — but a PASS means well formed, not
 opened. If the user reports that a file will not open, believe them.
 
-**python-docx and python-pptx are not here, and cannot be.** Both do
-`from lxml import etree` at module scope; lxml is a C extension with no iOS
-wheel on PyPI or on BeeWare's index. The .docx and .pptx writers build the OOXML
-themselves with `zipfile` and `xml.etree`, which is why their feature set is the
-list above and not everything Word can do. There is no styles editing, no
-headers or footers, no charts, no speaker notes, no track changes.
+**python-docx and python-pptx ARE here, and so is lxml.** Both import
+`lxml.etree` at module scope, and lxml is a C extension that no index publishes
+for iOS — so this app compiles it itself and ships it as signed frameworks,
+alongside `python-pptx`, `python-docx`, `XlsxWriter` and `typing_extensions`.
+Import them directly; `pip install` of any of them by name is a no-op. lxml is
+compiled into the app and cannot be replaced by a download; the pure ones could
+be shadowed by a pinned install, but nothing here needs that. The writers above
+still build the OOXML
+themselves with `zipfile` and `xml.etree` (they predate this, and they validate
+their own output), which is why their feature set is the list above and not
+everything Word can do. For what they lack — charts, speaker notes, headers and
+footers, editing a document the user gave you — use python-pptx or python-docx
+and run `validate_document.py` on the result, which checks their output the
+same way.
 
-**pdfplumber is not here either.** It needs pdfminer.six, which imports
+**pdfplumber is not here.** It needs pdfminer.six, which imports
 `cryptography` at the top of `pdfminer/pdfdocument.py` in every release back to
 2022, and `cryptography` is a Rust extension with no pure wheel of any kind.
 That is why PDF reading is pypdf's layout mode and the table finder is a

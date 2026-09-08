@@ -321,6 +321,7 @@ Models that do not advertise this capability ignore the retained-cache setting.
 | `TS_SCHED_NUM_BLOCKS` | `256` | Physical blocks in the engine pool. |
 | `TS_SCHED_BLOCK_SIZE` | `256` | Tokens per block. |
 | `TS_SCHED_PREFIX_CACHE` | `1` | Set `0` to disable block-hash prefix reuse. |
+| `TS_SCHED_STOP_REPETITION` | `1` | Set `0` to let a looping generation run to its token limit rather than ending it with finish reason `repetition`. |
 | `TS_SCHED_DECODE_QUANTUM` | `256` | Number of decode tokens before a sequence switch is allowed in fallback-heavy execution. |
 | `TS_BATCHED_N1_FAST_PATH` | `1` | Solo single-sequence steps use the fused N=1 fast-path decode; set `0` to force those steps onto the fully-batched path (A/B testing). |
 | `TS_PER_SEQ_FUSED` | `1` | Concurrent (N≥2) sequences on fused-capable models run per-request fused Forward; set `0` to force the op-by-op batched paged path (A/B testing). |

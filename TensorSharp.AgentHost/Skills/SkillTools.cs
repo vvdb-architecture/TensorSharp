@@ -169,12 +169,36 @@ namespace TensorSharp.AgentHost.Skills
         /// reliably than on declarations they read thousands of tokens ago.
         /// </para>
         /// </summary>
-        public static string DescribeUnknownTool(string? name, IReadOnlyList<ToolFunction>? declaredTools)
+        public static string DescribeUnknownTool(
+            string? name,
+            IReadOnlyList<ToolFunction>? declaredTools,
+            IReadOnlyList<string>? knownSkillIds = null)
         {
             var sb = new StringBuilder();
             sb.Append("Error: there is no tool called '")
               .Append(string.IsNullOrEmpty(name) ? "(unnamed)" : name)
               .Append("', so nothing was run.");
+
+            // The name of a skill it was just shown, called as if it were a tool. This
+            // is the most useful thing an unknown name can turn out to be, and the
+            // generic answer is actively harmful: told only "there is no tool called
+            // 'research'. The tools you have are: …", a model concluded the skill did not
+            // exist and answered the question without it. It had chosen correctly and was
+            // one call away; what it needed was the calling convention, not the list.
+            if (!string.IsNullOrEmpty(name) && knownSkillIds != null)
+            {
+                foreach (string id in knownSkillIds)
+                {
+                    if (!string.Equals(id, name, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    sb.Append(" '").Append(id).Append("' is a SKILL, not a tool: skills are not called by "
+                        + "name. Read it first with ").Append(ReadToolName).Append("(skill: \"").Append(id)
+                      .Append("\", path: \"SKILL.md\"), do what it says, and run any script it ships with ")
+                      .Append(RunToolName).Append(". It is available — this is the wrong way to reach it, "
+                        + "not a missing capability.");
+                    return sb.ToString();
+                }
+            }
 
             var names = new List<string>();
             if (declaredTools != null)

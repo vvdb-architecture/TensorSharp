@@ -7,11 +7,14 @@
 The spec is documented in SKILL.md. On success this prints a JSON report to
 stdout and validates the package it just produced before saying it succeeded.
 
-python-pptx is not available here (it needs lxml, which has no iOS wheel), so
-the PresentationML is built by hand. Slides carry explicit geometry rather than
-placeholders inherited from a layout, which is why one blank layout and one
-master are enough and why what you position is what a renderer draws. No
-PowerPoint has opened the result -- see "What is not verified" in SKILL.md.
+The PresentationML is built by hand, with the standard library only: this writer
+predates the app compiling lxml for iOS, and it validates its own output, so it
+stays the deterministic path. python-pptx (and lxml) are bundled too, for what
+this writer does not do -- see "Limits" in SKILL.md. Slides carry explicit
+geometry rather than placeholders inherited from a layout, which is why one
+blank layout and one master are enough and why what you position is what a
+renderer draws. No PowerPoint has opened the result -- see "What is not
+verified" in SKILL.md.
 """
 
 from __future__ import annotations

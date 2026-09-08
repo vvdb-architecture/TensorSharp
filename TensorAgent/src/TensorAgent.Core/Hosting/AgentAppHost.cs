@@ -167,8 +167,12 @@ public sealed class AgentAppHost : IDisposable
         // command reaches Backend. Supplying the bridge is therefore essential: its
         // desktop default tries to launch a real `python -m pip`, while this host has no
         // processes and deliberately does not stage pip into embedded CPython.
+        // The bundle is asked before the index: lxml, numpy and Pillow are compiled into
+        // the app, and `pip install lxml` from a model must be told so rather than
+        // refused as "compiled code" by a lookup that never needed to happen.
         var packageInstaller = new InstallHookPackageInstaller(
-            Installer, CodeExec, () => Backend.NetworkHosts);
+            Installer, CodeExec, () => Backend.NetworkHosts,
+            () => Python?.BundledDistributions ?? Array.Empty<BundledDistribution>());
         Backend.HostPerformsInstalls = packageInstaller.CanInstall;
         ShellRunner runner = new(
             CodeExec,
@@ -188,9 +192,13 @@ public sealed class AgentAppHost : IDisposable
             CodeExec,
             packageInstallInstructions: InstallHookPackageInstaller.ModelInstallInstructions,
             networkExecutionInstructions: InstallHookPackageInstaller.ModelExecutionInstructions,
-            networkInstructionsAvailable: () => IsNetworkHostAllowed(
-                InstallHookPackageInstaller.ModelExecutionHost, Backend.NetworkHosts),
-            networkHosts: () => Backend.NetworkHosts);
+            // No host gate. The guidance used to be shown only when one particular
+            // finance host was allow-listed, because it WAS about that host; now that
+            // every sentence of it is true of any request, a narrowed allow-list must
+            // not be what decides whether the model is told how to write a heredoc.
+            networkHosts: () => Backend.NetworkHosts,
+            providedPackagesInstructions: InstallHookPackageInstaller.ModelProvidedPackagesInstructions,
+            executionInstructions: InstallHookPackageInstaller.ModelShellInstructions);
 
         Skills = new SkillRegistry(new SkillRegistryOptions
         {
@@ -1599,6 +1607,22 @@ public sealed class AgentAppHost : IDisposable
                 // and fails here, which is exactly the failure this catches.
                 Check("python:numpy", new[] { "python3", "-c", "import numpy; print(numpy.arange(3).sum())" }, root, "3"),
                 Check("python:pillow", new[] { "python3", "-c", "from PIL import Image; print(Image.new('RGB', (2, 2)).size)" }, root, "(2, 2)"),
+                // lxml is the one this repository compiles itself (scripts/build-lxml-ios.sh):
+                // seven frameworks that link libxml2 and libxslt statically. Parsing,
+                // XPath and an XSLT transform touch all of etree's linkage at once.
+                Check("python:lxml", new[] { "python3", "-c",
+                    "from lxml import etree; d = etree.XML('<r><a n=\"1\"/><a n=\"2\"/></r>'); "
+                    + "x = etree.XSLT(etree.XML('<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\" version=\"1.0\"><xsl:template match=\"/\"><o><xsl:value-of select=\"count(//a)\"/></o></xsl:template></xsl:stylesheet>')); "
+                    + "print(d.xpath('sum(//a/@n)'), etree.tostring(x(d)).decode())" }, root, "3.0 <o>2</o>"),
+                // And the two document libraries that exist only because lxml does. Each
+                // writes a file and reads it back, which is the whole of what a model
+                // asks of them.
+                Check("python:pptx", new[] { "python3", "-c",
+                    "from pptx import Presentation; p = Presentation(); s = p.slides.add_slide(p.slide_layouts[5]); "
+                    + "s.shapes.title.text = 'ok'; p.save('deck.pptx'); print(len(Presentation('deck.pptx').slides))" }, root, "1"),
+                Check("python:docx", new[] { "python3", "-c",
+                    "import docx; d = docx.Document(); d.add_paragraph('ok'); d.save('note.docx'); "
+                    + "print(len(docx.Document('note.docx').paragraphs))" }, root, "1"),
                 Check("node", new[] { "node", "-e", "console.log([1,2,3].map(n => n * 2).join(','))" }, root, "2,4,6"),
                 Check("node:print", new[] { "node", "-p", "1 + 1" }, root, "2"),
                 Check("sandbox:write", new[] { "sh", "-c", "echo x > /tmp/tensoragent-selftest-escape" }, root, expectFailure: true),
@@ -1698,16 +1722,6 @@ public sealed class AgentAppHost : IDisposable
             interpreter => Path.GetFileName(interpreter).StartsWith("python", StringComparison.OrdinalIgnoreCase)
                 ? pythonVersion
                 : null);
-    }
-
-    private static bool IsNetworkHostAllowed(
-        string host, IReadOnlyList<string> allowedHosts)
-    {
-        if (allowedHosts.Count == 0)
-            return true;
-        return allowedHosts.Any(allowed =>
-            string.Equals(host, allowed, StringComparison.OrdinalIgnoreCase)
-            || host.EndsWith("." + allowed, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

@@ -279,7 +279,14 @@ namespace TensorSharp.AgentHost.Skills
                     invocations.Add(unknownInvocation);
                     options.OnInvocation?.Invoke(unknownInvocation);
                     working.Add(BuildResultMessage(
-                        options, SkillTools.DescribeUnknownTool(unknownCall.Name, tools), unknownCall.Name));
+                        options,
+                        // The reachable skills, so a skill name called as if it were a
+                        // tool is answered with the calling convention rather than "no
+                        // such tool" — the reply that talked a model out of a correct
+                        // choice on the chat path.
+                        SkillTools.DescribeUnknownTool(
+                            unknownCall.Name, tools, ReachableSkillIds(context)),
+                        unknownCall.Name));
                 }
 
                 int executed = 0;
@@ -363,6 +370,15 @@ namespace TensorSharp.AgentHost.Skills
         /// working. Never empty: an empty answer is indistinguishable from a crash, and
         /// the caller has no way to tell that the work was bounded rather than broken.
         /// </summary>
+        /// <summary>The ids a skill tool call could actually reach this turn.</summary>
+        private static IReadOnlyList<string> ReachableSkillIds(SkillToolContext? context)
+        {
+            var ids = new List<string>();
+            foreach (Skill skill in context?.Reachable ?? (IReadOnlyList<Skill>)Array.Empty<Skill>())
+                ids.Add(skill.Id);
+            return ids;
+        }
+
         private static string DescribeExhaustedTurn(IEnumerable<ToolCall> wanted)
         {
             string[] names = wanted

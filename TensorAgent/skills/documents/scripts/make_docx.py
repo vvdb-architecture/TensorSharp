@@ -8,11 +8,13 @@ The spec is documented in SKILL.md. On success this prints a JSON report to
 stdout naming the file, its size and the blocks it wrote, and it validates the
 package it just produced before saying it succeeded.
 
-python-docx is not available here (it needs lxml, which has no iOS wheel), so
-the WordprocessingML is built by hand. Everything it emits -- headings,
-paragraphs, real numbered and bulleted lists, tables with borders, inline
-images -- is written against ECMA-376, but no Word has opened the result. See
-"What is not verified" in SKILL.md.
+The WordprocessingML is built by hand, with the standard library only: this
+writer predates the app compiling lxml for iOS, and it validates its own output,
+so it stays the deterministic path. python-docx (and lxml) are bundled too, for
+what this writer does not do -- see "Limits" in SKILL.md. Everything it emits --
+headings, paragraphs, real numbered and bulleted lists, tables with borders,
+inline images -- is written against ECMA-376, but no Word has opened the result.
+See "What is not verified" in SKILL.md.
 """
 
 from __future__ import annotations

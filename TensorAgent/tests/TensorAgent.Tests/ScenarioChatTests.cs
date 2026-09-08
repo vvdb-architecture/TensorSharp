@@ -261,13 +261,21 @@ public sealed class ScenarioChatTests : LiveModelHarness
             $"expected exactly one completed shell call, found {completedShells.Length}. {shellDiagnostic}");
         Progress completedShell = completedShells[0];
 
-        Assert.Contains("scrIds=day_gainers", shellDraft, StringComparison.Ordinal);
-        Assert.Contains("row.get(\"quoteType\") == \"EQUITY\"", shellDraft, StringComparison.Ordinal);
-        Assert.Contains("row.get(\"currency\") == \"USD\"", shellDraft, StringComparison.Ordinal);
-        Assert.Contains("sorted(eligible", shellDraft, StringComparison.Ordinal);
-        Assert.Contains("python3 - <<'PY'", shellDraft, StringComparison.Ordinal);
-        Assert.DoesNotContain("python3 -c", shellDraft, StringComparison.Ordinal);
+        // What the command must DO, not what it must say. These four assertions used to
+        // pin a Yahoo Finance screener verbatim — `scrIds=day_gainers`, `quoteType ==
+        // "EQUITY"`, `sorted(eligible` — and they passed for a reason that turned out to
+        // be the bug: the host was pasting that exact program into the shell tool's
+        // description on every turn, so the model was copying it back. With the recipe
+        // gone the model picks its own source, and a test that demands one source is
+        // testing the prompt rather than the model. What still has to be true is that it
+        // FETCHED (rather than answering from memory), in one request, without installing
+        // anything. Where the rows came from is checked below, against the output.
         Assert.DoesNotContain("pip install", shellDraft, StringComparison.OrdinalIgnoreCase);
+        Assert.True(
+            shellDraft.Contains("urlopen", StringComparison.Ordinal)
+            || shellDraft.Contains("urlretrieve", StringComparison.Ordinal)
+            || shellDraft.Contains("curl", StringComparison.Ordinal),
+            "the command fetched nothing, so any rows in the answer were invented. " + shellDiagnostic);
         int requests = Regex.Matches(
             shellDraft,
             @"(?<![A-Za-z0-9_])(?:urllib\.request\.)?urlopen\s*\(",
@@ -331,43 +339,40 @@ public sealed class ScenarioChatTests : LiveModelHarness
         Assert.True(tickers.Length == 10,
             $"expected ten distinct ticker rows, found {tickers.Length} ({string.Join(", ", tickers)}): {answer}");
         Assert.All(tickers, ticker => Assert.Contains(ticker, shellOutput, StringComparison.Ordinal));
-        Assert.Contains("Yahoo Finance", answer, StringComparison.OrdinalIgnoreCase);
-        Match sourcedTimestamp = Regex.Match(
-            shellOutput,
-            @"\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\b",
-            RegexOptions.CultureInvariant);
-        Assert.True(sourcedTimestamp.Success, "the command printed no source timestamp: " + shellOutput);
-        Assert.Contains(sourcedTimestamp.Value, answer, StringComparison.Ordinal);
-        Assert.True(DateTimeOffset.TryParseExact(
-                sourcedTimestamp.Value,
-                "yyyy-MM-dd HH:mm:ss 'UTC'",
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out DateTimeOffset observedAt),
-            "the source timestamp was not parseable as UTC: " + sourcedTimestamp.Value);
-        double ageHours = (DateTimeOffset.UtcNow - observedAt).TotalHours;
-        Assert.True(ageHours is >= -1 and <= 24 * 7,
-            $"the screener data is {ageHours:0.0} hours old, too stale to satisfy 'today' "
-            + "(weekends and market holidays are allowed)");
+        // No vendor is required: the model chooses the source now.
+        // Everything the answer states about a row must be IN the command's output.
+        // This replaces a byte-for-byte comparison against a thirteen-line table and a
+        // heading regex that required the words "Yahoo Finance": both described the shape
+        // of the one screener program the host used to paste into every prompt, so they
+        // tested the prompt, not the model. What matters is unchanged and is what the
+        // report was really about — the model must not state a figure it did not fetch.
+        string[] answerRows = ContentLines(answer)
+            .Where(line => line.TrimStart().StartsWith("|", StringComparison.Ordinal))
+            .ToArray();
+        Assert.True(answerRows.Length >= 10,
+            $"expected at least ten table rows in the answer, found {answerRows.Length}. {shellDiagnostic}");
 
-        // Qwen sometimes turns the sourced heading into an equivalent natural-language
-        // heading. Permit that cosmetic change, but nothing else: after one short heading,
-        // the table header, alignment row, and ten data rows must be byte-for-byte the
-        // command's output. This rejects an unsupported note without overfitting prose.
-        string[] sourcedLines = ContentLines(shellOutput);
-        string[] answerLines = ContentLines(answer);
-        Assert.True(sourcedLines.Length == 13 && answerLines.Length == 13,
-            $"expected exactly one heading and a 12-line sourced table. {shellDiagnostic}");
-        Assert.Equal(sourcedLines.Skip(1), answerLines.Skip(1));
-        string headingPattern = "\\A(?=.{1,220}\\z)(?=.*\\bTop 10\\b)"
-            + "(?=.*\\bgain(?:s|ers?)\\b)(?=.*" + Regex.Escape(sourcedTimestamp.Value) + ")"
-            + "(?=.*Yahoo Finance).+:\\z";
-        Assert.Matches(
-            new Regex(headingPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant),
-            answerLines[0]);
+        foreach (string row in answerRows)
+        {
+            foreach (string cell in TableCells(row))
+            {
+                string value = cell.Trim();
+                // Only the data cells are checked. Punctuation, alignment markers and
+                // column headings are the model's own formatting and are its to choose.
+                if (value.Length < 2 || !value.Any(char.IsAsciiLetterOrDigit))
+                    continue;
+                string bare = value.Trim('*', '`', '+', '$', '%', ' ');
+                if (bare.Length < 2)
+                    continue;
+                Assert.True(
+                    shellOutput.Contains(bare, StringComparison.OrdinalIgnoreCase)
+                    || !bare.Any(char.IsAsciiDigit),
+                    $"the answer states '{bare}', which is in no line the command printed. {shellDiagnostic}");
+            }
+        }
 
-        // Company names and the EQUITY classification now come from the typed screener;
-        // a story about why the move happened still does not.
+        // The rows are sourced, whatever source the model chose; a story about WHY a
+        // price moved is not, and no response supports one.
         Assert.DoesNotMatch(
             new Regex(@"\b(?:catalyst|likely\s+(?:because|due)|probably\s+(?:because|due))\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant),

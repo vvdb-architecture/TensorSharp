@@ -146,6 +146,30 @@ public class FinishReasonMappingTests
             Assert.False(FinishReasonMapper.IsTruncated(reason));
     }
 
+    /// <summary>
+    /// A turn the engine ended for looping is an incomplete answer to every client:
+    /// <c>length</c> on the wire, so nothing dispatches the half-written tool call it
+    /// may hold, and recognisable on its own so the chat layers can say why.
+    /// </summary>
+    [Fact]
+    public void Repetition_IsTruncation_OnEveryProtocol_AndRecognisableOnItsOwn()
+    {
+        // The seam: the engine writes RepetitionGuard.FinishReason onto the completion and
+        // the chat layers recognise it through the mapper. Two constants in two
+        // assemblies; if they ever drift the loop is stopped and then silently treated
+        // as an ordinary finish, which is the failure this whole path exists to avoid.
+        Assert.Equal(TensorSharp.Runtime.Scheduling.RepetitionGuard.FinishReason,
+            FinishReasonMapper.PipelineRepetition);
+
+        Assert.True(FinishReasonMapper.IsTruncated("repetition"));
+        Assert.True(FinishReasonMapper.IsRepetition("repetition"));
+        Assert.False(FinishReasonMapper.IsRepetition("max_tokens"));
+        Assert.False(FinishReasonMapper.IsRepetition(null));
+        Assert.Equal("length", FinishReasonMapper.ToOpenAIChat("repetition", hasToolCalls: true));
+        Assert.Equal("length", FinishReasonMapper.ToOllamaDoneReason("repetition", hasToolCalls: true));
+        Assert.Equal(("incomplete", "max_output_tokens"), FinishReasonMapper.ToResponsesStatus("repetition"));
+    }
+
     [Fact]
     public void IsTruncated_IsCaseSensitive_SoNearMissesFailLoudlyRatherThanSilently()
     {

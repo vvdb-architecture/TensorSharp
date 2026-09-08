@@ -2339,7 +2339,12 @@ namespace TensorSharp.Cli
                         round, call.Name ?? "-", "-", "-", false, 0);
                     Console.Error.WriteLine($"[tool call] {call.Name} (no such tool)");
                     priorTurns.Add(BuildSkillResultMessage(
-                        toolResultsRendered, SkillTools.DescribeUnknownTool(call.Name, tools), call.Name));
+                        toolResultsRendered,
+                        SkillTools.DescribeUnknownTool(
+                            call.Name,
+                            tools,
+                            skillContext?.Reachable.Select(skill => skill.Id).ToList()),
+                        call.Name));
                 }
 
                 foreach (var call in builtInCalls)

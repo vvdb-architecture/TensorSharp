@@ -17,7 +17,10 @@
 #
 # which TensorAgent.Maui.csproj embeds (Frameworks/* as NativeReference
 # Kind=Framework, python/** as bundle resources). Nothing here runs at app
-# runtime; runtime installs are limited to pure-Python wheels for this reason.
+# runtime; runtime installs are limited to pure-Python wheels for this reason,
+# and a compiled package the app needs has to be staged here -- from BeeWare's
+# index when it publishes one (numpy, Pillow), or built by build-lxml-ios.sh
+# when nothing does (lxml).
 #
 # Usage: prepare-python.sh [device|simulator|all]   (default: all)
 # Env:   TENSORAGENT_PYTHON_PACKAGES  space-separated extra pure-Python packages
@@ -45,28 +48,46 @@ BINARY_PACKAGES=(
   "numpy==2.5.2.post1"
   "pillow==10.4.0"
 )
-# Pure-Python packages from PyPI that the bundled skills import. Every entry here
-# has to be importable with no compiler and no C extension of its own AND no
-# dependency that has one, because nothing on this list is compiled for iOS.
-# That second half is what rules out the obvious document libraries:
+# Binary wheels this repository builds itself, because no index publishes them.
+# lxml is a C extension over libxml2/libxslt; scripts/build-lxml-ios.sh
+# cross-compiles it against the same CPython, and the wheel lands in the same
+# cache under the same name shape BeeWare uses, so the staging below treats the
+# two lists alike. Missing wheels are built on demand (a few minutes, needs a
+# host python3.13, CMake and Ninja).
+LOCAL_BINARY_PACKAGES=(
+  "lxml==6.1.3"
+)
+# Pure-Python packages from PyPI that the bundled skills import, or that a model
+# reaches for by habit. Every entry here has to be importable with no compiler and
+# no C extension of its own AND no dependency that has one, unless that dependency
+# is on one of the two binary lists above. That is what rules out:
 #
-#   python-docx, python-pptx   `from lxml import etree` at module scope
-#                              (docx/oxml/xmlchemy.py, pptx/oxml/__init__.py).
-#                              lxml is a C extension with no iOS wheel.
 #   pdfplumber, pdfminer.six   both ship py3-none-any wheels, but every
 #                              pdfminer.six release back to 20220524 has an
 #                              unguarded `from cryptography.hazmat...` at the top
 #                              of pdfminer/pdfdocument.py, and `cryptography`
 #                              publishes no pure wheel at all.
 #
-# The documents skill writes .docx and .pptx with zipfile + xml.etree instead,
-# and reads PDFs with pypdf. See TensorAgent/skills/documents/SKILL.md.
+# python-docx and python-pptx used to be on that list too (`from lxml import etree`
+# at module scope, in docx/oxml/xmlchemy.py and pptx/oxml/__init__.py); with lxml
+# built above they ship, because a model asked for a .pptx reaches for python-pptx
+# before it reads any skill, and "lxml cannot be installed" was where that turn
+# died. The documents skill's own writers still use zipfile + xml.etree and read
+# PDFs with pypdf. See TensorAgent/skills/documents/SKILL.md.
 PURE_PACKAGES=(
   "pypdf==6.16.2"
   "openpyxl==3.1.5"
   "et_xmlfile==2.0.0"
   "reportlab==5.0.1"
   "imageio==2.37.4"
+  # python-pptx imports xlsxwriter (pptx/chart/xlsx.py) and typing_extensions
+  # (pptx/types.py) at module scope; python-docx needs typing_extensions the same
+  # way. All four are py3-none-any. Names are spelled the way the index files them
+  # (lower case), which is what resolve_wheel matches on.
+  "python-pptx==1.0.2"
+  "python-docx==1.2.0"
+  "xlsxwriter==3.2.9"
+  "typing_extensions==4.16.0"
   # reportlab declares charset-normalizer and reaches for it from
   # reportlab/lib/rparsexml.py; without it that path raises ImportError on the
   # phone and nowhere else. Its py3-none-any wheel is the pure fallback build.
@@ -143,6 +164,16 @@ stage_slice() {
             download "${url}" "${whl}"
             unzip -q -o "${whl}" -d "${out}/python/app_packages"
         done
+        for spec in "${LOCAL_BINARY_PACKAGES[@]}"; do
+            name="${spec%%==*}"; ver="${spec#*==}"
+            whl="${WHEEL_CACHE}/${name}-${ver}-cp313-cp313-${tag_re}.whl"
+            if [[ ! -f "${whl}" ]]; then
+                echo "  building $(basename "${whl}")"
+                bash "${SCRIPT_DIR}/build-lxml-ios.sh" "${slice}"
+            fi
+            [[ -f "${whl}" ]] || { echo "prepare-python: ${whl} was not produced" >&2; exit 1; }
+            unzip -q -o "${whl}" -d "${out}/python/app_packages"
+        done
         for spec in "${PURE_PACKAGES[@]}"; do
             [[ -z "${spec}" ]] && continue
             name="${spec%%==*}"; ver=""; [[ "${spec}" == *==* ]] && ver="${spec#*==}"
@@ -157,6 +188,16 @@ stage_slice() {
                 tar xzf "${sdist}" -C "${tmp}"
                 rm -rf "${out}/python/app_packages/yaml"
                 cp -R "${tmp}"/pyyaml-*/lib/yaml "${out}/python/app_packages/yaml"
+                # A dist-info as well, or the app's bundle scan (BundledPackages) never
+                # sees PyYAML: `pip install pyyaml` would go to the index and be refused
+                # as compiled while `import yaml` works. The sdist's PKG-INFO is already
+                # in METADATA format; there is no RECORD, which is right for a pure copy.
+                local pyyaml_src pyyaml_ver
+                pyyaml_src="$(echo "${tmp}"/pyyaml-*)"
+                pyyaml_ver="${pyyaml_src##*/pyyaml-}"
+                rm -rf "${out}/python/app_packages"/[Pp][Yy][Yy][Aa][Mm][Ll]-*.dist-info
+                mkdir -p "${out}/python/app_packages/PyYAML-${pyyaml_ver}.dist-info"
+                cp "${pyyaml_src}/PKG-INFO" "${out}/python/app_packages/PyYAML-${pyyaml_ver}.dist-info/METADATA"
                 rm -rf "${tmp}"
                 continue
             fi

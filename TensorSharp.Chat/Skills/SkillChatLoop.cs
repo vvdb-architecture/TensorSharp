@@ -21,9 +21,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TensorSharp.Runtime;
+using TensorSharp.Runtime.Scheduling;
 using TensorSharp.Runtime.Logging;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.AgentHost.Skills;
+using TensorSharp.Server.ProtocolAdapters;
 
 namespace TensorSharp.Server.Skills
 {
@@ -103,6 +105,7 @@ namespace TensorSharp.Server.Skills
             var working = new List<ChatMessage>(messages);
             int maxRounds = Math.Max(1, plan.LoopOptions.MaxRounds);
             bool guardCompletion = plan.CompletionRequirement != null;
+            bool repetitionRetried = false;
 
             int promptTokens = 0;
             int evalTokens = 0;
@@ -128,6 +131,11 @@ namespace TensorSharp.Server.Skills
                 var heldAnswer = guardCompletion ? new List<ChatStreamUpdate>() : null;
                 ChatStreamUpdate terminal = default;
                 string toolBeingWritten = null;
+                // The last few kilobytes of the RAW stream, tool markup included. When
+                // the engine ends a round for repeating itself, the repeated text is
+                // usually inside a tool call being written, which the parser never
+                // surfaces as content -- and the note to the model has to quote it.
+                var rawTail = new StringBuilder();
 
                 await foreach (ChatStreamUpdate update in
                     generate(working, plan.Tools, cancellationToken).ConfigureAwait(false))
@@ -139,6 +147,10 @@ namespace TensorSharp.Server.Skills
                     }
                     if (string.IsNullOrEmpty(update.Piece))
                         continue;
+
+                    rawTail.Append(update.Piece);
+                    if (rawTail.Length > RawTailChars * 2)
+                        rawTail.Remove(0, rawTail.Length - RawTailChars);
 
                     ParsedOutput delta = parser.Add(update.Piece, false);
                     Accumulate(delta, content, thinking, calls);
@@ -185,6 +197,66 @@ namespace TensorSharp.Server.Skills
                 else if (!string.IsNullOrEmpty(flushed.Content) || !string.IsNullOrEmpty(flushed.Thinking))
                 {
                     yield return ChatStreamUpdate.Parsed(flushed.Content, flushed.Thinking, null);
+                }
+
+                // A round the engine ended for repeating itself is not a round to act on.
+                // Whatever calls it holds were written by a model that had already lost
+                // the thread, and the text after the loop began is garbage the user
+                // watched scroll by. Observed on a phone: a deck-writing script that
+                // degenerated into `","+","+"` for five minutes until Stop was tapped.
+                // Say what happened, in the conversation, and let the model try ONCE
+                // more, differently; a second loop ends the turn with that explanation.
+                if (FinishReasonMapper.IsRepetition(terminal.FinishReason))
+                {
+                    string loopNote = DescribeRepetition(rawTail.ToString());
+                    logger?.LogWarning(LogEventIds.SkillToolInvoked,
+                        "skills.loop.repetition round={Round} retried={Retried}: {What}",
+                        round, !repetitionRetried, loopNote);
+
+                    foreach (ToolCall call in calls)
+                        yield return ChatStreamUpdate.ToolProgress("finished", call.Name);
+
+                    if (!repetitionRetried && round < maxRounds)
+                    {
+                        repetitionRetried = true;
+                        working.Add(new ChatMessage
+                        {
+                            Role = "assistant",
+                            Content = content.ToString(),
+                            Thinking = thinking.Length == 0 ? null : thinking.ToString(),
+                            ToolCalls = calls.Count == 0 ? null : new List<ToolCall>(calls),
+                            RawOutputTokens = terminal.RawOutputTokens != null
+                                ? new List<int>(terminal.RawOutputTokens)
+                                : null,
+                            RawPromptTrailingWhitespace = terminal.RawPromptTrailingWhitespace,
+                            RawGenerationSuffix = terminal.RawGenerationSuffix,
+                        });
+                        string feedback =
+                            "Host: your previous output was stopped because it began repeating itself -- "
+                            + loopNote + ". That was a generation loop, not a result: nothing from it was run "
+                            + "or saved. Do not continue or resend that text. Take a different approach in one "
+                            + "short step: produce long or repetitive content with a loop or a library rather "
+                            + "than spelling it out, keep each command brief, and if a file must be long, write "
+                            + "it in parts with write_file/edit_file. Then continue the task.";
+                        working.Add(calls.Count == 0
+                            ? new HostCompletionCorrectionMessage { Role = "user", Content = feedback }
+                            : BuildResult(plan, feedback));
+                        yield return ChatStreamUpdate.Parsed(
+                            string.Empty,
+                            "\n[the output started repeating itself and was stopped; trying a different approach]\n",
+                            null);
+                        continue;
+                    }
+
+                    yield return ChatStreamUpdate.Parsed(
+                        (content.Length == 0 ? string.Empty : "\n\n")
+                        + "_(The model's output started repeating itself and was stopped: " + loopNote
+                        + ". Ask it to try a different approach, or rephrase the request.)_",
+                        null, null);
+                    // Quoted, so no UI should add the plain version on top of it.
+                    yield return Combine(terminal, promptTokens, evalTokens, reusedTokens, promptNs, evalNs, totalNs)
+                        with { RepetitionExplained = true };
+                    yield break;
                 }
 
                 // Three ways, not two. A call that is neither ours nor a tool the CLIENT
@@ -271,7 +343,7 @@ namespace TensorSharp.Server.Skills
                         "skills.tool round={Round} tool={Tool} skill={SkillId} path={Path} ok={Ok} bytes={Bytes}",
                         round, unknownCall.Name ?? "-", "-", "-", false, 0);
 
-                    string refusal = SkillTools.DescribeUnknownTool(unknownCall.Name, plan.Tools);
+                    string refusal = SkillTools.DescribeUnknownTool(unknownCall.Name, plan.Tools, KnownSkillIds(plan));
                     working.Add(BuildResult(plan, refusal, unknownCall.Name));
 
                     // Recorded as an invocation like any other, so the UI's trace shows a
@@ -457,6 +529,41 @@ namespace TensorSharp.Server.Skills
         }
 
         /// <summary>
+        /// Every skill this turn showed the model — the selection and the catalog — so a
+        /// skill name called as a tool is answered with the calling convention rather
+        /// than with "no such tool".
+        /// </summary>
+        private static IReadOnlyList<string> KnownSkillIds(SkillRequestPlan plan)
+        {
+            var ids = new List<string>();
+            foreach (Skill skill in plan.Prompt.Selected)
+                ids.Add(skill.Id);
+            foreach (Skill skill in plan.Prompt.Catalog)
+                ids.Add(skill.Id);
+            return ids;
+        }
+
+        /// <summary>How much of the raw stream a round keeps, for naming a loop.</summary>
+        private const int RawTailChars = 4096;
+
+        /// <summary>
+        /// "the output repeated `","+` 43 times in a row", found in the raw tail of the
+        /// round by the same periodicity test the engine applied to tokens, on
+        /// characters; or a plain sentence when the tail is too short to show it.
+        /// </summary>
+        internal static string DescribeRepetition(string rawTail)
+        {
+            if (RepetitionGuard.TryFindTextLoop(rawTail, out string unit, out int repeats))
+            {
+                string shown = unit.Replace("\r", "\\r").Replace("\n", "\\n");
+                if (shown.Length > 48)
+                    shown = shown.Substring(0, 48) + "…";
+                return $"the output repeated `{shown}` {repeats} times in a row";
+            }
+            return "the output repeated the same short sequence over and over";
+        }
+
+        /// <summary>
         /// Preserve the rejected assistant turn as evidence, then add one terse host
         /// correction. A user message is used when there was no tool call; inventing a
         /// bare tool result there produces an invalid conversation for strict templates.
@@ -537,6 +644,7 @@ namespace TensorSharp.Server.Skills
             var content = new StringBuilder();
             var thinking = new StringBuilder();
             var calls = new List<ToolCall>();
+            var rawTail = new StringBuilder();
             ChatStreamUpdate terminal = default;
             string toolBeingWritten = null;
 
@@ -551,6 +659,10 @@ namespace TensorSharp.Server.Skills
                 if (string.IsNullOrEmpty(update.Piece))
                     continue;
 
+                rawTail.Append(update.Piece);
+                if (rawTail.Length > RawTailChars * 2)
+                    rawTail.Remove(0, rawTail.Length - RawTailChars);
+
                 ParsedOutput delta = parser.Add(update.Piece, false);
                 Accumulate(delta, content, thinking, calls);
                 // The correction's answer and reasoning are still provisional. Tool
@@ -563,6 +675,22 @@ namespace TensorSharp.Server.Skills
 
             ParsedOutput flushed = parser.Add(string.Empty, true);
             Accumulate(flushed, content, thinking, calls);
+
+            // The same invariant the main loop holds, and it has to be repeated here:
+            // this correction EXECUTES what it parsed, so a round the engine ended for
+            // repeating itself must not be acted on. There is no retry left at this
+            // point -- the correction is the retry -- so it reports the loop and lets
+            // the artifact check below say what was and was not produced.
+            bool correctionLooped = FinishReasonMapper.IsRepetition(terminal.FinishReason);
+            if (correctionLooped)
+            {
+                logger?.LogWarning(LogEventIds.SkillLoopCapped,
+                    "skills.loop.repetition round={Round} retried=False (artifact correction): {What}",
+                    correctionRound, DescribeRepetition(rawTail.ToString()));
+                foreach (ToolCall call in calls)
+                    yield return ChatStreamUpdate.ToolProgress("finished", call.Name);
+                calls.Clear();
+            }
 
             SkillTools.Partition(
                 calls, plan.ClientTools,
@@ -577,7 +705,7 @@ namespace TensorSharp.Server.Skills
             {
                 string refusal = clientCalls.Contains(unserviceable)
                     ? "A caller-owned tool cannot be serviced inside the artifact correction."
-                    : SkillTools.DescribeUnknownTool(unserviceable.Name, plan.Tools);
+                    : SkillTools.DescribeUnknownTool(unserviceable.Name, plan.Tools, KnownSkillIds(plan));
                 lock (plan.Invocations)
                 {
                     plan.Invocations.Add(new SkillToolInvocation(
@@ -606,13 +734,20 @@ namespace TensorSharp.Server.Skills
             else
             {
                 final = "I couldn't complete the PowerPoint report: no valid downloadable .pptx was produced "
-                    + "after the one corrective attempt. " + completion.Reason;
+                    + (correctionLooped
+                        ? "because the corrective attempt started repeating itself and was stopped. "
+                        : "after the one corrective attempt. ")
+                    + completion.Reason;
                 logger?.LogWarning(LogEventIds.SkillLoopCapped,
                     "skills.completion.failed round={Round} reason={Reason}",
                     correctionRound, completion.Reason);
             }
 
             yield return ChatStreamUpdate.Parsed(final, null, null);
+            // "stop", because this turn DID finish and `final` is its honest answer --
+            // nothing was cut off from the caller's side. The flag is belt and braces:
+            // `final` already explains a loop, so no UI may add its own note even if
+            // this reason is ever changed.
             yield return Combine(
                 terminal,
                 promptTokens + terminal.PromptTokens,
@@ -621,7 +756,7 @@ namespace TensorSharp.Server.Skills
                 promptNs + terminal.PromptNs,
                 evalNs + terminal.EvalNs,
                 totalNs + terminal.TotalNs,
-                finishReason: "stop");
+                finishReason: "stop") with { RepetitionExplained = correctionLooped };
         }
 
         private static string DescribeCompletedArtifact(SkillProducedFile artifact) =>

@@ -111,6 +111,19 @@ it, both on by default:
 
 The whole of the reasoning stays one tap away in the collapsed box above.
 
+**A generation that starts repeating itself is stopped, and the stop is named.** A
+4-bit model writing a long block of XML inside a script fell into `","+","+","+"`
+and produced it 230 times over five and a half minutes, ending only when Stop was
+tapped: the repetition penalties are deliberately off for code (they corrupt
+legitimately repetitive structure), the reply limit was hundreds of thousands of
+tokens, and a loop never reaches end-of-sequence. The engine now watches every
+generation for an exact loop — a unit of at most 64 tokens, repeated at least eight
+times and over at least 128 tokens — and ends it with the finish reason
+`repetition` (`RepetitionGuard`). A tool-calling turn then tells the model what
+repeated and how often, runs nothing from that round, and lets it try once more,
+differently; a plain answer ends with a one-line note instead of a wall of the
+same phrase.
+
 **One row of chrome, and everything else in the menu.** The composer is a "+", the
 message box and Send — nothing else. Reasoning is a Settings choice ("Show reasoning by
 default"), Skills is a ☰ menu item beside Chats and Models, and the dictation language
@@ -135,6 +148,30 @@ choice and then done nothing with it until you went back to the Models list and 
 The weights are read on a background thread while the page paints, and the header says
 "Loading Gemma 4 E2B…" until they are in — which is a different sentence from "no model
 has ever been chosen", and asks the user for something different.
+
+**A tool description is read on every turn, so nothing task-specific belongs in one.**
+The shell tool's description carried a complete Yahoo Finance screener program for a
+while: 3,204 characters of URL, response fields and a ten-row table, added to make one
+stock-gainers request come out right. It did, and it also made the model reach for
+finance APIs on requests that had nothing to do with finance, because a whole worked
+program in a declaration does not read as guidance, it reads as what code here looks
+like. What is left is 999 characters that are true of any request: prefer the standard
+library for a lookup, write multi-line programs as a quoted heredoc rather than
+`python3 -c`, and when a command's output already answers the question, copy it exactly
+and invent nothing. Task-specific help belongs in a skill, which is injected only when it
+is selected. `AgentAppHostTests` fails if any tool description names a vendor or product
+again.
+
+**Every bundled skill reaches the model's catalog.** Six of the thirteen did not. The
+catalog is filled in id order under a budget of about a thousand tokens, the thirteen
+descriptions come to half again as much, and the alphabet decided who was cut:
+`documents` and `research` — the two this app's own router depends on — were both
+below the line, while two entries of nearly a thousand characters each at the head of
+the alphabet took half the budget between them. A model asked to look something up
+listed the skills it could see, found nothing that fetches a page, and refused. The
+catalog now SHORTENS entries rather than dropping them, at the longest of a few fixed
+lengths where everything fits, and charges for the text it actually emits; a catalog
+that already fits is left exactly as it was.
 
 **The sandbox switches take effect now.** "Run code" and "Allow network access" used to
 apply "the next time TensorAgent starts", which is honest and useless: leaving an iPhone
@@ -212,6 +249,13 @@ TensorSharp.GGML.Native/build-ios.sh        # GgmlOps.xcframework (device + simu
 eng/fetch-python-ios.sh                     # CPython 3.13 for iOS
 TensorAgent/scripts/prepare-python.sh       # stage the interpreter and its packages
 ```
+
+`prepare-python.sh` also runs `TensorAgent/scripts/build-lxml-ios.sh` the first
+time, because lxml — which python-docx and python-pptx import at module scope — is
+a C extension no index publishes for iOS. That script cross-compiles libxml2,
+libxslt and lxml against the embedded CPython for both slices (a few minutes;
+needs a host `python3.13`, CMake and Ninja) and drops the wheels into the same
+cache the BeeWare wheels come from.
 
 Then:
 
@@ -448,7 +492,7 @@ The seven that do not, and what blocks each:
 
 | Skill | Blocked by |
 | --- | --- |
-| docx, pptx, xlsx | `lxml` and `defusedxml` are not in the bundled runtime, and the validators shell out to LibreOffice |
+| docx, pptx, xlsx | the validators shell out to LibreOffice (`lxml` and `defusedxml` are now bundled; those were the other blocker) |
 | pdf | `pdfplumber` is missing, and `pdf2image` shells out to poppler |
 | skill-creator | `subprocess`, `webbrowser` |
 | webapp-testing | `playwright` needs a browser engine |
@@ -696,7 +740,9 @@ checked and these were not:
 - **Video generation.** The routes exist because they are part of the shared
   surface. No video model is small enough for the catalog, so nothing offers one.
 - **Package installation.** `WheelInstaller` refuses without the network switch and
-  accepts only pure-Python wheels; the accepting path has not run on iOS.
+  accepts only pure-Python wheels; the accepting path has not run on iOS. A request
+  for a package the bundle ships (numpy, Pillow, lxml, python-pptx, python-docx, …)
+  never reaches it: the installer answers for the bundle first.
 
 - **The first-token numbers ON THE PHONE after the 2026-09-07 cache work.** Every
   figure in "Every conversation shape, on Metal" is from a Mac driving the real app
@@ -715,7 +761,7 @@ An iPhone 17 Pro Max (A19 Pro, 12.26 GB, iOS 26.6.1), Debug build, installed wit
 engine probe   backend=GgmlMetal  ggmlMetalAvailable=true  gpu="Apple A19 Pro GPU"
                reason: ggml-metal on Apple A19 Pro GPU (MTLGPUFamilyApple7 present)
 memory tier    physical memory 12.26 GB -> catalog tier 12 GB
-self-test      all eleven pass, including all four CPython checks
+self-test      all fourteen pass, including all seven CPython checks
 gestures       all seven uicheck lines pass in the phone's own WKWebView
 model load     gemma-4-E2B-it-Q8_0 (4.63 GB) + projector on ggml_metal in 22 s
 a whole turn   prompt -> shell tool -> in-process CPython -> answer, recorded to the
@@ -750,16 +796,21 @@ compiled extension module is a signed framework rather than a `.so`.
 Debug builds run a self-test at launch and log one line per check, because the
 failures that matter here are not compile errors — an interpreter that links but
 cannot find its standard library produces an app that starts perfectly and fails on
-first use. On the simulator all eleven pass:
+first use. On the simulator all fourteen pass:
 
 ```
-ok shell: HELLO                 ok python:numpy: 3
-ok shell:files: ab              ok python:pillow: (2, 2)
-ok shell:awk: 6                 ok node: 2,4,6
-ok python: {"v": [3, 13]}       ok node:print: 2
-ok python:stdlib: stdlib ok     ok sandbox:write: Permission denied
-                                ok sandbox:network: network access is disabled by the user
+ok shell: HELLO                 ok python:lxml: 3.0 <o>2</o>
+ok shell:files: ab              ok python:pptx: 1
+ok shell:awk: 6                 ok python:docx: 1
+ok python: {"v": [3, 13]}       ok node: 2,4,6
+ok python:stdlib: stdlib ok     ok node:print: 2
+ok python:numpy: 3              ok sandbox:write: Permission denied
+ok python:pillow: (2, 2)        ok sandbox:network: network access is disabled by the user
 ```
+
+`python:lxml` parses, evaluates an XPath and runs an XSLT transform, which touches
+all of etree's static libxml2/libxslt linkage at once; `python:pptx` and
+`python:docx` each write a document and read it back.
 
 ### The composer, in real WebKit
 
