@@ -69,7 +69,7 @@ TENSORSHARP_TP_DEVICES=0,2 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll \
     --model model.gguf --backend ggml_cuda --tp 2
 
 # Server — same flag (TENSORSHARP_TP_DEGREE=2 also works)
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model model.gguf --backend ggml_cuda --tp 2</code></pre>
   <p>Or put it in a <a href="cli.html#config">config file</a>:</p>
   <pre data-lang="json"><code>{ "model": "model.gguf", "backend": "cuda", "tp": 2 }</code></pre>
@@ -86,7 +86,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model model.gguf --backend cuda
     --tp-node-id 1 --tp-peers "192.168.1.10:9500,192.168.1.11:9500"</code></pre>
   <p>The server can front such a cluster, but only as <strong>node 0</strong> — the driver that owns sampling and serves HTTP. Every other node runs a <code>TensorSharp.Cli</code> worker with the same model, backend, and peer list. The <code>TENSORSHARP_TP_*</code> environment variables work in place of the flags.</p>
   <pre data-lang="bash"><code># Node 0 — server / driver:
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model model.gguf --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model model.gguf --backend cuda \
     --tp 2 --tp-node-id 0 --tp-peers "192.168.1.10:9500,192.168.1.11:9500"
 
 # Node 1 — CLI worker:
@@ -206,11 +206,11 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model model.gguf --backend cuda
     <li><strong>Responses API store</strong> — the OpenAI Responses store becomes durable and shared instead of in-memory (<code>TS_RESPONSES_STORE_REDIS_URL</code>; <code>--redis-url</code> sets both at once).</li>
   </ul>
   <pre data-lang="bash"><code># Both tiers on one Redis
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model model.gguf --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model model.gguf --backend cuda \
     --redis-url localhost:6379
 
 # KV cache only, 12-hour TTL
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model model.gguf --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model model.gguf --backend cuda \
     --paged-kv-redis-url localhost:6379 --paged-kv-redis-ttl 720</code></pre>
 
   <h2 id="troubleshooting">Troubleshooting</h2>

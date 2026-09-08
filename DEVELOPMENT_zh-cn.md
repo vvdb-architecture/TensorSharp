@@ -50,7 +50,7 @@ dotnet build TensorSharp.slnx
 dotnet build TensorSharp.Cli/TensorSharp.Cli.csproj
 
 # Web 应用
-dotnet build TensorSharp.Server/TensorSharp.Server.csproj
+dotnet build TensorSharp.Server.Host/TensorSharp.Server.Host.csproj
 ```
 
 ### 构建原生 GGML 库
@@ -335,11 +335,18 @@ TensorSharp/
 
 ## 项目 / NuGet 包分层
 
-仓库按包边界拆成独立层，使用者可以只引用真正需要的部分。**状态核验于 2026-09-01：**[NuGet.org](https://www.nuget.org/profiles/TensorSharp) 已列出 **3.1.2** 版的 `TensorSharp.Tensors`、`TensorSharp.Runtime`、`TensorSharp.Models`、`TensorSharp.Backends.GGML`、`TensorSharp.Backends.Cuda`、`TensorSharp.Backends.MLX`、`TensorSharp.Server` 与 `TensorSharp.Cli`。这些包落后于当前源码与 v3.3.0.0 应用发行版。`TensorSharp.AgentHost` 和 `TensorSharp.Distributed` 仍是可构建的包项目，但尚未发布；使用这两层时仍需从源码 checkout 添加项目引用。
+仓库按包边界拆成独立层，使用者可以只引用真正需要的部分。
+
+**状态核验于 2026-09-08。** 发布集合共 **13** 个包，即下表的每一行。`eng/verify-packages.ps1` 是这份清单的权威来源，并且它是发布流水线的门禁：在两个可打包项目之间新增 `ProjectReference` 而不同步更新该脚本，会直接让发布失败。
+
+当前真正发布到 [NuGet.org](https://www.nuget.org/profiles/TensorSharp) 的只是其中一个子集：**8** 个包 ID，版本 **3.1.2**，发布于 2026-07-21——`TensorSharp.Tensors`、`TensorSharp.Runtime`、`TensorSharp.Models`、`TensorSharp.Backends.GGML`、`TensorSharp.Backends.Cuda`、`TensorSharp.Backends.MLX`、`TensorSharp.Server` 与 `TensorSharp.Cli`。它们落后于当前源码与 v3.3.0.0 应用发行版；尤其是已发布的 `TensorSharp.Server` 早于日志层与聊天层拆分，与这里描述的分层并不一致。
+
+其余 5 个——`TensorSharp.Runtime.Logging`、`TensorSharp.AgentHost`、`TensorSharp.Chat`、`TensorSharp.Server.Host` 与 `TensorSharp.Distributed`——已可打包并通过校验，但尚未推送，将随下一个版本标签一同发布。在此之前，使用这些层仍需从源码 checkout 添加项目引用。
 
 | 项目 | NuGet 包 | 对外 namespace | 职责 |
 |---|---|---|---|
 | `TensorSharp.Core` | `TensorSharp.Tensors` | `TensorSharp` | Tensor 原语、Ops、分配器、存储与设备抽象 |
+| `TensorSharp.Runtime.Logging` | `TensorSharp.Runtime.Logging` | `TensorSharp.Runtime.Logging` | 各宿主共用的日志抽象与输出目标；单独拆出后，引擎各层不必再背上宿主的日志栈 |
 | `TensorSharp.Runtime` | `TensorSharp.Runtime` | `TensorSharp.Runtime` | GGUF 解析、分词器、Prompt 渲染、采样、输出协议解析、分页 KV 缓存、连续批处理调度器 |
 | `TensorSharp.AgentHost` | `TensorSharp.AgentHost` | `TensorSharp.AgentHost` | Agent Skills 与代码执行（`read_file` + `edit_file` + `write_file` + `shell` + `apply_patch`），含操作系统级沙箱、Web/CLI 会话级与 HTTP 请求级工作区，以及由宿主判定的软件包安装——构建在 `TensorSharp.Runtime` 之上 |
 | `TensorSharp.Models` | `TensorSharp.Models` | `TensorSharp.Models` | `ModelBase`、各模型架构、多模态编码器、批处理 / 分页前向、模型侧执行辅助 |
@@ -349,6 +356,7 @@ TensorSharp/
 | `TensorSharp.Distributed` | `TensorSharp.Distributed` | `TensorSharp.Distributed` | 用于多节点张量并行的点对点 TCP 协调层 |
 | `TensorSharp.Chat` | `TensorSharp.Chat` | `TensorSharp.Chat`（新类型）；迁入的流水线保留 `TensorSharp.Server.*` 命名空间 | 与宿主无关的聊天流水线：`ModelService`、会话、生成、技能循环与 Web UI 请求/流式契约（`WebUiChatService`、`SkillsService`）——不依赖 ASP.NET Core 与 `TensorSharp.Distributed`；由 Server、CLI 与 iOS 应用共用 |
 | `TensorSharp.Server` | `TensorSharp.Server` | `TensorSharp.Server` | ASP.NET Core 服务、OpenAI/Ollama 适配层、推理引擎宿主与 Web UI |
+| `TensorSharp.Server.Host` | `TensorSharp.Server.Host` | `TensorSharp.Server.Host` | **可运行**的 Web 应用：`Program.cs`、宿主装配、`wwwroot/` 与命令行。`TensorSharp.Server` 是它依赖的库——单独构建或运行 `TensorSharp.Server` 不会产生任何可执行文件 |
 | `TensorSharp.Cli` | `TensorSharp.Cli` | `TensorSharp.Cli` | 控制台宿主、调试工具与 JSONL 批处理 |
 
 这样的拆分让引擎使用者不必带上 Web 依赖，也能把 API 层改动和核心运行时隔离开，并让后续 benchmark / eval harness 更容易独立发布。
@@ -535,7 +543,7 @@ python3 TensorSharp.Server/testdata/test_multiturn.py
 bash TensorSharp.Server/testdata/test_multiturn.sh
 ```
 
-完整测试矩阵见 [TensorSharp.Server/testdata/README.md](TensorSharp.Server/testdata/README.md)。
+完整测试矩阵见 [TensorSharp.Server.Host/testdata/README.md](TensorSharp.Server.Host/testdata/README.md)。
 
 ### 推理矩阵运行器
 

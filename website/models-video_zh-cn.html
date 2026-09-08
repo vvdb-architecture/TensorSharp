@@ -38,7 +38,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/minimax_h3_fl2va_p
   <p>也可以把四个网络都写进配置文件，让第一次运行自动下载——<code>config/minimax-h3-fl2va.json</code> 用于关键帧，<code>config/minimax-h3-ref2va.json</code> 用于参考。两者只有 <code>model</code> 一项不同，因此文本编码器与两个 VAE 只下载一次并共用（总计约 33.5 GB）。上面那对分词器文件是自动下载唯一补不上的东西，因为它不是一个命令行选项：</p>
   <pre data-lang="bash"><code>dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --config config/minimax-h3-fl2va.json \
     --prompt "a red fox trotting through falling snow, cinematic" --output fox.mp4
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/minimax-h3-ref2va.json</code></pre>
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/minimax-h3-ref2va.json</code></pre>
 
   <h3 id="h3-modes">一张图代表什么</h3>
   <p>一张图对 H3 有两种<strong>完全不同</strong>的含义，而且用<strong>不同的检查点</strong>。不指定时会自动推断，<code>--video-mode</code> 用于显式声明。</p>
@@ -143,7 +143,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/minimax_h3_ref2va_
 
   <h3 id="h3-server">部署到服务端</h3>
   <p>在服务端，尺寸是<strong>启动参数</strong>，因为浏览器不会自己发尺寸：<code>--video-width 640 --video-height 384 --video-steps 20</code> 是文档给出的起点（<code>--width</code> / <code>--height</code> 是别名；只给其中一个时，H3 会从条件图像的宽高比推出另一个）。<code>--video-mode</code> 用于给只提供一种模式的部署固定条件模式；不写它，则每条请求各自推断，通常这才是你想要的。<code>--video-frames</code>、<code>--fps</code>、<code>--video-vae</code>、<code>--video-text-encoder</code> 与 <code>--audio-vae</code> 补齐其余部分。服务端完全没有 <code>--cfg</code>，这也是随仓库提供的配置既不设步数也不设引导的原因。</p>
-  <pre data-lang="bash"><code>dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/minimax_h3_fl2va_pruned-Q4_K.gguf \
+  <pre data-lang="bash"><code>dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/minimax_h3_fl2va_pruned-Q4_K.gguf \
     --backend ggml_metal --video-width 640 --video-height 384 --video-steps 20 --video-frames 22
 
 curl -s http://localhost:5000/api/video-generate -H 'content-type: application/json' -d '{
@@ -171,7 +171,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/Wan2_2-TI2V-5B-Tur
     --video-text-encoder models/umt5-xxl-encoder-Q8_0.gguf --video-vae models/VAE/Wan2.2_VAE.safetensors \
     --image first_frame.png --prompt "the camera pushes in as the waves rise" \
     --output out.mp4 --backend ggml_cuda
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
     --video-text-encoder models/umt5-xxl-encoder-Q8_0.gguf --video-vae models/VAE/Wan2.2_VAE.safetensors \
     --backend ggml_cuda --video-frames 121 --fps 24</code></pre>
   <p>加载时控制台会打印 <code>step-distilled checkpoint detected -&gt; 4 steps, guidance off (--diffusion-steps / --cfg override)</code> 确认识别成功。在 M5 Pro 上用 <code>ggml_metal</code> 实测：一条 1088×832、121 帧（5 秒，720p 级）的图生视频请求，基础检查点需要 100 次 DiT 前向、约 <strong>3 小时 30 分</strong>，Turbo 检查点只需 4 次、<strong>17 分 30 秒</strong>——参数相同、分辨率相同，只有 <code>--model</code> 路径不同。若改到 480p（736×544、121 帧），Turbo 检查点 <strong>6 分 19 秒</strong>即可完成。</p>

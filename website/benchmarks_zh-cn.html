@@ -50,6 +50,23 @@
 
   <div class="callout note"><div class="ic">⚖️</div><p>诚实的对比会同时展示胜势与差距。这些数字来自单台机器（RTX 3080 Laptop、单流）；你的硬件、模型与量化都会改变它们。请在你自己的机器上运行内置基准与引擎对比框架，得到对你而言真正有意义的数字。</p></div>
 
+  <h2 id="metal">Apple Silicon：ggml_metal 对比 llama.cpp</h2>
+  <p><code>ggml_metal</code> 是 macOS 与 iOS 上的生产后端，因此同样要与 <code>llama.cpp</code> 正面对比。在 <strong>Apple M5 Pro（20 核 GPU、48 GB、macOS 26.6）</strong>上，两个引擎在空闲机器上以 <code>caffeinate</code> 前后交替跑同一个 GGUF——<code>TensorSharp.Cli --backend ggml_metal --benchmark</code> 对 <code>llama-bench</code>，各三次重复。</p>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>模型（未标注即 Q8_0）</th><th>pp2048</th><th>pp8192</th><th>tg128</th><th>tg128@4096</th></tr></thead>
+    <tbody>
+      <tr><td>Qwen3.5-9B</td><td>0.98×</td><td>0.91×</td><td><strong>1.04×</strong></td><td><strong>1.05×</strong></td></tr>
+      <tr><td>gemma-4-E4B</td><td>0.96×</td><td>0.94×</td><td>0.95×</td><td>0.96×</td></tr>
+      <tr><td>gemma-4-E2B</td><td><strong>1.06×</strong></td><td><strong>1.00×</strong></td><td>0.93×</td><td>0.95×</td></tr>
+      <tr><td>Qwen3.6-35B-A3B IQ2_XXS</td><td><strong>1.10×</strong></td><td>0.98×</td><td><strong>1.10×</strong></td><td><strong>1.08×</strong></td></tr>
+      <tr><td>gpt-oss-20b</td><td><strong>1.13×</strong></td><td><strong>1.11×</strong></td><td>0.93×</td><td>0.93×</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>比值为 TensorSharp 相对 llama.cpp，<strong>&gt; 1.0× 表示 TensorSharp 更快</strong>。这轮测量在 TensorSharp 一侧找出四处计算图构建上的差距——残差 add 的写法让 ggml 的 norm+add 融合无法生效、融合 QKV 用拷贝而不是带步长的视图来切分、以及饱和后的滑动窗口被旋转读取并逐 token 重建——单个单元最高收益 <strong>+12.6%</strong>（gemma-4-E4B tg128@4096），且没有任何单元回退。文中还记录了两项<em>没有</em>收益的改动，以免重复尝试。完整方法、逐单元数据与过程中发现的一处正确性 bug：<a href="https://github.com/zhongkaifu/TensorSharp/blob/main/docs/perf/metal-vs-llama-cpp.md" target="_blank" rel="noopener"><code>docs/perf/metal-vs-llama-cpp.md</code></a>。</p>
+  <div class="callout note"><div class="ic">🔬</div><p>此处两个引擎带的 <code>ggml</code> checkout 并不相同（TensorSharp 的新约两周）。这个混淆因素对 TensorSharp 有利，因此该文档的结论只针对 TensorSharp 自身的计算图构建，而不是针对 <code>ggml</code>。</p></div>
+
   <h2 id="muse-glimmer">Muse-Glimmer 30B，带与不带 DFlash</h2>
   <p>这是在另一套硬件上单独手工执行的对比：<strong>单张 RTX PRO 6000 Blackwell（96 GB）</strong>，<code>Muse-Glimmer-30B-Q8_0</code>，两侧都是贪心，生成 128 token，两次重复且两个引擎交替执行；关键在于<strong>两侧 prefill 的是同一串 token</strong>（把 TensorSharp 渲染后的聊天提示交给 <code>llama-cli -no-cnv</code>，再用 <code>llama-tokenize</code> 确认 token 数一致）。llama.cpp 为 master <code>8e7f22b</code>，与 TensorSharp 内置的 ggml 相差一天以内。</p>
   <div class="table-scroll">

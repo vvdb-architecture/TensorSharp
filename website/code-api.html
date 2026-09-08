@@ -19,27 +19,31 @@
   <p class="lede">TensorSharp is a real .NET library, not just an executable. Reference its projects from a source checkout and drive inference directly from your own code when you do not want an HTTP hop.</p>
 
   <h2 id="packages">Project and package boundaries</h2>
-  <p>The repository is split along publishable package boundaries. The established TensorSharp package IDs were released through <strong>3.1.2</strong>, but those packages lag the current source tree and server release. <code>TensorSharp.AgentHost</code> and <code>TensorSharp.Distributed</code> are not yet on NuGet.org.</p>
+  <p>The repository is split along publishable package boundaries. The source tree's publish set is <strong>thirteen</strong> packages — every row below — verified by <code>eng/verify-packages.ps1</code>, which gates the release workflow.</p>
+  <p><strong>Verified 2026-09-08:</strong> NuGet.org carries eight of them, at <strong>3.1.2</strong> (July 2026): Tensors, Runtime, Models, the three backends, Server, and Cli. Those lag the current source tree and server release — the published <code>TensorSharp.Server</code> predates the logging and chat splits. The other five (<code>TensorSharp.Runtime.Logging</code>, <code>TensorSharp.AgentHost</code>, <code>TensorSharp.Chat</code>, <code>TensorSharp.Server.Host</code>, <code>TensorSharp.Distributed</code>) are packable and verified but not yet pushed.</p>
   <div class="table-scroll">
   <table>
     <thead><tr><th>Project / package</th><th>Namespace</th><th>Responsibility</th></tr></thead>
     <tbody>
       <tr><td><code>TensorSharp.Core</code> / <code>TensorSharp.Tensors</code></td><td><code>TensorSharp</code></td><td>Tensor primitives, ops, allocators, storage, device abstraction. The NuGet ID differs from the project name.</td></tr>
+      <tr><td><code>TensorSharp.Runtime.Logging</code></td><td><code>TensorSharp.Runtime.Logging</code></td><td>Logging abstractions and sinks shared by every host, kept out of the engine layers. Not yet on NuGet.org.</td></tr>
       <tr><td><code>TensorSharp.Runtime</code></td><td><code>TensorSharp.Runtime</code></td><td>GGUF parsing, tokenizers, prompt rendering, sampling, paged KV cache, continuous-batching scheduler.</td></tr>
       <tr><td><code>TensorSharp.Models</code></td><td><code>TensorSharp.Models</code></td><td><code>ModelBase</code>, architecture implementations, multimodal encoders, batched/paged forward passes.</td></tr>
       <tr><td><code>TensorSharp.Backends.GGML</code></td><td><code>TensorSharp.GGML</code></td><td>GGML-backed execution and native interop.</td></tr>
       <tr><td><code>TensorSharp.Backends.Cuda</code></td><td><code>TensorSharp.Cuda</code></td><td>Direct CUDA allocator, storage, cuBLAS GEMM, PTX kernels, quantized CUDA ops.</td></tr>
       <tr><td><code>TensorSharp.Backends.MLX</code></td><td><code>TensorSharp.MLX</code></td><td>Apple-Silicon MLX backend (mlx-c / Metal).</td></tr>
-      <tr><td><code>TensorSharp.Server</code></td><td><code>TensorSharp.Server</code></td><td>ASP.NET Core server, OpenAI/Ollama adapters, inference engine host, web UI.</td></tr>
+      <tr><td><code>TensorSharp.Chat</code></td><td><code>TensorSharp.Chat</code></td><td>Host-neutral chat pipeline — <code>ModelService</code>, sessions, generation, the skills loop, the Web UI request/stream contract. No ASP.NET Core; shared by the server, the CLI, and the iOS app. Not yet on NuGet.org.</td></tr>
+      <tr><td><code>TensorSharp.Server</code></td><td><code>TensorSharp.Server</code></td><td>ASP.NET Core library: OpenAI/Ollama adapters, HTTP transport over TensorSharp.Chat, web UI assets. A library — it produces no executable on its own.</td></tr>
+      <tr><td><code>TensorSharp.Server.Host</code></td><td><code>TensorSharp.Server.Host</code></td><td>The runnable web application built on that library: <code>Program.cs</code>, host wiring, <code>wwwroot/</code>, and the command line. This is what you run. Not yet on NuGet.org.</td></tr>
       <tr><td><code>TensorSharp.Cli</code></td><td><code>TensorSharp.Cli</code></td><td>Console host and debugging / batch tooling.</td></tr>
-      <tr><td><code>TensorSharp.AgentHost</code></td><td><code>TensorSharp.AgentHost.*</code></td><td>Skills, bounded agent loop, five code tools, sandboxes, workspaces, and artifacts. Source-only today.</td></tr>
-      <tr><td><code>TensorSharp.Distributed</code></td><td><code>TensorSharp.Distributed</code></td><td>Peer-to-peer TCP distributed tensor parallelism. Source-only today.</td></tr>
+      <tr><td><code>TensorSharp.AgentHost</code></td><td><code>TensorSharp.AgentHost.*</code></td><td>Skills, bounded agent loop, five code tools, sandboxes, workspaces, and artifacts. Not yet on NuGet.org.</td></tr>
+      <tr><td><code>TensorSharp.Distributed</code></td><td><code>TensorSharp.Distributed</code></td><td>Peer-to-peer TCP distributed tensor parallelism. Not yet on NuGet.org.</td></tr>
     </tbody>
   </table>
   </div>
   <p>For a typical embedding scenario, reference <code>TensorSharp.Models.csproj</code>; it already references Core, Runtime, and the backend projects. From a sibling application beside the TensorSharp checkout:</p>
   <pre data-lang="bash"><code>dotnet add reference ../TensorSharp/TensorSharp.Models/TensorSharp.Models.csproj</code></pre>
-  <div class="callout warn"><div class="ic">📦</div><p>NuGet <code>3.1.2</code> is an older snapshot; use project references when you need the current implementation. AgentHost and Distributed require source references because they have no NuGet package yet. Source builds compile native GGML/MLX by default; for managed-CPU development pass <code>-p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true</code>, or build the native libraries described under <a href="backends.html#native-build">Backends</a>.</p></div>
+  <div class="callout warn"><div class="ic">📦</div><p>NuGet <code>3.1.2</code> is an older snapshot; use project references when you need the current implementation. Runtime.Logging, AgentHost, Chat, Server.Host, and Distributed require source references because they have no published package yet. Source builds compile native GGML/MLX by default; for managed-CPU development pass <code>-p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true</code>, or build the native libraries described under <a href="backends.html#native-build">Backends</a>.</p></div>
 
   <h2 id="quickstart">Minimal example — load, generate, decode</h2>
   <p>Every model is loaded the same way: <code>ModelBase.Create()</code> reads the GGUF metadata and instantiates the right architecture. From there you tokenize, run forward passes, sample, and decode.</p>

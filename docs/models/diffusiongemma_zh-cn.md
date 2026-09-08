@@ -14,7 +14,7 @@
 | 生成方式 | 分块文本扩散，不是自回归 token decode |
 | CLI 支持 | `TensorSharp.Cli` 检测到 `DiffusionGemmaModel` 后进入 diffusion 运行模式 |
 | 服务端支持 | Web UI chat stream 带实时去噪预览；Ollama/OpenAI 兼容端点使用 append-oriented 响应形状，只返回最终文本（没有去噪预览） |
-| 连续批处理 | 独立的 [`DiffusionBatchScheduler`](../../TensorSharp.Server/DiffusionBatchScheduler.cs)，在 block 边界接纳请求 |
+| 连续批处理 | 独立的 [`DiffusionBatchScheduler`](../../TensorSharp.Chat/DiffusionBatchScheduler.cs)，在 block 边界接纳请求 |
 
 ## 下载
 

@@ -1,10 +1,10 @@
 # TensorAgent
 
-An iPhone and iPad app with the full functionality of TensorSharp.Server's Web UI
+An iPhone and iPad app with the full capability of TensorSharp.Server's Web UI
 chat, running entirely on the device: a .NET MAUI (`net10.0-ios`) head that links
-the TensorSharp engine statically, serves the Server's own `wwwroot/index.html` to
-a WKWebView from an in-process loopback HTTP server, and answers that page's API
-with the same chat pipeline the desktop uses.
+the TensorSharp engine statically, serves its own phone-shaped page to a WKWebView
+from an in-process loopback HTTP server, and answers that page's API with the same
+chat pipeline the desktop uses.
 
 This is the current source implementation of TensorSharp's iOS/iPadOS target.
 Physical devices use the GGML Metal (`ggml_metal`) backend; build it with
@@ -17,14 +17,21 @@ the user grants it, and dictation asks for on-device speech recognition.
 
 ## What it does
 
-**Chat, exactly as the desktop does it.** The page is
-`TensorSharp.Server/wwwroot/index.html`, byte for byte, not a port of it. The
-routes under it — `/api/chat`, `/api/models`, `/api/sessions`, `/api/upload`,
-`/api/skills`, `/api/image-edit`, `/api/video-generate` — are bound to the same
-`WebUiChatService` and `SkillsService`, so streaming, tool progress, reasoning
-blocks, skill steps and artifact links all behave identically. The app's own
-additions are appended to the page as one script tag at request time; the file
-itself is never forked.
+**Chat with the desktop's capabilities, on a page built for a thumb.** The app
+ships its own page — `src/TensorAgent.Maui/wwwroot/index.html`, bundled as
+`webui/` and served from the loopback host. It is not the desktop page: that one
+is laid out for a mouse and a wide window, and no amount of injected CSS turns it
+into a phone UI. One row of chrome, everything reachable at the bottom next to
+the keyboard, a layout that follows `visualViewport`, a single `+` sheet for
+Photo / Camera / Video / File, and reasoning collapsed behind a disclosure.
+
+What is shared is the API, not the document. The routes under the page —
+`/api/chat`, `/api/models`, `/api/sessions`, `/api/upload`, `/api/skills`,
+`/api/image-edit`, `/api/video-generate` — are bound to the same
+`WebUiChatService` and `SkillsService` the desktop server binds, so streaming,
+tool progress, reasoning blocks, skill steps and artifact links behave
+identically. The app's own client is appended as one script tag at request time;
+the page file itself is never forked.
 
 **A built-in model catalog.** Six dense entries chosen to fit a phone, with the
 exact byte size and SHA-256 of every file. Four are downloadable; those downloads

@@ -39,7 +39,7 @@
   </div>
 
   <h2 id="architecture">架构</h2>
-  <p>TensorSharp 是一个分层系统。每一层都是可独立打包的项目，因此源码使用者只需引用自己需要的部分。既有的 TensorSharp 包 ID 已在 NuGet.org 发布到 <code>3.1.2</code>，但这些包落后于当前源码树与 Release；<code>TensorSharp.AgentHost</code> 和 <code>TensorSharp.Distributed</code> 尚未发布。</p>
+  <p>TensorSharp 是一个分层系统。每一层都是可独立打包的项目，因此源码使用者只需引用自己需要的部分。发布集合共 13 个包，由 <code>eng/verify-packages.ps1</code> 校验。其中 8 个已在 NuGet.org 发布到 <code>3.1.2</code>（核验于 2026-09-08），落后于当前源码树与 Release；<code>TensorSharp.Runtime.Logging</code>、<code>TensorSharp.AgentHost</code>、<code>TensorSharp.Chat</code>、<code>TensorSharp.Server.Host</code> 与 <code>TensorSharp.Distributed</code> 尚未发布。</p>
   <div class="table-scroll">
   <table>
     <thead><tr><th>层</th><th>职责</th></tr></thead>

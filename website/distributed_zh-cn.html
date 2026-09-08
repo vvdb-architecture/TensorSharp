@@ -69,7 +69,7 @@ TENSORSHARP_TP_DEVICES=0,2 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll \
     --model model.gguf --backend ggml_cuda --tp 2
 
 # 服务端 —— 同样的参数（TENSORSHARP_TP_DEGREE=2 环境变量也可用）
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model model.gguf --backend ggml_cuda --tp 2</code></pre>
   <p>也可以写进<a href="cli_zh-cn.html#config">配置文件</a>：</p>
   <pre data-lang="json"><code>{ "model": "model.gguf", "backend": "cuda", "tp": 2 }</code></pre>
@@ -86,7 +86,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model model.gguf --backend cuda
     --tp-node-id 1 --tp-peers "192.168.1.10:9500,192.168.1.11:9500"</code></pre>
   <p>服务端可以作为这样一个集群的前端，但只能是<strong>节点 0</strong> —— 即负责采样并对外提供 HTTP 的 driver。其余每个节点都运行一个 <code>TensorSharp.Cli</code> worker，使用相同的模型、后端与 peer 列表。<code>TENSORSHARP_TP_*</code> 环境变量可以替代这些参数。</p>
   <pre data-lang="bash"><code># 节点 0 —— 服务端 / driver：
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model model.gguf --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model model.gguf --backend cuda \
     --tp 2 --tp-node-id 0 --tp-peers "192.168.1.10:9500,192.168.1.11:9500"
 
 # 节点 1 —— CLI worker：
@@ -202,11 +202,11 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model model.gguf --backend cuda
     <li><strong>Responses API 存储</strong>——OpenAI Responses 存储从内存变为持久化且共享（<code>TS_RESPONSES_STORE_REDIS_URL</code>；<code>--redis-url</code> 一次性设置这两项）。</li>
   </ul>
   <pre data-lang="bash"><code># 两个层共用一个 Redis
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model model.gguf --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model model.gguf --backend cuda \
     --redis-url localhost:6379
 
 # 仅 KV 缓存，TTL 12 小时
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model model.gguf --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model model.gguf --backend cuda \
     --paged-kv-redis-url localhost:6379 --paged-kv-redis-ttl 720</code></pre>
 
   <h2 id="troubleshooting">故障排查</h2>

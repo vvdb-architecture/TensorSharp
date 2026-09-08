@@ -103,7 +103,7 @@
     <li><strong>Browser chat UI</strong> — multi-turn chat, file uploads up to 500 MB (images, video, audio, PDF, text/code), thinking toggle, tool calling, message editing, and live streaming. → <a href="server.html#webui">Web UI</a></li>
     <li><strong>Interactive REPL</strong> — a turn-by-turn console chat with slash commands, hot-swappable model/backend/projector, and live sampling tuning. → <a href="cli.html#repl">REPL</a></li>
     <li><strong>Batch processing</strong> — JSONL input in the console application, plus a built-in prefill/decode benchmark.</li>
-    <li><strong>Source-project embedding</strong> — reference only the layers you need and embed inference in your own .NET app. Established package IDs are on NuGet.org through <code>3.1.2</code> but lag current source/release; AgentHost and Distributed remain source-only. → <a href="code-api.html">C# Library</a></li>
+    <li><strong>Source-project embedding</strong> — reference only the layers you need and embed inference in your own .NET app. Eight package IDs are on NuGet.org at <code>3.1.2</code> but lag current source/release; Runtime.Logging, AgentHost, Chat, Server.Host, and Distributed are packable and verified but not yet published, so they remain source-only. → <a href="code-api.html">C# Library</a></li>
     <li><strong>Per-turn observability</strong> — structured bounded input summaries, raw output logs, and KV-cache hit ratios surfaced through every API (<code>prompt_cache_hit_*</code>, <code>cached_tokens</code>, <code>kvReused*</code>). Uploaded document bodies are omitted from logs while their metadata and user instruction remain visible.</li>
   </ul>
 

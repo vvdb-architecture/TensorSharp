@@ -193,7 +193,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll \
     --backend ggml_cuda --n-cpu-moe 20 --spec --chat
 
 # 服务端
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model models/GLM-5.2-UD-IQ2_XXS-00001-of-00006.gguf \
     --backend ggml_cuda --n-cpu-moe 20 --spec
 ```
@@ -451,7 +451,7 @@ GLM-5.3-Flash 是混合架构的后继者：320B 参数、288 个路由专家（
 |---|---|---|
 | KDA 线性注意力 | 45 层主干中的 34 层；64 头 × 128 | `attention.head_count_kv` 是逐层数组：0 = KDA，1 = MLA。短卷积（核 4，逐序列持久尾部）、l2 归一的 q/k、乘法下界（−5）的逐通道衰减门、fused gated-delta-net 递归、图内状态提交 |
 | MLA + DSA 层 | 45 层中的 11 层（第 3、7、…、43 层），**NoPE** | `rope.dimension_count` 为 0：整个文本塔没有 rope，512 宽 latent 即缓存行，softmax 缩放 1/√256 |
-| 池化 indexer | 每个 MLA 层，4 格一池，top-k 2048 | 每格缓存 key + 压缩门（`[key|gate]`）；对门做 softmax（加逐槽位位置嵌入）压缩每池；**对"池"取 top-k 再展开成员**，query 自己的尾池始终可见。缓存低于 `top_k + kpool − 1` = 2051 个 token 时等价于稠密 |
+| 池化 indexer | 每个 MLA 层，4 格一池，top-k 2048 | 每格缓存 key + 压缩门（`[key\|gate]`）；对门做 softmax（加逐槽位位置嵌入）压缩每池；**对"池"取 top-k 再展开成员**，query 自己的尾池始终可见。缓存低于 `top_k + kpool − 1` = 2051 个 token 时等价于稠密 |
 | Sinkhorn 超连接 | 每一层，×4 流 | DeepSeek-V4 的 mHC 配方（fused `ggml_dsv4_hc_pre/comb/post`，20 次 Sinkhorn 迭代），嵌入复制 ×4，头部是**无权重的流均值** |
 | SwiGLU 截断 | 所有 FFN，上限 10 | 激活前 `up ∈ [−L, L]`、`gate ∈ (−∞, L]`——稠密层、共享专家、路由专家一视同仁 |
 | 视觉 | `mmproj-BF16.gguf`（GLM-OCR ViT） | 见下文 |

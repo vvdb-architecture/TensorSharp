@@ -14,7 +14,7 @@
 | Generation mode | Block text diffusion, not autoregressive token decode |
 | CLI support | `TensorSharp.Cli` detects `DiffusionGemmaModel` and uses diffusion run mode |
 | Server support | Web UI chat stream with live denoising previews; Ollama/OpenAI compatibility endpoints use append-oriented response shapes and return the final text only (no denoising previews) |
-| Continuous batching | Dedicated [`DiffusionBatchScheduler`](../../TensorSharp.Server/DiffusionBatchScheduler.cs), admitted at block boundaries |
+| Continuous batching | Dedicated [`DiffusionBatchScheduler`](../../TensorSharp.Chat/DiffusionBatchScheduler.cs), admitted at block boundaries |
 
 ## Downloads
 

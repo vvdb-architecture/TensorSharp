@@ -72,7 +72,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet build TensorSharp.slnx -c Release 
 printf '%s\n' 'Answer in one short sentence: what is TensorSharp?' > prompt.txt
 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/gemma-4-E4B-it-Q8_0.gguf \
   --input prompt.txt --max-tokens 64 --backend ggml_cuda
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/gemma-4-E4B-it-Q8_0.gguf \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/gemma-4-E4B-it-Q8_0.gguf \
   --backend ggml_cuda --max-tokens 128
 ```
 
@@ -762,7 +762,7 @@ the target's hidden size** — pair the 12B target with its 12B draft, not the
 26B-A4B draft. When `--draft-model` is given but the draft can't be activated
 (file missing, hidden-size mismatch, or required draft tensors absent), the server
 **fails fast at startup** with a remediation hint
-([`SpeculationStartupValidation`](../../TensorSharp.Server/Hosting/SpeculationStartupValidation.cs))
+([`SpeculationStartupValidation`](../../TensorSharp.Chat/Hosting/SpeculationStartupValidation.cs))
 rather than silently running without speculation.
 
 ### 12.3 Backend profitability and fused kernels

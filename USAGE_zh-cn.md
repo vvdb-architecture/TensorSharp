@@ -27,7 +27,7 @@
 以替代（或补充）冗长的命令行：
 
 ```bash
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basic.json
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/server-basic.json
 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll       --config config/cli-basic.json
 ```
 
@@ -270,7 +270,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model <model.gguf> --backend cu
 | `--skills-sandbox <off\|preferred\|required>` | 对技能脚本要求多强的操作系统级隔离。`required`（默认）在没有安全沙箱的宿主机上拒绝运行；`preferred` 表示显式接受较弱隔离；`off` 只保留解释器、环境、时限与输出限制。macOS 使用 `sandbox-exec`；Linux 要求 `bwrap` 0.12.0 或更高版本（旧版存在已知的沙箱搭建阶段符号链接逃逸）。Windows Job Object 只能限制进程树，不能限制文件系统或网络，因此 `required` 会拒绝，必须显式选 `preferred` 才接受这种较弱隔离。环境变量：`TS_SKILLS_SANDBOX`。 |
 | `--skills-allow-network` | 允许沙箱内的技能脚本联网。默认禁止。环境变量：`TS_SKILLS_ALLOW_NETWORK`。 |
 | `--code-exec` | 向模型提供 `shell`、`read_file`、`edit_file`、`write_file` 与 `apply_patch` 五个工具。`shell` 执行真正的命令行并返回退出码与合并后的 stdout/stderr；文件工具由宿主完成精确读取、替换、整文件写入与原子补丁。五个工具在内部 Agent 轮次中共享同一工作区：Web/CLI 按聊天会话保留；每个 OpenAI Chat、OpenAI Responses 或 Ollama HTTP 请求则获得一个私有工作区，响应结束后删除。只有没有提供工作区的底层直接调用者才只会得到 `shell`。所有内置工具均由宿主进程内应答，不会交回 API 客户端。默认关闭。环境变量：`TS_CODE_EXEC`（非 `0` 即视为开启）。 |
-| `--code-exec-allow-install` | 允许模型把 pip / npm 包装进当前 Web/CLI 会话或 HTTP 请求工作区，让后续命令与技能脚本在该工作区寿命内都能 import；需要 `--code-exec`。这项权限**不会**把套接字交给模型生成的命令。宿主会从识别到的安装命令中读出工具名与包名、完成校验，再用自己构造的参数向量代为安装，只接受预编译 wheel 并禁止安装脚本；随后用 `true` 或 `false` 替换原安装命令，保留 `&&`、`||`、管道和循环的语义。在 `pip install x && python y.py` 中，`y.py` 遵循命令的联网策略：默认离线，只有另行传入 `--code-exec-allow-network` 才可不受限地访问主机网络。会改变软件源的参数、URL 依赖以及宿主无法代为执行的安装器都会被拒绝；`-r requirements.txt` 会逐行读取并校验。环境变量：`TS_CODE_EXEC_ALLOW_INSTALL`。 |
+| `--code-exec-allow-install` | 允许模型把 pip / npm 包装进当前 Web/CLI 会话或 HTTP 请求工作区，让后续命令与技能脚本在该工作区寿命内都能 import；需要 `--code-exec`。这项权限**不会**把套接字交给模型生成的命令。宿主会从识别到的安装命令中读出工具名与包名、完成校验，再用自己构造的参数向量代为安装，只接受预编译 wheel 并禁止安装脚本；随后用 `true` 或 `false` 替换原安装命令，保留 `&&`、`\|\|`、管道和循环的语义。在 `pip install x && python y.py` 中，`y.py` 遵循命令的联网策略：默认离线，只有另行传入 `--code-exec-allow-network` 才可不受限地访问主机网络。会改变软件源的参数、URL 依赖以及宿主无法代为执行的安装器都会被拒绝；`-r requirements.txt` 会逐行读取并校验。环境变量：`TS_CODE_EXEC_ALLOW_INSTALL`。 |
 | `--code-exec-allow-network` | 给予每一条模型生成的命令不受限的宿主 IP 网络访问；生成的代码可以解析 DNS、抓取 URL、跟随重定向、调用远程 API、访问局域网/回环服务并打开 IP 监听套接字。**默认关闭**，且需要 `--code-exec`。macOS 与 Linux 上的写入及主目录读取约束仍保持生效。Linux 还通过 PID 命名空间约束后代进程；macOS 子进程会继承 Seatbelt，普通进程组也会被清理，但主动脱离进程组的子进程可能在请求结束后继续运行，每次工具结果都会明确报告这一限制。macOS 仍拒绝常见的 `/private/tmp/com.apple.launchd*` 路径套接字（但保留系统运行时所需的 Mach lookup 与 DNS 必需的精确 mDNSResponder 路径套接字），Linux 仍隐藏常见的 `/run` 端点，但本地 Unix IPC 并非完整隔离边界：macOS 为兼容性保留共享临时目录内的 Unix IPC，Linux 的宿主网络命名空间可能暴露抽象套接字以及 `/run` 之外的路径名套接字。其他宿主可读文件及 IP 服务因而可能被访问并外传；远程提示词注入与不可信下载也是额外风险。只有不含凭据的宿主 HTTP/SOCKS 代理设置会在此模式下传入。宿主会把不超过 16 MiB 的自定义 CA 包只读取一次，并仅将验证过的公开证书复制到每会话只读快照，因此源路径及其相邻数据不会暴露；认证代理需使用宿主侧无凭据转发器。包名与安装域名允许列表只约束宿主识别并代办的安装；不受限的生成代码仍可直接抓取或执行制品。它与装包权限、以及只控制 `skills_run` 的 `--skills-allow-network` 相互独立。Windows 仍须传入 `--code-exec-unconfined`。环境变量：`TS_CODE_EXEC_ALLOW_NETWORK`（非 `0` 即视为开启）。 |
 | `--code-exec-packages <list>` | 把安装限制在这些包名之内，逗号分隔；其余一律拒绝，并告诉模型允许哪些名字（默认：留空，即不限包名——且无论如何单次安装最多 16 个包）。匹配的是去掉版本后的裸名字，因此模型钉住的版本（`numpy==2.1.0`）仍然匹配名单里的 `numpy`。工具接口变成 shell 时它曾被退休，因为模型自己敲 `pip install` 时，可以用包名白名单看不见的方式写出同一个请求；如今它回来了，因为安装重新由**宿主**执行：宿主是把包名从模型的命令里读出来，而不是去运行那条命令，安装器的参数向量由宿主自己拼出，所以无论请求写成 `pip`、`pip3`、`python -m pip` 还是一个 requirements 文件，这份名单都同样生效。只有配合 `--code-exec-allow-install` 才有意义。启用 `--code-exec-allow-network` 后，该名单不是安全边界：生成代码可绕过宿主安装器，直接抓取或执行制品。 |
 | `--code-exec-install-index <url>` | 让宿主代办的安装使用运维者指定的软件包索引，而不是安装器默认源；模型自己写出的 `--index-url` 仍会被拒绝。索引主机会自动加入安装出口允许列表；镜像若从另一个主机下载文件，还需把该主机列入 `--code-exec-install-domains`。需要 `--code-exec-allow-install`。默认：未设置。环境变量：`TS_CODE_EXEC_INSTALL_INDEX`。 |
@@ -458,10 +458,10 @@ CLI 只会自动识别少数旧式投影器文件名，而当前模型仓库经�
 
 ```bash
 # 通过 --model 指定要托管的模型
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --backend ggml_metal
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --backend ggml_metal
 
 # Linux + NVIDIA GPU
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --backend ggml_cuda
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --backend ggml_cuda
 
 # 让模型生成的代码执行网页检索。联网必须单独显式开启；
 # --skills-allow-network 控制的是随技能提供的脚本，并非这些 shell 命令。
@@ -470,22 +470,22 @@ dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf
     --code-exec-allow-install --code-exec-allow-network --max-tokens 256000
 
 # 多模态模型：同时显式指定投影器
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --mmproj ./models/mmproj.gguf --backend ggml_cuda
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --mmproj ./models/mmproj.gguf --backend ggml_cuda
 
 # MiniMax-H3：视频与它的 32 kHz 立体声音轨一起生成。尺寸、步数和帧数都是启动参数，
 # 因为 Web UI 自己不发送任何数值；640x384 是文档给出的起点。每次运行都会写出一个
 # .mp4 和一个旁挂的 .wav。详见下文“音视频生成（MiniMax-H3）”。
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model ./models/minimax_h3_fl2va_pruned-Q4_K.gguf --backend ggml_cuda \
     --video-width 640 --video-height 384 --video-steps 20 --video-frames 22
 
 # 同样的托管也可以直接用随仓库提供的配置文件（config/minimax-h3-ref2va.json 换成
 # 参考检查点；两者只有去噪器不同，其余三个网络不会重复下载）。
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/minimax-h3-fl2va.json
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/minimax-h3-fl2va.json
 
 # Wan 视频生成，仅视频：当 Web UI 或 API 请求未提供自己的 frames / fps 时，
 # 默认以 24 fps 生成 121 帧（约五秒）。
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/Wan2.2-TI2V-5B.gguf --backend ggml_cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/Wan2.2-TI2V-5B.gguf --backend ggml_cuda \
     --video-frames 121 --fps 24
 # TI2V-5B 原生面积下的 121 帧是 27k 个 DiT token，而自注意力对 token 数是平方级，
 # 因此在**基础**检查点上跑完 50 步在笔记本级 GPU 上需要数小时（实测 M5 Pro 约 3 小时
@@ -495,15 +495,15 @@ dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/Wan2.2-TI2
 # 完整成本表见 docs/models/wan_zh-cn.md。
 
 # 配置服务端默认采样参数（仅在请求未自行覆盖时生效）
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --backend ggml_metal \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --backend ggml_metal \
     --temperature 0.7 --top-p 0.9 --top-k 40 --repeat-penalty 1.1 \
     --presence-penalty 0.0 --frequency-penalty 0.0 --seed 42 \
     --stop "</s>" --stop "<|endoftext|>"
 
 # 用可复用的 JSON 文件读取以上全部参数（首次运行会自动下载模型）。
 # 示例见“配置文件”一节与 config/ 目录。
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basic.json
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basic.json --backend ggml_cpu
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/server-basic.json
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/server-basic.json --backend ggml_cpu
 ```
 
 在浏览器中打开 `http://localhost:5000` —— 根地址即为聊天界面（`GET /health` 是存活检查接口）。Web 界面支持：
@@ -702,6 +702,13 @@ Unix IPC 并非完整隔离边界：macOS 为兼容性保留共享临时目录�
 | `TS_SCHED_BLOCK_SIZE` | 引擎侧每块的 token 数（默认：`256`）。 |
 | `TS_SCHED_PREFIX_CACHE` | `0` 关闭跨请求的块级哈希前缀共享。 |
 | `TS_SCHED_DECODE_QUANTUM` | 在允许切换序列前的 token 数（默认与 block size 相同）。 |
+| `TS_RETAINED_FUSED_CACHE` | `1`（默认）在请求结束后保留其融合 holder，使前缀完全一致的续写不必重新 prefill；仅对声明支持的模型有效（Gemma 4 的 K/V；Qwen 3.5/3.6 的注意力 K/V 加 GatedDeltaNet 递归状态）。`0` 关闭（用于限制显存或做 A/B）。 |
+| `TS_RETAINED_FUSED_CACHE_MAX` | 保留的融合 holder 的 LRU 预算（默认 `4`）；每个都钉住一份完整的按请求续写状态。 |
+| `TS_PREFIX_CHECKPOINTS` | `1`（默认）在所有会话共享的那段提示词末尾——系统提示词、工具、技能——对模型状态做 checkpoint，并让每个**新**会话从它的副本开始，因此新会话只需重新 prefill 自己的那条消息。适用于 GGML 后端上的 Gemma 4 与 Qwen 3.5/3.6。`0` 关闭。 |
+| `TS_PREFIX_CHECKPOINTS_MAX` | 同时保留 checkpoint 的不同共享前缀数量，按 LRU 淘汰（默认 `2`）。每个都持有该前缀的一份 K/V，Qwen 上还包括递归状态。 |
+| `TS_KV_INITIAL_TOKENS` | 缓存创建时（加载时的主缓存，以及每个按请求的 holder）在任何请求声明预算之前先分配多少 token 的 K/V。`0`（默认）沿用引擎策略：显式设置 `MAX_CONTEXT` 时取整个窗口，否则取后端默认值。缓存仍会按需增长，因此内存受限的设备应把它设小——每个保留的 holder 都要按这个大小付费，主机副本与设备镜像各一份。 |
+| `TS_KV_GENERATION_RESERVE_MAX` | 限制单个请求预先保留的 K/V 中属于生成的那部分（提示词 + `max_new_tokens`）。不设它时，回复长度上限达到或超过上下文窗口，就会让每个请求预留整个窗口。超过上限后缓存按需增长。`0`（默认）表示不限制。 |
+| `TS_KV_HOLDER_POOL_MAX` | 释放后的按请求 holder 最多可停放多少个以备复用，而不是直接释放（默认 `64`）。每个停放中的 holder 都占着它完整的 K/V 分配。 |
 | `TS_QWEN35_BATCHED` | 设为 `0` 强制 Qwen 3.5/3.6 走旧的按序列 KV-swap 路径（默认走批处理 / 分页）。`--no-continuous-batching` 也会隐式关闭。 |
 | `TS_QWEN35_BATCHED_GDN_NATIVE` | 在 Qwen 3.5/3.6 批处理路径中使用原生批处理 GatedDeltaNet 内核。 |
 | `TS_GEMMA4_BATCHED` | 设为 `0` 可强制 Gemma 4 走旧的单序列 KV 交换路径（默认走批处理 / 分页）。 |
@@ -1085,7 +1092,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/Wan2_2-TI2V-5B-Tur
     --prompt "the cat runs toward the camera, cinematic tracking shot" \
     --video-frames 121 --fps 24
 
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
     --backend ggml_metal --video-frames 121 --fps 24
 ```
 
@@ -1360,7 +1367,7 @@ down），外加一份完整的复制权重（归一化层、词嵌入、LM head
 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model <model.gguf> --backend cuda --tp 2
 
 # 服务端：同样的参数（也可用 TENSORSHARP_TP_DEGREE=2 环境变量）
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model <model.gguf> --backend cuda --tp 2
 
 # 配置文件 JSON
@@ -1388,7 +1395,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model <model.gguf> --backend cu
 # 其余每个节点都运行一个 TensorSharp.Cli worker，使用相同的模型、后端与 peer 列表。
 # TENSORSHARP_TP_* 环境变量同样可用。
 # 节点 0（服务端 / driver）：
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model <model.gguf> --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model <model.gguf> --backend cuda \
     --tp 2 --tp-node-id 0 --tp-peers "192.168.1.10:9500,192.168.1.11:9500"
 
 # 节点 1（CLI worker）：
@@ -1512,11 +1519,11 @@ P2P 的设备启用 peer access，随后做一次往返自检：部分拓扑（�
 
 ```bash
 # 同时为 KV 缓存与 Responses API 启用 Redis
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model <model.gguf> --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model <model.gguf> --backend cuda \
     --redis-url localhost:6379
 
 # 仅启用 KV 缓存层，TTL 设为 12 小时
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model <model.gguf> --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model <model.gguf> --backend cuda \
     --paged-kv-redis-url localhost:6379 --paged-kv-redis-ttl 720
 ```
 
@@ -1798,7 +1805,7 @@ Web UI 中每条助手消息下方的统计行也会展示命中率（例如 `18
 
 ## HTTP API
 
-TensorSharp.Server 暴露三种 API 风格。完整文档及 curl/Python 示例见 [API_EXAMPLES.md](TensorSharp.Server/API_EXAMPLES.md)。
+TensorSharp.Server 暴露三种 API 风格。完整文档及 curl/Python 示例见 [API_EXAMPLES.md](TensorSharp.Server.Host/API_EXAMPLES.md)。
 
 **兼容 Ollama 的 API：**
 

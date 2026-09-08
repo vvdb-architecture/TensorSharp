@@ -50,7 +50,7 @@ The solution build defaults to the `Any CPU` platform (`Directory.Solution.props
 dotnet build TensorSharp.Cli/TensorSharp.Cli.csproj
 
 # Web application
-dotnet build TensorSharp.Server/TensorSharp.Server.csproj
+dotnet build TensorSharp.Server.Host/TensorSharp.Server.Host.csproj
 ```
 
 ### Build the native GGML library
@@ -348,11 +348,18 @@ TensorSharp/
 
 ## Project / NuGet Package Boundaries
 
-The repository is split along package boundaries so consumers can depend on only the layers they actually need. **Status verified 2026-09-01:** [NuGet.org](https://www.nuget.org/profiles/TensorSharp) lists version **3.1.2** of `TensorSharp.Tensors`, `TensorSharp.Runtime`, `TensorSharp.Models`, `TensorSharp.Backends.GGML`, `TensorSharp.Backends.Cuda`, `TensorSharp.Backends.MLX`, `TensorSharp.Server`, and `TensorSharp.Cli`. Those packages lag the current source and v3.3.0.0 application release. `TensorSharp.AgentHost` and `TensorSharp.Distributed` remain buildable package projects but are not yet published, so consumers of those layers need project references from a source checkout.
+The repository is split along package boundaries so consumers can depend on only the layers they actually need.
+
+**Status verified 2026-09-08.** The publish set is **thirteen** packages — every row of the table below. `eng/verify-packages.ps1` is the authoritative list, and it gates the publish workflow, so adding a `ProjectReference` between two packable projects without updating that script fails the release.
+
+What is on [NuGet.org](https://www.nuget.org/profiles/TensorSharp) today is a subset: **eight** ids at version **3.1.2**, published 2026-07-21 — `TensorSharp.Tensors`, `TensorSharp.Runtime`, `TensorSharp.Models`, `TensorSharp.Backends.GGML`, `TensorSharp.Backends.Cuda`, `TensorSharp.Backends.MLX`, `TensorSharp.Server`, and `TensorSharp.Cli`. Those packages lag the current source and the v3.3.0.0 application release; in particular the published `TensorSharp.Server` predates the logging and chat splits, so it does not match the layering described here.
+
+The remaining five — `TensorSharp.Runtime.Logging`, `TensorSharp.AgentHost`, `TensorSharp.Chat`, `TensorSharp.Server.Host`, and `TensorSharp.Distributed` — are packable and verified but have never been pushed; they ship with the next version tag. Until then, consumers of those layers need project references from a source checkout.
 
 | Project | NuGet package | Public namespace | Responsibility |
 |---|---|---|---|
 | `TensorSharp.Core` | `TensorSharp.Tensors` | `TensorSharp` | Tensor primitives, ops, allocators, storage, and device abstraction |
+| `TensorSharp.Runtime.Logging` | `TensorSharp.Runtime.Logging` | `TensorSharp.Runtime.Logging` | Logging abstractions and sinks shared by every host, factored out so the engine layers do not carry a host's logging stack |
 | `TensorSharp.Runtime` | `TensorSharp.Runtime` | `TensorSharp.Runtime` | GGUF parsing, tokenizers, prompt rendering, sampling, output protocol parsing, paged KV cache, continuous-batching scheduler |
 | `TensorSharp.AgentHost` | `TensorSharp.AgentHost` | `TensorSharp.AgentHost` | Agent Skills and code execution (`read_file` + `edit_file` + `write_file` + `shell` + `apply_patch`) with OS sandboxing, per-Web/CLI-session and per-HTTP-request workspaces, and host-classified package installs — built on `TensorSharp.Runtime` |
 | `TensorSharp.Models` | `TensorSharp.Models` | `TensorSharp.Models` | `ModelBase`, architecture implementations, multimodal encoders, batched / paged forward passes, and model-side execution helpers |
@@ -362,6 +369,7 @@ The repository is split along package boundaries so consumers can depend on only
 | `TensorSharp.Distributed` | `TensorSharp.Distributed` | `TensorSharp.Distributed` | Peer-to-peer TCP coordination for multi-node tensor parallelism |
 | `TensorSharp.Chat` | `TensorSharp.Chat` | `TensorSharp.Chat` (new types); the moved pipeline keeps its `TensorSharp.Server.*` namespaces | Host-neutral chat pipeline: `ModelService`, sessions, generation, the skills loop and the Web UI request/stream contract (`WebUiChatService`, `SkillsService`) — no ASP.NET Core, no `TensorSharp.Distributed`; shared by the Server, the CLI and the iOS app |
 | `TensorSharp.Server` | `TensorSharp.Server` | `TensorSharp.Server` | ASP.NET Core server, OpenAI/Ollama adapters, HTTP transport over TensorSharp.Chat, web UI |
+| `TensorSharp.Server.Host` | `TensorSharp.Server.Host` | `TensorSharp.Server.Host` | The **runnable** web application: `Program.cs`, host wiring, `wwwroot/`, and the command line. `TensorSharp.Server` is the library it builds on — building or running `TensorSharp.Server` alone produces no executable |
 | `TensorSharp.Cli` | `TensorSharp.Cli` | `TensorSharp.Cli` | Console host and debugging / batch tooling |
 
 This split keeps engine users off the web stack, keeps API-layer changes from leaking into core/runtime packages, and makes future benchmark or eval-harness projects easier to publish independently.
@@ -578,7 +586,7 @@ python3 TensorSharp.Server/testdata/test_multiturn.py
 bash TensorSharp.Server/testdata/test_multiturn.sh
 ```
 
-See [TensorSharp.Server/testdata/README.md](TensorSharp.Server/testdata/README.md) for the full test matrix.
+See [TensorSharp.Server.Host/testdata/README.md](TensorSharp.Server.Host/testdata/README.md) for the full test matrix.
 
 ### Inference matrix runner
 

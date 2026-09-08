@@ -38,7 +38,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/minimax_h3_fl2va_p
   <p>Or name all four networks in a config file and let the first run fetch them — <code>config/minimax-h3-fl2va.json</code> for keyframes, <code>config/minimax-h3-ref2va.json</code> for references. Only the <code>model</code> entry differs between the two, so the text encoder and both VAEs download once and are shared (~33.5 GB in total). The tokenizer pair above is the one thing auto-download cannot fetch, because it is not a flag:</p>
   <pre data-lang="bash"><code>dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --config config/minimax-h3-fl2va.json \
     --prompt "a red fox trotting through falling snow, cinematic" --output fox.mp4
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/minimax-h3-ref2va.json</code></pre>
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/minimax-h3-ref2va.json</code></pre>
 
   <h3 id="h3-modes">What an image means</h3>
   <p>An image can mean two completely different things to H3, and they use <strong>different checkpoints</strong>. The mode is inferred from what you pass; <code>--video-mode</code> states it explicitly.</p>
@@ -143,7 +143,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/minimax_h3_ref2va_
 
   <h3 id="h3-server">Serving it</h3>
   <p>On the server, size is a <strong>startup flag</strong>, because the browser sends none of its own: <code>--video-width 640 --video-height 384 --video-steps 20</code> is the documented starting point (<code>--width</code> / <code>--height</code> are accepted aliases, and if only one is given H3 takes the other from the conditioning image's aspect ratio). <code>--video-mode</code> pins the conditioning mode for a deployment that offers only one; omit it and every request infers its own. <code>--video-frames</code>, <code>--fps</code>, <code>--video-vae</code>, <code>--video-text-encoder</code> and <code>--audio-vae</code> complete the set. The server has no <code>--cfg</code> at all, which is why the shipped configs set neither steps nor guidance.</p>
-  <pre data-lang="bash"><code>dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/minimax_h3_fl2va_pruned-Q4_K.gguf \
+  <pre data-lang="bash"><code>dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/minimax_h3_fl2va_pruned-Q4_K.gguf \
     --backend ggml_metal --video-width 640 --video-height 384 --video-steps 20 --video-frames 22
 
 curl -s http://localhost:5000/api/video-generate -H 'content-type: application/json' -d '{
@@ -171,7 +171,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/Wan2_2-TI2V-5B-Tur
     --video-text-encoder models/umt5-xxl-encoder-Q8_0.gguf --video-vae models/VAE/Wan2.2_VAE.safetensors \
     --image first_frame.png --prompt "the camera pushes in as the waves rise" \
     --output out.mp4 --backend ggml_cuda
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
     --video-text-encoder models/umt5-xxl-encoder-Q8_0.gguf --video-vae models/VAE/Wan2.2_VAE.safetensors \
     --backend ggml_cuda --video-frames 121 --fps 24</code></pre>
   <p>At load the console confirms the detection with <code>step-distilled checkpoint detected -&gt; 4 steps, guidance off (--diffusion-steps / --cfg override)</code>. Measured on an M5 Pro with <code>ggml_metal</code>, a 1088×832 × 121-frame (5 s, 720p-class) image-to-video request costs 100 DiT passes ≈ <strong>3 h 30 m</strong> on the base checkpoint and 4 passes = <strong>17 m 30 s</strong> on the Turbo one — the same flags, the same resolution, only the <code>--model</code> path differs. At 480p (736×544 × 121f) the Turbo checkpoint finishes in <strong>6 m 19 s</strong>.</p>

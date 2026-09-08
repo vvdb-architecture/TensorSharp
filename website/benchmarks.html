@@ -50,6 +50,23 @@
 
   <div class="callout note"><div class="ic">⚖️</div><p>An honest comparison shows the gaps as well as the wins. These figures are one machine (RTX 3080 Laptop, single-stream); your hardware, model, and quantization will shift them. Run the built-in benchmark and the engine-comparison harness on your own box for the numbers that matter to you.</p></div>
 
+  <h2 id="metal">Apple Silicon: ggml_metal vs llama.cpp</h2>
+  <p><code>ggml_metal</code> is the production backend on macOS and iOS, so it is measured against <code>llama.cpp</code> the same way. On an <strong>Apple M5 Pro (20-core GPU, 48 GB, macOS 26.6)</strong>, both engines run the same GGUF back to back under <code>caffeinate</code> on an idle machine — <code>TensorSharp.Cli --backend ggml_metal --benchmark</code> against <code>llama-bench</code>, three reps each.</p>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Model (Q8_0 unless noted)</th><th>pp2048</th><th>pp8192</th><th>tg128</th><th>tg128@4096</th></tr></thead>
+    <tbody>
+      <tr><td>Qwen3.5-9B</td><td>0.98×</td><td>0.91×</td><td><strong>1.04×</strong></td><td><strong>1.05×</strong></td></tr>
+      <tr><td>gemma-4-E4B</td><td>0.96×</td><td>0.94×</td><td>0.95×</td><td>0.96×</td></tr>
+      <tr><td>gemma-4-E2B</td><td><strong>1.06×</strong></td><td><strong>1.00×</strong></td><td>0.93×</td><td>0.95×</td></tr>
+      <tr><td>Qwen3.6-35B-A3B IQ2_XXS</td><td><strong>1.10×</strong></td><td>0.98×</td><td><strong>1.10×</strong></td><td><strong>1.08×</strong></td></tr>
+      <tr><td>gpt-oss-20b</td><td><strong>1.13×</strong></td><td><strong>1.11×</strong></td><td>0.93×</td><td>0.93×</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Ratios are TensorSharp relative to llama.cpp; <strong>&gt; 1.0× means TensorSharp is faster</strong>. The run found four graph-construction gaps on TensorSharp's side — a residual add written in the order that declines ggml's norm+add fusion, a fused QKV split with copies instead of strided views, and a saturated sliding window read rotated and rebuilt every token — worth up to <strong>+12.6%</strong> on a single cell (gemma-4-E4B tg128@4096) with no cell regressing. It also records two changes that did <em>not</em> pay, so they are not retried. Full method, per-cell numbers, and the correctness bug found on the way: <a href="https://github.com/zhongkaifu/TensorSharp/blob/main/docs/perf/metal-vs-llama-cpp.md" target="_blank" rel="noopener"><code>docs/perf/metal-vs-llama-cpp.md</code></a>.</p>
+  <div class="callout note"><div class="ic">🔬</div><p>The two engines carry different <code>ggml</code> checkouts here (TensorSharp's is ~2 weeks newer). That confound favours TensorSharp, which is why the conclusions in that note are about TensorSharp's own graph construction rather than about <code>ggml</code>.</p></div>
+
   <h2 id="muse-glimmer">Muse-Glimmer 30B, with and without DFlash</h2>
   <p>A separate, hand-run comparison on different hardware: <strong>one RTX PRO 6000 Blackwell (96 GB)</strong>, <code>Muse-Glimmer-30B-Q8_0</code>, greedy on both sides, 128 generated tokens, two reps with the engines alternating, and — importantly — <strong>the same token sequence on both sides</strong> (TensorSharp's rendered chat prompt is handed to <code>llama-cli -no-cnv</code>, and <code>llama-tokenize</code> confirms the counts match). llama.cpp is master <code>8e7f22b</code>, within a day of TensorSharp's vendored ggml.</p>
   <div class="table-scroll">

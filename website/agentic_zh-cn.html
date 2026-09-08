@@ -30,8 +30,20 @@
   <div class="callout note"><div class="ic">🎯</div><p><strong>当前范围是单个模型与单条进程内工具循环。</strong>TensorSharp 不会生成多个智能体，也不会把任务委派给子智能体；每条命令执行前也没有交互式审批队列。运维方在 CLI 或服务器启动时授予或拒绝技能、脚本执行、代码执行、联网与安装能力；之后内置工具只能按该策略运行，否则拒绝。</p></div>
 
   <h2 id="ios">iPhone 与 iPad 上的 TensorAgent</h2>
-  <p><strong>TensorAgent</strong> 将本地聊天与智能体体验打包为 .NET MAUI iOS/iPadOS 应用。引擎以 iOS <code>.xcframework</code> 静态链接，在真机上使用 <code>ggml_metal</code>。应用与 CLI、服务端共享与宿主无关的聊天流水线；由于 iOS 没有 ASP.NET Core runtime pack，UI 通过进程内 loopback server 提供。</p>
-  <p>模型支持断点续传与 SHA-256 校验并下载到设备；会话可跨应用重启保留；照片、相机、视频、文件和听写使用同一套聊天附件流程。由于 iOS 不能启动子进程，TensorAgent 的 shell、Python 与 JavaScript 集成由运行时提供，并明确报告能力边界。构建与模拟器验证见 <a href="../TensorAgent/README.md">TensorAgent README</a>。</p>
+  <p><strong>TensorAgent</strong> 将本地聊天与智能体体验打包为 .NET MAUI iOS/iPadOS 应用。引擎以 iOS <code>.xcframework</code> 静态链接，在真机上使用 <code>ggml_metal</code>。应用与 CLI、服务端共享与宿主无关的聊天流水线（<code>TensorSharp.Chat</code>）；由于 iOS 没有 ASP.NET Core runtime pack，UI 通过进程内 loopback server 提供。共享的是 API 而不是页面：手机上是它自己的页面，按拇指而不是鼠标与宽窗口来排布，但绑定同一套 <code>WebUiChatService</code> 与 <code>SkillsService</code> 路由。</p>
+  <p>模型支持断点续传与 SHA-256 校验并下载到设备；会话可跨应用重启保留；照片、相机、视频、文件和听写使用同一套聊天附件流程。由于 iOS 不能启动子进程，TensorAgent 的 shell、Python 与 JavaScript 集成由运行时提供，并明确报告能力边界。</p>
+  <p>手机相对桌面多出三条约束，以及应用对每一条的处理：</p>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>约束</th><th>应用的处理</th></tr></thead>
+    <tbody>
+      <tr><td>回答过程中屏幕被切走</td><td>生成过程归宿主侧的管理器所有，而不属于 WebView——视图离开窗口后 WebKit 会挂起该页面。应用切到后台时这一轮继续生成，返回时页面重新挂接上去。</td></tr>
+      <tr><td>每次启动的第一条消息都要为整段共享前缀买单</td><td>所有会话共享的那段提示词末尾的状态，会按模型持久化到磁盘，并在下次启动时于准入阶段恢复。在 iPhone 17 Pro Max 上以 Qwen3.5 9B 实测：原本 54 秒的冷启动首条消息，变成 1.2 秒预热加约 0.6 秒的首条消息。</td></tr>
+      <tr><td>iOS jetsam 杀进程时既无栈也无消息</td><td>引擎的内存策略按 jetsam 实际计费的口径设定——被 wire 住的文件页算在设备头上而不是进程头上——因此缓存从小起步按需增长，单个请求只预留有界的回复长度，收到内存警告时释放那些只为下一次请求提速的部分。</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>构建、模拟器、真机与验证步骤见 <a href="https://github.com/zhongkaifu/TensorSharp/blob/main/TensorAgent/README.md" target="_blank" rel="noopener">TensorAgent README</a>。</p>
 
   <h2 id="skills">Agent Skills 与渐进式披露</h2>
   <p>一个技能就是一个目录：必需的 <code>SKILL.md</code>，加上说明会用到的脚本、参考资料与素材。TensorSharp 遵循 Agent Skills 规范，可直接加载公开技能仓库，无需改写其目录布局。</p>

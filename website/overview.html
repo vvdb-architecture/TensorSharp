@@ -39,7 +39,7 @@
   </div>
 
   <h2 id="architecture">Architecture</h2>
-  <p>TensorSharp is a layered system. Each layer is an independently packable project, so source consumers can reference only what they need. The established TensorSharp package IDs are available on NuGet.org through <code>3.1.2</code>, but those packages lag the current source tree and release; <code>TensorSharp.AgentHost</code> and <code>TensorSharp.Distributed</code> have not yet been published.</p>
+  <p>TensorSharp is a layered system. Each layer is an independently packable project, so source consumers can reference only what they need. The publish set is thirteen packages, verified by <code>eng/verify-packages.ps1</code>. Eight of them are on NuGet.org at <code>3.1.2</code> (verified 2026-09-08), and those lag the current source tree and release; <code>TensorSharp.Runtime.Logging</code>, <code>TensorSharp.AgentHost</code>, <code>TensorSharp.Chat</code>, <code>TensorSharp.Server.Host</code>, and <code>TensorSharp.Distributed</code> have not yet been published.</p>
   <div class="table-scroll">
   <table>
     <thead><tr><th>Layer</th><th>Responsibility</th></tr></thead>

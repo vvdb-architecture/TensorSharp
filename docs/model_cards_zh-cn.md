@@ -25,8 +25,9 @@
 | Gemma 4 | `gemma4` | 稠密与 MoE 的文本 + 图像 + 视频 + 音频对话，支持思维链与工具调用；通过独立 `gemma4-assistant` 草稿 GGUF 支持 MTP 投机解码 | [models/gemma4_zh-cn.md](models/gemma4_zh-cn.md) | [models/gemma4.md](models/gemma4.md) |
 | DiffusionGemma | `diffusion-gemma`、`diffusion_gemma` | 文本**扩散**生成——用 EntropyBound 去噪采样器取代自回归 decode | [models/diffusiongemma_zh-cn.md](models/diffusiongemma_zh-cn.md) | [models/diffusiongemma.md](models/diffusiongemma.md) |
 | Qwen 3.5 / 3.6 family | `qwen35`、`qwen35moe`、`qwen3next` | 全注意力 + GatedDeltaNet 混合的文本 + 图像对话，稠密或 MoE；Qwen 3.6 内嵌 NextN 草稿块用于投机解码 | [models/qwen35_zh-cn.md](models/qwen35_zh-cn.md) | [models/qwen35.md](models/qwen35.md) |
+| Bonsai Q1_0 | `qwen3`（8B）、`qwen35`（27B） | 两个哈希钉住、仅支持本地旁加载的 Q1_0 文件：名字相同但架构不同——一个是稠密 Qwen 3 解码器，一个是稠密 Qwen 3.5 混合架构。仅文本 | [models/bonsai_zh-cn.md](models/bonsai_zh-cn.md) | [models/bonsai.md](models/bonsai.md) |
 | GPT OSS | `gptoss`、`gpt-oss` | 带 attention sinks 的 MXFP4 MoE 文本模型，使用 Harmony 思维链 / 工具格式 | [models/gptoss_zh-cn.md](models/gptoss_zh-cn.md) | [models/gptoss.md](models/gptoss.md) |
-| Nemotron-H | `nemotron_h`、`nemotron_h_moe` | Mamba2 SSM + 注意力 +（MoE）FFN 混合文本模型；Omni 版本增加图像输入 | [models/nemotron_zh-cn.md](models/nemotron_zh-cn.md) | [models/nemotron.md](models/nemotron.md) |
+| Nemotron-H | `nemotron_h`、`nemotron_h_moe` | Mamba2 SSM + 注意力 +（MoE）FFN 混合文本模型；Omni 版本增加图像输入，Nemotron 3.5 Lightning 则通过独立的 `--draft-model` GGUF 支持 DSpark Markov 头块级投机解码 | [models/nemotron_zh-cn.md](models/nemotron_zh-cn.md) | [models/nemotron.md](models/nemotron.md) |
 | Mistral 3 | `mistral3` | 稠密文本 + 图像对话，YaRN 校正 RoPE 与 Pixtral 视觉编码器 | [models/mistral3_zh-cn.md](models/mistral3_zh-cn.md) | [models/mistral3.md](models/mistral3.md) |
 | Muse-Glimmer | `muse-glimmer`、`muse_glimmer` | 交错滑动窗口的文本 + 图像对话，支持思维链与 ATEM 工具调用；通过独立 `--draft-model` GGUF 支持 DFlash 块级投机解码 | [models/muse-glimmer_zh-cn.md](models/muse-glimmer_zh-cn.md) | [models/muse-glimmer.md](models/muse-glimmer.md) |
 | Qwen-Image-Edit | `qwen_image`、`qwen-image` | **图像编辑**——提示词 + 输入图像 → 编辑后的图像，走 60 块 MMDiT 扩散循环；Lightning LoRA 可把 60 次 DiT 前向降到 4–8 次 | [models/qwenimage_zh-cn.md](models/qwenimage_zh-cn.md) | [models/qwenimage.md](models/qwenimage.md) |
