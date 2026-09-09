@@ -67,6 +67,12 @@ Never compare two rows' prices without it, and never drop it when you quote a ro
 across exchanges. If the session is not open it says so — "last market closed
 price" — and then "today" in a title means the last close, not a live price.
 
+**A long `--quote` can run out of time.** Each symbol is its own request, and the
+run keeps a budget inside the tool's timeout so a few slow symbols cannot cost you
+the whole answer. If it runs out, the table holds the symbols that answered and a
+note names the ones left out; ask for those in a second run rather than repeating
+the whole list.
+
 **One moment, not a history.** These are prices as the source last stamped them.
 It is not a portfolio, a history, a forecast, or advice, and nothing here should
 be presented as any of those.

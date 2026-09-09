@@ -124,6 +124,34 @@ namespace TensorSharp.Server.Skills
         public bool IsEmpty => Prompt.IsEmpty && !ToolsOffered;
 
         /// <summary>
+        /// How much text one <c>skills_read</c> may return, for a model with
+        /// <paramref name="contextTokens"/> of context.
+        ///
+        /// <para>
+        /// The flat 48 KB default is a quarter of a 48k-token context and TWICE the
+        /// whole context of an 8k one. Observed: a model with an 8,192-token window read
+        /// a 17 KB SKILL.md, and the next round threw
+        /// <c>PromptContextOverflowException</c> — "the protected prompt requires 10572
+        /// tokens" — which ends the turn outright, discarding six rounds of work whose
+        /// data was already fetched. The cap is therefore a quarter of the context, the
+        /// same share <see cref="SkillPromptOptions.ResolvedBlockTokens"/> gives skill
+        /// bodies, converted at the project's four-bytes-per-token approximation; a
+        /// truncated read still tells the model how to continue from an offset.
+        /// </para>
+        /// <para>
+        /// A model big enough for the old default keeps it exactly: 48k tokens and up
+        /// are unchanged.
+        /// </para>
+        /// </summary>
+        internal static int ReadCapFor(int contextTokens)
+        {
+            if (contextTokens <= 0)
+                return SkillTools.DefaultMaxReadBytes;
+            long bytes = (long)(contextTokens / 4) * SkillTextBudget.BytesPerToken;
+            return (int)Math.Clamp(bytes, 8 * 1024, SkillTools.DefaultMaxReadBytes);
+        }
+
+        /// <summary>
         /// Default rounds for a plan that can also RUN code.
         ///
         /// <para>
@@ -305,7 +333,7 @@ namespace TensorSharp.Server.Skills
             if (workspace != null && offerTools)
                 DescribeSharedWorkspace(tools, codeRunner);
 
-            var context = new SkillToolContext(prompt.Reachable.ToList())
+            var context = new SkillToolContext(prompt.Reachable.ToList(), ReadCapFor(contextTokens))
             {
                 ScriptRunner = options.SkillsAllowScripts && offerTools
                     ? new SkillScriptRunner(new SkillScriptRunnerOptions

@@ -70,11 +70,35 @@
          identity + profile passed on the command line (-p:CodesignKey=...). -->
     <CodesignKey Condition="$(RuntimeIdentifier.Contains('simulator'))">-</CodesignKey>
 
+    <!-- The extension can be disabled for a build that intentionally wants the old
+         app-only bundle. When enabled, its App Group is mandatory: custom URL schemes
+         are neither private nor durable enough to carry user-shared content. -->
+    <TensorAgentShareExtension Condition="'$(TensorAgentShareExtension)' == ''">true</TensorAgentShareExtension>
+
     <!-- The jetsam-budget entitlements are device-only: the simulator has no
-         memory limit and CompileEntitlements must not emit codesign
-         entitlements for simulator builds. -->
-    <CodesignEntitlements Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">Platforms/iOS/Entitlements.plist</CodesignEntitlements>
+         memory limit. CodesignEntitlements takes precedence over CustomEntitlements
+         in the device build, so the sharing variant must carry the App Group itself;
+         otherwise the build looks correct in XML but GetContainerUrl returns null on
+         a phone. The app-only escape hatch keeps using the legacy profile. -->
+    <CodesignEntitlements Condition="'$(RuntimeIdentifier)' == 'ios-arm64' AND '$(TensorAgentShareExtension)' == 'true'">Platforms/iOS/Entitlements.Share.plist</CodesignEntitlements>
+    <CodesignEntitlements Condition="'$(RuntimeIdentifier)' == 'ios-arm64' AND '$(TensorAgentShareExtension)' != 'true'">Platforms/iOS/Entitlements.plist</CodesignEntitlements>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(TensorAgentShareExtension)' == 'true'">
+    <CustomEntitlements Include="com.apple.security.application-groups"
+                        Type="StringArray"
+                        Value="group.ai.tensorsharp.tensoragent" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TensorAgentShareExtension)' == 'true'">
+    <!-- IsAppExtension metadata makes the iOS SDK build and embed an .appex instead
+         of treating this as a managed assembly reference. The extension needs its own
+         provisioning profile on device; never pass the containing app's exact profile. -->
+    <ProjectReference Include="../TensorAgent.ShareExtension/TensorAgent.ShareExtension.csproj">
+      <IsAppExtension>true</IsAppExtension>
+      <AdditionalProperties>CodesignProvision=$(TensorAgentShareProvision)</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
 
   <ItemGroup>
     <MauiIcon Include="Resources/AppIcon/appicon.svg" ForegroundFile="Resources/AppIcon/appiconfg.svg" Color="#0b1220" />
@@ -195,6 +219,7 @@
     <ProjectReference Include="../../../TensorSharp.AgentHost/TensorSharp.AgentHost.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
     <ProjectReference Include="../../../TensorSharp.Chat/TensorSharp.Chat.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
     <ProjectReference Include="../TensorAgent.Core/TensorAgent.Core.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../TensorAgent.Sharing/TensorAgent.Sharing.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -206,6 +231,7 @@
     <TrimmerRootAssembly Include="TensorSharp.AgentHost" />
     <TrimmerRootAssembly Include="TensorSharp.Chat" />
     <TrimmerRootAssembly Include="TensorAgent.Core" />
+    <TrimmerRootAssembly Include="TensorAgent.Sharing" />
   </ItemGroup>
 
   <ItemGroup>

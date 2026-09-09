@@ -609,6 +609,302 @@ public sealed class WebUiPageTests : IDisposable
         Assert.Contains("[End of file]", content, StringComparison.Ordinal);
     }
 
+    // =====================================================================================
+    // content shared into the app
+    // =====================================================================================
+
+    [Fact]
+    public void AShareWaitsForLaunchThenPreservesTheDraftAndAppliesEveryValidPart()
+    {
+        JsonElement result = Run("""
+            document.getElementById('text').value = 'Keep this draft  ';
+            R['/api/agent/share/claim'] = function () {
+              return { share: {
+                id: 'share-1',
+                text: 'What can you tell me about this?\n\nShared text:\n\u0022\u0022\u0022\nこんにちは 🌍\nsecond line\n\u0022\u0022\u0022',
+                attachments: [
+                  { ok: true, file: 'shared.png', fileName: '旅行.png', mediaType: 'image', url: '/uploads/shared.png' },
+                  { ok: true, file: 'shared.txt', fileName: 'notes.txt', mediaType: 'text', url: '/uploads/shared.txt', textContent: 'café\nline two' },
+                  { ok: false, error: 'broken.mov was not attached.' }
+                ],
+                notices: ['Only part of the page text fit.'],
+                title: 'Travel note',
+                newChat: true
+              } };
+            };
+            """, """
+            return {
+              text: __page.byId['text'].value,
+              attachments: window.TensorAgent.attachmentCount(),
+              chips: __page.byId['chips'].querySelectorAll('.chip').map(function (c) { return c.textContent; }),
+              notices: __page.byId['chat'].textContent,
+              sent: __page.requests('/api/chat').length,
+              calls: __page.calls.map(function (c) {
+                return { path: c.path, method: c.method, type: c.body && c.body.type };
+              })
+            };
+            """);
+
+        const string shared = "What can you tell me about this?\n\nShared text:\n\"\"\"\nこんにちは 🌍\nsecond line\n\"\"\"";
+        Assert.Equal("Keep this draft " + shared, result.GetProperty("text").GetString());
+        Assert.Equal(2, result.GetProperty("attachments").GetInt32());
+        Assert.Equal(new[] { "↗Travel note✕", "旅行.png✕", "📄notes.txt✕" },
+            result.GetProperty("chips").EnumerateArray().Select(c => c.GetString()).ToArray());
+        Assert.Contains("Only part of the page text fit.", result.GetProperty("notices").GetString(), StringComparison.Ordinal);
+        Assert.Contains("broken.mov was not attached.", result.GetProperty("notices").GetString(), StringComparison.Ordinal);
+        Assert.Equal(0, result.GetProperty("sent").GetInt32());
+
+        var calls = result.GetProperty("calls").EnumerateArray().ToList();
+        int launchSession = calls.FindIndex(c => c.GetProperty("path").GetString() == "/api/sessions");
+        int ready = calls.FindIndex(c =>
+            c.GetProperty("path").GetString() == "/api/agent/events" &&
+            c.TryGetProperty("type", out JsonElement type) && type.GetString() == "ready");
+        int claim = calls.FindIndex(c => c.GetProperty("path").GetString() == "/api/agent/share/claim");
+        int shareSession = calls.FindIndex(claim + 1, c => c.GetProperty("path").GetString() == "/api/sessions");
+        Assert.True(launchSession >= 0 && launchSession < ready && ready < claim && claim < shareSession,
+            "startup must open its launch chat, announce ready, claim, then await the share's new chat");
+        Assert.Equal("POST", calls[claim].GetProperty("method").GetString());
+        Assert.DoesNotContain(calls, c => c.GetProperty("path").GetString() == "/api/agent/share/ack");
+    }
+
+    [Fact]
+    public void RepeatedClaimsAndConcurrentNudgesDoNotDuplicateAnAppliedShare()
+    {
+        JsonElement result = Run("""
+            document.getElementById('text').value = 'base';
+            R['/api/agent/share/claim'] = function () {
+              return { share: {
+                id: 'share-retry', text: 'shared once', newChat: false,
+                attachments: [{ ok: true, file: 'one.pdf', fileName: 'one.pdf', mediaType: 'text', url: '/uploads/one.pdf' }]
+              } };
+            };
+            """, """
+            var claimsBefore = __page.requests('/api/agent/share/claim').length;
+            var hostAnswer = window.TensorAgent.__fromHost('takeShare', 'e30=');
+            document.dispatch('visibilitychange', {});
+            var immediateClaims = __page.requests('/api/agent/share/claim').length - claimsBefore;
+            return settle(20).then(function () {
+              return {
+                hostAnswer: hostAnswer,
+                immediateClaims: immediateClaims,
+                claims: __page.requests('/api/agent/share/claim').length - claimsBefore,
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                sharedChips: __page.byId['chips'].querySelectorAll('.shared').length,
+                sent: __page.requests('/api/chat').length
+              };
+            });
+            """);
+
+        Assert.Equal("ok", result.GetProperty("hostAnswer").GetString());
+        Assert.Equal(1, result.GetProperty("immediateClaims").GetInt32());
+        Assert.InRange(result.GetProperty("claims").GetInt32(), 1, 2);
+        Assert.Equal("base shared once", result.GetProperty("text").GetString());
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+        Assert.Equal(1, result.GetProperty("sharedChips").GetInt32());
+        Assert.Equal(0, result.GetProperty("sent").GetInt32());
+    }
+
+    [Fact]
+    public void AShareIsNotAppliedUntilItsRequestedNewChatOpensSuccessfully()
+    {
+        JsonElement result = Run("""
+            document.getElementById('text').value = 'draft';
+            var opens = 0;
+            R['/api/sessions?conversation=new'] = function () {
+              opens++;
+              if (opens === 2) return { __status: 500, body: { error: 'not yet' } };
+              return { sessionId: 's' + opens, conversationId: 'c' + opens, messages: [], think: false, skills: [] };
+            };
+            R['/api/agent/share/claim'] = function () {
+              return { share: { id: 'share-new-chat', text: 'the shared text', attachments: [], newChat: true } };
+            };
+            """, """
+            var before = {
+              text: __page.byId['text'].value,
+              sharedChips: __page.byId['chips'].querySelectorAll('.shared').length
+            };
+            window.TensorAgent.takeShare();
+            return settle(20).then(function () {
+              return {
+                before: before,
+                after: {
+                  text: __page.byId['text'].value,
+                  attachments: window.TensorAgent.attachmentCount(),
+                  sharedChips: __page.byId['chips'].querySelectorAll('.shared').length
+                }
+              };
+            });
+            """);
+
+        Assert.Equal("draft", result.GetProperty("before").GetProperty("text").GetString());
+        Assert.Equal(0, result.GetProperty("before").GetProperty("sharedChips").GetInt32());
+        Assert.Equal("draft the shared text", result.GetProperty("after").GetProperty("text").GetString());
+        Assert.Equal(0, result.GetProperty("after").GetProperty("attachments").GetInt32());
+        Assert.Equal(1, result.GetProperty("after").GetProperty("sharedChips").GetInt32());
+    }
+
+    [Fact]
+    public void AShareNeverAutoSendsEvenIfALegacyPayloadRequestsIt()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/share/claim'] = function () {
+              return { share: { id: 'share-send', text: 'Send this shared text', attachments: [], newChat: false, autoSend: true } };
+            };
+            R['/api/chat'] = { __sse: [{ token: 'Done.' }, { done: true, truncated: false }] };
+            """, """
+            return {
+              sent: __page.requests('/api/chat').map(function (c) { return c.body; }),
+              text: __page.byId['text'].value,
+              sharedChips: __page.byId['chips'].querySelectorAll('.shared').length
+            };
+            """);
+
+        Assert.Empty(result.GetProperty("sent").EnumerateArray());
+        Assert.Equal("Send this shared text", result.GetProperty("text").GetString());
+        Assert.Equal(1, result.GetProperty("sharedChips").GetInt32());
+    }
+
+    [Fact]
+    public void NavigationPreservesSharedTextAttachmentAndIdUntilTheyAreSent()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/share/claim'] = function () {
+              return { share: { id: 'share-nav', text: 'shared across chats', title: 'Shared article', newChat: false,
+                attachments: [{ ok: true, file: 'article.png', fileName: 'article.png', mediaType: 'image', url: '/uploads/article.png' }] } };
+            };
+            R['/api/sessions?conversation=saved'] = { sessionId: 's2', conversationId: 'saved',
+              messages: [{ role: 'user', content: 'an older question' }], think: false, skills: [] };
+            R['/api/chat'] = { __sse: [{ token: 'Done.' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.openConversation('saved');
+            return settle(10).then(function () {
+              var preserved = {
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                sharedChips: __page.byId['chips'].querySelectorAll('.shared').length
+              };
+              __page.byId['send'].dispatch('click');
+              return settle(10).then(function () {
+                return {
+                  preserved: preserved,
+                  sent: __page.requests('/api/chat').map(function (c) { return c.body; })
+                };
+              });
+            });
+            """);
+
+        JsonElement preserved = result.GetProperty("preserved");
+        Assert.Equal("shared across chats", preserved.GetProperty("text").GetString());
+        Assert.Equal(1, preserved.GetProperty("attachments").GetInt32());
+        Assert.Equal(1, preserved.GetProperty("sharedChips").GetInt32());
+
+        JsonElement request = Assert.Single(result.GetProperty("sent").EnumerateArray());
+        Assert.Equal(new[] { "share-nav" }, Strings(request, "shareIds"));
+        JsonElement message = request.GetProperty("messages")[1];
+        Assert.Equal(new[] { "article.png" }, Strings(message, "stillImagePaths"));
+        Assert.Contains("shared across chats", message.GetProperty("content").GetString()!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExplicitDiscardRemovesOnlyTheTrackedSharedDraft()
+    {
+        JsonElement result = Run("""
+            document.getElementById('text').value = 'keep me';
+            R['/api/agent/share/claim'] = function () {
+              return { share: { id: 'share-discard', text: 'remove me', title: 'Disposable', newChat: false,
+                attachments: [{ ok: true, file: 'discard.png', fileName: 'discard.png', mediaType: 'image', url: '/uploads/discard.png' }] } };
+            };
+            R['/api/agent/share/discard'] = function () { return { ok: true }; };
+            """, """
+            __page.byId['text'].value += ' typed later';
+            var shared = __page.byId['chips'].querySelector('.shared');
+            shared.querySelector('button').dispatch('click');
+            return settle(10).then(function () {
+              return {
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                sharedChips: __page.byId['chips'].querySelectorAll('.shared').length,
+                discards: __page.requests('/api/agent/share/discard').map(function (c) { return c.body.id; }),
+                sent: __page.requests('/api/chat').length
+              };
+            });
+            """);
+
+        Assert.Equal("keep me typed later", result.GetProperty("text").GetString());
+        Assert.Equal(0, result.GetProperty("attachments").GetInt32());
+        Assert.Equal(0, result.GetProperty("sharedChips").GetInt32());
+        Assert.Equal(new[] { "share-discard" }, Strings(result, "discards"));
+        Assert.Equal(0, result.GetProperty("sent").GetInt32());
+    }
+
+    [Fact]
+    public void IndependentQueuedSharesUseDifferentFreshChatsAndNeverMerge()
+    {
+        JsonElement result = Run("""
+            var offered = 0;
+            var sessionOpens = 0;
+            R['/api/sessions?conversation=new'] = function () {
+              sessionOpens++;
+              return { sessionId: 's' + sessionOpens, conversationId: 'c' + sessionOpens,
+                messages: [], think: false, skills: [] };
+            };
+            var shares = [
+              // Version-1 envelopes could opt out of a new chat. An envelope boundary
+              // is authoritative now, so even these legacy values must stay separate.
+              { id: 'share-a', text: 'first', title: 'First', newChat: false,
+                attachments: [{ ok: true, file: 'a.txt', fileName: 'a.txt', mediaType: 'text',
+                  textContent: 'first attachment', url: '/uploads/a.txt' }] },
+              { id: 'share-b', text: 'second', title: 'Second', newChat: false,
+                attachments: [{ ok: true, file: 'b.png', fileName: 'b.png', mediaType: 'image', url: '/uploads/b.png' }] }
+            ];
+            R['/api/agent/share/claim'] = function () { return { share: shares[offered] || null }; };
+            R['/api/chat'] = function () {
+              offered = 1;
+              return { __sse: [{ token: 'Answer.' }, { done: true, truncated: false }] };
+            };
+            """, """
+            var claimsBeforeSend = __page.requests('/api/agent/share/claim').length;
+            __page.byId['send'].dispatch('click');
+            var sent = __page.requests('/api/chat')[0].body;
+            window.TensorAgent.takeShare();
+            var whileGenerating = {
+              generating: window.TensorAgent.isGenerating(),
+              claims: __page.requests('/api/agent/share/claim').length,
+              text: __page.byId['text'].value
+            };
+            return settle(20).then(function () {
+              return {
+                claimsBeforeSend: claimsBeforeSend,
+                whileGenerating: whileGenerating,
+                sent: sent,
+                sessionOpens: sessionOpens,
+                finalClaims: __page.requests('/api/agent/share/claim').length,
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+                history: window.TensorAgent.history(),
+                chips: __page.byId['chips'].querySelectorAll('.shared').map(function (c) { return c.textContent; })
+              };
+            });
+            """);
+
+        JsonElement during = result.GetProperty("whileGenerating");
+        Assert.True(during.GetProperty("generating").GetBoolean());
+        Assert.Equal(result.GetProperty("claimsBeforeSend").GetInt32(), during.GetProperty("claims").GetInt32());
+        Assert.Equal(string.Empty, during.GetProperty("text").GetString());
+        Assert.Equal(new[] { "share-a" }, Strings(result.GetProperty("sent"), "shareIds"));
+        Assert.Equal("s2", result.GetProperty("sent").GetProperty("sessionId").GetString());
+
+        Assert.Equal(result.GetProperty("claimsBeforeSend").GetInt32() + 1,
+            result.GetProperty("finalClaims").GetInt32());
+        Assert.Equal(3, result.GetProperty("sessionOpens").GetInt32());
+        Assert.Equal("second", result.GetProperty("text").GetString());
+        Assert.DoesNotContain("first", result.GetProperty("text").GetString()!, StringComparison.Ordinal);
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+        Assert.Empty(result.GetProperty("history").EnumerateArray());
+        Assert.Equal(new[] { "↗Second✕" }, Strings(result, "chips"));
+    }
+
     /// <summary>
     /// Coming back returns to the chat the page was in, not to the newest saved one.
     ///

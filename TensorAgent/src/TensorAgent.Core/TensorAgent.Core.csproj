@@ -20,6 +20,8 @@
     <InternalsVisibleTo Include="TensorAgent.Maui" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Small, dependency-free wire contract shared with the iOS share extension. -->
+    <ProjectReference Include="..\TensorAgent.Sharing\TensorAgent.Sharing.csproj" />
     <ProjectReference Include="..\..\..\TensorSharp.Runtime\TensorSharp.Runtime.csproj" />
     <ProjectReference Include="..\..\..\TensorSharp.AgentHost\TensorSharp.AgentHost.csproj" />
     <ProjectReference Include="..\..\..\TensorSharp.Chat\TensorSharp.Chat.csproj" />

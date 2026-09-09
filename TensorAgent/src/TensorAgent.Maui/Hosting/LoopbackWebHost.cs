@@ -37,6 +37,7 @@ public sealed class LoopbackWebHost : IDisposable
     private readonly AgentAppHost _host;
     private readonly Platforms.iOS.BackgroundDownloads _backgroundDownloads;
     private readonly Platforms.iOS.BackgroundGeneration _backgroundGeneration;
+    private readonly Platforms.iOS.ShareInbox _shareInbox;
 
     /// <param name="webRoot">The bundled copy of TensorSharp.Server/wwwroot.</param>
     /// <param name="loggerFactory">Where the engine logs; console output is what <c>simctl launch --console</c> shows.</param>
@@ -78,6 +79,7 @@ public sealed class LoopbackWebHost : IDisposable
         // And the same for a generation, which needs it more: a turn takes a minute and
         // the display sleeps in less than that.
         _backgroundGeneration = new Platforms.iOS.BackgroundGeneration(_host);
+        _shareInbox = new Platforms.iOS.ShareInbox(_host);
     }
 
     /// <summary>
@@ -102,10 +104,15 @@ public sealed class LoopbackWebHost : IDisposable
     /// <summary>The assembled application, for the native pages that drive it directly.</summary>
     public AgentAppHost App => _host;
 
-    public void Start() => _host.Start();
+    public void Start()
+    {
+        _host.Start();
+        _shareInbox.Start();
+    }
 
     public void Dispose()
     {
+        _shareInbox.Dispose();
         _backgroundGeneration.Dispose();
         _backgroundDownloads.Dispose();
         _host.Dispose();
@@ -145,6 +152,7 @@ public sealed class LoopbackWebHost : IDisposable
             // The interpreter's standard library is staged into the bundle beside the
             // Python framework, which is where PyConfig's module search paths point.
             PythonRuntimeDirectory = NSBundle.MainBundle.BundlePath,
+            SharedInboxDirectory = Platforms.iOS.SharedContainer.InboxDirectory(),
         };
     }
 

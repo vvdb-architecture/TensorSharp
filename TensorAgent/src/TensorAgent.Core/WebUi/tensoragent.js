@@ -540,7 +540,7 @@
       modelBtn.className = 'empty';
       modelBtn.textContent = 'No model yet';
     }
-    send.disabled = state.visionChecking || (!state.model && !state.generating);
+    send.disabled = state.visionChecking || shareDiscarding || (!state.model && !state.generating);
   }
   function loadingModel() {
     return !!(state.modelInfo && state.modelInfo.loading);
@@ -632,9 +632,14 @@
    * turn that carried on while they were somewhere else.
    */
   function openConversation(conversationId) {
+    conversationOpening = true;
     detach();
     state.history = [];
-    state.attachments = [];
+    // A durable shared draft follows the composer between chats (its text already
+    // does), so its marker can never outlive the image/file chip it represents and
+    // acknowledge missing content on an unrelated send. Preserve the entire draft in
+    // that case; retain the established clear-on-switch behaviour for ordinary picks.
+    if (!appliedShareOrder.length) state.attachments = [];
     paintChips();
     chat.innerHTML = '';
     return newSession(conversationId).then(function (s) {
@@ -669,6 +674,11 @@
     }).catch(function (e) {
       emptyState('Could not open that chat: ' + ((e && e.message) || e));
       return null;
+    }).then(function (result) {
+      conversationOpening = false;
+      if (shareDrainAgain && shareIntakeReady && !state.generating && !shareDiscarding)
+        setTimeout(takePendingShare, 0);
+      return result;
     });
   }
 
@@ -706,6 +716,243 @@
     });
   }
 
+  // ---- content shared from another app -----------------------------------
+  //
+  // A share stays on the host until an accepted send (or explicit discard) acknowledges it. That separation is
+  // deliberate: a cold launch has no page to push into yet, and WebKit can replace a
+  // hidden content process at any time. Pulling only after the launch conversation is
+  // open keeps openConversation() from racing the draft; retaining it after the
+  // composer changes keeps a failed page load or content-process reclaim from eating it.
+  var shareIntakeReady = false;
+  var shareDrain = null;
+  var shareDrainAgain = false;
+  var appliedShareIds = Object.create(null);
+  var appliedShareOrder = [];
+  var appliedShareParts = Object.create(null);
+  var shareDiscarding = false;
+  var conversationOpening = false;
+
+  /** Join at the boundary without trimming or otherwise rewriting either message. */
+  function mergeSharedText(current, incoming) {
+    current = current == null ? '' : String(current);
+    incoming = incoming == null ? '' : String(incoming);
+    if (!incoming) return current;
+    if (!current) return incoming;
+
+    // Preserve intentional line breaks. Horizontal whitespace at the join is merely a
+    // separator, though, so collapse it to one space rather than producing glued words
+    // or an expanding run every time another item is shared.
+    var left = current.replace(/[\t ]+$/, '');
+    var right = incoming.replace(/^[\t ]+/, '');
+    if (/[\r\n]$/.test(left) || /^[\r\n]/.test(right)) return left + right;
+    return left + ' ' + right;
+  }
+
+  function validSharedAttachment(a) {
+    return !!a && typeof a === 'object' && a.ok === true
+      && typeof a.file === 'string' && a.file.length > 0;
+  }
+
+  function rememberAppliedShare(id, parts) {
+    if (appliedShareIds[id]) return;
+    appliedShareIds[id] = true;
+    appliedShareParts[id] = parts || {};
+    appliedShareOrder.push(id);
+    // This only bridges an acknowledgement retry in the CURRENT page. It must not be
+    // sessionStorage: after a WebView reload the old DOM draft is gone, so the host's
+    // still-pending item has to be applied again rather than acknowledged unseen.
+    while (appliedShareOrder.length > 16)
+    {
+      var forgotten = appliedShareOrder.shift();
+      delete appliedShareIds[forgotten];
+      delete appliedShareParts[forgotten];
+    }
+  }
+
+  function forgetAppliedShares(ids) {
+    if (!Array.isArray(ids) || !ids.length) return;
+    ids.forEach(function (id) {
+      delete appliedShareIds[id];
+      delete appliedShareParts[id];
+    });
+    appliedShareOrder = appliedShareOrder.filter(function (id) {
+      return appliedShareIds[id] === true;
+    });
+    paintChips();
+  }
+
+  function removeTrackedSharedText(current, parts) {
+    var before = parts && typeof parts.beforeText === 'string' ? parts.beforeText : '';
+    var after = parts && typeof parts.afterText === 'string' ? parts.afterText : '';
+    if (!after) return current;
+    if (current === after) return before;
+    // Text typed after (or before) the untouched share is user-owned and survives.
+    // If the shared passage itself was edited, it is now user-owned too; do not guess
+    // which characters to delete merely because the durable backing is discarded.
+    if (current.indexOf(after) === 0) return before + current.slice(after.length);
+    if (current.lastIndexOf(after) === current.length - after.length)
+      return current.slice(0, current.length - after.length) + before;
+    return current;
+  }
+
+  function discardAppliedShare(id, button) {
+    if (!appliedShareIds[id] || shareDiscarding) return;
+    if (state.visionChecking || state.generating) {
+      notice('This shared item is already being sent. Stop or wait for the request before removing it.');
+      return;
+    }
+    shareDiscarding = true;
+    send.disabled = true;
+    paintChips();
+    post('/api/agent/share/discard', { id: id })
+      .then(function (r) { return r.json(); })
+      .then(function (body) {
+        if (!body || body.ok !== true) throw new Error('TensorAgent retained the shared item.');
+        var parts = appliedShareParts[id] || {};
+        var sharedAttachments = Array.isArray(parts.attachments) ? parts.attachments : [];
+        state.attachments = state.attachments.filter(function (current) {
+          return !sharedAttachments.some(function (shared) {
+            return current === shared || (current && shared && current.file === shared.file);
+          });
+        });
+        text.value = removeTrackedSharedText(text.value, parts);
+        forgetAppliedShares([id]);
+        autoGrow();
+        notice('Shared item removed.');
+      })
+      .catch(function (e) {
+        notice('Could not remove the shared item: ' + ((e && e.message) || e), 'error');
+      })
+      .then(function () {
+        shareDiscarding = false;
+        send.disabled = state.visionChecking || (!state.model && !state.generating);
+        paintChips();
+        if (shareDrainAgain && !state.generating && !conversationOpening)
+          setTimeout(takePendingShare, 0);
+      });
+  }
+
+  /** Apply all parts of one host-prepared share as one composer update. */
+  function applyPendingShare(share, mayOpenNewChat) {
+    if (!share || typeof share !== 'object')
+      return Promise.reject(new Error('The shared item was empty.'));
+    var id = typeof share.id === 'string' ? share.id : '';
+    if (!id) return Promise.reject(new Error('The shared item had no id.'));
+    if (appliedShareOrder.length && !appliedShareIds[id])
+      return Promise.reject(new Error('Finish or remove the current shared item before opening the next one.'));
+
+    var incomingText = typeof share.text === 'string' ? share.text : '';
+    var attachments = Array.isArray(share.attachments) ? share.attachments : [];
+    var valid = [], problems = [];
+    attachments.forEach(function (a) {
+      if (validSharedAttachment(a)) valid.push(a);
+      else problems.push((a && a.error) || 'One shared file could not be attached.');
+    });
+    var notices = Array.isArray(share.notices) ? share.notices.filter(function (n) {
+      return typeof n === 'string' && n.length > 0;
+    }) : [];
+
+    var heldAttachments = state.attachments.slice();
+    // One claimed envelope is one share action and always owns a fresh conversation.
+    // Ignore the version-1 newChat flag: honoring false here allowed independently
+    // shared items from older builds to accumulate in one conversation.
+    var ready = mayOpenNewChat !== false
+      ? openConversation(null).then(function (opened) {
+          // openConversation reports its own useful error and resolves null. Turn that
+          // into a rejection here so the share remains unacknowledged and retryable.
+          if (!opened) {
+            state.attachments = heldAttachments;
+            paintChips();
+            throw new Error('A new chat could not be opened for the shared item.');
+          }
+          // An unsent attachment is part of the draft just as much as text is. Starting
+          // the share's new chat must not silently discard it.
+          state.attachments = heldAttachments;
+        })
+      : Promise.resolve();
+
+    return ready.then(function () {
+      var beforeText = text.value;
+      text.value = mergeSharedText(text.value, incomingText);
+      Array.prototype.push.apply(state.attachments, valid);
+      rememberAppliedShare(id, {
+        beforeText: beforeText,
+        afterText: text.value,
+        text: incomingText,
+        attachments: valid.slice(),
+        title: typeof share.title === 'string' ? share.title : '',
+      });
+      paintChips();
+      notices.forEach(function (message) { notice(message); });
+      problems.forEach(function (message) { notice(message, 'error'); });
+      autoGrow();
+      if (!state.voice) text.focus();
+
+      // From here on the composer update succeeded. Sharing deliberately never sends
+      // a model turn: a crash between send acceptance and durable ACK cannot be made
+      // exactly-once, while a reviewable draft can always be reapplied safely.
+      return id;
+    });
+  }
+
+  function claimOneShare(mayOpenNewChat) {
+    return post('/api/agent/share/claim', {})
+      .then(function (r) { return r.json(); })
+      .then(function (body) {
+        var share = body && Object.prototype.hasOwnProperty.call(body, 'share')
+          ? body.share : null;
+        if (!share) return false;
+        var id = typeof share.id === 'string' ? share.id : '';
+        if (!id) throw new Error('The shared item had no id.');
+
+        // The host keeps returning the head until an accepted chat request consumes
+        // it. Repeated visibility/pageshow nudges in this same page must therefore be
+        // no-ops, while a fresh page (whose composer was lost) applies it again.
+        var applied = appliedShareIds[id]
+          ? Promise.resolve(id)
+          : applyPendingShare(share, mayOpenNewChat);
+        return applied.then(function () { return true; });
+      });
+  }
+
+  /** Pull pending shares once, coalescing startup, visibility and native nudges. */
+  function takePendingShare() {
+    // pageshow and a native launch callback can both arrive while openAtLaunch is
+    // still choosing a conversation. Remember the nudge; never let it race that open.
+    if (!shareIntakeReady) {
+      shareDrainAgain = true;
+      return Promise.resolve();
+    }
+    // A second default-new-chat share arriving while the first answer streams must
+    // wait. Applying it now would call openConversation(), detach this stream and pull
+    // the user away from the answer they just requested.
+    if (state.generating || conversationOpening || shareDiscarding) {
+      shareDrainAgain = true;
+      return Promise.resolve();
+    }
+    if (shareDrain) {
+      shareDrainAgain = true;
+      return shareDrain;
+    }
+    shareDrainAgain = false;
+    // One at a time. The durable head stays leased until the user sends it, so claiming
+    // again here would only rediscover the same draft; the next share is nudged in when
+    // the accepted request releases this one.
+    shareDrain = claimOneShare(true)
+      .catch(function (e) {
+        notice('Could not open the shared item: ' + ((e && e.message) || e), 'error');
+      })
+      .then(function (result) {
+        shareDrain = null;
+        if (shareDrainAgain) {
+          shareDrainAgain = false;
+          return takePendingShare();
+        }
+        return result;
+      });
+    return shareDrain;
+  }
+
   function loadConversations() {
     return fetch('/api/agent/conversations').then(function (r) { return r.json(); }).then(function (d) {
       state.conversations = (d && d.conversations) || [];
@@ -719,12 +966,19 @@
     busy.className = on ? 'on' : '';
     send.textContent = on ? '■' : '➤';
     send.className = 'round ' + (on ? 'stop' : 'send');
-    send.disabled = state.visionChecking || (!on && !state.model);
+    send.disabled = state.visionChecking || shareDiscarding || (!on && !state.model);
+    paintChips();
+    if (!on && shareDrainAgain && shareIntakeReady && !conversationOpening && !shareDiscarding)
+      setTimeout(takePendingShare, 0);
   }
 
   function sendMessage() {
     if (state.generating) { stop(); return; }
     if (state.visionChecking) return;
+    if (shareDiscarding) {
+      notice('Wait for the shared item to finish being removed, then send again.');
+      return;
+    }
     var t = text.value.trim();
     if (!t && !state.attachments.length) return;
     if (!state.model) {
@@ -745,10 +999,14 @@
     if (nextHistory.some(function (m) { return m && m.imagePaths && m.imagePaths.length; })) {
       state.visionChecking = true;
       send.disabled = true;
+      // Disable the shared marker in the same event turn as Send. The model-capability
+      // refresh below is asynchronous and must not race a discard of its captured draft.
+      paintChips();
       var conversation = state.conversation;
       refreshModel().then(function (modelState) {
         state.visionChecking = false;
         paintModelButton();
+        paintChips();
         if (state.conversation !== conversation) return;
         if (!modelState || !state.model) {
           noticeWithAction(
@@ -807,6 +1065,11 @@
       body.skills = [];
       body.skills_discovery = false;
     }
+
+    // The host acknowledges these only after every request preflight passed and the
+    // user turn was written to the durable conversation store. Until that point the
+    // App Group envelope remains the crash-safe backing for this volatile composer.
+    if (appliedShareOrder.length) body.shareIds = appliedShareOrder.slice();
 
     stream(body, { text: t, attachments: atts, message: msg, turn: userView.turn });
   }
@@ -1054,6 +1317,7 @@
       if (!res.ok) {
         return res.text().then(function (t) { throw responseError(t, res.status); });
       }
+      forgetAppliedShares(body.shareIds);
       return read(res, view);
     }).catch(function (e) { failed(view, e, sentDraft); });
   }
@@ -1269,6 +1533,19 @@
   function paintChips() {
     var box = $('chips');
     box.innerHTML = '';
+    appliedShareOrder.forEach(function (id) {
+      if (!appliedShareIds[id]) return;
+      var parts = appliedShareParts[id] || {};
+      var shared = el('div', 'chip shared');
+      shared.appendChild(el('span', 'ic', '↗'));
+      shared.appendChild(el('span', 'nm', parts.title || 'Shared item'));
+      var remove = el('button', 'x', '✕');
+      remove.setAttribute('aria-label', 'Remove shared item');
+      remove.disabled = state.generating || state.visionChecking || shareDiscarding;
+      remove.addEventListener('click', function () { discardAppliedShare(id, remove); });
+      shared.appendChild(remove);
+      box.appendChild(shared);
+    });
     state.attachments.forEach(function (a, i) {
       var c = el('div', 'chip');
       if (a.mediaType === 'image') {
@@ -1278,6 +1555,7 @@
       }
       c.appendChild(el('span', 'nm', a.fileName || a.file));
       var x = el('button', 'x', '✕');
+      x.disabled = state.visionChecking || shareDiscarding;
       x.addEventListener('click', function () { state.attachments.splice(i, 1); paintChips(); });
       c.appendChild(x);
       box.appendChild(c);
@@ -1832,6 +2110,7 @@
   var hostCalls = {
     addAttachment: function (a) { window.TensorAgent.addAttachment(a); },
     insertText: function (a) { window.TensorAgent.insertText(a && a.text); },
+    takeShare: function () { window.TensorAgent.takeShare(); },
     notice: function (a) { notice(a && a.text, (a && a.kind) || 'error'); },
     noticeWithSettings: function (a) { window.TensorAgent.noticeWithSettings(a && a.text); },
     openConversation: function (a) { window.TensorAgent.openConversation(a && a.id); },
@@ -1883,6 +2162,8 @@
       autoGrow();
       if (!state.voice) text.focus();
     },
+    /** Native nudge: the host still owns the payload, so pull it over HTTP. */
+    takeShare: function () { takePendingShare(); return true; },
     send: sendMessage,
     stop: stop,
     isGenerating: function () { return state.generating; },
@@ -2009,14 +2290,18 @@
     if (document.visibilityState !== 'visible') return;
     resumeTurn();
     refreshModel();
+    takePendingShare();
   });
-  window.addEventListener('pageshow', function () { resumeTurn(); });
+  window.addEventListener('pageshow', function () { resumeTurn(); takePendingShare(); });
 
   // ---- start ---------------------------------------------------------------
   refreshEngine()
     .then(function () { return applySettings(true); })
     .then(refreshModel)
     .then(openAtLaunch)
-    .then(function () { post('/api/agent/events', { type: 'ready', conversation: state.conversation }); })
+    .then(function () {
+      return post('/api/agent/events', { type: 'ready', conversation: state.conversation });
+    })
+    .then(function () { shareIntakeReady = true; return takePendingShare(); })
     .catch(function (e) { notice('Could not start: ' + ((e && e.message) || e), 'error'); });
 })();

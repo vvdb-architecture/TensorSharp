@@ -125,6 +125,12 @@ public class WebUiChatServiceTests : IDisposable
         });
     }
 
+    private sealed class ActionDisposable(Action dispose) : IDisposable
+    {
+        private Action? _dispose = dispose;
+        public void Dispose() => Interlocked.Exchange(ref _dispose, null)?.Invoke();
+    }
+
     [Fact]
     public void APreParsedSkillLoopAnswerCountsAsVisibleContent()
     {
@@ -329,6 +335,40 @@ public class WebUiChatServiceTests : IDisposable
         Assert.Equal("No model loaded", ex.Message);
         Assert.Equal("""{"error":"No model loaded"}""", JsonSerializer.Serialize(ex.Payload));
         Assert.False(hookFired, "OnChatRequest must not fire for a rejected request");
+    }
+
+    [Fact]
+    public async Task ChatStream_RequestLeaseSpansPreflightAndIsReleasedOnRefusal()
+    {
+        Fixture f = Build();
+        int acquired = 0;
+        int released = 0;
+        f.Service.AcquireChatRequestLease = _ =>
+        {
+            Interlocked.Increment(ref acquired);
+            return new ActionDisposable(() => Interlocked.Increment(ref released));
+        };
+
+        WebUiRequestRejectedException ex = await RejectionOf(f.Service.ChatStreamAsync(
+            Json("""{"messages":[{"role":"user","content":"hi"}]}"""), CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal(1, acquired);
+        Assert.Equal(1, released);
+    }
+
+    [Fact]
+    public async Task ChatStream_RequestLeaseCanRejectBeforeAttachmentPreflight()
+    {
+        Fixture f = Build();
+        f.Service.AcquireChatRequestLease = _ => throw new WebUiRequestRejectedException(
+            409, new { code = "shared_draft_unavailable", error = "draft already discarded" });
+
+        WebUiRequestRejectedException ex = await RejectionOf(f.Service.ChatStreamAsync(
+            Json("""{"messages":[{"role":"user","content":"hi"}]}"""), CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
+        Assert.Equal("shared_draft_unavailable", Field(ex.Payload, "code"));
     }
 
     [Fact]

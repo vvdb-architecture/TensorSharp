@@ -85,6 +85,12 @@ namespace TensorSharp.Chat
         /// </summary>
         public const string DefaultArtifactUriPrefix = "/api/code/artifacts";
 
+        // A share is prepared on a phone before the model sees it. Reading hundreds of
+        // PDF pages (or materialising a very large scanned PDF for page-image recovery)
+        // is neither useful for one prompt nor safe under iOS memory pressure.
+        private const int SharedPdfMaxPages = 32;
+        private const long SharedScannedPdfMaxBytes = 32L * 1024 * 1024;
+
         private readonly ModelService _svc;
         private readonly SessionManager _sessions;
         private readonly ServerHostingOptions _options;
@@ -96,6 +102,29 @@ namespace TensorSharp.Chat
         private readonly ILoggerFactory _loggerFactory;
         private readonly string _artifactUriPrefix;
         private readonly Func<IReadOnlyList<ChatMessage>, IReadOnlyList<string>, SkillRegistry, WebUiSkillRoute> _skillRouter;
+        // UploadAsync's public response intentionally stays the Web UI's existing
+        // anonymous JSON shape. This side table adds transactional ownership without
+        // changing that wire contract, so a multi-file share can roll back files it
+        // already uploaded when a later one hits a transient quota/I/O failure.
+        private readonly ConditionalWeakTable<object, StoredUploadState> _storedUploads = new();
+
+        private sealed class StoredUploadState
+        {
+            public StoredUploadState(IEnumerable<StoredUploadFile> files) => Files = files.ToList();
+            public List<StoredUploadFile> Files { get; }
+        }
+
+        private sealed class StoredUploadFile
+        {
+            public StoredUploadFile(string path, long accountedBytes)
+            {
+                Path = path;
+                AccountedBytes = accountedBytes;
+            }
+            public string Path { get; }
+            public long AccountedBytes { get; }
+            public bool Released { get; set; }
+        }
 
         /// <summary>
         /// Construct the generic Web UI service without host-specific intent routing.
@@ -156,6 +185,15 @@ namespace TensorSharp.Chat
         /// fails the request; the host owns that decision.
         /// </summary>
         public Action<string, JsonElement> OnChatRequest { get; set; }
+
+        /// <summary>
+        /// Optional host-owned lease acquired near the start of a chat request, before
+        /// attachment paths or bytes are read, and disposed when that request ends or is
+        /// refused. TensorAgent uses it to make sending a durable shared draft atomic
+        /// with explicitly discarding that draft. A callback may throw a
+        /// <see cref="WebUiRequestRejectedException"/> to reject a stale/racing request.
+        /// </summary>
+        public Func<JsonElement, IDisposable> AcquireChatRequestLease { get; set; }
 
         /// <summary>
         /// The session's persistent execution workspace, or null when the feature is
@@ -421,17 +459,28 @@ namespace TensorSharp.Chat
         /// (unsupported extension, unreadable video/PDF).
         /// </para>
         /// </summary>
-        public async Task<object> UploadAsync(Stream content, string originalFileName, long length, CancellationToken cancellationToken)
+        public Task<object> UploadAsync(
+            Stream content,
+            string originalFileName,
+            long length,
+            CancellationToken cancellationToken) =>
+            UploadAsync(content, originalFileName, length, cancellationToken, null, null);
+
+        /// <summary>
+        /// Share-import variant: a deterministic storage family bounds crash retries,
+        /// and text can be kept to a phone-safe inline excerpt while the full file
+        /// remains staged for file tools.
+        /// </summary>
+        public async Task<object> UploadAsync(
+            Stream content,
+            string originalFileName,
+            long length,
+            CancellationToken cancellationToken,
+            string stableStorageKey,
+            int? maxInlineTextChars)
         {
             if (content == null) throw new ArgumentNullException(nameof(content));
             var uploadLogger = _loggerFactory.CreateLogger("TensorSharp.Server.Upload");
-
-            if (!_uploads.TryReserveClientWrite(length, out string limitError, out int limitStatus))
-            {
-                uploadLogger.LogWarning(LogEventIds.UploadRejected,
-                    "Upload rejected: {Reason} (name={FileName} bytes={Length})", limitError, originalFileName, length);
-                throw new WebUiRequestRejectedException(limitStatus, new { error = limitError });
-            }
 
             string ext = Path.GetExtension(originalFileName ?? string.Empty).ToLowerInvariant();
             // Classify before anything touches disk: an upload with an extension
@@ -440,9 +489,6 @@ namespace TensorSharp.Chat
             string mediaType = UploadContentPolicy.Classify(ext);
             if (mediaType == "unknown")
             {
-                // Nothing was written, so the reservation above is returned; leaving it
-                // charged would drift the quota upward with every rejected upload.
-                _uploads.Release(length);
                 uploadLogger.LogWarning(LogEventIds.UploadRejected,
                     "Upload rejected: unsupported extension {Extension} (name={FileName})",
                     ext.Length == 0 ? "(none)" : ext, originalFileName);
@@ -454,7 +500,26 @@ namespace TensorSharp.Chat
                 });
             }
 
-            string safeFileName = $"{Guid.NewGuid():N}{ext}";
+            if (stableStorageKey != null && !IsStorageKey(stableStorageKey))
+                throw new ArgumentException("A stable upload storage key must be 32 lowercase hexadecimal characters.", nameof(stableStorageKey));
+            if (maxInlineTextChars is < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxInlineTextChars));
+
+            string storageKey = stableStorageKey ?? Guid.NewGuid().ToString("N");
+            string safeFileName = storageKey + ext;
+            // A share envelope can be recovered after a process crash. Give each of its
+            // files a deterministic 32-hex family so retry replaces the old primary,
+            // previews and frames instead of consuming another copy's worth of storage.
+            if (stableStorageKey != null && !DeleteAccountedUploadFamily(storageKey))
+                throw new IOException("An earlier staged copy of this shared file is still in use.");
+
+            if (!_uploads.TryReserveClientWrite(length, out string limitError, out int limitStatus))
+            {
+                uploadLogger.LogWarning(LogEventIds.UploadRejected,
+                    "Upload rejected: {Reason} (name={FileName} bytes={Length})", limitError, originalFileName, length);
+                throw new WebUiRequestRejectedException(limitStatus, new { error = limitError });
+            }
+
             string savePath = Path.Combine(_options.UploadDirectory, safeFileName);
             string uploadUrl = BuildUploadUrl(safeFileName);
 
@@ -469,6 +534,10 @@ namespace TensorSharp.Chat
                 try { File.Delete(savePath); } catch { /* best effort */ }
                 throw;
             }
+
+            var storedFiles = new List<StoredUploadFile> { new(savePath, length) };
+            try
+            {
 
             // Include the full saved path and the classified media type so this entry
             // is self-sufficient for tracing back from the per-turn chat log
@@ -501,7 +570,8 @@ namespace TensorSharp.Chat
                 }
 
                 _uploads.RecordFiles(frames);
-                return new
+                TrackDerivedFiles(storedFiles, frames);
+                return TrackUpload(new
                 {
                     ok = true,
                     file = safeFileName,
@@ -510,7 +580,7 @@ namespace TensorSharp.Chat
                     fileName = originalFileName,
                     frames = frames.Select(f => Path.GetFileName(f)).ToList(),
                     frameUrls = frames.Select(f => BuildUploadUrl(Path.GetFileName(f))).ToList(),
-                };
+                }, storedFiles);
             }
 
             if (mediaType == "text")
@@ -523,7 +593,7 @@ namespace TensorSharp.Chat
                 // ordinary prose/code files retain the established inline contract.
                 if (string.Equals(ext, ".csv", StringComparison.OrdinalIgnoreCase))
                 {
-                    return new
+                    return TrackUpload(new
                     {
                         ok = true,
                         file = safeFileName,
@@ -537,13 +607,24 @@ namespace TensorSharp.Chat
                         modelContextLimit = _svc.Model?.MaxContextLength,
                         originalTokenCount = (int?)null,
                         returnedTokenCount = (int?)null,
-                    };
+                    }, storedFiles);
                 }
 
-                string textContent = TextUploadHelper.PreserveFullText(
-                    await File.ReadAllTextAsync(savePath, cancellationToken));
+                string textContent;
+                bool truncated;
+                if (maxInlineTextChars is int textLimit)
+                {
+                    (textContent, truncated) = await ReadBoundedTextAsync(
+                        savePath, textLimit, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    textContent = TextUploadHelper.PreserveFullText(
+                        await File.ReadAllTextAsync(savePath, cancellationToken));
+                    truncated = false;
+                }
 
-                return new
+                return TrackUpload(new
                 {
                     ok = true,
                     file = safeFileName,
@@ -551,13 +632,13 @@ namespace TensorSharp.Chat
                     mediaType,
                     fileName = originalFileName,
                     textContent,
-                    truncated = false,
-                    truncateLimit = (int?)null,
-                    truncateUnit = (string)null,
+                    truncated,
+                    truncateLimit = truncated ? maxInlineTextChars : null,
+                    truncateUnit = truncated ? "characters" : null,
                     modelContextLimit = _svc.Model?.MaxContextLength,
                     originalTokenCount = (int?)null,
                     returnedTokenCount = (int?)null,
-                };
+                }, storedFiles);
             }
 
             if (mediaType == "pdf")
@@ -569,10 +650,20 @@ namespace TensorSharp.Chat
                 // recovering its page images and letting a vision model read them (mirroring
                 // the video -> frames path) — or, if no vision model is loaded, we tell the
                 // user exactly why the document can't be read instead of silently dropping it.
+                int configuredPdfPages = ResolvePdfMaxPages();
+                int pdfPageLimit = maxInlineTextChars.HasValue
+                    ? configuredPdfPages > 0
+                        ? Math.Min(configuredPdfPages, SharedPdfMaxPages)
+                        : SharedPdfMaxPages
+                    : configuredPdfPages;
                 PdfTextResult pdf;
                 try
                 {
-                    pdf = await Task.Run(() => PdfTextExtractor.ExtractFromFile(savePath, ResolvePdfMaxPages()));
+                    pdf = await Task.Run(() => PdfTextExtractor.ExtractFromFile(
+                        savePath,
+                        pdfPageLimit,
+                        password: null,
+                        maxTextCharacters: maxInlineTextChars ?? 0));
                 }
                 catch (Exception ex)
                 {
@@ -586,6 +677,13 @@ namespace TensorSharp.Chat
                 {
                     string textContent = TextUploadHelper.PreserveFullText(pdf.Text);
                     bool allPagesExtracted = pdf.ExtractedPageCount == pdf.PageCount;
+                    bool textTruncated = pdf.TextTruncated;
+                    if (maxInlineTextChars is int pdfTextLimit)
+                    {
+                        (textContent, bool bounded) = BoundInlineText(
+                            textContent, pdfTextLimit, alreadyTruncated: pdf.TextTruncated);
+                        textTruncated |= bounded;
+                    }
 
                     if (allPagesExtracted)
                     {
@@ -600,7 +698,7 @@ namespace TensorSharp.Chat
                             originalFileName, pdf.PageCount, pdf.ExtractedPageCount, textContent.Length);
                     }
 
-                    return new
+                    return TrackUpload(new
                     {
                         ok = true,
                         file = safeFileName,
@@ -611,20 +709,37 @@ namespace TensorSharp.Chat
                         pageCount = pdf.PageCount,
                         extractedPageCount = pdf.ExtractedPageCount,
                         textContent,
-                        truncated = false,
-                        complete = allPagesExtracted,
-                        warning = allPagesExtracted
-                            ? null
-                            : $"Only {pdf.ExtractedPageCount} of {pdf.PageCount} PDF pages could be read. The extracted pages were not token-truncated.",
-                        truncateLimit = (int?)null,
-                        truncateUnit = (string)null,
+                        truncated = textTruncated,
+                        complete = allPagesExtracted && !textTruncated,
+                        warning = textTruncated
+                            ? allPagesExtracted
+                                ? "Only a bounded excerpt of the PDF text is inline; the complete PDF remains attached."
+                                : $"Only {pdf.ExtractedPageCount} of {pdf.PageCount} PDF pages and a bounded text excerpt could be included; the complete PDF remains attached."
+                            : allPagesExtracted
+                                ? null
+                                : $"Only {pdf.ExtractedPageCount} of {pdf.PageCount} PDF pages could be read. The extracted pages were not token-truncated.",
+                        truncateLimit = textTruncated ? maxInlineTextChars : null,
+                        truncateUnit = textTruncated ? "characters" : null,
                         modelContextLimit = _svc.Model?.MaxContextLength,
                         originalTokenCount = (int?)null,
                         returnedTokenCount = (int?)null,
-                    };
+                    }, storedFiles);
                 }
 
                 // Scanned / image-only PDF (no selectable text layer).
+                // PdfPageImageExtractor's legacy API opens a byte array. Keep that path
+                // available for ordinary desktop uploads, but refuse an oversized shared
+                // scan before it can duplicate the whole file in a phone process.
+                if (maxInlineTextChars.HasValue && length > SharedScannedPdfMaxBytes)
+                {
+                    throw new WebUiRequestRejectedException(413, new
+                    {
+                        error = $"This scanned PDF is too large to render safely on this phone " +
+                            $"({length / (1024.0 * 1024):0.#} MB; limit {SharedScannedPdfMaxBytes / (1024 * 1024)} MB). " +
+                            "Share a smaller PDF or split it into parts.",
+                    });
+                }
+
                 // A configured/projector filename is not proof that this model accepted
                 // it (a mismatched GGUF can otherwise make a scanned PDF look usable).
                 bool visionLoaded = _svc.Model?.HasVisionEncoder() ?? false;
@@ -633,7 +748,7 @@ namespace TensorSharp.Chat
                     uploadLogger.LogWarning(LogEventIds.UploadReceived,
                         "PDF has no text layer and no vision model is loaded: name={FileName} pages={Pages}",
                         originalFileName, pdf.PageCount);
-                    return new
+                    return TrackUpload(new
                     {
                         ok = true,
                         file = safeFileName,
@@ -646,14 +761,14 @@ namespace TensorSharp.Chat
                         textContent = "",
                         warning = $"\"{originalFileName}\" has no selectable text — it looks scanned or image-only. " +
                                   "To analyze it, run the server with a vision-capable model and its projector (--mmproj <projector.gguf>).",
-                    };
+                    }, storedFiles);
                 }
 
                 PdfImageResult pdfImages;
                 try
                 {
                     pdfImages = await Task.Run(() => PdfPageImageExtractor.ExtractPageImages(
-                        savePath, _options.UploadDirectory, ResolvePdfMaxPages(),
+                        savePath, _options.UploadDirectory, pdfPageLimit,
                         Path.GetFileNameWithoutExtension(safeFileName)));
                 }
                 catch (Exception ex)
@@ -665,12 +780,13 @@ namespace TensorSharp.Chat
                 }
 
                 _uploads.RecordFiles(pdfImages.ImagePaths);
+                TrackDerivedFiles(storedFiles, pdfImages.ImagePaths);
 
                 if (pdfImages.ImagePaths.Count == 0)
                 {
                     uploadLogger.LogWarning(LogEventIds.UploadReceived,
                         "PDF yielded neither text nor images: name={FileName} pages={Pages}", originalFileName, pdf.PageCount);
-                    return new
+                    return TrackUpload(new
                     {
                         ok = true,
                         file = safeFileName,
@@ -681,7 +797,7 @@ namespace TensorSharp.Chat
                         pageCount = pdf.PageCount,
                         textContent = "",
                         warning = $"Could not extract any text or images from \"{originalFileName}\".",
-                    };
+                    }, storedFiles);
                 }
 
                 var framePaths = pdfImages.ImagePaths.ToList();
@@ -704,7 +820,7 @@ namespace TensorSharp.Chat
                         originalFileName, pdf.PageCount, framePaths.Count);
                 }
 
-                return new
+                return TrackUpload(new
                 {
                     ok = true,
                     file = safeFileName,
@@ -719,7 +835,7 @@ namespace TensorSharp.Chat
                     frames = frameNames,
                     frameUrls,
                     note = $"This PDF has no selectable text; {framePaths.Count} page image(s) were attached for the vision model to read.",
-                };
+                }, storedFiles);
             }
 
             // HEIC/HEIF images (e.g. iPhone photos): the server-side pipelines decode them
@@ -743,7 +859,8 @@ namespace TensorSharp.Chat
                         TensorSharp.Models.QwenImage.ImageIO.SavePng(previewPath, img);
                     });
                     _uploads.RecordFile(previewPath);
-                    return new
+                    TrackDerivedFiles(storedFiles, new[] { previewPath });
+                    return TrackUpload(new
                     {
                         ok = true,
                         file = safeFileName,
@@ -751,7 +868,7 @@ namespace TensorSharp.Chat
                         previewUrl = BuildUploadUrl(previewName),
                         mediaType,
                         fileName = originalFileName,
-                    };
+                    }, storedFiles);
                 }
                 catch (Exception ex)
                 {
@@ -761,7 +878,195 @@ namespace TensorSharp.Chat
                 }
             }
 
-            return new { ok = true, file = safeFileName, url = uploadUrl, mediaType, fileName = originalFileName };
+            return TrackUpload(
+                new { ok = true, file = safeFileName, url = uploadUrl, mediaType, fileName = originalFileName },
+                storedFiles);
+            }
+            catch
+            {
+                // UploadAsync is transactional even when decoding/extraction fails
+                // after the primary file was copied. Delete accounted files and any
+                // partially-created family members before propagating the refusal.
+                DiscardStoredFiles(new StoredUploadState(storedFiles));
+                DeleteUnaccountedUploadFamily(safeFileName);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Roll back a successful <see cref="UploadAsync"/> response. Used by the share
+        /// importer when a later file fails transiently, so retrying the durable
+        /// envelope neither duplicates files nor consumes the upload quota twice.
+        /// </summary>
+        public bool DiscardUpload(object uploadResponse)
+        {
+            if (uploadResponse == null || !_storedUploads.TryGetValue(uploadResponse, out StoredUploadState state))
+                return false;
+            bool discarded = DiscardStoredFiles(state);
+            if (discarded)
+                _storedUploads.Remove(uploadResponse);
+            return discarded;
+        }
+
+        private object TrackUpload(object response, IEnumerable<StoredUploadFile> files)
+        {
+            _storedUploads.Add(response, new StoredUploadState(files));
+            return response;
+        }
+
+        private static bool IsStorageKey(string value) =>
+            value.Length == 32 && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+        private bool DeleteAccountedUploadFamily(string stem)
+        {
+            bool complete = true;
+            try
+            {
+                foreach (string path in Directory.EnumerateFiles(_options.UploadDirectory, stem + "*"))
+                {
+                    try
+                    {
+                        var info = new FileInfo(path);
+                        long bytes = info.Exists ? info.Length : 0;
+                        info.Delete();
+                        if (bytes > 0)
+                            _uploads.Release(bytes);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        complete = false;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                complete = false;
+            }
+            return complete;
+        }
+
+        private static async Task<(string Text, bool Truncated)> ReadBoundedTextAsync(
+            string path, int maxChars, CancellationToken cancellationToken)
+        {
+            // One extra character proves truncation without ever materialising the rest
+            // of a potentially 128 MB shared document in managed memory.
+            using var reader = new StreamReader(path, detectEncodingFromByteOrderMarks: true);
+            var chars = new char[maxChars + 1];
+            int read = 0;
+            while (read < chars.Length)
+            {
+                int count = await reader.ReadAsync(chars.AsMemory(read, chars.Length - read), cancellationToken)
+                    .ConfigureAwait(false);
+                if (count == 0)
+                    break;
+                read += count;
+            }
+            bool truncated = read > maxChars;
+            string text = new(chars, 0, Math.Min(read, maxChars));
+            return BoundInlineText(text, maxChars, alreadyTruncated: truncated);
+        }
+
+        private static (string Text, bool Truncated) BoundInlineText(
+            string text, int maxChars, bool alreadyTruncated = false)
+        {
+            text ??= string.Empty;
+            if (!alreadyTruncated && text.Length <= maxChars)
+                return (TextUploadHelper.PreserveFullText(text), false);
+            const string marker = "\n\n[Shared file excerpt shortened here; the complete file remains attached.]\n\n";
+            if (maxChars <= marker.Length)
+            {
+                int cut = Math.Min(maxChars, text.Length);
+                if (cut > 0 && cut < text.Length && char.IsHighSurrogate(text[cut - 1]))
+                    cut--;
+                return (TextUploadHelper.PreserveFullText(text[..cut]), true);
+            }
+            int budget = Math.Max(0, maxChars - marker.Length);
+
+            // The extractor stopped as soon as it filled its aggregate budget, so its
+            // string is a head excerpt rather than the full source. Do not present the
+            // end of that head as though it were the document's real tail.
+            if (alreadyTruncated)
+            {
+                int cut = Math.Min(budget, text.Length);
+                if (cut > 0 && cut < text.Length && char.IsHighSurrogate(text[cut - 1]))
+                    cut--;
+                return (TextUploadHelper.PreserveFullText(text[..cut] + marker), true);
+            }
+
+            int head = budget * 2 / 3;
+            int tail = budget - head;
+            if (head > 0 && head < text.Length && char.IsHighSurrogate(text[head - 1]))
+                head--;
+            int tailStart = text.Length - tail;
+            if (tailStart > 0 && tailStart < text.Length && char.IsLowSurrogate(text[tailStart]))
+                tailStart++;
+            string bounded = text[..head] + marker + text[tailStart..];
+            return (TextUploadHelper.PreserveFullText(bounded), true);
+        }
+
+        private static void TrackDerivedFiles(List<StoredUploadFile> destination, IEnumerable<string> paths)
+        {
+            foreach (string path in paths)
+            {
+                try
+                {
+                    var info = new FileInfo(path);
+                    if (info.Exists)
+                        destination.Add(new StoredUploadFile(path, info.Length));
+                }
+                catch (IOException)
+                {
+                    // RecordFiles uses the same FileInfo rule. A file that vanished is
+                    // neither in its quota tally nor something rollback can delete.
+                }
+            }
+        }
+
+        private bool DiscardStoredFiles(StoredUploadState state)
+        {
+            bool complete = true;
+            lock (state)
+            {
+                foreach (StoredUploadFile file in state.Files)
+                {
+                    if (file.Released)
+                        continue;
+                    try
+                    {
+                        if (File.Exists(file.Path))
+                        {
+                            File.Delete(file.Path);
+                            _uploads.Release(file.AccountedBytes);
+                        }
+                        // Missing means a normal TTL cleanup already removed and
+                        // released it; never subtract the same bytes twice.
+                        file.Released = true;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        complete = false;
+                    }
+                }
+            }
+            return complete;
+        }
+
+        private void DeleteUnaccountedUploadFamily(string storedFileName)
+        {
+            string stem = Path.GetFileNameWithoutExtension(storedFileName);
+            if (stem.Length != 32 || stem.Any(c => !Uri.IsHexDigit(c)))
+                return;
+            try
+            {
+                foreach (string path in Directory.EnumerateFiles(_options.UploadDirectory, stem + "*"))
+                {
+                    try { File.Delete(path); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
         }
 
         // ---- Image editing (Qwen-Image-Edit) ---------------------------------
@@ -1481,6 +1786,13 @@ namespace TensorSharp.Chat
             {
                 chatSession = _sessions.DefaultSession;
             }
+
+            // Acquired before any attachment path is resolved or file is staged. A host
+            // can therefore arbitrate a shared draft's Send-versus-Discard race without
+            // either winner observing bytes the other has just deleted. `using` spans
+            // every later preflight and the full async iteration, so refusals/cancellation
+            // cannot strand host ownership.
+            using IDisposable requestLease = AcquireChatRequestLease?.Invoke(body);
 
             if (newChat)
             {

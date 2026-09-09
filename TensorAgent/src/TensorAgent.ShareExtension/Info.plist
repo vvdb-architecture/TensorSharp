@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Ask TensorAgent</string>
+	<key>CFBundleDisplayName</key>
+	<string>Ask TensorAgent</string>
+	<key>CFBundlePackageType</key>
+	<string>XPC!</string>
+
+	<!-- iPhone AND iPad, matching the app. Without this the SDK generates [1] and the
+	     extension is simply absent from every iPad share sheet, with nothing anywhere
+	     saying why. It is safe to write here, unlike the identifier and the two version
+	     strings: those come from the csproj and a copy in this file would silently
+	     override and then drift. -->
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+		<integer>2</integer>
+	</array>
+
+	<!-- NOTHING ELSE belongs in this file. The manifest merge order is
+	     MSBuild properties < Info.plist < partial plists, so anything written here
+	     OVERRIDES the csproj — and CFBundleIdentifier, CFBundleShortVersionString and
+	     CFBundleVersion are exactly the three keys Apple requires to agree with the
+	     containing app's. They come from ApplicationId / ApplicationDisplayVersion /
+	     ApplicationVersion in the two csproj files, which is the only place they can be
+	     kept in step. MinimumOSVersion is worse than the others: written here and
+	     disagreeing with SupportedOSPlatformVersion it is a hard build error. -->
+
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.share-services</string>
+		<key>NSExtensionPrincipalClass</key>
+		<string>ShareViewController</string>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<!-- What Safari runs inside the page before this extension starts. Named
+			     WITHOUT the .js extension, and the file must be a bundle resource of
+			     THIS target (see the csproj). It is what turns "here is a link the
+			     phone cannot fetch" into "here is the article". -->
+			<key>NSExtensionJavaScriptPreprocessingFile</key>
+			<string>ExtensionPreprocessing</string>
+
+			<!-- Version 2 means at least one offered representation must match. The
+			     WebPage key is mandatory for Safari to run the preprocessing script;
+			     URL/text/file/image/movie cover the representations emitted by browsers,
+			     Mail, Messages, Photos, Files, Reddit and similar hosts. -->
+			<key>NSExtensionActivationRule</key>
+			<dict>
+				<key>NSExtensionActivationDictionaryVersion</key>
+				<integer>2</integer>
+				<key>NSExtensionActivationSupportsAttachmentsWithMaxCount</key>
+				<integer>20</integer>
+				<key>NSExtensionActivationSupportsFileWithMaxCount</key>
+				<integer>20</integer>
+				<key>NSExtensionActivationSupportsImageWithMaxCount</key>
+				<integer>20</integer>
+				<key>NSExtensionActivationSupportsMovieWithMaxCount</key>
+				<integer>10</integer>
+				<key>NSExtensionActivationSupportsText</key>
+				<true/>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>20</integer>
+				<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+	</dict>
+</dict>
+</plist>

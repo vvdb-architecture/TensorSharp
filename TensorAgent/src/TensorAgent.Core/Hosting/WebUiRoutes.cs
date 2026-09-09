@@ -13,6 +13,7 @@ using System.Text.Json;
 using TensorAgent.Core.Catalog;
 using TensorAgent.Core.Downloads;
 using TensorAgent.Core.Sessions;
+using TensorAgent.Core.Sharing;
 using TensorAgent.Core.Settings;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.Chat;
@@ -362,7 +363,10 @@ public static class WebUiRoutes
         Action<string, JsonElement>? onPageEvent = null,
         ModelDownloadManager? downloads = null,
         Action<AppSettings>? onSettingsChanged = null,
-        Func<object>? describeModel = null)
+        Func<object>? describeModel = null,
+        ShareIntake? shares = null,
+        Func<bool>? hasShareContainer = null,
+        Func<string, bool>? discardShare = null)
     {
         ArgumentNullException.ThrowIfNull(server);
         ArgumentNullException.ThrowIfNull(catalog);
@@ -496,6 +500,47 @@ public static class WebUiRoutes
             string kind = message.TryGetProperty("type", out JsonElement type) ? type.GetString() ?? string.Empty : string.Empty;
             onPageEvent?.Invoke(kind, message);
             return LoopbackResponse.Json(new { ok = true });
+        });
+
+        // A share is leased, not consumed, by claim. It remains durable after the page
+        // updates the draft and attachment chips; only an accepted send or the explicit
+        // discard route consumes it, so reloads cannot eat user data.
+        server.MapGet("/api/agent/share", (_, _) => Ok(new
+        {
+            pending = shares?.PendingCount ?? 0,
+            container = hasShareContainer?.Invoke() ?? false,
+        }));
+
+        server.MapPost("/api/agent/share/claim", (_, _) =>
+        {
+            PendingShare? share = shares?.Peek();
+            return Ok(new
+            {
+                share = share is null ? null : new
+                {
+                    id = share.Id,
+                    text = share.Text,
+                    attachments = share.Attachments,
+                    notices = share.Notices,
+                    title = share.Title,
+                    newChat = share.NewChat,
+                    autoSend = share.AutoSend,
+                },
+            });
+        });
+
+        server.MapPost("/api/agent/share/discard", async (request, ct) =>
+        {
+            JsonElement body = await request.ReadJsonAsync(ct);
+            string id = body.ValueKind == JsonValueKind.Object
+                && body.TryGetProperty("id", out JsonElement value)
+                && value.ValueKind == JsonValueKind.String
+                    ? value.GetString() ?? string.Empty
+                    : string.Empty;
+            bool discarded = id.Length > 0 && (discardShare?.Invoke(id) ?? false);
+            return LoopbackResponse.Json(
+                new { ok = discarded },
+                discarded ? 200 : 409);
         });
 
         server.MapGet("/api/agent/engine", (_, _) => Ok(new

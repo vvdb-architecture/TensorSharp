@@ -212,6 +212,26 @@ UPLOAD="$(grep -o 'uploadcheck .*' "${LOG}" | tail -1 || true)"
 grep -q '^uploadcheck ok' <<<"${UPLOAD}" || fail "the upload probe failed: ${UPLOAD}"
 echo "ok  ${UPLOAD}"
 
+# 6d. Optional share E2E: unlike a route-only test, this crosses the App Group
+# envelope, the host's ordinary upload service, the WebView fetch bridge, composer
+# merge, and the authenticated explicit-discard route. Both the durable envelope and
+# the app-side staged attachment must be gone. It runs when the app was launched with
+# TENSORAGENT_SHARE_CHECK=1.
+SHARECHECK="$(grep -o 'sharecheck PASS composer .*' "${LOG}" | tail -1 || true)"
+SHARECLEANUP="$(grep -o 'sharecheck discard cleanup PASS .*' "${LOG}" | tail -1 || true)"
+SHAREFAIL="$(grep -E -o 'sharecheck .*FAIL.*' "${LOG}" | tail -1 || true)"
+if [[ -z "${SHARECHECK}" ]]; then
+    if [[ -n "${SHAREFAIL}" ]]; then
+        fail "the share E2E probe failed: ${SHAREFAIL}"
+    fi
+    echo "--  the share E2E check did not run; relaunch with TENSORAGENT_SHARE_CHECK=1 to include it"
+else
+    [[ -z "${SHAREFAIL}" ]] || fail "the share E2E probe failed: ${SHAREFAIL}"
+    [[ -n "${SHARECLEANUP}" ]] || fail "the share E2E probe retained its draft but did not report explicit-discard cleanup"
+    echo "ok  ${SHARECHECK}"
+    echo "ok  ${SHARECLEANUP}"
+fi
+
 if (( API )); then
 # 6b. A generation belongs to the app, so the page must be able to ask about one and
 #     the engine must say what it is doing about the model the user last used. Both are

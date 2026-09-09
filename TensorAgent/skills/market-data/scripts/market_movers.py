@@ -36,6 +36,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -71,11 +72,31 @@ HEADERS = {
     "Accept": "application/json",
 }
 TIMEOUT = 20
+# The host kills a tool call at its own timeout (120 s by default) and --quote makes
+# one request per symbol, so ten symbols each stalling for TIMEOUT would be 200 s: the
+# call would be killed with NOTHING printed, even though most of the symbols had
+# already answered. The run therefore keeps a budget well inside that, spends what is
+# left of it as each request's timeout, and prints the rows it did get.
+BUDGET = 90.0
+_deadline = None
+
+
 # The endpoint serves at most 100 screener rows per request, and incomplete rows are
 # dropped — so the most that can be ASKED for is half of that, leaving 2x headroom.
 # Allowing --count 100 would have meant asking for 100 and needing all 100 to be perfect.
 MAX_COUNT = 50
 REQUEST_CEILING = 100
+
+
+def start_budget(seconds=BUDGET):
+    global _deadline
+    _deadline = time.monotonic() + seconds
+
+
+def budget_left():
+    """Seconds still available, or None when no budget was started."""
+    return None if _deadline is None else _deadline - time.monotonic()
+
 
 
 def fail(code, message):
@@ -92,8 +113,13 @@ def fetch(url, fatal=True):
     request would fail the same way, and saying so once is the useful answer.
     """
     request = urllib.request.Request(url, headers=HEADERS)
+    left = budget_left()
+    # Past the deadline the remaining requests still go out, but with a second each:
+    # a symbol that answers instantly is worth having, and one that stalls is not
+    # worth the wall clock the caller no longer has.
+    timeout = TIMEOUT if left is None else max(1.0, min(float(TIMEOUT), left))
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
         if not fatal:
@@ -192,7 +218,14 @@ def quotes(symbols):
     """
     query = urllib.parse.urlencode({"range": "1d", "interval": "1d"})
     rows = []
+    skipped = []
     for symbol in symbols:
+        left = budget_left()
+        if rows and left is not None and left <= 1.0:
+            # Something already worked, so the honest thing is to print it and name
+            # what was left out, rather than spend the caller's whole timeout.
+            skipped.append(symbol)
+            continue
         url = CHART.format(symbol=urllib.parse.quote(symbol, safe="")) + "?" + query
         payload = fetch(url, fatal=False)
         status = payload.get("__status__") if isinstance(payload, dict) else None
@@ -213,6 +246,11 @@ def quotes(symbols):
                   "it is not in this table.", file=sys.stderr)
             continue
         rows.append(row)
+    if skipped:
+        print(f"note: this run's {int(BUDGET)}s budget ran out before "
+              + ", ".join(skipped)
+              + "; those are not in the table. Ask for them in a separate run.",
+              file=sys.stderr)
     return rows
 
 
@@ -363,6 +401,8 @@ def main(argv=None):
         parser.error("pass exactly one of --movers or --quote")
     if args.count < 1 or args.count > MAX_COUNT:
         parser.error(f"--count must be between 1 and {MAX_COUNT}")
+
+    start_budget()
 
     if args.movers:
         rows = movers(args.movers, args.count, not args.any_instrument)

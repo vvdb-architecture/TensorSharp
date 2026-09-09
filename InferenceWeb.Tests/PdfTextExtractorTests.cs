@@ -81,6 +81,37 @@ public class PdfTextExtractorTests
     }
 
     [Fact]
+    public void ExtractFromBytes_MaxTextCharactersBoundsAggregateDuringTraversal()
+    {
+        byte[] pdf = BuildPdf(
+            new string('A', 2_000),
+            new string('B', 2_000),
+            new string('C', 2_000));
+
+        PdfTextResult result = PdfTextExtractor.ExtractFromBytes(
+            pdf, maxPages: 3, password: null, maxTextCharacters: 128);
+
+        Assert.True(result.TextTruncated);
+        Assert.InRange(result.Text.Length, 1, 128);
+        Assert.True(result.ExtractedPageCount < result.PageCount,
+            "a full text budget should stop before parsing later pages");
+        Assert.Contains('A', result.Text);
+        Assert.DoesNotContain('C', result.Text);
+    }
+
+    [Fact]
+    public void ExtractFromBytes_ZeroTextBoundPreservesLegacyFullTextContract()
+    {
+        byte[] pdf = BuildPdf(new string('Z', 400));
+
+        PdfTextResult result = PdfTextExtractor.ExtractFromBytes(
+            pdf, maxPages: 0, password: null, maxTextCharacters: 0);
+
+        Assert.False(result.TextTruncated);
+        Assert.True(result.Text.Count(c => c == 'Z') >= 400);
+    }
+
+    [Fact]
     public void ExtractFromBytes_RejectsEmptyData()
     {
         Assert.Throws<ArgumentException>(() => PdfTextExtractor.ExtractFromBytes(Array.Empty<byte>()));

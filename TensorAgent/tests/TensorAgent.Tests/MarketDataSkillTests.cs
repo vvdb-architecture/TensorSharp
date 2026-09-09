@@ -87,14 +87,25 @@ public sealed class MarketDataSkillTests : IDisposable
     {
         string[] allowed =
         {
-            "__future__", "argparse", "json", "sys", "urllib", "datetime",
+            "__future__", "argparse", "json", "sys", "time", "urllib", "datetime",
         };
-        foreach (Match import in Regex.Matches(
-                     File.ReadAllText(Script),
-                     @"(?m)^\s*(?:from\s+(?<m>[A-Za-z_][\w.]*)\s+import|import\s+(?<m>[A-Za-z_][\w.]*))"))
+        // `import a, b` is one statement and two modules: matching only the first name
+        // let a second module through unchecked, so the whole clause is captured and
+        // split. "import x as y" and "from x.y import z" reduce to their root package.
+        MatchCollection imports = Regex.Matches(
+            File.ReadAllText(Script),
+            @"(?m)^\s*(?:from\s+(?<m>[^\n]+?)\s+import\b|import\s+(?<m>[^\n]+))");
+        Assert.True(imports.Count >= 6,
+            $"only {imports.Count} imports matched; the pattern has stopped reading the script");
+        foreach (Match import in imports)
         {
-            string module = import.Groups["m"].Value.Split('.')[0];
-            Assert.Contains(module, allowed);
+            foreach (string clause in import.Groups["m"].Value.Split(','))
+            {
+                string module = clause.Trim().Split(' ')[0].Split('.')[0];
+                if (module.Length == 0)
+                    continue;
+                Assert.Contains(module, allowed);
+            }
         }
     }
 
@@ -365,6 +376,75 @@ public sealed class MarketDataSkillTests : IDisposable
             """);
         Assert.Contains("BARE EXIT 3", output, StringComparison.Ordinal);
         Assert.Contains("WRAPPED EXIT 3", output, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A --quote run makes one request per symbol, and the host kills a tool call at its
+    /// own timeout. Ten symbols each stalling for the per-request timeout came to 200
+    /// seconds against a 120-second default: the call was killed with NOTHING printed,
+    /// even though most of the symbols had already answered. The run now holds a budget
+    /// inside that, spends what is left of it as each request's timeout, and prints the
+    /// rows it did get with a note naming the ones it did not.
+    /// </summary>
+    [LivePythonFact]
+    public void AQuoteRunPrintsTheRowsItHasRatherThanBeingKilledByTheToolTimeout()
+    {
+        string output = RunProbe("""
+            meta = {"symbol": "X", "longName": "X Inc", "currency": "USD",
+                    "regularMarketPrice": 10.0, "chartPreviousClose": 8.0,
+                    "regularMarketVolume": 100, "regularMarketTime": 0,
+                    "marketState": "REGULAR"}
+            real_fetch = mm.fetch
+            mm.fetch = lambda url, fatal=True: {"chart": {"result": [{"meta": dict(meta)}]}}
+
+            mm.start_budget(0.0)
+            rows = mm.quotes(["AAA", "BBB", "CCC", "DDD"])
+            print("SPENT rows=" + str(len(rows)))
+
+            mm.start_budget()
+            rows = mm.quotes(["AAA", "BBB", "CCC", "DDD"])
+            print("FRESH rows=" + str(len(rows)))
+
+            mm.fetch = real_fetch
+            seen = []
+            def capture(request, timeout=None):
+                seen.append(timeout)
+                raise mm.urllib.error.HTTPError(request.full_url, 404, "no", None, None)
+
+            # urllib is a MODULE, and this interpreter is shared with every other test
+            # in the collection: a stub left in place here answered a later test's real
+            # fetch with this 404, and it failed claiming the sandbox had not refused a
+            # request. Whatever this probe replaces, it puts back.
+            saved_urlopen = mm.urllib.request.urlopen
+            try:
+                mm.urllib.request.urlopen = capture
+                mm.start_budget(3.0)
+                mm.fetch("https://query1.finance.yahoo.com/x", fatal=False)
+                mm.start_budget(0.0)
+                mm.fetch("https://query1.finance.yahoo.com/x", fatal=False)
+            finally:
+                mm.urllib.request.urlopen = saved_urlopen
+            print("TIMEOUTS " + " ".join("%.1f" % t for t in seen))
+            print("BUDGET " + str(mm.BUDGET))
+            """);
+
+        // One symbol answered before the budget was gone, so one row is printed rather
+        // than none — the whole point of the budget.
+        Assert.Contains("SPENT rows=1", output, StringComparison.Ordinal);
+        Assert.Contains("FRESH rows=4", output, StringComparison.Ordinal);
+        // Never longer than what is left: 3 seconds of budget cannot buy a 20-second
+        // request, and past the deadline a request still goes out, but cheaply.
+        Assert.Contains("TIMEOUTS 3.0 1.0", output, StringComparison.Ordinal);
+
+        // The budget is only worth anything while it is inside the timeout the host
+        // actually applies, which is a setting in this app and can be changed.
+        double budget = double.Parse(
+            Regex.Match(output, @"BUDGET ([0-9.]+)").Groups[1].Value,
+            System.Globalization.CultureInfo.InvariantCulture);
+        int hostTimeout = new TensorAgent.Core.Settings.AppSettings().ToolTimeoutSeconds;
+        Assert.True(budget < hostTimeout,
+            $"the script budgets {budget}s for its requests but the host kills a tool call "
+            + $"at {hostTimeout}s, so the rows would never be printed");
     }
 
     // =====================================================================================

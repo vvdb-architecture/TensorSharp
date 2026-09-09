@@ -9,7 +9,9 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
 using System.Text.Json;
+using Foundation;
 using TensorAgent.Maui.Hosting;
+using UserNotifications;
 
 namespace TensorAgent.Maui;
 
@@ -35,6 +37,7 @@ public sealed class MainPage : ContentPage
     /// before the first `ready`, silence is normal.
     /// </summary>
     private bool _pageReady;
+    private int _shareNotificationPrompting;
 
     public MainPage(LoopbackWebHost host)
     {
@@ -289,6 +292,181 @@ public sealed class MainPage : ContentPage
         catch (Exception ex)
         {
             Console.WriteLine("TensorAgent: uploadcheck FAIL " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Simulator/device E2E hook for the complete share handoff. It writes the same
+    /// durable envelope as the extension, asks the host to import it through the real
+    /// upload service, then waits for the real WebView to merge its text and attachment
+    /// while the envelope remains durably claimed. It finishes through the authenticated
+    /// explicit-discard route and verifies that both copies of the file are reclaimed.
+    /// Nothing is sent to a model.
+    /// </summary>
+    private async Task RunShareProbeAsync()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_SHARE_CHECK"), "1", StringComparison.Ordinal))
+            return;
+
+        TensorAgent.Sharing.ShareEnvelopeWriter? writer = null;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            TensorAgent.Sharing.ShareEnvelopeStore? store = _host.App.ShareInbox;
+            if (store is null)
+            {
+                Console.WriteLine("TensorAgent: sharecheck FAIL no App Group inbox");
+                return;
+            }
+
+            const string marker = "tensoragent-share-e2e-marker";
+            writer = store.BeginWrite();
+            (string absolute, string relative) = writer.ReserveFile("sharecheck.png");
+            byte[] png = SolidPng(64, 64);
+            await File.WriteAllBytesAsync(absolute, png);
+
+            string id = writer.Commit(new TensorAgent.Sharing.SharePayload
+            {
+                SourceApp = "Share E2E probe",
+                Prompt = "What can you tell me about this?",
+                NewChat = true,
+                AutoSend = false,
+                Items =
+                {
+                    TensorAgent.Sharing.ShareItem.ForPage(
+                        "https://example.com/tensoragent-share-check",
+                        "TensorAgent share check",
+                        marker + "\nSecond line preserved."),
+                    TensorAgent.Sharing.ShareItem.ForFile(
+                        relative, "sharecheck.png", png.LongLength, "public.png", "image/png"),
+                },
+            });
+            writer = null; // Commit transferred ownership to the durable inbox.
+            Console.WriteLine($"TensorAgent: sharecheck wrote {id} ({png.Length} byte image)");
+
+            int imported = await _host.App.DrainSharedInboxAsync();
+            Console.WriteLine($"TensorAgent: sharecheck host imported {imported}");
+
+            // Keep the exact upload family, not merely its browser attachment count.
+            // A successful discard has two independently durable things to reclaim:
+            // the App Group envelope and the copy the ordinary upload service staged.
+            TensorAgent.Core.Sharing.PendingShare? pending = _host.App.Shares.Peek();
+            string? stagedName = null;
+            if (pending?.Attachments.Count == 1)
+            {
+                JsonElement attachment = JsonSerializer.SerializeToElement(pending.Attachments[0]);
+                if (attachment.ValueKind == JsonValueKind.Object
+                    && attachment.TryGetProperty("file", out JsonElement file)
+                    && file.ValueKind == JsonValueKind.String)
+                {
+                    string? candidate = file.GetString();
+                    if (candidate is { Length: > 0 }
+                        && string.Equals(candidate, Path.GetFileName(candidate), StringComparison.Ordinal))
+                    {
+                        stagedName = candidate;
+                    }
+                }
+            }
+
+            string? stagedStem = stagedName is null ? null : Path.GetFileNameWithoutExtension(stagedName);
+            string[] stagedFiles = stagedStem is null
+                ? Array.Empty<string>()
+                : Directory.GetFiles(_host.App.Options.UploadDirectory, stagedStem + "*");
+            bool stagedBeforeDiscard = stagedName is not null
+                && File.Exists(Path.Combine(_host.App.Options.UploadDirectory, stagedName))
+                && stagedFiles.Length > 0;
+
+            bool composerApplied = false;
+            bool retained = false;
+            string claimed = Path.Combine(store.Root, id + ".claimed");
+            string ready = Path.Combine(store.Root, id);
+            string acknowledged = Path.Combine(store.Root, id + ".acknowledged");
+            for (int attempt = 0; attempt < 120; attempt++)
+            {
+                await Task.Delay(250);
+                if (_pageReady)
+                {
+                    string? answer = await _webView.EvaluateJavaScriptAsync(
+                        "(function(){var t=document.getElementById('text');"
+                        + "return !!t&&t.value.indexOf('tensoragent-share-e2e-marker')>=0"
+                        + "&&t.value.indexOf('What can you tell me about this?')>=0"
+                        + "&&window.TensorAgent.attachmentCount()===1;})()");
+                    composerApplied = answer?.Contains("true", StringComparison.OrdinalIgnoreCase) == true;
+                }
+
+                retained = _host.App.Shares.PendingCount == 1
+                    && Directory.Exists(claimed)
+                    && !Directory.Exists(ready);
+                if (composerApplied && retained)
+                    break;
+            }
+
+            clock.Stop();
+            bool passed = composerApplied && retained && stagedBeforeDiscard;
+            Console.WriteLine(passed
+                ? $"TensorAgent: sharecheck PASS composer text + image + durable draft retained in {clock.Elapsed.TotalMilliseconds:0} ms"
+                : $"TensorAgent: sharecheck FAIL composer={composerApplied} retained={retained} staged={stagedBeforeDiscard} pending={_host.App.Shares.PendingCount} after {clock.Elapsed.TotalSeconds:0.0}s");
+            // The probe deliberately never sends a model turn. Calling the explicit
+            // route directly avoids depending on a second WKWebView evaluation after
+            // the composer check (which can remain pending while WebKit processes the
+            // synthetic click), while still crossing the same authenticated HTTP and
+            // host cleanup path as the visible shared-item chip.
+            if (passed)
+            {
+                bool discardAccepted = false;
+                string discardDetail = string.Empty;
+                try
+                {
+                    using var client = new HttpClient
+                    {
+                        BaseAddress = new Uri(_host.BaseUrl),
+                        Timeout = TimeSpan.FromSeconds(5),
+                    };
+                    client.DefaultRequestHeaders.Add("Cookie", $"tensoragent_token={_host.Token}");
+                    using var body = new StringContent(
+                        JsonSerializer.Serialize(new { id }), System.Text.Encoding.UTF8, "application/json");
+                    using HttpResponseMessage response = await client.PostAsync("/api/agent/share/discard", body);
+                    string payload = await response.Content.ReadAsStringAsync();
+                    using JsonDocument answer = JsonDocument.Parse(payload);
+                    discardAccepted = response.IsSuccessStatusCode
+                        && answer.RootElement.TryGetProperty("ok", out JsonElement ok)
+                        && ok.ValueKind == JsonValueKind.True;
+                    discardDetail = $"HTTP {(int)response.StatusCode}";
+                }
+                catch (Exception ex)
+                {
+                    discardDetail = ex.GetType().Name + ": " + ex.Message;
+                }
+
+                bool cleaned = false;
+                bool durableGone = false;
+                bool stagedGone = false;
+                for (int attempt = 0; attempt < 40; attempt++)
+                {
+                    await Task.Delay(100);
+                    durableGone = !Directory.Exists(ready)
+                        && !Directory.Exists(claimed)
+                        && !Directory.Exists(acknowledged);
+                    stagedGone = stagedFiles.All(path => !File.Exists(path));
+                    cleaned = discardAccepted
+                        && _host.App.Shares.PendingCount == 0
+                        && durableGone
+                        && stagedGone;
+                    if (cleaned)
+                        break;
+                }
+                Console.WriteLine(cleaned
+                    ? $"TensorAgent: sharecheck discard cleanup PASS durable envelope + {stagedFiles.Length} staged file(s) reclaimed"
+                    : $"TensorAgent: sharecheck discard cleanup FAIL route={discardAccepted} ({discardDetail}) pending={_host.App.Shares.PendingCount} durableGone={durableGone} stagedBefore={stagedBeforeDiscard} stagedGone={stagedGone}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("TensorAgent: sharecheck FAIL " + ex);
+        }
+        finally
+        {
+            writer?.Abandon();
         }
     }
 
@@ -1109,6 +1287,7 @@ public sealed class MainPage : ContentPage
             // And the answer the model went on writing while this page was not being
             // shown -- and therefore not being read. See ChatTurnManager.
             await Tell("resumeTurn");
+            await Tell("takeShare");
         }
         catch (Exception ex)
         {
@@ -1154,6 +1333,65 @@ public sealed class MainPage : ContentPage
     /// <summary>Call one method on the page's bridge, if the page has one yet.</summary>
     private Task<string?> Tell(string method) => _webView.EvaluateJavaScriptAsync(
         $"window.TensorAgent && window.TensorAgent.{method} ? window.TensorAgent.{method}() : false");
+
+    /// <summary>Bring the persistent chat forward and nudge it to claim a new share.</summary>
+    private void OnShareArrived()
+    {
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try
+            {
+                await AppShell.OpenAsync("main");
+                if (_pageReady)
+                    await Tell("takeShare");
+                await OfferShareNotificationPermissionAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("TensorAgent: share nudge failed: " + ex.Message);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Ask contextually, after the first share has arrived, whether future shares may
+    /// post a one-tap notification. Permission is requested by the containing app,
+    /// never by the extension running inside another app.
+    /// </summary>
+    private async Task OfferShareNotificationPermissionAsync()
+    {
+        const string askedKey = "TensorAgentAskedForShareNotifications";
+        if (string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_SHARE_CHECK"), "1", StringComparison.Ordinal)
+            || NSUserDefaults.StandardUserDefaults.BoolForKey(askedKey))
+            return;
+        if (Interlocked.Exchange(ref _shareNotificationPrompting, 1) != 0)
+            return;
+
+        try
+        {
+            // Re-check inside the in-process gate: several imported envelopes can all
+            // schedule this method before the first settings query finishes.
+            if (NSUserDefaults.StandardUserDefaults.BoolForKey(askedKey))
+                return;
+            UNUserNotificationCenter center = UNUserNotificationCenter.Current;
+            UNNotificationSettings settings = await center.GetNotificationSettingsAsync();
+            if (settings.AuthorizationStatus != UNAuthorizationStatus.NotDetermined)
+                return;
+
+            NSUserDefaults.StandardUserDefaults.SetBool(true, askedKey);
+            bool allow = await DisplayAlertAsync(
+                "Open future shares faster?",
+                "iOS cannot let a Share extension switch apps directly. Allow notifications so future shares can offer a one-tap way to open TensorAgent.",
+                "Allow",
+                "Not now");
+            if (allow)
+                await center.RequestAuthorizationAsync(UNAuthorizationOptions.Alert);
+        }
+        finally
+        {
+            Volatile.Write(ref _shareNotificationPrompting, 0);
+        }
+    }
 
     /// <summary>
     /// Whether the page is still running.
@@ -1516,7 +1754,11 @@ public sealed class MainPage : ContentPage
                 _pageReady = true;
                 MainThread.BeginInvokeOnMainThread(async () =>
                 {
-                    try { await Tell("nativeReady"); }
+                    try
+                    {
+                        await Tell("nativeReady");
+                        await Tell("takeShare");
+                    }
                     catch (Exception ex) { Console.WriteLine("TensorAgent: nativeReady failed: " + ex.Message); }
                 });
                 return;
@@ -1579,6 +1821,10 @@ public sealed class MainPage : ContentPage
     {
         try
         {
+            // Subscribe before Start: LoopbackWebHost starts the durable share drain,
+            // and a small text/URL envelope can arrive before Start returns.
+            _host.App.PageEvent += OnPageEvent;
+            _host.App.Shares.Arrived += OnShareArrived;
             _host.Start();
             EngineProbeResult probe = EngineProbe.Run();
             Console.WriteLine("TensorAgent: engine probe " + JsonSerializer.Serialize(probe, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
@@ -1593,7 +1839,6 @@ public sealed class MainPage : ContentPage
             // The page says when the model starts and stops working; the display is
             // held awake for exactly that stretch, because on iOS the screen sleeping
             // suspends the app and stops the generation partway.
-            _host.App.PageEvent += OnPageEvent;
             _webView.Source = new UrlWebViewSource { Url = _host.EntryUrl };
 #if DEBUG
             // What the launch log cannot tell you otherwise: whether the interpreters
@@ -1605,6 +1850,7 @@ public sealed class MainPage : ContentPage
                     Console.WriteLine("TensorAgent: selftest " + check);
             });
             _ = RunUploadProbeAsync();
+            _ = RunShareProbeAsync();
             _ = RunBackgroundProbeAsync();
             RunNetworkProbe();
             DownloadIfAsked();

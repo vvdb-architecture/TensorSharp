@@ -462,10 +462,15 @@ public sealed class WebUiRoutesTests : IDisposable
         Assert.Contains("window.TensorAgent", script, StringComparison.Ordinal);
         Assert.Contains("addAttachment", script, StringComparison.Ordinal);
         Assert.Contains("insertText", script, StringComparison.Ordinal);
+        Assert.Contains("takeShare", script, StringComparison.Ordinal);
         Assert.Contains("/api/sessions?conversation=", script, StringComparison.Ordinal);
         // The routes it calls must be the ones this server actually maps.
         Assert.Contains("/api/agent/conversations", script, StringComparison.Ordinal);
         Assert.Contains("/api/agent/turns", script, StringComparison.Ordinal);
+        Assert.Contains("/api/agent/share/claim", script, StringComparison.Ordinal);
+        Assert.Contains("/api/agent/share/discard", script, StringComparison.Ordinal);
+        Assert.Contains("shareIds", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("/api/agent/share/ack", script, StringComparison.Ordinal);
         Assert.DoesNotContain("/api/tensoragent/", script, StringComparison.Ordinal);
     }
 
@@ -492,9 +497,19 @@ public sealed class WebUiRoutesTests : IDisposable
 
         // Every route it fetches must be one this server maps, or the feature it
         // belongs to fails at run time with a 404 nobody sees.
-        foreach (string route in new[] { "/api/sessions", "/api/agent/conversations", "/api/agent/events" })
+        foreach (string route in new[]
+        {
+            "/api/sessions", "/api/agent/conversations", "/api/agent/events",
+            "/api/agent/share/claim", "/api/agent/share/discard",
+        })
             Assert.Contains(route, script, StringComparison.Ordinal);
         Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync("/api/agent/events", new { type = "ready" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.PostAsJsonAsync("/api/agent/share/claim", new { })).StatusCode);
+        // There is no share queue in this route fixture, so a well-formed discard is a
+        // conflict. That response proves the endpoint exists without pretending a
+        // missing durable head was removed.
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await _client.PostAsJsonAsync("/api/agent/share/discard", new { id = "missing" })).StatusCode);
     }
 
     /// <summary>

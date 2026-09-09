@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- "Ask TensorAgent": the iOS share extension.
+
+       An app extension is a complete, independent app bundle — its own Mach-O, its own
+       Mono runtime, its own AOT'd BCL — that iOS launches inside whatever app the user
+       is in. Nothing is shared with TensorAgent itself. That is why this project
+       references only TensorAgent.Sharing, a dependency-free assembly holding the envelope
+       format, and NOT TensorAgent.Core: Core carries the whole inference engine, and an
+       empty appex is already 33 MB before anything is added to it. The extension's job
+       is to write a durable envelope and finish; all model work happens in the app, which is
+       also the only one of the two processes with the memory to do it (a share extension
+       runs under roughly a 120 MB jetsam ceiling, and the app's
+       increased-memory-limit entitlement does not apply to it).
+
+       Three properties do all the work, and one of them is subtle:
+
+         OutputType=Library + IsAppExtension=true  ->  _ProjectType becomes
+         iOSAppExtensionProject, which imports Xamarin.iOS.AppExtension.CSharp.targets
+         and turns this library into an app-bundle producer whose extension is .appex.
+         IsAppExtension is tested for NON-EMPTINESS, not for "true" — writing
+         <IsAppExtension>false</IsAppExtension> would ALSO make this an extension.
+
+       The containing app embeds it with a ProjectReference carrying IsAppExtension=true
+       metadata; see TensorAgent.Maui.csproj. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Library</OutputType>
+    <IsAppExtension>true</IsAppExtension>
+    <RootNamespace>TensorAgent.ShareExtension</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+
+    <!-- Apple requires an extension's bundle identifier to BEGIN with the containing
+         app's, and its two version strings to MATCH the app's exactly. The SDK does not
+         check any of that — its _ValidateAppBundle target is defined and never runs — so
+         a mismatch builds green and fails at install or in the share sheet. These three
+         are pinned against TensorAgent.Maui.csproj by a drift test, and they must NEVER
+         be written into Info.plist instead: the manifest merge puts the plist ABOVE
+         these, so a copy there silently wins and then silently drifts. -->
+    <ApplicationId>ai.tensorsharp.tensoragent.share</ApplicationId>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- Must equal the app's. Also must not appear as MinimumOSVersion in Info.plist:
+         the two disagreeing is a hard build error. -->
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
+
+    <!-- Trimming is not optional for an app extension: the SDK forces PublishTrimmed
+         and hard-errors without it. partial is the same mode the app uses, spelled out
+         here because nothing propagates it — a container's csproj properties do not
+         reach a referenced extension. The share payload is serialized through a
+         source-generated JsonSerializerContext (see SharePayloadJsonContext) precisely
+         so that this trimming cannot quietly break it at run time in the share sheet. -->
+    <TrimMode>partial</TrimMode>
+
+    <!-- Run this small UI/process through Mono's interpreter. In full-AOT extension
+         builds from the .NET 10 / iOS 26.5 toolchain, UIKit can reach a managed-static
+         registrar callback before the root assembly's AOT GOT has been initialized;
+         its first runtime-helper branch then jumps to address zero on a physical
+         device. Interpreter mode removes that entry-assembly AOT callback, while the
+         classic static registrar enters a native trampoline and attaches/resolves the
+         managed method there. Keep both: together they avoid the failing path rather
+         than relying on the managed-static registrar's lazy callback resolver. This
+         affects only the small share process, never TensorAgent's inference runtime. -->
+    <UseInterpreter>true</UseInterpreter>
+    <Registrar>static</Registrar>
+
+    <!-- Required: this is the only private, durable filesystem shared by the extension
+         and its containing app. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CustomEntitlements Include="com.apple.security.application-groups"
+                        Type="StringArray"
+                        Value="group.ai.tensorsharp.tensoragent" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The envelope format and text composition contract shared with the app. No
+         transitive dependencies at all, by design. -->
+    <ProjectReference Include="../TensorAgent.Sharing/TensorAgent.Sharing.csproj" />
+    <TrimmerRootAssembly Include="TensorAgent.Sharing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- What Safari runs inside the page. It must be a RESOURCE (Info.plist names it by
+         file name, without the extension) and must never be compiled. -->
+    <BundleResource Include="ExtensionPreprocessing.js" />
+    <!-- A .NET app extension is its own executable bundle and must carry the runtime's
+         required-reason API declarations independently of the containing app. -->
+    <BundleResource Include="../TensorAgent.Maui/Platforms/iOS/Resources/PrivacyInfo.xcprivacy"
+                    LogicalName="PrivacyInfo.xcprivacy" />
+  </ItemGroup>
+
+</Project>

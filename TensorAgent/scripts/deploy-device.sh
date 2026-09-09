@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds, signs, installs, and launches a Release build of TensorAgent on a
+# Builds, signs, installs, and launches a device build of TensorAgent on a
 # connected physical iPhone. Existing app data is preserved: devicectl installs
 # the new bundle over the old one and this script never uninstalls the app.
 #
@@ -8,23 +8,53 @@
 # is an error rather than a reason to deploy to an arbitrary phone.
 #
 # Env overrides:
+#   CONFIGURATION         Debug (default) | Release. Debug is the working device
+#                         configuration until the Release linker preserves the
+#                         engine's dynamically resolved GGML exports.
 #   DEVICE_ID             CoreDevice identifier, hardware UDID, or exact name
 #   CODESIGN_KEY          Apple Development identity (auto-selected if unique)
-#   CODESIGN_PROVISION    development profile name or UUID (auto-selected)
+#   CODESIGN_PROVISION    development profile name or UUID for the containing app
+#                         (auto-selected if omitted)
+#   CODESIGN_SHARE_PROVISION  independent development profile name or UUID for
+#                         ai.tensorsharp.tensoragent.share (auto-selected if omitted)
+#   TENSORAGENT_SHARE_EXTENSION  true (default) | false. When false, deploy the
+#                         intentionally app-only bundle and do not require App Groups.
 #   SKIP_LAUNCH=1         install the app without launching it
 #   DEVICECTL_TIMEOUT     install timeout in seconds (default: 300)
 #   TENSORAGENT_REBUILD_XCFRAMEWORK=0  reuse the existing native xcframework;
-#                         the default is 1 so Release includes current sources
+#                         the default is 1 so the device build includes current sources
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-APP="${REPO_ROOT}/TensorAgent/src/TensorAgent.Maui/bin/Release/net10.0-ios/ios-arm64/TensorAgent.Maui.app"
+CONFIGURATION="${CONFIGURATION:-Debug}"
+APP="${REPO_ROOT}/TensorAgent/src/TensorAgent.Maui/bin/${CONFIGURATION}/net10.0-ios/ios-arm64/TensorAgent.Maui.app"
 BUNDLE_ID="ai.tensorsharp.tensoragent"
+SHARE_BUNDLE_ID="ai.tensorsharp.tensoragent.share"
+APP_GROUP="group.ai.tensorsharp.tensoragent"
 ENTITLEMENTS="${REPO_ROOT}/TensorAgent/src/TensorAgent.Maui/Platforms/iOS/Entitlements.plist"
 DEVICECTL_TIMEOUT="${DEVICECTL_TIMEOUT:-300}"
 TENSORAGENT_REBUILD_XCFRAMEWORK="${TENSORAGENT_REBUILD_XCFRAMEWORK:-1}"
+TENSORAGENT_SHARE_EXTENSION="${TENSORAGENT_SHARE_EXTENSION:-true}"
 REQUESTED_DEVICE="${DEVICE_ID:-}"
+
+case "${CONFIGURATION}" in
+    Debug|Release) ;;
+    *)
+        echo "deploy-device: CONFIGURATION must be Debug or Release" >&2
+        exit 1
+        ;;
+esac
+
+case "${TENSORAGENT_SHARE_EXTENSION}" in
+    1|true|TRUE|yes|YES) TENSORAGENT_SHARE_EXTENSION=true ;;
+    0|false|FALSE|no|NO) TENSORAGENT_SHARE_EXTENSION=false ;;
+    *)
+        echo "deploy-device: TENSORAGENT_SHARE_EXTENSION must be true or false" >&2
+        exit 1
+        ;;
+esac
+
 TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/tensoragent-deploy.XXXXXX")"
 
 cleanup() {
@@ -42,6 +72,15 @@ fail() {
 
 plist_value() { # file key-path
     plutil -extract "$2" raw -o - "$1" 2>/dev/null || true
+}
+
+plist_array_contains() { # file PlistBuddy-key-path exact-value
+    local file="$1" key="$2" expected="$3" index=0 value
+    while value="$(/usr/libexec/PlistBuddy -c "Print :${key}:${index}" "${file}" 2>/dev/null)"; do
+        [[ "${value}" == "${expected}" ]] && return 0
+        index=$((index + 1))
+    done
+    return 1
 }
 
 require_tool() {
@@ -143,92 +182,132 @@ else
     [[ -n "${CODESIGN_IDENTITY_HASH}" ]] || fail "CODESIGN_KEY does not identify a valid Apple Development certificate"
 fi
 
-# Find the newest unexpired development profile that is exact for this bundle,
-# contains the selected phone, and grants every explicit app entitlement. Xcode
-# can choose profiles implicitly, but doing it here keeps unattended deployments
-# deterministic and gives a useful failure before a long Release/AOT build.
-if [[ -z "${CODESIGN_PROVISION:-}" ]]; then
-    PROFILE_PLIST="${TEMP_DIR}/profile.plist"
-    PROFILE_CERTIFICATE="${TEMP_DIR}/profile-certificate.der"
-    NOW_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-    BEST_PROFILE_UUID=""
-    BEST_PROFILE_NAME=""
-    BEST_PROFILE_EXPIRY=""
-    shopt -s nullglob
-    PROFILE_FILES=(
-        "${HOME}/Library/MobileDevice/Provisioning Profiles"/*.mobileprovision
-        "${HOME}/Library/MobileDevice/Provisioning Profiles"/*.provisionprofile
-        "${HOME}/Library/Developer/Xcode/UserData/Provisioning Profiles"/*.mobileprovision
-        "${HOME}/Library/Developer/Xcode/UserData/Provisioning Profiles"/*.provisionprofile
-    )
-    shopt -u nullglob
+# Resolve profiles ourselves instead of allowing one global CodesignProvision to leak
+# into the nested .appex. A containing app and an extension are two independently
+# signed bundles and Apple requires an exact profile for each identifier. When sharing
+# is enabled, BOTH profiles must also grant the exact App Group used for the durable
+# inbox. This is checked for caller-supplied profiles too; an override is not a bypass.
+PROFILE_PLIST="${TEMP_DIR}/profile.plist"
+PROFILE_CERTIFICATE="${TEMP_DIR}/profile-certificate.der"
+NOW_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+shopt -s nullglob
+PROFILE_FILES=(
+    "${HOME}/Library/MobileDevice/Provisioning Profiles"/*.mobileprovision
+    "${HOME}/Library/MobileDevice/Provisioning Profiles"/*.provisionprofile
+    "${HOME}/Library/Developer/Xcode/UserData/Provisioning Profiles"/*.mobileprovision
+    "${HOME}/Library/Developer/Xcode/UserData/Provisioning Profiles"/*.provisionprofile
+)
+shopt -u nullglob
 
-    for PROFILE_FILE in "${PROFILE_FILES[@]}"; do
-        security cms -D -i "${PROFILE_FILE}" > "${PROFILE_PLIST}" 2>/dev/null || continue
-        PROFILE_APP_ID="$(plist_value "${PROFILE_PLIST}" Entitlements.application-identifier)"
-        PROFILE_BUNDLE_ID="${PROFILE_APP_ID#*.}"
-        [[ "${PROFILE_BUNDLE_ID}" == "${BUNDLE_ID}" ]] || continue
+profile_contains_signing_certificate() { # decoded-profile
+    local profile="$1" count index hash
+    count="$(plist_value "${profile}" DeveloperCertificates)"
+    [[ "${count}" =~ ^[0-9]+$ ]] || return 1
+    index=0
+    while [[ "${index}" -lt "${count}" ]]; do
+        if plutil -extract "DeveloperCertificates.${index}" raw -o - "${profile}" 2>/dev/null | \
+            base64 -D > "${PROFILE_CERTIFICATE}" 2>/dev/null; then
+            hash="$(shasum -a 1 "${PROFILE_CERTIFICATE}" | awk '{ print toupper($1) }')"
+            [[ "${hash}" == "${CODESIGN_IDENTITY_HASH}" ]] && return 0
+        fi
+        index=$((index + 1))
+    done
+    return 1
+}
+
+profile_contains_device() { # decoded-profile
+    local profile="$1" count index
+    count="$(plist_value "${profile}" ProvisionedDevices)"
+    [[ "${count}" =~ ^[0-9]+$ ]] || return 1
+    index=0
+    while [[ "${index}" -lt "${count}" ]]; do
+        [[ "$(plist_value "${profile}" "ProvisionedDevices.${index}")" == "${DEVICE_UDID}" ]] && return 0
+        index=$((index + 1))
+    done
+    return 1
+}
+
+profile_grants_boolean_entitlements() { # decoded-profile required-entitlements-plist
+    local profile="$1" required="$2" entitlement
+    while IFS= read -r entitlement; do
+        [[ -n "${entitlement}" ]] || continue
+        [[ "$(/usr/libexec/PlistBuddy -c "Print :Entitlements:${entitlement}" "${profile}" 2>/dev/null || true)" == "true" ]] \
+            || return 1
+    done < <(/usr/libexec/PlistBuddy -c Print "${required}" | \
+        sed -nE 's/^[[:space:]]*([^ =]+)[[:space:]]*=[[:space:]]*true$/\1/p')
+    return 0
+}
+
+# Sets SELECTED_PROFILE_UUID and SELECTED_PROFILE_DESCRIPTION. The optional requested
+# value is a profile name or UUID; required_group is empty for an app-only build.
+select_profile() { # label exact-bundle-id requested-profile required-group required-boolean-entitlements
+    local label="$1" bundle_id="$2" requested="$3" required_group="$4" required_booleans="$5"
+    local profile_file profile_app_id profile_bundle_id profile_uuid profile_name profile_expiry
+    local best_uuid="" best_name="" best_expiry=""
+
+    for profile_file in "${PROFILE_FILES[@]}"; do
+        security cms -D -i "${profile_file}" > "${PROFILE_PLIST}" 2>/dev/null || continue
+        profile_uuid="$(plist_value "${PROFILE_PLIST}" UUID)"
+        profile_name="$(plist_value "${PROFILE_PLIST}" Name)"
+        if [[ -n "${requested}" && "${requested}" != "${profile_uuid}" && "${requested}" != "${profile_name}" ]]; then
+            continue
+        fi
+
+        profile_app_id="$(plist_value "${PROFILE_PLIST}" Entitlements.application-identifier)"
+        profile_bundle_id="${profile_app_id#*.}"
+        [[ "${profile_bundle_id}" == "${bundle_id}" ]] || continue
         [[ "$(plist_value "${PROFILE_PLIST}" Entitlements.get-task-allow)" == "true" ]] || continue
+        profile_contains_signing_certificate "${PROFILE_PLIST}" || continue
+        profile_contains_device "${PROFILE_PLIST}" || continue
 
-        PROFILE_HAS_CERTIFICATE=0
-        PROFILE_CERTIFICATE_COUNT="$(plist_value "${PROFILE_PLIST}" DeveloperCertificates)"
-        [[ "${PROFILE_CERTIFICATE_COUNT}" =~ ^[0-9]+$ ]] || continue
-        PROFILE_CERTIFICATE_INDEX=0
-        while [[ "${PROFILE_CERTIFICATE_INDEX}" -lt "${PROFILE_CERTIFICATE_COUNT}" ]]; do
-            if plutil -extract "DeveloperCertificates.${PROFILE_CERTIFICATE_INDEX}" raw -o - "${PROFILE_PLIST}" 2>/dev/null | \
-                base64 -D > "${PROFILE_CERTIFICATE}" 2>/dev/null; then
-                PROFILE_CERTIFICATE_HASH="$(shasum -a 1 "${PROFILE_CERTIFICATE}" | awk '{ print toupper($1) }')"
-                if [[ "${PROFILE_CERTIFICATE_HASH}" == "${CODESIGN_IDENTITY_HASH}" ]]; then
-                    PROFILE_HAS_CERTIFICATE=1
-                    break
-                fi
-            fi
-            PROFILE_CERTIFICATE_INDEX=$((PROFILE_CERTIFICATE_INDEX + 1))
-        done
-        [[ "${PROFILE_HAS_CERTIFICATE}" == "1" ]] || continue
+        profile_expiry="$(plist_value "${PROFILE_PLIST}" ExpirationDate)"
+        [[ -n "${profile_expiry}" && "${profile_expiry}" > "${NOW_UTC}" ]] || continue
+        if [[ -n "${required_group}" ]]; then
+            plist_array_contains "${PROFILE_PLIST}" \
+                "Entitlements:com.apple.security.application-groups" "${required_group}" || continue
+        fi
+        if [[ -n "${required_booleans}" ]]; then
+            profile_grants_boolean_entitlements "${PROFILE_PLIST}" "${required_booleans}" || continue
+        fi
 
-        PROFILE_EXPIRY="$(plist_value "${PROFILE_PLIST}" ExpirationDate)"
-        [[ -n "${PROFILE_EXPIRY}" && "${PROFILE_EXPIRY}" > "${NOW_UTC}" ]] || continue
-
-        PROFILE_HAS_DEVICE=0
-        PROFILE_DEVICE_COUNT="$(plist_value "${PROFILE_PLIST}" ProvisionedDevices)"
-        [[ "${PROFILE_DEVICE_COUNT}" =~ ^[0-9]+$ ]] || continue
-        PROFILE_DEVICE_INDEX=0
-        while [[ "${PROFILE_DEVICE_INDEX}" -lt "${PROFILE_DEVICE_COUNT}" ]]; do
-            if [[ "$(plist_value "${PROFILE_PLIST}" "ProvisionedDevices.${PROFILE_DEVICE_INDEX}")" == "${DEVICE_UDID}" ]]; then
-                PROFILE_HAS_DEVICE=1
-                break
-            fi
-            PROFILE_DEVICE_INDEX=$((PROFILE_DEVICE_INDEX + 1))
-        done
-        [[ "${PROFILE_HAS_DEVICE}" == "1" ]] || continue
-
-        PROFILE_HAS_ENTITLEMENTS=1
-        while IFS= read -r ENTITLEMENT; do
-            [[ -n "${ENTITLEMENT}" ]] || continue
-            if [[ "$(/usr/libexec/PlistBuddy -c "Print :Entitlements:${ENTITLEMENT}" "${PROFILE_PLIST}" 2>/dev/null || true)" != "true" ]]; then
-                PROFILE_HAS_ENTITLEMENTS=0
-                break
-            fi
-        done < <(/usr/libexec/PlistBuddy -c Print "${ENTITLEMENTS}" | \
-            sed -nE 's/^[[:space:]]*([^ =]+)[[:space:]]*=[[:space:]]*true$/\1/p')
-        [[ "${PROFILE_HAS_ENTITLEMENTS}" == "1" ]] || continue
-
-        PROFILE_UUID="$(plist_value "${PROFILE_PLIST}" UUID)"
-        PROFILE_NAME="$(plist_value "${PROFILE_PLIST}" Name)"
-        [[ -n "${PROFILE_UUID}" ]] || continue
-        if [[ -z "${BEST_PROFILE_UUID}" || "${PROFILE_EXPIRY}" > "${BEST_PROFILE_EXPIRY}" ]]; then
-            BEST_PROFILE_UUID="${PROFILE_UUID}"
-            BEST_PROFILE_NAME="${PROFILE_NAME}"
-            BEST_PROFILE_EXPIRY="${PROFILE_EXPIRY}"
+        [[ -n "${profile_uuid}" ]] || continue
+        if [[ -z "${best_uuid}" || "${profile_expiry}" > "${best_expiry}" ]]; then
+            best_uuid="${profile_uuid}"
+            best_name="${profile_name}"
+            best_expiry="${profile_expiry}"
         fi
     done
 
-    [[ -n "${BEST_PROFILE_UUID}" ]] || fail "no unexpired development profile for ${BUNDLE_ID} contains ${DEVICE_NAME}; set CODESIGN_PROVISION or refresh signing in Xcode"
-    CODESIGN_PROVISION="${BEST_PROFILE_UUID}"
-    SELECTED_PROFILE_DESCRIPTION="${BEST_PROFILE_NAME} (${BEST_PROFILE_UUID}, expires ${BEST_PROFILE_EXPIRY})"
-else
-    SELECTED_PROFILE_DESCRIPTION="${CODESIGN_PROVISION}"
+    if [[ -z "${best_uuid}" ]]; then
+        if [[ -n "${requested}" ]]; then
+            fail "${label} profile '${requested}' is not an unexpired development profile for exact bundle id ${bundle_id}, this signing certificate, and ${DEVICE_NAME}${required_group:+ with App Group ${required_group}}"
+        fi
+        fail "no unexpired ${label} development profile for exact bundle id ${bundle_id} contains ${DEVICE_NAME}${required_group:+ and App Group ${required_group}}; refresh signing in Xcode or the Developer portal"
+    fi
+
+    SELECTED_PROFILE_UUID="${best_uuid}"
+    SELECTED_PROFILE_DESCRIPTION="${best_name} (${best_uuid}, expires ${best_expiry})"
+}
+
+MAIN_REQUIRED_GROUP=""
+if [[ "${TENSORAGENT_SHARE_EXTENSION}" == "true" ]]; then
+    MAIN_REQUIRED_GROUP="${APP_GROUP}"
+fi
+REQUESTED_SHARE_PROFILE="${CODESIGN_SHARE_PROVISION:-}"
+select_profile "containing-app" "${BUNDLE_ID}" "${CODESIGN_PROVISION:-}" \
+    "${MAIN_REQUIRED_GROUP}" "${ENTITLEMENTS}"
+CODESIGN_PROVISION="${SELECTED_PROFILE_UUID}"
+MAIN_PROFILE_DESCRIPTION="${SELECTED_PROFILE_DESCRIPTION}"
+
+CODESIGN_SHARE_PROVISION=""
+SHARE_PROFILE_DESCRIPTION="disabled"
+if [[ "${TENSORAGENT_SHARE_EXTENSION}" == "true" ]]; then
+    select_profile "share-extension" "${SHARE_BUNDLE_ID}" "${REQUESTED_SHARE_PROFILE}" \
+        "${APP_GROUP}" ""
+    CODESIGN_SHARE_PROVISION="${SELECTED_PROFILE_UUID}"
+    SHARE_PROFILE_DESCRIPTION="${SELECTED_PROFILE_DESCRIPTION}"
+    [[ "${CODESIGN_SHARE_PROVISION}" != "${CODESIGN_PROVISION}" ]] \
+        || fail "the containing app and share extension resolved to the same profile; each bundle needs its own exact profile"
 fi
 
 PYTHON_FRAMEWORK="${REPO_ROOT}/TensorAgent/python-runtime/device/Frameworks/Python.framework"
@@ -239,11 +318,15 @@ fi
 
 echo "==> Target: ${DEVICE_NAME} (${DEVICE_ID})"
 echo "==> Signing identity: ${CODESIGN_KEY}"
-echo "==> Provisioning profile: ${SELECTED_PROFILE_DESCRIPTION}"
-echo "==> Building a fresh TensorAgent Release bundle"
-CONFIGURATION=Release \
+echo "==> Containing-app profile: ${MAIN_PROFILE_DESCRIPTION}"
+echo "==> Share-extension profile: ${SHARE_PROFILE_DESCRIPTION}"
+echo "==> Building a fresh TensorAgent ${CONFIGURATION} bundle"
+CONFIGURATION="${CONFIGURATION}" \
 CODESIGN_KEY="${CODESIGN_KEY}" \
 CODESIGN_PROVISION="${CODESIGN_PROVISION}" \
+CODESIGN_SHARE_PROVISION="${CODESIGN_SHARE_PROVISION}" \
+TENSORAGENT_SHARE_EXTENSION="${TENSORAGENT_SHARE_EXTENSION}" \
+CLEAN=1 \
 NO_INCREMENTAL=1 \
 SKIP_SIGNING=0 \
 TENSORAGENT_REBUILD_XCFRAMEWORK="${TENSORAGENT_REBUILD_XCFRAMEWORK}" \
@@ -254,10 +337,98 @@ codesign --verify --deep --strict --verbose=2 "${APP}"
 ACTUAL_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${APP}/Info.plist" 2>/dev/null || true)"
 [[ "${ACTUAL_BUNDLE_ID}" == "${BUNDLE_ID}" ]] || fail "built bundle identifier is '${ACTUAL_BUNDLE_ID}', expected '${BUNDLE_ID}'"
 
+# Check what the SDK actually embedded and signed, not just the inputs handed to
+# MSBuild. A nested project can quietly inherit the containing app's profile, and an
+# App Group present in a portal profile but absent from the code signature still makes
+# containerURLForSecurityApplicationGroupIdentifier return nil at runtime.
+validate_built_bundle() { # label bundle exact-bundle-id selected-profile-uuid group-mode
+    local label="$1" bundle="$2" bundle_id="$3" selected_uuid="$4" group_mode="$5"
+    local embedded="${bundle}/embedded.mobileprovision"
+    local decoded="${TEMP_DIR}/${label}-embedded.plist"
+    local signed="${TEMP_DIR}/${label}-signed-entitlements.plist"
+    local actual_id embedded_uuid profile_app_id profile_bundle_id signed_app_id signed_bundle_id
+
+    [[ -f "${bundle}/Info.plist" ]] || fail "${label} bundle has no Info.plist"
+    actual_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${bundle}/Info.plist" 2>/dev/null || true)"
+    [[ "${actual_id}" == "${bundle_id}" ]] \
+        || fail "${label} bundle identifier is '${actual_id}', expected '${bundle_id}'"
+
+    [[ -f "${embedded}" ]] || fail "${label} bundle has no embedded provisioning profile"
+    security cms -D -i "${embedded}" > "${decoded}" 2>/dev/null \
+        || fail "${label} embedded provisioning profile could not be decoded"
+    embedded_uuid="$(plist_value "${decoded}" UUID)"
+    [[ "${embedded_uuid}" == "${selected_uuid}" ]] \
+        || fail "${label} embedded profile is ${embedded_uuid:-unknown}, expected ${selected_uuid}"
+    profile_app_id="$(plist_value "${decoded}" Entitlements.application-identifier)"
+    profile_bundle_id="${profile_app_id#*.}"
+    [[ "${profile_bundle_id}" == "${bundle_id}" ]] \
+        || fail "${label} embedded profile is for '${profile_bundle_id}', expected exact id '${bundle_id}'"
+
+    codesign -d --entitlements :- "${bundle}" > "${signed}" 2>/dev/null \
+        || fail "${label} signed entitlements could not be read"
+    signed_app_id="$(plist_value "${signed}" application-identifier)"
+    signed_bundle_id="${signed_app_id#*.}"
+    [[ "${signed_bundle_id}" == "${bundle_id}" ]] \
+        || fail "${label} signature application-identifier is '${signed_app_id}', expected exact id '${bundle_id}'"
+
+    if [[ "${group_mode}" == "required" ]]; then
+        plist_array_contains "${decoded}" "Entitlements:com.apple.security.application-groups" "${APP_GROUP}" \
+            || fail "${label} embedded profile does not grant App Group ${APP_GROUP}"
+        plist_array_contains "${signed}" "com.apple.security.application-groups" "${APP_GROUP}" \
+            || fail "${label} code signature does not request App Group ${APP_GROUP}"
+    elif plist_array_contains "${signed}" "com.apple.security.application-groups" "${APP_GROUP}"; then
+        fail "${label} code signature still requests ${APP_GROUP} although the share extension is disabled"
+    fi
+}
+
+MAIN_GROUP_MODE="forbidden"
+[[ "${TENSORAGENT_SHARE_EXTENSION}" == "true" ]] && MAIN_GROUP_MODE="required"
+validate_built_bundle "main" "${APP}" "${BUNDLE_ID}" "${CODESIGN_PROVISION}" "${MAIN_GROUP_MODE}"
+
+# The main app's two device-only memory entitlements are independent of sharing and
+# must survive either mode. They were already checked against the selected profile;
+# repeat the check against the final signature.
+MAIN_SIGNED_ENTITLEMENTS="${TEMP_DIR}/main-signed-entitlements.plist"
+while IFS= read -r ENTITLEMENT; do
+    [[ -n "${ENTITLEMENT}" ]] || continue
+    [[ "$(/usr/libexec/PlistBuddy -c "Print :${ENTITLEMENT}" "${MAIN_SIGNED_ENTITLEMENTS}" 2>/dev/null || true)" == "true" ]] \
+        || fail "containing-app signature is missing required entitlement ${ENTITLEMENT}"
+done < <(/usr/libexec/PlistBuddy -c Print "${ENTITLEMENTS}" | \
+    sed -nE 's/^[[:space:]]*([^ =]+)[[:space:]]*=[[:space:]]*true$/\1/p')
+
+SHARE_APPEX=""
+if [[ -d "${APP}/PlugIns" ]]; then
+    while IFS= read -r CANDIDATE_APPEX; do
+        CANDIDATE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${CANDIDATE_APPEX}/Info.plist" 2>/dev/null || true)"
+        if [[ "${CANDIDATE_BUNDLE_ID}" == "${SHARE_BUNDLE_ID}" ]]; then
+            [[ -z "${SHARE_APPEX}" ]] || fail "the app contains more than one ${SHARE_BUNDLE_ID} extension"
+            SHARE_APPEX="${CANDIDATE_APPEX}"
+        fi
+    done < <(find "${APP}/PlugIns" -mindepth 1 -maxdepth 1 -type d -name '*.appex' -print)
+fi
+
+if [[ "${TENSORAGENT_SHARE_EXTENSION}" == "true" ]]; then
+    [[ -n "${SHARE_APPEX}" ]] || fail "share extension ${SHARE_BUNDLE_ID} was enabled but is absent from the app bundle"
+    validate_built_bundle "share" "${SHARE_APPEX}" "${SHARE_BUNDLE_ID}" \
+        "${CODESIGN_SHARE_PROVISION}" "required"
+    [[ -f "${SHARE_APPEX}/PrivacyInfo.xcprivacy" ]] \
+        || fail "share extension is missing PrivacyInfo.xcprivacy at its bundle root"
+
+    MAIN_SHORT_VERSION="$(plist_value "${APP}/Info.plist" CFBundleShortVersionString)"
+    MAIN_BUILD_VERSION="$(plist_value "${APP}/Info.plist" CFBundleVersion)"
+    SHARE_SHORT_VERSION="$(plist_value "${SHARE_APPEX}/Info.plist" CFBundleShortVersionString)"
+    SHARE_BUILD_VERSION="$(plist_value "${SHARE_APPEX}/Info.plist" CFBundleVersion)"
+    [[ "${SHARE_SHORT_VERSION}" == "${MAIN_SHORT_VERSION}" && "${SHARE_BUILD_VERSION}" == "${MAIN_BUILD_VERSION}" ]] \
+        || fail "share extension version ${SHARE_SHORT_VERSION} (${SHARE_BUILD_VERSION}) does not match app ${MAIN_SHORT_VERSION} (${MAIN_BUILD_VERSION})"
+elif [[ -n "${SHARE_APPEX}" ]]; then
+    fail "share extension was disabled but ${SHARE_BUNDLE_ID} is still embedded"
+fi
+
 APP_EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${APP}/Info.plist" 2>/dev/null || true)"
 [[ -n "${APP_EXECUTABLE}" && -f "${APP}/${APP_EXECUTABLE}" ]] || fail "could not locate the built app executable"
 nm -gU "${APP}/${APP_EXECUTABLE}" > "${TEMP_DIR}/symbols.txt"
-grep -q ' _TSGgml_IsMetalAvailable$' "${TEMP_DIR}/symbols.txt" || fail "Release stripping removed TensorAgent's GGML exports"
+grep -q ' _TSGgml_IsMetalAvailable$' "${TEMP_DIR}/symbols.txt" \
+    || fail "${CONFIGURATION} bundle is missing TensorAgent's GGML exports"
 
 echo "==> Installing TensorAgent on ${DEVICE_NAME} (existing app data is preserved)"
 xcrun devicectl --timeout "${DEVICECTL_TIMEOUT}" device install app \
@@ -269,4 +440,4 @@ if [[ "${SKIP_LAUNCH:-0}" != "1" ]]; then
         --device "${DEVICE_ID}" --terminate-existing "${BUNDLE_ID}"
 fi
 
-echo "==> TensorAgent Release deployed successfully to ${DEVICE_NAME}"
+echo "==> TensorAgent ${CONFIGURATION} deployed successfully to ${DEVICE_NAME}"

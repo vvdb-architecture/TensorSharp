@@ -11,6 +11,10 @@
 #                   tapping "Use" on the model list would.
 #   TENSORAGENT_UI_CHECK=1    Debug builds only: run the composer's gesture checks in
 #                   the WebView and log one 'uicheck' line per assertion.
+#   TENSORAGENT_SHARE_CHECK=1 Debug builds only: write a page + image into the App
+#                   Group inbox, import it, and verify the real WebView applied and
+#                   retained it without sending, then explicitly discarded both the
+#                   durable envelope and staged attachment.
 #   TENSORAGENT_DEMO_PROMPT   Debug builds only: once the Web UI has loaded the app
 #                   types this prompt into the composer and sends it, so the
 #                   canned /api/chat stream renders on screen without anyone
@@ -70,6 +74,9 @@ fi
 # one 'uicheck' line per assertion. verify-sim.sh asserts on them.
 if [[ -n "${TENSORAGENT_UI_CHECK:-}" ]]; then
     export SIMCTL_CHILD_TENSORAGENT_UI_CHECK="${TENSORAGENT_UI_CHECK}"
+fi
+if [[ -n "${TENSORAGENT_SHARE_CHECK:-}" ]]; then
+    export SIMCTL_CHILD_TENSORAGENT_SHARE_CHECK="${TENSORAGENT_SHARE_CHECK}"
 fi
 # Debug builds only: a generation carried across a background switch (see the header
 # and verify-background.sh), and the start-a-download probe, which stops after

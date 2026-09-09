@@ -75,6 +75,36 @@ because it is the iPhone camera's default format — and so does a photo that ar
 no file extension at all, which is what iOS's picker actually hands over
 (`UploadNaming`).
 
+**Share into TensorAgent from other apps.** “Ask TensorAgent” is an iOS Share
+extension for Safari, Photos, Mail, Messages, Files, Reddit, and any other app that
+offers text, links, webpages, images, movies, audio, PDFs, or supported text/code documents. It copies the
+share into a private App Group envelope, preserving large files with file-to-file I/O,
+and TensorAgent imports those files through the same `/api/upload` service as every
+other attachment. Safari also runs the bundled preprocessing script so an on-device
+model receives the visible article text and selection, not only a URL it cannot fetch.
+
+The normal result is an unsent draft in the chat composer:
+`What can you tell me about this?` followed by the shared content, with shared files
+shown as attachment chips. Existing draft text and attachments are preserved. The
+share sheet offers prompt presets. Every separate share action is queued as its own
+durable envelope and opens its own fresh chat after the preceding share is sent or
+removed; independent shares are never combined into one composer or conversation.
+Sharing never sends a model turn automatically: the user can review/edit the draft,
+press Send, or remove the visible shared-item chip to discard the durable handoff and
+its staged files.
+
+The envelope is atomic and durable across a cold launch, app suspension, WebView
+reload, or import failure. Merely showing the draft does not delete it; it is atomically
+acknowledged only after the user sends and the accepted turn is written to the
+conversation store (or explicitly discards it). iOS does not permit a general Share
+extension to launch or foreground its containing app. If notification permission was
+already granted, the extension posts a content-free “Shared item ready” notification
+that opens TensorAgent with one tap; otherwise it confirms the save and asks the user
+to open TensorAgent. The app consumes the inbox at launch and on every foreground.
+Likewise, pressing Copy alone does not address an app and cannot wake TensorAgent;
+use the source app's Share action and choose “Ask TensorAgent.” No private responder
+chain or sensitive custom-URL fallback is used.
+
 **Voice, by gesture.** Hold the message box for half a second and the composer
 becomes one large hold-to-talk button; hold it, speak, release, and the transcription
 lands in the message box for you to read before sending. A keyboard button beside it
@@ -266,15 +296,20 @@ TensorAgent/scripts/verify-sim.sh           # drive the running app's API from t
                                             # (also takes a DEVICE log: a phone's 127.0.0.1
                                             #  is the phone's, so it skips the API half and
                                             #  checks everything the app logged about itself)
-TensorAgent/scripts/deploy-device.sh         # Release build: auto-sign, install, and launch
+TensorAgent/scripts/deploy-device.sh         # Debug build: auto-sign, install, and launch
 TensorAgent/scripts/verify-background.sh     # send the app away mid-answer and read what happened
 ```
 
 `deploy-device.sh` selects the only connected physical iPhone, an installed
 `Apple Development` identity, and a compatible provisioning profile. If more
 than one phone or identity is available, set `DEVICE_ID` or `CODESIGN_KEY`;
-`CODESIGN_PROVISION` can likewise override profile selection. The install is an
-update in place, so existing models, conversations, and settings are retained.
+`CODESIGN_PROVISION` can likewise override profile selection. Share-enabled builds
+also require the App Group `group.ai.tensorsharp.tensoragent` on both App IDs and an
+independent profile for `ai.tensorsharp.tensoragent.share`; override its selection with
+`CODESIGN_SHARE_PROVISION`. The containing app's exact profile must never be reused
+for the extension. Set `TENSORAGENT_SHARE_EXTENSION=false` only for an intentional
+app-only regression build. The install is an update in place, so existing models,
+conversations, and settings are retained.
 Release deployment rebuilds the native iOS xcframework from the current checkout;
 set `TENSORAGENT_REBUILD_XCFRAMEWORK=0` only when intentionally reusing it.
 
@@ -287,6 +322,7 @@ Five environment variables drive a Debug build from a script, because neither
 | `TENSORAGENT_USE_MODEL=<catalog id>` | load a model, as tapping "Use" would |
 | `TENSORAGENT_DEMO_PROMPT=<text>` | type a prompt into the composer and send it |
 | `TENSORAGENT_UI_CHECK=1` | drive the composer's gestures and the menu, one line per check |
+| `TENSORAGENT_SHARE_CHECK=1` | verify App Group import into an unsent draft, then explicit discard of its durable envelope and staged PNG |
 | `TENSORAGENT_OPEN_MENU=1` | leave the menu open, so it can appear in a screenshot |
 | `TENSORAGENT_NAV_CHECK=1` | leave the chat mid-answer for `TENSORAGENT_NAV_SECONDS` (15) and report whether the answer carried on |
 | `TENSORAGENT_NETWORK_CHECK=1` | flip the network switch both ways and run `curl` after each, then put it back |
@@ -336,6 +372,11 @@ TensorAgent/
     Python/         embedded CPython and the wheel installer
     JavaScript/     JavaScriptCore over its C API, with Node-shaped globals
     WebUi/          the script appended to the Server's page
+    Sharing/        durable-inbox import, bounded composer handoff, ACK lifecycle
+  src/TensorAgent.Sharing/
+                    dependency-free envelope format and prompt composition contract
+  src/TensorAgent.ShareExtension/
+                    iOS share sheet, NSItemProvider readers, Safari preprocessing
   src/TensorAgent.Maui/
     MainPage        the WebView, the attachment row, dictation
     Pages/          models, chats, settings

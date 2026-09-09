@@ -17,6 +17,7 @@ using TensorAgent.Core.Downloads;
 using TensorAgent.Core.JavaScript;
 using TensorAgent.Core.Python;
 using TensorAgent.Core.Sessions;
+using TensorAgent.Core.Sharing;
 using TensorAgent.Core.Settings;
 using TensorAgent.Core.Sandbox;
 using TensorAgent.Core.Shell;
@@ -27,6 +28,7 @@ using TensorSharp.GGML;
 using TensorSharp.Runtime.Scheduling;
 using TensorSharp.Server;
 using TensorSharp.Server.Hosting;
+using TensorAgent.Sharing;
 
 namespace TensorAgent.Core.Hosting;
 
@@ -52,6 +54,12 @@ public sealed class AgentAppHost : IDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly List<IDisposable> _owned = new();
+    private readonly object _shareClaimsLock = new();
+    private readonly Dictionary<string, string> _shareClaims = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ClaimedShare> _shareReleaseRetries = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _shareDrain = new(1, 1);
+    private readonly object _shareOwnershipLock = new();
+    private readonly HashSet<string> _sharesBeingSent = new(StringComparer.Ordinal);
 
     /// <param name="paths">Where this installation keeps its files.</param>
     /// <param name="webRoot">The bundled copy of the Web UI, or null to serve no static files.</param>
@@ -254,6 +262,18 @@ public sealed class AgentAppHost : IDisposable
             WebUiChatService.DefaultArtifactUriPrefix,
             skillRouter: TensorAgentSkillRouter.Route);
 
+        // The share contract stays platform-neutral. On iOS the path points into the
+        // App Group container; tests use an ordinary temporary directory.
+        Shares = new ShareIntake();
+        ShareImports = new ShareImporter(Chat, Shares, _loggerFactory);
+        ShareInbox = paths.SharedInboxDirectory is { Length: > 0 } inbox
+            ? new ShareEnvelopeStore(inbox)
+            : null;
+        if (ShareInbox is not null)
+            ShareInbox.RecoverClaims();
+        Shares.Acknowledging += OnShareAcknowledged;
+        Chat.AcquireChatRequestLease = AcquireShareSendLease;
+
         // A turn the user just took has to survive the app being closed, and the Web
         // UI page keeps its history only in memory. This is the hook the chat service
         // exposes for exactly that: the transcript is written on the host side, keyed
@@ -269,6 +289,35 @@ public sealed class AgentAppHost : IDisposable
                 && resumed.ValueKind == JsonValueKind.True)
                 return;
             Recorder.Record(sessionId, requestBody);
+
+            // Only an accepted request, recorded durably above, consumes a shared
+            // draft. Merely showing it in WebKit is not terminal: the content process
+            // or app can be killed at any time and the composer itself is not stored.
+            bool multipleSharedDrafts = HasMultipleShareIdEntries(requestBody);
+            string[] sharedIds = ShareIdsOf(requestBody);
+            if (!multipleSharedDrafts && sharedIds.Length == 1)
+            {
+                // The request-start lease holds these ids against an explicit discard;
+                // this lock also preserves the invariant for tests/hosts that invoke the
+                // accepted-request hook directly.
+                lock (_shareOwnershipLock)
+                {
+                    string id = sharedIds[0];
+                    if (!Shares.Acknowledge(id))
+                    {
+                        _loggerFactory.CreateLogger("TensorAgent.Share").LogWarning(
+                            "Accepted chat request could not acknowledge shared draft {Id}; retaining it", id);
+                    }
+                }
+            }
+            else if (multipleSharedDrafts || sharedIds.Length > 1)
+            {
+                // AcquireShareSendLease rejects this in the real request path. Keep the
+                // accepted-request hook defensive as well: tests and alternate hosts
+                // can invoke it directly, and one turn must never consume two shares.
+                _loggerFactory.CreateLogger("TensorAgent.Share").LogWarning(
+                    "Accepted chat request named {Count} shared drafts; retaining all of them", sharedIds.Length);
+            }
         };
 
         // A generation belongs to the app, not to the HTTP request that asked for it.
@@ -306,7 +355,8 @@ public sealed class AgentAppHost : IDisposable
         Server.MapCodeArtifacts(Artifacts);
         Server.MapAgent(
             Catalog, Models, Conversations, Settings, DescribeEngine, RaisePageEvent, Downloads,
-            onSettingsChanged: ApplySettings, describeModel: DescribeModelState);
+            onSettingsChanged: ApplySettings, describeModel: DescribeModelState, shares: Shares,
+            hasShareContainer: () => ShareInbox is not null, discardShare: DiscardPendingShare);
     }
 
     public AgentPaths Paths { get; }
@@ -331,6 +381,9 @@ public sealed class AgentAppHost : IDisposable
     public ServerHostingOptions Options { get; }
     public WebUiChatService Chat { get; }
     public ConversationRecorder Recorder { get; }
+    public ShareIntake Shares { get; }
+    public ShareImporter ShareImports { get; }
+    public ShareEnvelopeStore? ShareInbox { get; }
 
     /// <summary>
     /// Whether the model may run right now. See <see cref="ComputeGate"/>; the iOS head
@@ -360,6 +413,289 @@ public sealed class AgentAppHost : IDisposable
     {
         Server.Start();
         LoadSelectedModelInBackground();
+    }
+
+    /// <summary>
+    /// Import durable envelopes left by the share extension. A claimed directory is
+    /// retained until an accepted, recorded chat request or explicit discard consumes
+    /// the draft; on any transient failure it is atomically returned to the ready queue.
+    /// </summary>
+    public async Task<int> DrainSharedInboxAsync(CancellationToken cancellationToken = default)
+    {
+        if (ShareInbox is null)
+            return 0;
+
+        await _shareDrain.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+
+            ILogger log = _loggerFactory.CreateLogger("TensorAgent.Share");
+            await RetryClaimReleasesAsync(log).ConfigureAwait(false);
+            try { ShareInbox.Purge(DateTimeOffset.UtcNow); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                log.LogWarning(ex, "The share inbox could not be purged");
+            }
+
+            int imported = 0;
+            foreach (string id in ShareInbox.ListReady())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                // Backpressure keeps the durable envelope on disk. Dropping an already
+                // imported share to make room would silently lose user data.
+                if (!Shares.CanAccept)
+                    break;
+
+                ClaimedShare? claim = ShareInbox.TryClaim(id, out string? why);
+                if (claim is null)
+                {
+                    if (why is { Length: > 0 })
+                        log.LogInformation("Share {Id} not claimed: {Reason}", id, why);
+                    continue;
+                }
+
+                lock (_shareClaimsLock)
+                    _shareClaims[id] = claim.Directory;
+                try
+                {
+                    ShareImportResult result = await ShareImports
+                        .ImportWithOutcomeAsync(claim.Payload, claim.Directory, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (result.Status == ShareImportStatus.Offered)
+                    {
+                        imported++;
+                        continue;
+                    }
+
+                    lock (_shareClaimsLock)
+                        _shareClaims.Remove(id);
+                    if (result.Status == ShareImportStatus.RetryLater)
+                        await ReleaseClaimAsync(claim, log).ConfigureAwait(false);
+                    else
+                        ShareInbox.Discard(claim.Directory);
+                }
+                catch
+                {
+                    lock (_shareClaimsLock)
+                        _shareClaims.Remove(id);
+                    await ReleaseClaimAsync(claim, log).ConfigureAwait(false);
+                    throw;
+                }
+            }
+
+            if (imported > 0)
+                log.LogInformation("Imported {Count} share(s) from the durable inbox", imported);
+            return imported;
+        }
+        finally
+        {
+            _shareDrain.Release();
+        }
+    }
+
+    private async Task<bool> ReleaseClaimAsync(ClaimedShare claim, ILogger log)
+    {
+        if (ShareInbox is null)
+            return false;
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            if (ShareInbox.Release(claim))
+            {
+                lock (_shareClaimsLock)
+                    _shareReleaseRetries.Remove(claim.Payload.Id);
+                return true;
+            }
+            if (attempt < 2)
+                await Task.Delay(attempt == 0 ? 20 : 100).ConfigureAwait(false);
+        }
+
+        lock (_shareClaimsLock)
+            _shareReleaseRetries[claim.Payload.Id] = claim;
+        log.LogWarning("Share {Id} could not be returned to the ready inbox; it remains claimed and will be retried",
+            claim.Payload.Id);
+        return false;
+    }
+
+    private async Task RetryClaimReleasesAsync(ILogger log)
+    {
+        ClaimedShare[] retries;
+        lock (_shareClaimsLock)
+            retries = _shareReleaseRetries.Values.ToArray();
+        foreach (ClaimedShare claim in retries)
+            await ReleaseClaimAsync(claim, log).ConfigureAwait(false);
+    }
+
+    private bool OnShareAcknowledged(string id)
+    {
+        if (ShareInbox is null)
+            return true;
+        string? directory;
+        lock (_shareClaimsLock)
+        {
+            if (!_shareClaims.TryGetValue(id, out directory))
+                return false;
+        }
+        if (!ShareInbox.Acknowledge(id, directory!))
+            return false;
+        lock (_shareClaimsLock)
+            _shareClaims.Remove(id);
+        // An acknowledgement frees a bounded in-memory slot. Pull the next durable
+        // envelope immediately instead of making it wait for another foreground event.
+        ScheduleShareDrain();
+        return true;
+    }
+
+    private void ScheduleShareDrain() => _ = Task.Run(async () =>
+    {
+        try { await DrainSharedInboxAsync().ConfigureAwait(false); }
+        catch (Exception ex) { HostLog.LogWarning(ex, "Could not continue draining shares after acknowledgement"); }
+    });
+
+    private IDisposable AcquireShareSendLease(JsonElement requestBody)
+    {
+        // Engine recovery continues the already-accepted turn with a body derived from
+        // the original one. Its durable share was acknowledged by that original request;
+        // leasing it again would incorrectly turn recovery into a 409.
+        if (requestBody.TryGetProperty(ResumedTurnMarker, out JsonElement resumed)
+            && resumed.ValueKind == JsonValueKind.True)
+        {
+            return EmptyLease.Instance;
+        }
+
+        if (HasMultipleShareIdEntries(requestBody))
+        {
+            throw new WebUiRequestRejectedException(409, new
+            {
+                code = "multiple_shared_drafts",
+                error = "Each shared item starts its own chat. Send or remove the current shared item before opening the next one.",
+            });
+        }
+
+        string[] ids = ShareIdsOf(requestBody);
+        if (ids.Length == 0)
+            return EmptyLease.Instance;
+        if (ids.Length != 1)
+        {
+            throw new WebUiRequestRejectedException(409, new
+            {
+                code = "multiple_shared_drafts",
+                error = "Each shared item starts its own chat. Send or remove the current shared item before opening the next one.",
+            });
+        }
+
+        lock (_shareOwnershipLock)
+        {
+            PendingShare? head = Shares.Peek();
+            if (head is null
+                || !string.Equals(head.Id, ids[0], StringComparison.Ordinal)
+                || ids.Any(id => _sharesBeingSent.Contains(id)))
+            {
+                throw new WebUiRequestRejectedException(409, new
+                {
+                    code = "shared_draft_unavailable",
+                    error = "The shared draft changed before Send was accepted. Review the composer and try again.",
+                });
+            }
+
+            foreach (string id in ids)
+                _sharesBeingSent.Add(id);
+        }
+        return new ShareSendLease(this, ids);
+    }
+
+    private string[] ShareIdsOf(JsonElement requestBody)
+    {
+        if (requestBody.ValueKind != JsonValueKind.Object
+            || !requestBody.TryGetProperty("shareIds", out JsonElement shared)
+            || shared.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<string>();
+        }
+
+        return shared.EnumerateArray()
+            .Take(Shares.MaxPending)
+            .Select(value => value.ValueKind == JsonValueKind.String ? value.GetString() : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .Cast<string>()
+            .ToArray();
+    }
+
+    private static bool HasMultipleShareIdEntries(JsonElement requestBody) =>
+        requestBody.ValueKind == JsonValueKind.Object
+        && requestBody.TryGetProperty("shareIds", out JsonElement shared)
+        && shared.ValueKind == JsonValueKind.Array
+        && shared.GetArrayLength() > 1;
+
+    private void ReleaseShareSendLease(IEnumerable<string> ids)
+    {
+        lock (_shareOwnershipLock)
+        {
+            foreach (string id in ids)
+                _sharesBeingSent.Remove(id);
+        }
+    }
+
+    private sealed class ShareSendLease : IDisposable
+    {
+        private AgentAppHost? _owner;
+        private readonly string[] _ids;
+
+        public ShareSendLease(AgentAppHost owner, string[] ids)
+        {
+            _owner = owner;
+            _ids = ids;
+        }
+
+        public void Dispose()
+        {
+            AgentAppHost? owner = Interlocked.Exchange(ref _owner, null);
+            owner?.ReleaseShareSendLease(_ids);
+        }
+    }
+
+    private sealed class EmptyLease : IDisposable
+    {
+        public static readonly EmptyLease Instance = new();
+        public void Dispose() { }
+    }
+
+    /// <summary>
+    /// Explicitly reject the durable head share and reclaim its app-side staged files.
+    /// This is separate from removing an ordinary attachment: it is the user's escape
+    /// hatch for a share they no longer want resurfacing after every WebView restart.
+    /// </summary>
+    public bool DiscardPendingShare(string id)
+    {
+        PendingShare pending;
+        lock (_shareOwnershipLock)
+        {
+            // Send owns the draft from request-start through every preflight. Whichever
+            // operation acquired this lock first wins: discard-first makes the later
+            // request lease reject, send-first leaves the durable draft and bytes intact.
+            if (_sharesBeingSent.Contains(id))
+                return false;
+            PendingShare? head = Shares.Peek();
+            if (head is null || !string.Equals(head.Id, id, StringComparison.Ordinal))
+                return false;
+            if (!Shares.Acknowledge(id))
+                return false;
+            pending = head;
+        }
+
+        foreach (object attachment in pending.Attachments)
+        {
+            if (!Chat.DiscardUpload(attachment))
+            {
+                _loggerFactory.CreateLogger("TensorAgent.Share").LogWarning(
+                    "Discarded share {Id}, but one staged attachment will remain until ordinary upload cleanup", id);
+            }
+        }
+        // Acknowledgement starts a drain immediately, while the just-discarded upload
+        // may still count against quota. Run once more after cleanup so a next envelope
+        // transiently released by that first drain does not wait for another foreground.
+        ScheduleShareDrain();
+        return true;
     }
 
     // ---- making the FIRST message as fast as the second ----------------------------
@@ -2109,6 +2445,7 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     public void Dispose()
     {
+        Shares.Acknowledging -= OnShareAcknowledged;
         StopMemoryTrace();
 
         // Before the turns are asked to stop, because a turn parked on a closed gate --
@@ -2192,6 +2529,8 @@ public sealed record AgentPaths(string DataRoot, string CacheRoot)
     /// runtime reports as unavailable rather than failing to construct.
     /// </summary>
     public string PythonRuntimeDirectory { get; init; } = string.Empty;
+    /// <summary>The App Group inbox shared with the iOS extension, or empty.</summary>
+    public string SharedInboxDirectory { get; init; } = string.Empty;
     public string SettingsFile => Path.Combine(DataRoot, "settings.json");
 
     public void EnsureCreated()

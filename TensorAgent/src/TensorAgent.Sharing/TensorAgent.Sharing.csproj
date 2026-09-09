@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The only code that both the app and its share extension run.
+
+       It is a project of its own, and deliberately a very small one, because of
+       where the second consumer lives. A share extension is a separate process
+       that iOS starts inside another app, and the system gives it a fraction of
+       an app's memory (see ShareEnvelope's remarks). TensorAgent.Core cannot go
+       there: it references TensorSharp.Runtime, .Chat, .Models and the whole
+       AgentHost, which is the inference engine and everything around it. So the
+       envelope format, the text extraction, the message composition and the URL
+       codec — the four things the extension and the app must agree on exactly —
+       live here, with NO project or package references at all, and both sides
+       reference this.
+
+       net10.0 and not net10.0-ios, even though one consumer is an iOS app
+       extension: a net10.0-ios head consumes a net10.0 library without trouble,
+       whereas multi-targeting would make every net10.0 test project that reaches
+       this through TensorAgent.Core resolve an iOS target framework at restore
+       time and fail NETSDK1147 on an SDK with no iOS workload. That trap has
+       already cost this repo a day once. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TensorAgent.Sharing</RootNamespace>
+    <Description>The share-envelope contract between TensorAgent and its "Ask TensorAgent" share extension: the on-disk payload format, shared-text extraction and prompt composition. No dependencies, by design.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TensorAgent.Tests" />
+  </ItemGroup>
+
+</Project>
