@@ -725,7 +725,7 @@ public sealed class ScenarioChatTests : LiveModelHarness
     /// Catches skill discovery being off in practice while being on in configuration.
     ///
     /// <para>
-    /// The request names no skill, so the only way <c>brand-guidelines</c> can be read
+    /// The request names no skill, so the only way <c>theme-factory</c> can be read
     /// is if the catalog was advertised, the model called <c>skills_read</c>, and the
     /// host answered it in process. Any break in that chain — a catalog that never
     /// reaches the prompt, a family whose tool declarations are dropped, a registry
@@ -754,9 +754,9 @@ public sealed class ScenarioChatTests : LiveModelHarness
                 new
                 {
                     role = "user",
-                    content = "I am designing a slide for an internal deck and it has to follow Anthropic's "
-                        + "official brand colors and typography. Check the guidance available to you, then tell me "
-                        + "which colors and fonts to use.",
+                    content = "I am designing a slide for an internal deck and it needs a consistent "
+                        + "colour and font theme. Check the guidance available to you, then tell me which "
+                        + "colours and fonts to use.",
                 },
             },
             maxTokens = 700,
@@ -770,8 +770,8 @@ public sealed class ScenarioChatTests : LiveModelHarness
         Assert.True(steps.Count > 0,
             $"no skill_step frame arrived, so no skill was consulted at all; the model answered: {answer}");
 
-        Assert.True(steps.Any(step => step.Skill == "brand-guidelines" && step.Ok),
-            "the request asked for Anthropic's own brand colors, which is what the bundled 'brand-guidelines' "
+        Assert.True(steps.Any(step => step.Skill == "theme-factory" && step.Ok),
+            "the request asked for a colour and font theme, which is what the bundled 'theme-factory' "
             + $"skill describes, and it was never read successfully. Steps: {Describe(steps)}; "
             + $"answer: {answer}");
     }

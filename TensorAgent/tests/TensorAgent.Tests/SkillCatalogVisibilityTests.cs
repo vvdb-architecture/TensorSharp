@@ -18,11 +18,11 @@ namespace TensorAgent.Tests;
 /// <para>
 /// It did not. The catalog is filled in ordinal id order under a 1,024-token budget,
 /// and the 13 bundled descriptions come to roughly 1,450 tokens — so six were dropped,
-/// and which six was decided by the alphabet. The survivors were academy-guide,
-/// algorithmic-art, brand-guidelines, canvas-design, discernment-nudge, doc-coauthoring
-/// and frontend-design; the casualties included <c>documents</c> and <c>research</c>,
-/// the two that TensorAgentSkillRouter itself routes to. Two ~990-character entries at
-/// the head of the alphabet took half the budget between them.
+/// and which six was decided by the alphabet. The casualties included <c>documents</c>
+/// and <c>research</c>, the two that TensorAgentSkillRouter itself routes to, while two
+/// ~990-character entries at the head of the alphabet took half the budget between them
+/// (both were upstream Claude-product skills and have since been unbundled). The
+/// shortening below is what makes the outcome independent of the alphabet.
 /// </para>
 /// <para>
 /// It is not a theoretical loss. Asked to look something up, a model on this build
@@ -37,7 +37,7 @@ public sealed class SkillCatalogVisibilityTests
     /// <summary>The budget a phone actually gets: Clamp(context * 2%, 1024, 10000).</summary>
     private const int PhoneContextTokens = 32_768;
 
-    private static SkillRegistry BundledSkills()
+    private static string SkillsDirectory()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null
@@ -46,18 +46,26 @@ public sealed class SkillCatalogVisibilityTests
             directory = directory.Parent;
         }
         Assert.NotNull(directory);
-        return new SkillRegistry(new SkillRegistryOptions
-        {
-            Roots = new[] { Path.Combine(directory!.FullName, "TensorAgent", "skills") },
-        });
+        return Path.Combine(directory!.FullName, "TensorAgent", "skills");
+    }
+
+    private static SkillRegistry BundledSkills()
+    {
+        return new SkillRegistry(new SkillRegistryOptions { Roots = new[] { SkillsDirectory() } });
     }
 
     [Fact]
     public void EveryBundledSkillReachesTheModelsCatalog()
     {
         SkillRegistry registry = BundledSkills();
-        Assert.True(registry.Skills.Count >= 12,
-            $"only {registry.Skills.Count} skills were discovered; the bundle is not being read");
+
+        // Derived from disk, not a magic number: a count pinned here breaks every time a
+        // skill is added or removed, which is a maintenance tax rather than a regression.
+        int onDisk = Directory
+            .EnumerateDirectories(SkillsDirectory())
+            .Count(directory => File.Exists(Path.Combine(directory, "SKILL.md")));
+        Assert.True(onDisk >= 5, $"only {onDisk} skill folders on disk; the bundle is not being read");
+        Assert.Equal(onDisk, registry.Skills.Count);
 
         SkillPlan plan = SkillPrompt.Plan(
             Array.Empty<Skill>(),

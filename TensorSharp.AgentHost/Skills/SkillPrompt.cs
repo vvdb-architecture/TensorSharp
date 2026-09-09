@@ -313,14 +313,16 @@ namespace TensorSharp.AgentHost.Skills
             // catalog does not fit at that length the entries are SHORTENED rather than
             // dropped, because a skill the model never hears of cannot be asked for.
             //
-            // This is not hypothetical. TensorAgent bundles 13 skills whose descriptions
-            // come to ~1,450 tokens against a 1,024-token budget, and the fill below is
-            // ordinal by id — so `documents` and `research`, the two the app's own router
-            // depends on, were evicted by alphabetical luck while two 990-character
-            // entries ahead of them took half the budget. Asked to look something up, the
-            // model listed the skills it could see, found nothing that fetches a page,
-            // and refused. One sentence each about all 13 beats three sentences each
-            // about 7; the full text is one skills_read away either way.
+            // This is not hypothetical. TensorAgent's bundled descriptions came to about
+            // 1,450 tokens against a 1,024-token budget, and the fill below is ordinal by
+            // id — so `documents` and `research`, the two the app's own router depends on,
+            // were evicted by alphabetical luck while two 990-character entries ahead of
+            // them took half the budget. Asked to look something up, the model listed the
+            // skills it could see, found nothing that fetches a page, and refused. One
+            // sentence each about all of them beats three sentences each about half; the
+            // full text is one skills_read away either way. (Those two oversized entries
+            // have since been unbundled for a different reason, and the catalog still
+            // does not fit at full length, so this is still what makes it fit.)
             int describeChars = FitCatalogDescriptions(discoverable, options, budget - spent);
 
             var listed = new List<Skill>();

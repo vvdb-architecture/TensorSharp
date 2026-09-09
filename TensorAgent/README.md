@@ -103,7 +103,7 @@ it, both on by default:
   composer is anchored to the bottom of the screen: growing it upwards leaves the box
   the thumb aims at exactly where it was.
 - *What it has done.* One line per finished step, kept — `Reading skill ·
-  brand-guidelines · SKILL.md`, `Running code · python3 -c "from datetime…" · 3s`,
+  documents · SKILL.md`, `Running code · python3 -c "from datetime…" · 3s`,
   with a red dot when a step failed — and a link for every file a script produced,
   rendered from the frame that reports it rather than from the model remembering to
   mention it. The desktop page deletes its activity block and keeps no history; on a
@@ -182,7 +182,7 @@ holders together (the runner's options, the installer's standing policy, the she
 host list, and the terms a skill's scripts are planned against). A command already
 running keeps the terms it started with.
 
-**Skills.** Twelve are bundled, chosen by inspection rather than by hope — see
+**Skills.** Eleven are bundled, chosen by inspection rather than by hope — see
 "Skills" below. Users can install more from a zip.
 
 **Code, generated and run.** The agent host's shell tool works here, backed by an
@@ -485,10 +485,12 @@ not exist puts the user one tap from a load that fails.
 
 `scripts/verify-skills.py` decides what is bundled, by parsing every script and
 resolving each import against the staged interpreter. It refuses anything reaching
-for a capability iOS does not have. Twelve of nineteen pass; `skills/verdicts.json`
+for a capability iOS does not have. Eleven pass and are bundled; `skills/verdicts.json`
 records every verdict.
 
-The seven that do not, and what blocks each:
+The upstream ones that do not, and what blocks each (three more — `academy-guide`,
+`discernment-nudge`, `brand-guidelines` — pass the checker and were unbundled anyway,
+because they instruct the model on behalf of another product in every turn):
 
 | Skill | Blocked by |
 | --- | --- |
@@ -501,10 +503,23 @@ The seven that do not, and what blocks each:
 Importable is not the same as usable: `subprocess` is in the standard library and
 still cannot work here, so the checker tests unavailability before availability.
 
+**Three upstream skills were unbundled, and one was written.** `academy-guide`,
+`discernment-nudge` and `brand-guidelines` came from another product and said so in
+every turn: the first told the model to recommend courses from Claude Academy on any
+"how do I" question, the second to append follow-up questions to every substantive
+reply, the third to apply Anthropic's brand colours. A description is read on every
+turn whether or not the skill is used, and those three were imperatives aimed at the
+model, in an app that is not a Claude product; two of them also sat at the head of the
+alphabet and took half the catalog budget. In their place there is `market-data`,
+which asks a structured JSON endpoint for the day's gainers, losers and most-traded
+shares, or a quote for named symbols, and can write the rows straight into a
+`make_pptx.py` spec. That is where a task-specific recipe belongs: a skill is injected
+only when the request matches it, so it cannot bias the turns that do not.
+
 **The switch.** The skills sheet carries a master toggle above the list. Off is not
 "nothing is ticked": `ServerHostingOptions.SkillsEnabled` makes the request planner
 build no plan at all, so no skill is declared to the model and none is reachable.
-That is what the switch is for — twelve skills announce themselves in every prompt,
+That is what the switch is for — eleven skills announce themselves in every prompt,
 which on a phone is thousands of tokens on every turn of every chat, and a user who
 wants a plain assistant should be able to have one. It applies to the next message,
 not the next launch.
@@ -667,7 +682,7 @@ from it produces the same tokens as a cold prefill, on Metal, for Qwen 3.5 and G
 ### Every conversation shape, on Metal
 
 `benchmarks/TensorAgentTtftBench` starts the real app host on the Mac with the phone's
-settings (catalog context and K/V budget, 1024-token solo prefill chunks, all twelve
+settings (catalog context and K/V budget, 1024-token solo prefill chunks, all eleven
 skills), loads a catalog model on Metal the way tapping "Use" does, and drives
 `/api/chat` exactly as the page does through every shape a conversation takes. It
 prints, for each turn, the first-token time, the prompt size, how much of it the KV
@@ -719,7 +734,7 @@ through the app's own routes, answering through the app's own chat stream:
 
 The transcript was written to the app's container and listed by
 `/api/agent/conversations`. Throughput there is not worth quoting: the simulator
-has no Metal, and the prompt is large because all twelve skills declare themselves.
+has no Metal, and the prompt is large because all eleven skills declare themselves.
 
 ## What has not been verified
 
