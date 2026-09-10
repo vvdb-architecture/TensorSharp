@@ -1,0 +1,143 @@
+{
+  // Qwen3.8-27B (UD-Q4_K_XL) as an AGENT: skills, skill scripts, network,
+  // code generation / editing / execution, and package installs all enabled.
+  //
+  //   TensorSharp.Cli    --config config/agent-qwen3.8-27b.json --chat
+  //   TensorSharp.Server --config config/agent-qwen3.8-27b.json
+  //
+  // Every key here is read by BOTH hosts. Keys the CLI alone accepts (--think,
+  // --tools, --system, --input, --output, --penalty-last-n, --log-*) are left
+  // out on purpose: the server refuses to start on an unknown option, while the
+  // CLI silently drops one, so a CLI-only key breaks exactly one of the two.
+  // Comments are the only way to annotate a config -- ConfigFileArgs reserves
+  // just "variables"/"vars"/"$schema", so any other key becomes a flag.
+  "variables": {
+    "modelRoot": "${TENSORSHARP_MODELS:-/Users/zhongkaifu/work/models}",
+    "root": "${modelRoot}/Qwen",
+    "skillsRoot": "${TENSORSHARP_SKILLS:-/Users/zhongkaifu/work/TensorSharp/TensorAgent/skills}"
+  },
+
+  "backend": "ggml_metal",
+
+  // --max-tokens is the GENERATION cap, not the context window, and it also
+  // sizes the up-front KV reservation (prompt + max_new_tokens). The context
+  // window cannot be set from a config file at all -- MAX_CONTEXT is env-only:
+  //   MAX_CONTEXT=131072 TensorSharp.Server --config config/agent-qwen3.8-27b.json
+  // Keep this in the 16k-32k range. Overshooting degrades before it fails: as
+  // the ~40 GB Metal working set gets tight the OS purges wired buffers and
+  // long-context decode collapses toward seconds/token, and past it a command
+  // buffer dies out of memory and ggml-metal latches a sticky error that only
+  // recreating the backend clears.
+  "max-tokens": 16384,
+
+  // Halves the KV cache, which is what actually bounds a long agent context on
+  // this Mac -- Metal charges KV twice (host tensor + Metal mirror). q8_0 now
+  // runs on the same fused graphs as f16, at speed parity. If long runs ever
+  // look wrong, this is the first thing to drop back to f16.
+  "kv-cache-dtype": "q8_0",
+  "continuous-batching": true,
+
+  // Agent sampling, not chat sampling, and it has to be pinned or the two
+  // hosts disagree: the CLI's chat path overlays this GGUF's own
+  // general.sampling.temp = 1.0 onto anything left unset, while the server
+  // ignores that metadata and falls to its built-in 0.8.
+  // --code-exec-temperature is not a fix either -- it rewrites a temperature
+  // only while it still sits at that built-in 0.8. 0.3 keeps tool-call JSON
+  // and code reliable while staying off greedy, which is what a
+  // hybrid-thinking Qwen needs to avoid degenerate loops.
+  "temperature": 0.3,
+  "top-k": 20,
+  "top-p": 0.8,
+  "min-p": 0,
+
+  // 1.0 = no repetition penalty, pinned so both hosts agree on every turn: the
+  // server starts at 1.1 and strips it only on turns that offer tools, while
+  // the CLI's chat path does not default it at all. A penalty window fights
+  // the indentation and closing delimiters of generated code.
+  "repeat-penalty": 1.0,
+
+  // UD-Q4_K_XL (16.7 GB), not Q8_0 (27.1 GB). Q8_0 fits in 48 GB but leaves
+  // ~11 GB inside Metal's working set for a KV cache that costs roughly
+  // 128 KiB/token at f16 -- long agent contexts run out of room, not speed.
+  "model": "${root}/Qwen3.8-27B-UD-Q4_K_XL.gguf",
+
+  // ---- Agent Skills -------------------------------------------------------
+  // 11 skills live in TensorAgent/skills. Six bundle runnable scripts: four
+  // Python (documents, research, slack-gif-creator, market-data), one shell
+  // (web-artifacts-builder) and one JS template (algorithmic-art).
+  // The default root (a "skills" folder beside the binary) is empty here, so
+  // without this key the agent silently has zero skills. A path that does not
+  // exist is a fatal startup error, so keep this in step with the checkout.
+  "skills-dir": "${skillsRoot}",
+
+  // Let the model run a skill's bundled scripts. Treat every enabled script as
+  // untrusted code. Only known interpreters (.py/.js/.mjs/.sh/.bash) launch,
+  // without a shell, under Seatbelt, with the skill mounted read-only.
+  "skills-allow-exec": true,
+
+  // Separate permission from the code-exec one below, and neither implies the
+  // other. This is the one the research and market-data skills need; without
+  // it their scripts fail on DNS.
+  "skills-allow-network": true,
+
+  // The default. macOS has sandbox-exec, so "required" runs confined rather
+  // than refusing. Note TS_SKILLS_SANDBOX overwrites this key rather than
+  // layering under it, so a stale export silently wins.
+  "skills-sandbox": "required",
+
+  // One shared budget for skill lookups AND shell/code rounds. Naming it at
+  // all cancels the automatic raise to 24 that --code-exec would apply, in
+  // both directions -- so this must be set above 24, never below.
+  "skills-max-rounds": 32,
+
+  // ---- Code generation, editing and execution -----------------------------
+  // Offers shell, read_file, edit_file, write_file and apply_patch in one
+  // bounded model-to-tool loop. Commands run under Seatbelt; do NOT add
+  // "code-exec-unconfined" on this Mac -- it downgrades confinement to
+  // best-effort and lets a failed sandbox wrap fall back to a raw process.
+  // Writes are confined to the session workspace and the whole home directory
+  // is unreadable, so the agent works in its workspace, not in this repo.
+  "code-exec": true,
+
+  // Host-performed pip/npm installs into the session workspace, wheels only,
+  // with install scripts disabled. Does NOT by itself give generated code
+  // network access. Installs are fixed at a 120 s timeout with no operator
+  // lever, so large wheel sets (torch, scipy) will not land.
+  "code-exec-allow-install": true,
+
+  // Unrestricted host IP networking for every model-authored command: DNS,
+  // URLs, remote APIs, LAN and loopback. This is the broadest permission in
+  // the file. Do not use this config on a server reachable by people you do
+  // not trust. It is independent of the install switch above.
+  "code-exec-allow-network": true,
+
+  // Raises the per-call DEFAULT from 120 s, at which a build or a full test run
+  // is killed mid-flight and the model retries blind. It does not widen the
+  // ceiling: a call may already ask for up to 600 s through timeout_ms, and
+  // only a value above 600 would move that.
+  "code-exec-timeout": 600,
+
+  // Head and tail kept, the middle dropped -- the end of a build or a test run
+  // is where the failure is.
+  "code-exec-max-output": 65536
+
+  // Not set, deliberately:
+  //   "mmproj" -- the vision projector costs ~0.9 GB of the memory the KV
+  //     cache wants. Add "mmproj": "${root}/Qwen3.8-27B-mmproj-BF16.gguf" if
+  //     the agent needs to read images.
+  //   "code-exec-packages" / "code-exec-install-domains" -- defaults already
+  //     allow any package from pypi.org, files.pythonhosted.org and
+  //     registry.npmjs.org, and installs go to PyPI unless
+  //     "code-exec-install-index" names another. Both must be ONE
+  //     COMMA-SEPARATED STRING if set: a JSON array becomes a repeated flag
+  //     and only the last entry survives.
+  //   "code-exec-shell" -- this Mac has only bash 3.2.57, so bash 4+ syntax
+  //     (associative arrays, ${var^^}, mapfile) fails. "/bin/zsh" is the
+  //     zero-install alternative, but the shell session's own bookkeeping is
+  //     written for bash/POSIX.
+  //   "code-exec-temperature" -- inert whenever "temperature" is pinned above.
+  //   Speculative decoding -- this GGUF does carry a NextN head (spec would
+  //     engage with "spec": true) but it measured only ~1.04x on prose, and
+  //     the auto draft window is 3, not the documented 8. "spec-type": "ngram"
+  //     needs no draft file and is the cheaper thing to try first.
+}

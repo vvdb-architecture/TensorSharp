@@ -1,0 +1,122 @@
+{
+  // Qwen3.6-35B-A3B (UD-IQ2_XXS) as an AGENT -- Mixture-of-Experts, ~3B active
+  // params, so it decodes far faster than its 35B name suggests. Skills, skill
+  // scripts, network, code generation / editing / execution and package
+  // installs are all enabled.
+  //
+  //   TensorSharp.Cli    --config config/agent-qwen3.6-35b-a3b.json --chat
+  //   TensorSharp.Server --config config/agent-qwen3.6-35b-a3b.json
+  //
+  // Every key here is read by BOTH hosts; CLI-only keys (--think, --tools,
+  // --system, --input, --output, --penalty-last-n) are left out because the
+  // server refuses to start on an unknown option. Comments are the only way to
+  // annotate a config -- any non-reserved key becomes a command-line flag.
+  //
+  // Caveat worth knowing before trusting this one with real work: IQ2_XXS is
+  // the only build of this model on disk and it is an aggressive 2-bit quant.
+  // It is the fastest agent here, not the most accurate. For code the model
+  // must get right the first time, prefer agent-qwen3.8-27b.json.
+  "variables": {
+    "modelRoot": "${TENSORSHARP_MODELS:-/Users/zhongkaifu/work/models}",
+    "root": "${modelRoot}/Qwen",
+    "skillsRoot": "${TENSORSHARP_SKILLS:-/Users/zhongkaifu/work/TensorSharp/TensorAgent/skills}"
+  },
+
+  "backend": "ggml_metal",
+
+  // Generation cap, NOT the context window, and it sizes the up-front KV
+  // reservation (prompt + max_new_tokens). The window is env-only:
+  //   MAX_CONTEXT=131072 TensorSharp.Server --config config/agent-qwen3.6-35b-a3b.json
+  "max-tokens": 16384,
+
+  // Halves the KV cache, which is what bounds a long agent context on Metal --
+  // KV is charged twice there (host tensor + Metal mirror). q8_0 runs on the
+  // same fused graphs as f16 at speed parity.
+  "kv-cache-dtype": "q8_0",
+  "continuous-batching": true,
+
+  // Pinned deliberately, or the two hosts disagree: the CLI's chat path
+  // overlays this GGUF's own general.sampling.temp = 1.0 onto anything left
+  // unset, while the server ignores that metadata and falls to its built-in
+  // 0.8. --code-exec-temperature is not a fix either -- it rewrites a
+  // temperature only while it still sits at that built-in 0.8.
+  "temperature": 0.3,
+  "top-k": 20,
+  "top-p": 0.8,
+  "min-p": 0,
+
+  // 1.0 = no repetition penalty, pinned so both hosts agree on every turn: the
+  // server starts at 1.1 and strips it only on turns that offer tools, while
+  // the CLI's chat path does not default it at all. A penalty window fights
+  // the indentation and closing delimiters of generated code.
+  "repeat-penalty": 1.0,
+
+  "model": "${root}/Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf",
+
+  // ---- Agent Skills -------------------------------------------------------
+  // Without this the agent has zero skills: the default root beside the binary
+  // is empty. A path that does not exist is a fatal startup error.
+  "skills-dir": "${skillsRoot}",
+
+  // Run a skill's bundled scripts. Treat every enabled script as untrusted
+  // code: only known interpreters launch, without a shell, under Seatbelt.
+  "skills-allow-exec": true,
+
+  // Separate from the code-exec network switch below -- neither implies the
+  // other. This is the one the research and market-data skills need.
+  "skills-allow-network": true,
+
+  // The default; macOS has sandbox-exec so "required" confines rather than
+  // refuses. TS_SKILLS_SANDBOX overwrites this key rather than layering under
+  // it, so a stale export silently wins.
+  "skills-sandbox": "required",
+
+  // One shared budget for skill lookups AND shell/code rounds. Naming it
+  // cancels the automatic raise to 24, so it must be set above 24, not below.
+  "skills-max-rounds": 32,
+
+  // ---- Code generation, editing and execution -----------------------------
+  // shell, read_file, edit_file, write_file and apply_patch in one bounded
+  // model-to-tool loop, under Seatbelt. Do NOT add "code-exec-unconfined" on
+  // this Mac: it downgrades confinement to best-effort. Writes are confined to
+  // the session workspace and the home directory is unreadable, so the agent
+  // works in its workspace rather than in this repo.
+  "code-exec": true,
+
+  // Host-performed pip/npm installs into the session workspace, wheels only,
+  // install scripts disabled. Fixed 120 s install timeout with no operator
+  // lever, so large wheel sets will not land. Does not grant networking.
+  "code-exec-allow-install": true,
+
+  // Unrestricted host IP networking for every model-authored command --
+  // the broadest permission in this file. Do not use this config on a server
+  // reachable by people you do not trust.
+  "code-exec-allow-network": true,
+
+  // Raises the per-call DEFAULT from 120 s, at which a build or a full test run
+  // is killed mid-flight and the model retries blind. It does not widen the
+  // ceiling: a call may already ask for up to 600 s through timeout_ms, and
+  // only a value above 600 would move that.
+  "code-exec-timeout": 600,
+
+  // Truncated from the middle, head and tail kept -- the end of a test run is
+  // where the failure is.
+  "code-exec-max-output": 65536
+
+  // Not set, deliberately:
+  //   Speculative decoding. Do NOT turn it on for this model. Measured on this
+  //     hardware class: 81.0 tok/s plain against 40.7 with MTP -- 2x SLOWER at
+  //     a healthy 63.8% acceptance, because the NextN block is itself an MoE
+  //     block while the trunk is only ~3B active. A good acceptance rate is
+  //     not evidence of a win here.
+  //   "mmproj" -- the vision projector costs ~0.8 GB of the memory the KV
+  //     cache wants. Add "mmproj": "${root}/Qwen3.6-35B-A3B-mmproj-BF16.gguf"
+  //     if the agent needs to read images.
+  //   "code-exec-packages" / "code-exec-install-domains" -- defaults already
+  //     allow any package from the three default registry hosts (pypi.org,
+  //     files.pythonhosted.org, registry.npmjs.org), and installs go to PyPI
+  //     unless "code-exec-install-index" names another. If set, each must be
+  //     ONE COMMA-SEPARATED STRING; a JSON array keeps only its last entry.
+  //   "code-exec-shell" -- this Mac has only bash 3.2.57, so bash 4+ syntax
+  //     fails. "/bin/zsh" is the zero-install alternative.
+}
