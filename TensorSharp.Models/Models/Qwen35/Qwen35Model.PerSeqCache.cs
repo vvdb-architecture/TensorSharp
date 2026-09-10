@@ -214,10 +214,14 @@ namespace TensorSharp.Models
         /// friends), which the TP path never populates - it builds its own
         /// per-rank caches instead. Taking this path with TP active dereferenced
         /// a null cache array the moment a second sequence arrived.</para>
+        // Not gated on the speculative session any more: a request that speculates on
+        // its BOUND holder used to flip this false after its first speculative step,
+        // the planner re-routed the holder-resident sequence to the linear path and
+        // it lost its position ("no LastLogits to sample from at position 0"). The
+        // fused decode itself leaves the session (ExitSpecSession) when it is next
+        // asked to run, so the capability is true whenever the backend supports it.
         public bool SupportsPerSequenceFusedForward =>
             !IsTensorParallel
-            &&
-            !_fdSpecSessionActive
             && ((_backend == BackendType.GgmlCuda && _fullDecodeEnabled && !_fdUnsupported)
                 || _backend == BackendType.GgmlMetal);
 

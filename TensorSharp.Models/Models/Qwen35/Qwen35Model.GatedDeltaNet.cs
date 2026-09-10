@@ -1223,12 +1223,42 @@ namespace TensorSharp.Models
         // the next ResetKVCache. Spec is net-negative for this model anyway.
         internal void EnterSpecSession()
         {
+            // A transition, not a per-step latch: the invalidation below hard-drops
+            // the Metal decode graphs of EVERY holder, and it used to run on every
+            // speculative step.
+            if (_fdSpecSessionActive)
+                return;
             _fdSpecSessionActive = true;
+            // Metal keeps its decode graph across the switch (the next replay takes
+            // a reseed flag and uploads the host conv/delta state into its stable
+            // bindings); a grow or reset still hard-drops it. A hard drop here meant
+            // a graph rebuild every time a parked speculator went back to the fused
+            // decode.
             // Speculative paths may fall back to host/per-op recurrent kernels,
             // which invalidate the state buffers captured by the decode graph.
             // Speculation already latches fused decode off for the session, so
             // retaining that graph has no benefit and risks dangling bindings.
-            InvalidateFullDecodeState(hardBindings: true);
+            InvalidateFullDecodeState(hardBindings: _backend != BackendType.GgmlMetal);
+        }
+
+        /// <summary>
+        /// Leave the speculative session so the fused whole-model decode can run
+        /// again: the verify family may have left the recurrent state device-live in
+        /// its own slices, so settle it into the host mirrors first (the decode
+        /// graph re-seeds from them). Costs one state drain per family switch, which
+        /// happens at request boundaries, not per step. Until this existed the latch
+        /// held until the next KV reset, and on the TensorAgent path (one holder per
+        /// chat, never reset) that meant per-op decode for the rest of the process.
+        /// </summary>
+        internal void ExitSpecSession()
+        {
+            if (!_fdSpecSessionActive)
+                return;
+            DrainDeviceRecurrentState();
+            // The fused decode is about to move the state; the opt-in resident verify
+            // seed (TS_QWEN35_VERIFY_RESIDENT) would otherwise be reused stale.
+            _fvStateResident = false;
+            _fdSpecSessionActive = false;
         }
 
         /// <summary>
@@ -1362,8 +1392,9 @@ namespace TensorSharp.Models
             // shape. GDN recurrence and MoE top-K routing remain device-resident.
             if (!_fullDecodeEnabled)
                 return FdBail("disabled via TS_QWEN35_FULL_DECODE=0");
-            if (_fdSpecSessionActive)
-                return FdBail("speculative/MTP session active (host GDN state is authoritative)");
+            // A decode outside the speculative session ends it (the drain below and
+            // the re-seed make the host mirrors authoritative again).
+            ExitSpecSession();
             if (_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal
                 && _backend != BackendType.GgmlVulkan)
                 return FdBail($"backend {_backend} has no fused whole-model decode graph");

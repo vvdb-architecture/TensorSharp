@@ -119,7 +119,7 @@ namespace TensorSharp.Runtime.Scheduling
                             ExecutionPathKind.SpeculativePerSequence, "pending multimodal embeddings need Forward's inject hook"));
                     else if (fusedResident)
                         rejections.Add(new ExecutionPathRejection(
-                            ExecutionPathKind.SpeculativePerSequence, "sequence lives in a per-request fused cache"));
+                            ExecutionPathKind.SpeculativePerSequence, "sequence lives in a per-request fused cache (the fused path speculates on it itself when the trunk follows the bound holder)"));
                     else
                     {
                         candidates.Add(ExecutionPathKind.SpeculativePerSequence); // terminal

@@ -140,7 +140,19 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
     // gemma-4-12b UD-Q4_K_XL. When gate_arr[l] != nullptr this layer runs two
     // matmuls over the mapped weights and gu_arr[l] is ignored.
     void** gate_arr, int* gate_type_arr, std::int64_t* gate_ne0_arr, std::int64_t* gate_ne1_arr, std::int64_t* gate_bytes_arr,
-    void** up_arr, int* up_type_arr, std::int64_t* up_ne0_arr, std::int64_t* up_ne1_arr, std::int64_t* up_bytes_arr)
+    void** up_arr, int* up_type_arr, std::int64_t* up_ne0_arr, std::int64_t* up_ne1_arr, std::int64_t* up_bytes_arr,
+    // Folded output norm + LM head for EVERY row (nullable, the multi-row sibling
+    // of the fold in TSGgml_Gemma4ModelDecode). When logits_data / lm_head_data /
+    // final_norm_data are non-null and vocab_size > 0, the graph appends the
+    // output RMSNorm, the lm_head matmul over all N rows and (when
+    // logit_softcap > 0) the tanh softcap, writes logits[N][vocab] to logits_data
+    // and returns the POST-NORM rows in hidden_data. The speculative verify is
+    // the caller: its per-op tail (norm, a 262K-vocab matmul over 8 rows, softcap
+    // and the host round-trips between them) was 13 ms of a 58 ms E4B verify.
+    // Ignored in tensor-parallel plan mode (the plan's output is the hidden).
+    void* logits_data, int vocab_size,
+    const void* lm_head_data, int lm_head_type, std::int64_t lm_head_ne0, std::int64_t lm_head_ne1, std::int64_t lm_head_bytes,
+    const void* final_norm_data, float logit_softcap)
 {
     try
     {
@@ -167,6 +179,8 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
 
         const int N = num_tokens;
         const int totalSeqLen = start_pos + N;
+        const bool fold = !tp_mode && logits_data != nullptr && lm_head_data != nullptr
+            && final_norm_data != nullptr && vocab_size > 0;
         if (N <= 1)
             return 0;
 
@@ -938,6 +952,29 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
 
         // hidden holds NQ columns; only the first N (real) columns are downloaded
         // below — they are the contiguous prefix of the buffer.
+        // Folded tail: output norm on every row (what the caller downloads as the
+        // per-row hidden state) and the LM head + softcap over all NQ columns.
+        ggml_tensor* lm_head_t = nullptr;
+        ggml_tensor* final_norm_t = nullptr;
+        ggml_tensor* logits_out = nullptr;
+        ggml_tensor* out_logits = nullptr;
+        if (fold)
+        {
+            final_norm_t = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
+            lm_head_t = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(lm_head_type), lm_head_ne0, lm_head_ne1);
+            hidden = ggml_mul(ctx, ggml_rms_norm(ctx, hidden, eps), final_norm_t);   // [hidden, NQ]
+            ggml_tensor* logits = ggml_mul_mat(ctx, lm_head_t, hidden);             // [vocab, NQ]
+            if (logit_softcap > 0.0f)
+            {
+                logits = ggml_scale(ctx, logits, 1.0f / logit_softcap);
+                logits = ggml_tanh(ctx, logits);
+                logits = ggml_scale(ctx, logits, logit_softcap);
+            }
+            logits_out = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, vocab_size, NQ);
+            out_logits = ggml_cpy(ctx, logits, logits_out);
+            ggml_set_output(out_logits);
+        }
+
         ggml_tensor* hidden_out = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, hidden_size, NQ);
         ggml_tensor* out_hidden = ggml_cpy(ctx, hidden, hidden_out);
         ggml_set_output(out_hidden);
@@ -965,6 +1002,8 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             if (layers[l].v_cpy2 != nullptr) ggml_build_forward_expand(graph, layers[l].v_cpy2);
         }
         ggml_build_forward_expand(graph, out_hidden);
+        if (out_logits != nullptr)
+            ggml_build_forward_expand(graph, out_logits);
 
         ggml_backend_dev_t dev = ggml_backend_get_device(g_backend);
         struct HostBinding { ggml_tensor* tensor; void* data; std::size_t bytes; };
@@ -1064,6 +1103,12 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
         // lifetime so the peak is one layer's working set (~10-20x smaller). The
         // pre-bound weights / KV caches above already own buffers and are skipped
         // by both allocators.
+        if (fold)
+        {
+            bind_or_mark(lm_head_t, const_cast<void*>(lm_head_data), static_cast<std::size_t>(lm_head_bytes), true);
+            bind_or_mark(final_norm_t, const_cast<void*>(final_norm_data), static_cast<std::size_t>(hidden_size) * sizeof(float), true);
+        }
+
         const bool useGallocr = (N > 16);
         BufferHandle buffer(nullptr);
         if (useGallocr)
@@ -1202,6 +1247,14 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
 
 
         finalize_compute_with_download(hidden_out, hidden_data, static_cast<std::size_t>(hidden_size) * N * sizeof(float));
+        if (fold)
+        {
+            // The first N rows of logits_out are a contiguous prefix, like hidden_out.
+            finalize_compute_with_download(logits_out, logits_data, static_cast<std::size_t>(vocab_size) * N * sizeof(float));
+            // The caller samples from logits_data as soon as we return; a queued
+            // (async) download must have landed by then.
+            host_read_barrier();
+        }
 
 
         // If this call allocated a per-call backend buffer (the reuse-buffer

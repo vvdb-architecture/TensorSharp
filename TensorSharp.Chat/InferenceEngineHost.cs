@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp.Runtime;
 using TensorSharp.Runtime.Scheduling;
+using TensorSharp.Runtime.Speculative;
 
 namespace TensorSharp.Server
 {
@@ -135,6 +136,10 @@ namespace TensorSharp.Server
                     PrefixCheckpointStore = _checkpointStore,
                 };
                 _fingerprint = fp;
+                // The most recent switch, in case it was written after this engine's
+                // configuration was read from the environment.
+                if (_pendingSpeculation is { } pending)
+                    _engine.UpdateSpeculation(pending);
                 var poolStats = _engine.PoolStats;
                 _logger.LogInformation(
                     "InferenceEngine constructed for fingerprint {Fingerprint} (blocks={NumBlocks}, blockSize={BlockSize}, kvCapacityTokens={KvCapacity}, maxBatched={MaxBatched}, config={ConfigSource})",
@@ -197,6 +202,37 @@ namespace TensorSharp.Server
 
         /// <summary>Drop the engine (if any). Called by <see cref="ModelLifecycleService"/>
         /// when the model is unloaded so we don't hold onto a stale block pool.</summary>
+        /// <summary>
+        /// Hand a new speculation policy to the standing engine, if there is one. An
+        /// engine built later reads the policy from its configuration (the environment,
+        /// which the host keeps in step), so nothing is remembered here. Never waits for
+        /// the gate: a settings switch must not block behind a load or unload.
+        /// </summary>
+        public bool UpdateSpeculation(SpeculationOptions options)
+        {
+            options ??= SpeculationOptions.Disabled;
+            // Remembered as well as applied: a switch that lands while TryGetEngine is
+            // building the engine (the gate held for the block-pool allocation, the
+            // environment possibly read before the switch was written) is handed to
+            // that engine as soon as it exists, instead of being dropped.
+            _pendingSpeculation = options;
+            if (!System.Threading.Monitor.TryEnter(_gate, 0))
+                return false;
+            try
+            {
+                if (_disposed || _engine == null)
+                    return false;
+                _engine.UpdateSpeculation(options);
+                return true;
+            }
+            finally
+            {
+                System.Threading.Monitor.Exit(_gate);
+            }
+        }
+
+        private volatile SpeculationOptions _pendingSpeculation;
+
         public void Reset()
         {
             lock (_gate)

@@ -69,6 +69,28 @@ public class SpeculatorRegistryTests
         Assert.Contains(SpeculatorRegistry.NGram, decline);
     }
 
+    [Theory]
+    [InlineData(3, 8, false, 3)]   // the trunk prefers 3: the default window narrows to it
+    [InlineData(3, 8, true, 8)]    // an explicit --spec-draft still wins
+    [InlineData(0, 8, false, 8)]   // no preference: the default stands
+    public void NGram_TakesTheTrunksPreferredWindowLikeEveryOtherAlgorithm(
+        int preferred, int requested, bool explicitRequest, int expected)
+    {
+        // A verify's cost is the trunk's - a recurrent state to snapshot per row,
+        // the small-batch matmul kernels' 8-row limit - whoever proposed the rows.
+        var model = new StubTarget { Kind = DraftHeadKind.None, PreferredWindow = preferred };
+        var opts = new SpeculationOptions
+        {
+            Enabled = true,
+            SpeculatorName = SpeculatorRegistry.NGram,
+            MaxDraftTokens = requested,
+            MaxDraftTokensExplicit = explicitRequest,
+        };
+        var spec = SpeculatorRegistry.Create(model, opts, out string decline);
+        Assert.Null(decline);
+        Assert.Equal(expected, spec.MaxDraftTokens);
+    }
+
     [Fact]
     public void NGram_ServesAModelWithNoDraftHeadAtAll()
     {
@@ -224,6 +246,8 @@ public class SpeculatorRegistryTests
     {
         public DraftHeadKind Kind { get; set; }
         public int BlockSize { get; set; }
+        public int PreferredWindow { get; set; }
+        public int SpecPreferredDraftWindow => PreferredWindow;
 
         public DraftHeadKind DraftHeadKind => Kind;
         public int DraftBlockSize => BlockSize;

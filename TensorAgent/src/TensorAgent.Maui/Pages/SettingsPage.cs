@@ -164,6 +164,12 @@ public sealed class SettingsPage : ContentPage
             "Start each chat with the model's thinking visible.",
             settings.ThinkByDefault,
             on => { AppSettings s = _app.Settings.Load(); s.ThinkByDefault = on; _app.Settings.Save(s); }));
+        _body.Add(Switch("Speculative decoding",
+            "Guess a few tokens ahead and check them in one pass: the same answer, faster on "
+            + "code and on replies that quote a file. The engine switches it off by itself "
+            + "while it is not paying.",
+            settings.SpeculativeDecoding,
+            on => { AppSettings s = _app.Settings.Load(); s.SpeculativeDecoding = on; _app.Settings.Save(s); }));
 
         _body.Add(Section("Downloads"));
         _body.Add(Switch("Download over cellular",

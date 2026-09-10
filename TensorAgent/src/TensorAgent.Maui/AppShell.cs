@@ -62,6 +62,39 @@ public sealed class AppShell : Shell
             ["about"] = about,
         };
 
+        // TENSORAGENT_USE_MODEL=<catalog id>: in a Debug build always (the simulator
+        // harness cannot tap); in a Release build only when the on-device speculation
+        // benchmark asked for it (TENSORAGENT_SPEC_BENCH=1), which is how
+        // scripts/bench-spec-device.sh chooses the model to measure - a Release build
+        // used to ignore the variable and measure whatever model was remembered.
+        bool honourUseModel = Core.Hosting.SpeculationBench.Requested;
+#if DEBUG
+        honourUseModel = true;
+#endif
+        if (honourUseModel)
+        {
+            string? use = Environment.GetEnvironmentVariable("TENSORAGENT_USE_MODEL");
+            if (!string.IsNullOrWhiteSpace(use))
+            {
+                Dispatcher.Dispatch(async () =>
+                {
+                    try
+                    {
+                        Core.Catalog.CatalogModel? picked = Core.Catalog.ModelCatalog.Find(use.Trim());
+                        if (picked is null)
+                        {
+                            Console.WriteLine($"TensorAgent: TENSORAGENT_USE_MODEL={use} is not a catalog id");
+                            return;
+                        }
+                        string backend = await Task.Run(() => models.Host.UseModel(picked));
+                        Console.WriteLine($"TensorAgent: debug hook loaded {picked.Id} on {backend}");
+                        await OpenAsync("main");
+                    }
+                    catch (Exception ex) { Console.WriteLine("TensorAgent: debug model use failed: " + ex.Message); }
+                });
+            }
+        }
+
 #if DEBUG
         // The simulator harness cannot tap: simctl has no way to touch the screen, so
         // without this only the first page could ever be screenshotted. Launching with
@@ -75,27 +108,6 @@ public sealed class AppShell : Shell
         // path no test could drive. Paired with TENSORAGENT_DEMO_PROMPT it drives the
         // whole reported failure: select a model, then send a prompt, and see whether
         // the page still refuses with "No model is configured".
-        string? use = Environment.GetEnvironmentVariable("TENSORAGENT_USE_MODEL");
-        if (!string.IsNullOrWhiteSpace(use))
-        {
-            Dispatcher.Dispatch(async () =>
-            {
-                try
-                {
-                    Core.Catalog.CatalogModel? picked = Core.Catalog.ModelCatalog.Find(use.Trim());
-                    if (picked is null)
-                    {
-                        Console.WriteLine($"TensorAgent: TENSORAGENT_USE_MODEL={use} is not a catalog id");
-                        return;
-                    }
-                    string backend = await Task.Run(() => models.Host.UseModel(picked));
-                    Console.WriteLine($"TensorAgent: debug hook loaded {picked.Id} on {backend}");
-                    await OpenAsync("main");
-                }
-                catch (Exception ex) { Console.WriteLine("TensorAgent: debug model use failed: " + ex.Message); }
-            });
-        }
-
         string? start = Environment.GetEnvironmentVariable("TENSORAGENT_START_PAGE");
         if (!string.IsNullOrWhiteSpace(start))
             Dispatcher.Dispatch(async () => await OpenAsync(start.Trim()));

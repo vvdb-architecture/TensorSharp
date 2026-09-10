@@ -41,14 +41,38 @@ namespace TensorSharp.Runtime.Speculative
     /// </summary>
     public sealed class SpeculationCostGovernor
     {
-        /// <summary>Speculative steps measured per round before judging speculation.</summary>
+        /// <summary>Speculative steps measured per round before judging speculation,
+        /// on the first round and after a winning verdict.</summary>
         private const int ProbeSpecSteps = 8;
+        /// <summary>
+        /// Speculative steps a RE-PROBE takes after a losing verdict. A probe is paid
+        /// in speculative steps, and on a pairing that loses those are the dear ones:
+        /// Gemma 4 E4B-IQ4_XS with its draft head spends about four plain steps per
+        /// speculative one, so an eight-step re-probe every park interval kept prose
+        /// 30-50% slower than plain decoding while nominally parked. Three steps still
+        /// see a repetitive stretch (an accepted window shows in one), and a win
+        /// verdict restores the full probe the next time speculation is doubted.
+        /// </summary>
+        private const int ReprobeSpecSteps = 3;
+        private int ProbeStepsThisRound => _consecutiveLosses > 0 ? ReprobeSpecSteps : ProbeSpecSteps;
 
         /// <summary>Plain steps measured per round, for the baseline to compare against.</summary>
         private const int CalibrationPlainSteps = 3;
 
-        /// <summary>Longest a losing verdict may park drafting for.</summary>
-        private const int ParkedProbeInterval = 64;
+        /// <summary>
+        /// A probe ends early, as a loss, when its first this-many measured
+        /// speculative steps have all accepted nothing: every one of them cost a verify (2-4x a
+        /// plain step) for a single token, and on free prose an n-gram drafter
+        /// accepts nothing for whole turns (30 drafted, 0 accepted over 10 verifies
+        /// on Qwen 3.5-9B). Half the probe, same verdict.
+        /// </summary>
+        private const int ZeroAcceptProbeSteps = 4;
+
+        /// <summary>Longest a losing verdict may park drafting for. With a shared
+        /// governor the park carries across a chat's turns, so a pairing that keeps
+        /// losing settles at one three-step re-probe per 256 tokens (~3% on a trunk
+        /// whose speculative step costs four plain ones) instead of one per 64.</summary>
+        private const int ParkedProbeInterval = 256;
 
         /// <summary>
         /// Park length after the FIRST losing verdict. A verdict formed right after
@@ -56,10 +80,37 @@ namespace TensorSharp.Runtime.Speculative
         /// penalty for getting it wrong is capped low and only backs off toward
         /// <see cref="ParkedProbeInterval"/> if speculation keeps losing.
         /// </summary>
-        private const int FirstParkInterval = 16;
+        // 32 rather than 16: on a losing turn every re-probe is three dear
+        // speculative steps, and 16/32/64/128 fitted four of them into a 160-token
+        // prose turn (55 tok/s against 65 plain on E4B-IQ4_XS); 32/64/128 fits two.
+        private const int FirstParkInterval = 32;
 
-        /// <summary>Steps a winning verdict holds for before the next measuring round.</summary>
-        private const int WinRecheckInterval = 512;
+        /// <summary>
+        /// Steps a winning verdict holds for before the next measuring round. Short,
+        /// because a round taken while speculation WINS costs almost nothing - its
+        /// speculative samples are productive steps and only the three plain
+        /// baseline steps are overhead - while a wrong win (a probe that happened to
+        /// land on a repetitive stretch, the thinking preamble say, ahead of free
+        /// prose) used to hold for 512 steps: E4B-IQ4_XS with its draft head ran a
+        /// prose turn at 24 tok/s against 65 plain under one.
+        /// </summary>
+        private const int WinRecheckInterval = 64;
+
+        /// <summary>
+        /// Speculative samples watched WHILE a winning verdict holds. A hold used to
+        /// be blind: a probe that landed on the predictable thinking preamble
+        /// ("The user is asking me to write three short paragraphs...") won
+        /// honestly, and the hold then rode through 64 steps of free prose at 17%
+        /// acceptance - E4B-IQ4_XS prose at 30 tok/s against 65 plain, twice in
+        /// three runs. The hold now keeps timing its speculative steps against the
+        /// plain baseline the round measured, and parks the moment the last
+        /// <see cref="WinWindow"/> of them average a loss; a wrong win costs about
+        /// eight steps instead of sixty-four.
+        /// </summary>
+        private const int WinWindow = 8;
+        private readonly long[] _winTicks = new long[WinWindow];
+        private readonly int[] _winTokens = new int[WinWindow];
+        private int _winCount, _winHead;
 
         /// <summary>
         /// Speculation must not be more than this much slower to stay on. This is a
@@ -123,6 +174,52 @@ namespace TensorSharp.Runtime.Speculative
         /// steps are reported as "parked".</summary>
         public bool IsParked => _parkedRemaining > 0;
 
+        /// <summary>
+        /// A new request is starting on this (shared) governor. The park carried
+        /// over from the previous turn was earned on THAT turn's text; the next
+        /// turn's may be nothing like it - a quote after prose reached 99%
+        /// acceptance and still ran 122 of its 135 steps plain because a 128-step
+        /// park was still counting down. Cap what is left at the first park
+        /// interval so the new turn re-probes (three speculative steps) within its
+        /// first thirty-two; the losses already counted keep the backoff, so a
+        /// pairing that keeps losing still parks longer each time.
+        /// </summary>
+        public void NewSequence()
+        {
+            if (_parkedRemaining > FirstParkInterval)
+                _parkedRemaining = FirstParkInterval;
+            // The backoff was earned on the previous turn's text too. Kept at one
+            // loss - so the re-probe stays the short one - it restarts at the first
+            // interval: with it left at five, one noisy three-step re-probe on a quote
+            // turn parked the remaining 200 steps of a turn that would have run 85
+            // tok/s against 65.
+            if (_consecutiveLosses > 1)
+                _consecutiveLosses = 1;
+            // Samples of the previous request's text say nothing about this one.
+            ResetRound();
+        }
+
+        /// <summary>
+        /// Plain steps the request took OUTSIDE its speculative execution - a
+        /// concurrent interlude serves it on the batched or serial fused path - still
+        /// elapse a park or a hold, so a resumed context does not start a fresh round.
+        /// </summary>
+        public void NoteExternalPlainSteps(int steps)
+        {
+            if (!Enabled || steps <= 0)
+                return;
+            int parked = Math.Min(steps, _parkedRemaining);
+            _parkedRemaining -= parked;
+            ParkedSteps += parked;
+            _recheckRemaining = Math.Max(0, _recheckRemaining - (steps - parked));
+        }
+
+        /// <summary>Verdicts so far: rounds (and held wins) that ended in a win / a loss,
+        /// and steps spent parked - the per-turn stats line reports them.</summary>
+        public int Wins { get; private set; }
+        public int Losses { get; private set; }
+        public int ParkedSteps { get; private set; }
+
         /// <summary>Measured ms per emitted token for the current round, plain
         /// side. 0 until the round has a sample.</summary>
         public double PlainMsPerToken { get; private set; }
@@ -140,7 +237,7 @@ namespace TensorSharp.Runtime.Speculative
                 return false;
             if (_recheckRemaining > 0)
                 return _specWins;
-            if (_specSamples < ProbeSpecSteps)
+            if (_specSamples < ProbeStepsThisRound)
                 return true;                        // measuring speculation
             if (_plainSamples < CalibrationPlainSteps)
                 return false;                       // measuring the plain baseline
@@ -156,11 +253,36 @@ namespace TensorSharp.Runtime.Speculative
             if (_parkedRemaining > 0)
             {
                 _parkedRemaining--;
+                ParkedSteps++;
                 return;                             // parked steps are not samples
             }
             if (_recheckRemaining > 0)
             {
                 _recheckRemaining--;
+                if (speculated && PlainMsPerToken > 0)
+                {
+                    _winTicks[_winHead] = elapsedTicks;
+                    _winTokens[_winHead] = tokensEmitted;
+                    _winHead = (_winHead + 1) % WinWindow;
+                    if (_winCount < WinWindow)
+                        _winCount++;
+                    if (_winCount == WinWindow)
+                    {
+                        long ticks = 0, tokens = 0;
+                        for (int i = 0; i < WinWindow; i++) { ticks += _winTicks[i]; tokens += _winTokens[i]; }
+                        SpecMsPerToken = MsPerToken(ticks, tokens);
+                        if (SpecMsPerToken > PlainMsPerToken * SpecWinMargin)
+                        {
+                            // The win stopped being one: park with the usual backoff.
+                            _specWins = false;
+                            Losses++;
+                            _consecutiveLosses++;
+                            _parkedRemaining = Math.Min(ParkedProbeInterval, FirstParkInterval << Math.Min(_consecutiveLosses - 1, 5));
+                            _recheckRemaining = 0;
+                            ResetRound();
+                        }
+                    }
+                }
                 return;
             }
 
@@ -177,6 +299,19 @@ namespace TensorSharp.Runtime.Speculative
                     _specWorstTokens = tokensEmitted;
                 }
                 SpecMsPerToken = MsPerToken(_specTicks, _specTokens);
+                // Nothing accepted in the first ZeroAcceptProbeSteps measured steps: a
+                // loss, and the rest of the probe would only confirm it.
+                if (_specSamples == ZeroAcceptProbeSteps && _specTokens == _specSamples
+                    && _specSamples < ProbeStepsThisRound)
+                {
+                    _specWins = false;
+                    Losses++;
+                    _consecutiveLosses++;
+                    _parkedRemaining = Math.Min(ParkedProbeInterval, FirstParkInterval << Math.Min(_consecutiveLosses - 1, 5));
+                    _recheckRemaining = 0;
+                    ResetRound();
+                    return;
+                }
             }
             else
             {
@@ -187,7 +322,7 @@ namespace TensorSharp.Runtime.Speculative
                 PlainMsPerToken = MsPerToken(_plainTicks, _plainTokens);
             }
 
-            if (_specSamples < ProbeSpecSteps || _plainSamples < CalibrationPlainSteps)
+            if (_specSamples < ProbeStepsThisRound || _plainSamples < CalibrationPlainSteps)
                 return;
 
             // Trim the worst speculative sample (a graph rebuild that will not
@@ -202,10 +337,11 @@ namespace TensorSharp.Runtime.Speculative
             }
 
             _specWins = specMs <= MsPerToken(_plainTicks, _plainTokens) * SpecWinMargin;
+            if (_specWins) Wins++; else Losses++;
             _consecutiveLosses = _specWins ? 0 : _consecutiveLosses + 1;
             _parkedRemaining = _specWins
                 ? 0
-                : Math.Min(ParkedProbeInterval, FirstParkInterval << Math.Min(_consecutiveLosses - 1, 4));
+                : Math.Min(ParkedProbeInterval, FirstParkInterval << Math.Min(_consecutiveLosses - 1, 5));
             _recheckRemaining = _specWins ? WinRecheckInterval : 0;
             ResetRound();
         }
@@ -222,6 +358,7 @@ namespace TensorSharp.Runtime.Speculative
             _parkedRemaining = _recheckRemaining = 0;
             _consecutiveLosses = 0;
             _specWins = true;
+            Wins = Losses = ParkedSteps = 0;
             // A fresh governor has measured nothing; leaving the last run's
             // rates behind would make a per-turn log report numbers from the
             // previous turn's context length.
@@ -236,6 +373,7 @@ namespace TensorSharp.Runtime.Speculative
             _specWorstTicks = 0;
             _specWorstTokens = 0;
             _specFirstSkipped = _plainFirstSkipped = false;
+            _winCount = _winHead = 0;
         }
 
         private static double MsPerToken(long ticks, long tokens) =>

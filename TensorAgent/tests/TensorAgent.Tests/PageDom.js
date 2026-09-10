@@ -116,9 +116,19 @@
       return document.body.querySelectorAll(selector);
     },
     addEventListener: function (name, fn) { (document._handlers[name] = document._handlers[name] || []).push(fn); },
-    /** Fire a document-level event, which is how the page catches a link click. */
+    removeEventListener: function (name, fn) {
+      var list = document._handlers[name] || [];
+      var at = list.indexOf(fn);
+      if (at >= 0) list.splice(at, 1);
+    },
+    /**
+     * Fire a document-level event, which is how the page catches a link click and
+     * how a test brings the app back to the foreground: set
+     * `document.visibilityState` (a plain, writable property) and then dispatch
+     * 'visibilitychange'.
+     */
     dispatch: function (name, event) {
-      (document._handlers[name] || []).forEach(function (fn) { fn(event); });
+      (document._handlers[name] || []).slice().forEach(function (fn) { fn(event === undefined ? {} : event); });
     },
     _handlers: {},
   };
@@ -132,26 +142,129 @@
   // ---- the network ---------------------------------------------------------
   // Answers come from a table the test fills in; every request is recorded, so a
   // test can assert on the body the page SENT as well as on what it drew.
+  //
+  // A route is a value, or a function of the recorded call that returns one:
+  //   a document                              200 with that JSON body
+  //   { __status: n, body: ..., headers }     any HTTP answer, a refusal included
+  //   { __sse: [...frames], __then, __delay } an event stream, frame by frame
+  //   { __reject: 'Load failed' | true }      NO answer: fetch rejects with the
+  //                                           TypeError WebKit raises when the
+  //                                           connection fails ('Load failed')
+  // A function that throws rejects the fetch the same way a browser would, rather
+  // than throwing out of fetch() itself. Nothing here ever throws synchronously.
   var routes = {};
   var calls = [];
 
-  /** An event stream, frame by frame, the way the page reads one. */
-  function sseBody(frames) {
-    var at = 0;
+  /** WebKit's failure to reach the server at all: a TypeError, not a response. */
+  function networkError(message) {
+    return new TypeError(message == null || message === true ? 'Load failed' : String(message));
+  }
+  /** What a fetch or a read rejects with once its signal has fired. */
+  function abortError() {
+    var e = new Error('The operation was aborted.');
+    e.name = 'AbortError';
+    e.code = 20;
+    return e;
+  }
+
+  // ---- AbortController -----------------------------------------------------
+  // Real enough to stop a request: abort() marks the signal, tells its listeners,
+  // and every read still waiting on a body that was fetched with that signal
+  // rejects with AbortError -- which is the only way a page gets out of a stream
+  // whose server has gone quiet.
+  function AbortSignal() {
+    this.aborted = false;
+    this.reason = undefined;
+    this.onabort = null;
+    this._listeners = {};
+  }
+  AbortSignal.prototype.addEventListener = function (name, fn) {
+    (this._listeners[name] = this._listeners[name] || []).push(fn);
+  };
+  AbortSignal.prototype.removeEventListener = function (name, fn) {
+    var list = this._listeners[name] || [];
+    var at = list.indexOf(fn);
+    if (at >= 0) list.splice(at, 1);
+  };
+  AbortSignal.prototype.throwIfAborted = function () { if (this.aborted) throw this.reason; };
+  function AbortController() { this.signal = new AbortSignal(); }
+  AbortController.prototype.abort = function (reason) {
+    var s = this.signal;
+    if (s.aborted) return;
+    s.aborted = true;
+    s.reason = reason === undefined ? abortError() : reason;
+    var event = { type: 'abort', target: s };
+    (s._listeners.abort || []).slice().forEach(function (fn) { fn(event); });
+    if (typeof s.onabort === 'function') s.onabort(event);
+  };
+
+  /**
+   * An event stream, frame by frame, the way the page reads one.
+   *
+   * After the frames run out, `__then` says what the connection does:
+   *   'end'    (default) the next read reports done, a stream closed cleanly;
+   *   'reject' the next read rejects with TypeError('Load failed'), a connection
+   *            dropped mid-stream;
+   *   'hang'   the next read never settles -- a server that stopped talking without
+   *            closing -- until the request's signal is aborted, when every read
+   *            still waiting rejects with AbortError.
+   * `__delay: ms` makes every read take that many real milliseconds, so a test can
+   * abort or look at the page in the middle of one.
+   */
+  function sseBody(spec, signal) {
+    var frames = spec.__sse, then = spec.__then || 'end', delay = Number(spec.__delay) || 0;
+    var at = 0, waiting = [], closed = false;
+    function settleAll(how) {
+      var pending = waiting; waiting = [];
+      pending.forEach(how);
+    }
+    if (signal) {
+      signal.addEventListener('abort', function () {
+        settleAll(function (w) { w.reject(signal.reason || abortError()); });
+      });
+    }
+    function read() {
+      if (signal && signal.aborted) return Promise.reject(signal.reason || abortError());
+      if (closed) return Promise.resolve({ done: true, value: undefined });
+      return new Promise(function (resolve, reject) {
+        var w = { resolve: resolve, reject: reject };
+        waiting.push(w);
+        function deliver() {
+          var i = waiting.indexOf(w);
+          if (i < 0) return; // an abort or a cancel got there first
+          if (at < frames.length) {
+            waiting.splice(i, 1);
+            resolve({ done: false, value: 'data: ' + JSON.stringify(frames[at++]) + '\n' });
+          } else if (then === 'reject') {
+            waiting.splice(i, 1);
+            reject(networkError('Load failed'));
+          } else if (then === 'hang') {
+            // Left in `waiting`, which is what lets abort() reject it later.
+          } else {
+            waiting.splice(i, 1);
+            closed = true;
+            resolve({ done: true, value: undefined });
+          }
+        }
+        if (delay > 0) setTimeout(deliver, delay); else deliver();
+      });
+    }
     return {
       getReader: function () {
         return {
-          read: function () {
-            if (at >= frames.length) return Promise.resolve({ done: true });
-            var line = 'data: ' + JSON.stringify(frames[at++]) + '\n';
-            return Promise.resolve({ done: false, value: line });
+          read: read,
+          cancel: function () {
+            closed = true;
+            settleAll(function (w) { w.resolve({ done: true, value: undefined }); });
+            return Promise.resolve();
           },
+          releaseLock: function () {},
         };
       },
     };
   }
 
-  function reply(body, ok, headers) {
+  function reply(body, ok, headers, signal) {
     // Tests may model an HTTP refusal without replacing the fetch shim. Keep the
     // transport metadata outside the JSON body the page will actually read.
     var explicitStatus = body && typeof body.__status === 'number' ? body.__status : null;
@@ -162,7 +275,7 @@
     }
     // A route may answer with frames instead of a document: { __sse: [...] } is a
     // server-sent-event stream, which is how every generation actually arrives.
-    var frames = body && body.__sse;
+    var stream = body && body.__sse ? body : null;
     var text = typeof body === 'string' ? body : JSON.stringify(body);
     return Promise.resolve({
       ok: ok !== false,
@@ -170,19 +283,28 @@
       headers: { get: function (n) { return (headers || {})[n] || null; } },
       json: function () { return Promise.resolve(JSON.parse(text)); },
       text: function () { return Promise.resolve(text); },
-      body: frames ? sseBody(frames) : null,
+      body: stream ? sseBody(stream, signal) : null,
     });
   }
 
   function fetch(url, init) {
     var path = String(url).split('?')[0];
+    var signal = init && init.signal ? init.signal : null;
     var record = { url: String(url), path: path, method: (init && init.method) || 'GET', body: null };
     if (init && typeof init.body === 'string') { try { record.body = JSON.parse(init.body); } catch (e) { record.body = init.body; } }
     calls.push(record);
+    // A request whose signal has already fired never leaves the page. It is still
+    // recorded above: that the page tried is exactly what a test may want to see.
+    if (signal && signal.aborted) return Promise.reject(signal.reason || abortError());
     var answer = Object.prototype.hasOwnProperty.call(routes, String(url)) ? routes[String(url)]
       : (Object.prototype.hasOwnProperty.call(routes, path) ? routes[path] : null);
-    if (typeof answer === 'function') answer = answer(record);
-    return reply(answer === null || answer === undefined ? {} : answer);
+    try {
+      if (typeof answer === 'function') answer = answer(record);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+    if (answer && answer.__reject) return Promise.reject(networkError(answer.__reject));
+    return reply(answer === null || answer === undefined ? {} : answer, undefined, undefined, signal);
   }
 
   // JavaScriptCore has no atob: it is a Web API, not an ECMAScript one, and the page
@@ -206,7 +328,8 @@
     // The shim's own TextDecoder wants bytes; this stream yields the text a
     // decoded chunk would already be, so decode is the identity here.
     TextDecoder: function () { this.decode = function (value) { return value == null ? '' : String(value); }; },
-    AbortController: function () { this.signal = {}; this.abort = function () {}; },
+    AbortController: AbortController,
+    AbortSignal: AbortSignal,
     navigator: { clipboard: null },
     location: { href: 'http://127.0.0.1/' },
     innerHeight: 800,
@@ -218,6 +341,20 @@
   Object.keys(globals).forEach(function (k) { globalThis[k] = globals[k]; });
   globalThis.window = globalThis;
 
+  function ownAndChildText(node) {
+    return node._text + node.children.map(ownAndChildText).join('');
+  }
+  function noticeTexts(onlyErrors) {
+    var found = [];
+    (function walk(node) {
+      node.children.forEach(function (c) {
+        if (c.classList.contains('notice') && (!onlyErrors || c.classList.contains('error'))) found.push(ownAndChildText(c));
+        walk(c);
+      });
+    })(document.getElementById('chat'));
+    return found;
+  }
+
   globalThis.__page = {
     byId: byId,
     routes: routes,
@@ -225,6 +362,15 @@
     element: element,
     /** Every request whose path matches, newest last. */
     requests: function (path) { return calls.filter(function (c) { return c.path === path; }); },
+    /**
+     * The text of every error notice the page is showing, oldest first. Read the
+     * way a person would -- the message AND anything appended after it, such as
+     * the button of a notice with an action -- which `textContent` on this fake
+     * does not do once an element has children.
+     */
+    errorNotices: function () { return noticeTexts(true); },
+    /** Every notice, error or not, oldest first. */
+    notices: function () { return noticeTexts(false); },
     /** The transcript as a shape a test can assert on. */
     transcript: function () {
       return document.getElementById('chat').children.map(function (turn) {

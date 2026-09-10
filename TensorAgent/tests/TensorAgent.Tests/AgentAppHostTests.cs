@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Net.Http.Json;
 using System.Text.Json;
 using TensorAgent.Core.Catalog;
@@ -1566,4 +1567,130 @@ public sealed class AgentAppHostTests : IDisposable
         Assert.EndsWith(wanted, resolved, StringComparison.Ordinal);
     }
 
+
+    // ---- coming back to the foreground ---------------------------------------------
+    //
+    // iOS reclaims a suspended app's sockets and the managed HttpListener cannot tell
+    // (LoopbackServerTests has the transport's half). This is the host's half: on every
+    // return to the foreground the listener is probed, rebuilt if dead, the outcome is
+    // written to background.log — the one record readable after the fact on a phone —
+    // and whoever owns the WebView is told, including when the page's origin moved.
+
+    private static HttpClient ClientWithToken(AgentAppHost host)
+    {
+        var client = new HttpClient { BaseAddress = new Uri(host.Server.BaseUrl) };
+        client.DefaultRequestHeaders.Add("Cookie", $"{Core.Hosting.LoopbackServer.TokenCookie}={host.Server.Token}");
+        return client;
+    }
+
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(10);
+
+    private static string BackgroundTrace(AgentAppHost host)
+        => File.ReadAllText(Path.Combine(host.Paths.LogsDirectory, "background.log"));
+
+    [Fact]
+    public async Task ComingToTheForegroundWritesTheListenerCheckToTheBackgroundTrace()
+    {
+        AgentAppHost host = Start();
+        var checks = new List<AgentAppHost.ForegroundReport>();
+        var moves = new List<string>();
+        host.ForegroundChecked += checks.Add;
+        host.EntryUrlChanged += moves.Add;
+
+        AgentAppHost.ForegroundReport report = await host.OnForegroundAsync().WaitAsync(Bound);
+
+        Assert.Equal(Core.Hosting.LoopbackServer.ListenerHealth.Alive, report.Listener);
+        Assert.False(report.EntryUrlChanged);
+        Assert.Equal(host.Server.Port, report.Port);
+        Assert.Equal(0, host.ListenerRestarts);
+        Assert.Equal(new[] { report }, checks);
+        Assert.Empty(moves);
+        Assert.Contains("foreground: loopback listener alive", BackgroundTrace(host), StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
+    public async Task ComingToTheForegroundRebuildsADeadListener()
+    {
+        Skip.If(!ListeningSockets.ManagedHttpListenerInUse, ListeningSockets.WhyNotManaged);
+        AgentAppHost host = Start();
+        host.ListenerProbeTimeout = TimeSpan.FromSeconds(2);
+        int port = host.Server.Port;
+        string entry = host.EntryUrl;
+        JsonElement before = await Get("/api/agent/engine").WaitAsync(Bound);
+        Assert.True(before.TryGetProperty("engine", out _));
+        var checks = new List<AgentAppHost.ForegroundReport>();
+        var moves = new List<string>();
+        host.ForegroundChecked += checks.Add;
+        host.EntryUrlChanged += moves.Add;
+
+        ListeningSockets.Kill(port);
+
+        AgentAppHost.ForegroundReport report = await host.OnForegroundAsync().WaitAsync(Bound);
+
+        Assert.Equal(Core.Hosting.LoopbackServer.ListenerHealth.Restarted, report.Listener);
+        Assert.Equal(port, report.Port);
+        Assert.Equal(port, host.Server.Port);
+        Assert.False(report.EntryUrlChanged);
+        Assert.Equal(entry, host.EntryUrl);
+        Assert.Equal(1, host.ListenerRestarts);
+        Assert.Equal(new[] { report }, checks);
+        Assert.Empty(moves);
+        Assert.Contains("foreground: loopback listener DEAD", BackgroundTrace(host), StringComparison.Ordinal);
+
+        // The page's requests go through again; a fresh client, because the pooled
+        // connection belonged to the incarnation that was just retired.
+        using HttpClient fresh = ClientWithToken(host);
+        JsonElement after = JsonSerializer.Deserialize<JsonElement>(
+            await fresh.GetStringAsync("/api/agent/engine").WaitAsync(Bound));
+        Assert.True(after.TryGetProperty("engine", out _));
+    }
+
+    [SkippableFact]
+    public async Task ComingToTheForegroundMovesPortsOnlyWhenItMust()
+    {
+        Skip.If(!ListeningSockets.ManagedHttpListenerInUse, ListeningSockets.WhyNotManaged);
+        AgentAppHost host = Start();
+        host.ListenerProbeTimeout = TimeSpan.FromSeconds(1);
+        int oldPort = host.Server.Port;
+        string token = host.Server.Token;
+        string oldEntry = host.EntryUrl;
+        var checks = new List<AgentAppHost.ForegroundReport>();
+        var moves = new List<string>();
+        host.ForegroundChecked += checks.Add;
+        host.EntryUrlChanged += moves.Add;
+
+        ListeningSockets.Kill(oldPort);
+        var squatter = new TcpListener(IPAddress.Loopback, oldPort);
+        squatter.Start();
+        try
+        {
+            AgentAppHost.ForegroundReport report = await host.OnForegroundAsync().WaitAsync(Bound);
+
+            Assert.Equal(Core.Hosting.LoopbackServer.ListenerHealth.Relisted, report.Listener);
+            Assert.True(report.EntryUrlChanged);
+            Assert.NotEqual(oldPort, host.Server.Port);
+            Assert.Equal(host.Server.Port, report.Port);
+            Assert.Equal(1, host.ListenerRestarts);
+
+            // The WebView's owner was told where the page now lives: same token, new port.
+            string moved = Assert.Single(moves);
+            Assert.Equal(host.EntryUrl, moved);
+            Assert.Equal($"http://127.0.0.1:{host.Server.Port}/?token={token}", moved);
+            Assert.NotEqual(oldEntry, moved);
+            Assert.Equal(new[] { report }, checks);
+
+            string trace = BackgroundTrace(host);
+            Assert.Contains("foreground: loopback listener DEAD", trace, StringComparison.Ordinal);
+            Assert.Contains("the page will be reloaded at " + host.EntryUrl, trace, StringComparison.Ordinal);
+
+            using HttpClient fresh = ClientWithToken(host);
+            JsonElement after = JsonSerializer.Deserialize<JsonElement>(
+                await fresh.GetStringAsync("/api/agent/engine").WaitAsync(Bound));
+            Assert.True(after.TryGetProperty("engine", out _));
+        }
+        finally
+        {
+            squatter.Dispose();
+        }
+    }
 }

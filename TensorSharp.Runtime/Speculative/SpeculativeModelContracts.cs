@@ -118,6 +118,41 @@ namespace TensorSharp.Runtime.Speculative
         /// GatedDeltaNet) are unaffected.
         /// </summary>
         bool SpecVerifyPersistsAcceptedKv => false;
+        /// <summary>
+        /// True when a plain single-token step inside a speculative session may run
+        /// through the model's ordinary <see cref="IModelArchitecture.Forward"/>
+        /// instead of a one-row <see cref="SpecForward"/>. Only a trunk whose two
+        /// paths leave IDENTICAL state behind can say so - Gemma 4, where both run
+        /// the same fused decode kernel over the same cache and differ only in
+        /// whether the LM head is folded into the graph. A trunk with recurrent
+        /// state that its verify graph and its decode graph keep in different
+        /// device buffers (Qwen 3.5's GatedDeltaNet) must leave this false.
+        /// </summary>
+        bool SpecPlainStepUsesForward => false;
+
+        /// <summary>
+        /// True when the model's own decode (<see cref="SpecPlainStepUsesForward"/>) and
+        /// its speculative forward keep the recurrent state in different device
+        /// families, so that alternating between them costs a state drain and re-seed
+        /// each way (Qwen 3.5: the fused decode graph's resident slot against the
+        /// verify graph's slices, ~50 MB per direction on the 9B, ~150 MB on the 27B). The trunk then takes
+        /// the model's decode only for PARKED plain steps - a long run of them - and
+        /// keeps an ordinary no-proposal plain step inside the speculative family.
+        /// False (the default, Gemma 4) means both steps share one cache and the
+        /// cheaper decode serves every plain step.
+        /// </summary>
+        bool SpecPlainStepCostsFamilySwitch => false;
+        /// <summary>
+        /// True when <see cref="SpecForward"/> operates on whatever cache the model has
+        /// bound at the moment - a per-request fused holder included - rather than on
+        /// the model's primary linear cache alone. Only such a trunk may speculate for
+        /// a request served from a holder (a checkpoint clone, a retained
+        /// conversation): Gemma 4's forward reads the active arrays, so it qualifies;
+        /// Qwen 3.5's speculative session re-seats its recurrent state against the
+        /// primary cache, and running it on a bound holder left the holder unbound and
+        /// the request lost at position 0.
+        /// </summary>
+        bool SpecTrunkFollowsBoundCache => false;
 
         /// <summary>
         /// Trunk forward identical to <see cref="IModelArchitecture.Forward"/>
@@ -252,6 +287,18 @@ namespace TensorSharp.Runtime.Speculative
         /// row, with the hidden state of the LAST token it processed.
         /// </summary>
         bool DraftSelfCatchUp => false;
+        /// <summary>
+        /// True when this head keeps NO per-position state of its own - it drafts from
+        /// the trunk's KV cache and the trunk hidden state it is handed - so it can
+        /// start drafting at any trunk position, including right after a request
+        /// adopted a KV prefix it never saw (the previous turn of a chat, a shared
+        /// system-prompt checkpoint, a prefix-cache hit). A NextN/MTP block with its
+        /// own KV cache must leave this false: a gap in what it replayed makes every
+        /// later proposal garbage (harmless, but a wasted verify per step). A head that
+        /// says true must accept a <see cref="DraftCatchUp"/> whose hidden rows are
+        /// null: that is how a seeded start hands it the tokens already committed.
+        /// </summary>
+        bool DraftHeadResumesAfterGap => false;
 
         /// <summary>One per-token draft step at <paramref name="pos"/>: consume
         /// (token, previous hidden), fill next-token logits and the chained

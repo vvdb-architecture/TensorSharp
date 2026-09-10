@@ -1,6 +1,6 @@
 ---
 name: research
-description: Research a question on the open web without being given any URLs. Finds its own sources by asking several keyless indexes at once - Wikipedia, DuckDuckGo, Marginalia, Hacker News, arXiv, Crossref, GitHub, Stack Overflow and news feeds - reads the pages it finds, pulls out the passages that bear on the question, and writes a dossier with every source cited. Then analyses the collected sources: which support a claim, which contradict it, what figures they state and whether they agree. Use whenever the user asks you to look something up, research a topic, find sources, check what is known about something, compare what different sources say, or summarise an article or a site. Needs the app's Network switch to be on; no API key and no configuration.
+description: Use for web searches and current information lookups, finding sources, fact-checking, researching questions, comparing sources, or summarising web pages. Searches the web without being given any URLs and reads relevant pages with citations. Needs the app's Network switch on; no API key.
 ---
 
 # Research

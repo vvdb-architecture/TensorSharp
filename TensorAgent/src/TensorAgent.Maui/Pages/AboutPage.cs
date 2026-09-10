@@ -31,6 +31,26 @@ public sealed class AboutPage : ContentPage
 
         var stack = new VerticalStackLayout { Spacing = 0, Padding = new Thickness(20, 16, 20, 32) };
 
+        // The project's own banner, whole rather than cropped: it carries the
+        // TensorSharp wordmark, and AspectFill at any height a phone can spare would
+        // cut it off. AspectFit against the page's content width lets the Image
+        // measure its own height from the 1253x836 source, so the row costs about
+        // two thirds of that width and no more.
+        stack.Add(new Border
+        {
+            Margin = new Thickness(0, 0, 0, 18),
+            Padding = new Thickness(0),
+            BackgroundColor = Theme.Surface,
+            StrokeThickness = 0,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
+            Content = new Image
+            {
+                Source = ImageSource.FromFile("banner_1.png"),
+                Aspect = Aspect.AspectFit,
+                HorizontalOptions = LayoutOptions.Fill,
+            },
+        });
+
         stack.Add(new Label
         {
             Text = "TensorAgent",

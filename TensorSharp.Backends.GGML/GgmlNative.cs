@@ -2977,7 +2977,10 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjNormData,
             int tpDegree, [In, Out] IntPtr[] tpPlanOut,
             IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
-            IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr);
+            IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr,
+            IntPtr logitsData, int vocabSize,
+            IntPtr lmHeadData, int lmHeadType, long lmHeadNe0, long lmHeadNe1, long lmHeadBytes,
+            IntPtr finalNormData, float logitSoftcap);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -4451,6 +4454,14 @@ internal enum GgmlIndexReductionOp
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial int TSGgml_SyncHostBuffer(IntPtr ptr, long byteCount);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static unsafe partial int TSGgml_SyncHostBufferRanges(IntPtr ptr, long* offsets, long* lengths, int count);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static unsafe partial int TSGgml_UploadHostBufferRanges(IntPtr ptr, long* offsets, long* lengths, int count);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -6073,7 +6084,10 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjNormData = default,
             int tpDegree = 1, IntPtr[] tpPlanOut = null,
             IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
-            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null,
+            IntPtr logitsData = default, int vocabSize = 0,
+            IntPtr lmHeadData = default, int lmHeadType = 0, long lmHeadNe0 = 0, long lmHeadNe1 = 0, long lmHeadBytes = 0,
+            IntPtr finalNormData = default, float logitSoftcap = 0f)
         {
             if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             int r = TSGgml_Gemma4ModelVerify(
@@ -6107,7 +6121,10 @@ internal enum GgmlIndexReductionOp
                 pleProjNormData,
                 tpDegree, tpPlanOut,
                 gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
-                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr);
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr,
+                logitsData, vocabSize,
+                lmHeadData, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes,
+                finalNormData, logitSoftcap);
             return r != 0;
         }
 
@@ -6349,6 +6366,39 @@ internal enum GgmlIndexReductionOp
                 return;
 
             CheckResult(TSGgml_SyncHostBuffer(ptr, byteCount), "sync_host_buffer");
+        }
+
+        /// <summary>
+        /// Pull only the given byte ranges of a cached tensor's device copy back
+        /// into its host memory (offsets are relative to <paramref name="ptr"/>).
+        /// A tensor with no device copy needs nothing and returns at once.
+        /// </summary>
+        public static unsafe void SyncHostBufferRanges(IntPtr ptr, ReadOnlySpan<long> offsets, ReadOnlySpan<long> lengths)
+        {
+            if (ptr == IntPtr.Zero || offsets.Length == 0)
+                return;
+            if (offsets.Length != lengths.Length)
+                throw new ArgumentException("offsets and lengths must have the same length.");
+            fixed (long* o = offsets)
+            fixed (long* l = lengths)
+                CheckResult(TSGgml_SyncHostBufferRanges(ptr, o, l, offsets.Length), "sync_host_buffer_ranges");
+        }
+
+        /// <summary>
+        /// Push only the given byte ranges of a tensor's host memory into its cached
+        /// device copy, leaving the copy resident (the whole-buffer alternative is
+        /// <see cref="InvalidateHostBuffer"/>, which re-uploads everything on the
+        /// next bind). A tensor with no device copy needs nothing.
+        /// </summary>
+        public static unsafe void UploadHostBufferRanges(IntPtr ptr, ReadOnlySpan<long> offsets, ReadOnlySpan<long> lengths)
+        {
+            if (ptr == IntPtr.Zero || offsets.Length == 0)
+                return;
+            if (offsets.Length != lengths.Length)
+                throw new ArgumentException("offsets and lengths must have the same length.");
+            fixed (long* o = offsets)
+            fixed (long* l = lengths)
+                CheckResult(TSGgml_UploadHostBufferRanges(ptr, o, l, offsets.Length), "upload_host_buffer_ranges");
         }
 
         /// <summary>

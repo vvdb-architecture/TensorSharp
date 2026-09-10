@@ -680,6 +680,14 @@ namespace TensorSharp.Models
 
         public void SpecSnapshotRecurrentState()
         {
+            // A parked run of plain steps goes through the fused decode, which keeps
+            // the recurrent state device-resident in ITS slot; the executor takes
+            // this snapshot before the verify forward that would sync it, so the
+            // host mirrors below could still hold the pre-park state. Settle it
+            // first, or a rollback that restores from this snapshot (the host-mode
+            // verify, the per-op fallback) would continue from stale state.
+            if (_fdStateResident)
+                InvalidateFullDecodeState();
             // Nothing to copy: the state the verify is about to run from lives in the
             // shared device slices, the verify writes its results elsewhere (the
             // *_state_out slices and the snapshot slots), and the only thing that ever
@@ -854,6 +862,30 @@ namespace TensorSharp.Models
         /// exists is the registry's question, not this one.
         /// </summary>
         public bool SpeculationProfitable => true;
+
+        /// <summary>
+        /// Every field the speculative trunk touches - attention K/V, the GDN conv and
+        /// delta state, the position, the residency latches - is what
+        /// BindSequenceCache swapped in, and a holder switch drains the verify's
+        /// device-live state into the outgoing holder's mirrors first
+        /// (LoadCacheHolder -> InvalidateVerifyCache). So the trunk forwards on the
+        /// BOUND holder, and TensorAgent's turns (all served from holders) can
+        /// speculate. What used to break was not the state but the capability:
+        /// see SupportsPerSequenceFusedForward.
+        /// </summary>
+        public bool SpecTrunkFollowsBoundCache => true;
+
+        /// <summary>
+        /// A parked plain step takes the fused whole-model decode (20.4 ms/token on
+        /// 9B IQ4_XS, Metal) instead of a one-row pass through the verify family
+        /// (25.6 ms): a governor that parks for 32-256 steps at a time made prose
+        /// 25% slower than plain decoding while drafting nothing. Ordinary plain
+        /// steps stay in the verify family - see SpecPlainStepCostsFamilySwitch.
+        /// </summary>
+        public bool SpecPlainStepUsesForward
+            => IsGgmlBackend && !IsTensorParallel && !HasDFlash && _fullDecodeEnabled && !_fdUnsupported;
+
+        public bool SpecPlainStepCostsFamilySwitch => true;
 
         /// <summary>Batched spec trunk needs the GGML batched paged path (the
         /// MLX backend keeps GDN state inside opaque per-slot MLX caches the

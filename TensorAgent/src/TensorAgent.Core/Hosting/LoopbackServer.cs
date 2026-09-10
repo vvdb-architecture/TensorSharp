@@ -349,10 +349,21 @@ public delegate Task<LoopbackResponse?> LoopbackHandler(LoopbackRequest request,
 /// </summary>
 public sealed class LoopbackServer : IDisposable
 {
-    private readonly HttpListener _listener = new();
+    private HttpListener _listener = new();
     private readonly List<(string method, RoutePattern pattern, LoopbackHandler handler)> _routes = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly ILogger _log;
+    /// <summary>Guards the listener's incarnation: <see cref="_listener"/>, <see cref="_epoch"/>, <see cref="_port"/>.</summary>
+    private readonly object _lifecycle = new();
+    /// <summary>
+    /// Cancelled when the listener is restarted, so every request the retired
+    /// incarnation was still serving ends then rather than when its stream next
+    /// notices. Linked to <see cref="_cts"/>, which is the server's whole life.
+    /// </summary>
+    private CancellationTokenSource _epoch;
+    /// <summary>Bumped on every (re)start; an accept loop that no longer matches it leaves.</summary>
+    private int _generation;
+    private int _port;
     private Task? _loop;
 
     public const string TokenCookie = "tensoragent_token";
@@ -360,9 +371,14 @@ public sealed class LoopbackServer : IDisposable
     public LoopbackServer(ILogger? log = null, int port = 0)
     {
         _log = log ?? NullLogger.Instance;
-        Port = port == 0 ? FreePort() : port;
+        _port = port == 0 ? FreePort() : port;
+        _epoch = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
         Token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(24));
         _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
+        // Answered, not merely exempt from the token. It is what ProbeAsync asks for,
+        // and a probe that had to read a 404 as "alive" would be one bad route away
+        // from reading a dead listener the same way.
+        MapGet("/health", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { ok = true })));
         // Write failures must reach the handler. A failed write is the ONLY way this
         // transport learns that a reader has gone — there is no disconnect callback —
         // and an event stream that never learns it keeps a model generating for a page
@@ -372,8 +388,21 @@ public sealed class LoopbackServer : IDisposable
         _listener.IgnoreWriteExceptions = false;
     }
 
-    public int Port { get; }
+    /// <summary>
+    /// The port the WebView talks to. Fixed for the life of the server except in one
+    /// case: a restart after iOS reclaimed the listening socket that could not rebind
+    /// it (see <see cref="EnsureListeningAsync"/>), when <see cref="Relisted"/> says so.
+    /// </summary>
+    public int Port => Volatile.Read(ref _port);
     public string Token { get; }
+    /// <summary>How many times the listener has been rebuilt after a probe found it dead. Zero on a healthy run.</summary>
+    public int Restarts { get; private set; }
+    /// <summary>
+    /// Raised, with the new port, when a restart could not keep the old one. The page's
+    /// origin has changed, so whoever owns the WebView has to navigate it to
+    /// <see cref="EntryUrl"/> again; nothing else about the server is different.
+    /// </summary>
+    public event Action<int>? Relisted;
     public string BaseUrl => $"http://127.0.0.1:{Port}";
     /// <summary>The URL the app points the WebView at: carries the token once.</summary>
     public string EntryUrl => $"{BaseUrl}/?token={Token}";
@@ -392,36 +421,76 @@ public sealed class LoopbackServer : IDisposable
 
     public void Start()
     {
-        _listener.Start();
-        _loop = Task.Run(AcceptLoopAsync);
+        lock (_lifecycle)
+            StartListenerLocked(_listener);
         _log.LogInformation("TensorAgent loopback server listening on {Url}", BaseUrl);
     }
 
-    private async Task AcceptLoopAsync()
+    /// <summary>Start listening on <paramref name="listener"/> and give it an accept loop of its own. Under <see cref="_lifecycle"/>.</summary>
+    private void StartListenerLocked(HttpListener listener)
     {
-        while (!_cts.IsCancellationRequested)
+        listener.Start();
+        int generation = Interlocked.Increment(ref _generation);
+        CancellationToken epoch = _epoch.Token;
+        _loop = Task.Run(() => AcceptLoopAsync(listener, generation, epoch));
+    }
+
+    /// <summary>
+    /// Accept for one incarnation of the listener.
+    ///
+    /// <para>
+    /// The managed HttpListener never faults a pending GetContextAsync for anything
+    /// that happens to its listening socket — an accept error is dropped and re-armed,
+    /// and a socket that stopped signalling leaves the accept parked for good — so
+    /// this loop cannot be the thing that notices a dead listener; <see cref="ProbeAsync"/>
+    /// is. What it CAN do is stop being a hazard: leave when its incarnation is
+    /// retired, and back off rather than spin if the runtime ever does surface a
+    /// failure repeatedly.
+    /// </para>
+    /// </summary>
+    private async Task AcceptLoopAsync(HttpListener listener, int generation, CancellationToken epoch)
+    {
+        int failures = 0;
+        while (!_cts.IsCancellationRequested && !epoch.IsCancellationRequested)
         {
             HttpListenerContext ctx;
             try
             {
-                ctx = await _listener.GetContextAsync().ConfigureAwait(false);
+                ctx = await listener.GetContextAsync().ConfigureAwait(false);
+                failures = 0;
             }
-            catch (Exception) when (_cts.IsCancellationRequested)
+            catch (Exception) when (
+                _cts.IsCancellationRequested || epoch.IsCancellationRequested
+                || Volatile.Read(ref _generation) != generation)
             {
+                // Stopped on purpose: the server is being disposed, or this listener was
+                // retired by a restart and a newer loop owns the port now.
                 return;
             }
             catch (Exception ex)
             {
-                _log.LogWarning(ex, "loopback accept failed");
+                failures++;
+                if (failures == 1 || failures % 50 == 0)
+                    _log.LogWarning(ex, "loopback accept failed ({Count} in a row)", failures);
+                try { await Task.Delay(Math.Min(50 * failures, 1000), _cts.Token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { return; }
                 continue;
             }
-            _ = Task.Run(() => HandleAsync(ctx));
+            // Checked again, after the accept: a restart can complete between the loop
+            // condition and here, and a request served with a cancelled epoch would be
+            // refused for no reason the caller could see. The new loop owns the socket.
+            if (epoch.IsCancellationRequested || Volatile.Read(ref _generation) != generation)
+            {
+                try { ctx.Response.Abort(); } catch (Exception) { /* the restart closed it already */ }
+                return;
+            }
+            _ = Task.Run(() => HandleAsync(ctx, epoch));
         }
     }
 
     private int _inFlight;
 
-    private async Task HandleAsync(HttpListenerContext ctx)
+    private async Task HandleAsync(HttpListenerContext ctx, CancellationToken epoch)
     {
         var response = ctx.Response;
         Interlocked.Increment(ref _inFlight);
@@ -456,7 +525,7 @@ public sealed class LoopbackServer : IDisposable
                 // One source per request, linked to the server's. A handler that
                 // streams hands this to LoopbackResponse.Sse so that a reader walking
                 // away stops the work being done for it.
-                using var perRequest = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                using var perRequest = CancellationTokenSource.CreateLinkedTokenSource(epoch);
                 var request = new LoopbackRequest(ctx, path, values) { Aborted = perRequest.Token, Cancellation = perRequest };
                 result = await handler(request, perRequest.Token).ConfigureAwait(false);
                 if (result is not null)
@@ -486,6 +555,16 @@ public sealed class LoopbackServer : IDisposable
             // ignored (see the constructor) this is the ordinary shape of a reader
             // leaving, and logging it as a failed request would bury the real ones.
         }
+        catch (ObjectDisposedException) when (
+            epoch.IsCancellationRequested || _cts.IsCancellationRequested)
+        {
+            // The response this request was writing to was closed underneath it by a
+            // restart or by shutdown. Also an ordinary ending -- but ONLY then: an
+            // ObjectDisposedException from a handler's own state (a disposed engine,
+            // a session torn down mid-request) is a server fault and has to be
+            // reported as one, not silently turned into the failure this whole change
+            // exists to stop the page seeing.
+        }
         catch (Exception ex)
         {
             _log.LogError(ex, "loopback request {Method} {Path} failed", ctx.Request.HttpMethod, ctx.Request.Url?.AbsolutePath);
@@ -501,6 +580,215 @@ public sealed class LoopbackServer : IDisposable
             try { response.Close(); } catch { }
             Interlocked.Decrement(ref _inFlight);
         }
+    }
+
+
+    // ---- surviving a suspension ---------------------------------------------
+    //
+    // iOS reclaims ("defuncts") the sockets of a suspended process — TN2277 says so
+    // for listening sockets in particular, and the kernel's pid_shutdown_sockets makes
+    // no exception for 127.0.0.1. The app is suspended about thirty seconds after it
+    // leaves the screen; come back minutes later and the listening socket under
+    // _listener may be dead. The managed HttpListener hides that completely: the
+    // pending GetContextAsync never returns, IsListening stays true, nothing is
+    // thrown and nothing is logged, while every connect from the WebView is refused.
+    // To the page that is "Load failed" on every request, forever, and the only cure
+    // used to be force-quitting the app.
+    //
+    // So the listener is PROBED on every return to the foreground — a real TCP connect
+    // and a GET /health, which is the one thing a defunct socket cannot fake — and
+    // rebuilt when the probe fails: Stop() + Start() on the same instance keeps the
+    // same port (XNU hands a just-closed listening port straight back, connections
+    // still open on it notwithstanding -- LoopbackServerTests proves it), so the
+    // page's origin, its token cookie and its composer are untouched. Only if the port cannot be had again does
+    // the server move, and then it says so through Relisted.
+
+    /// <summary>What <see cref="ProbeAsync"/> found: whether the listener answered, how it failed if not, and how long it took.</summary>
+    public readonly record struct ListenerProbe(bool Alive, string Detail, TimeSpan Elapsed);
+
+    /// <summary>The outcome of <see cref="EnsureListeningAsync"/>.</summary>
+    public enum ListenerHealth
+    {
+        /// <summary>The probe was answered; nothing was touched.</summary>
+        Alive,
+        /// <summary>The probe failed and the listener was rebuilt on the SAME port.</summary>
+        Restarted,
+        /// <summary>The probe failed and the listener had to move to a new port; <see cref="Relisted"/> was raised.</summary>
+        Relisted,
+        /// <summary>The probe failed and no listener could be started. The page cannot be served.</summary>
+        Failed,
+    }
+
+    /// <summary>The report of one <see cref="EnsureListeningAsync"/>; <see cref="Port"/> is the port in force afterwards.</summary>
+    public sealed record ListenerReport(ListenerHealth Health, string Detail, int Port, TimeSpan Elapsed)
+    {
+        public override string ToString() => $"{Health}: {Detail} (port {Port}, {Elapsed.TotalMilliseconds:0} ms)";
+    }
+
+    /// <summary>
+    /// Ask the listener, over a fresh TCP connection, whether it is alive. A connect
+    /// that is refused, a connection that is accepted by the kernel's backlog but
+    /// never answered, and a listener that answers anything but 200 all count as dead.
+    /// </summary>
+    public async Task<ListenerProbe> ProbeAsync(TimeSpan timeout, CancellationToken ct = default)
+    {
+        var clock = Stopwatch.StartNew();
+        int port = Port;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(timeout);
+        try
+        {
+            using var tcp = new TcpClient();
+            await tcp.ConnectAsync(IPAddress.Loopback, port, deadline.Token).ConfigureAwait(false);
+            NetworkStream stream = tcp.GetStream();
+            byte[] request = Encoding.ASCII.GetBytes(
+                $"GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+            await stream.WriteAsync(request, deadline.Token).ConfigureAwait(false);
+            byte[] buffer = new byte[512];
+            int read = await stream.ReadAsync(buffer, deadline.Token).ConfigureAwait(false);
+            string head = Encoding.ASCII.GetString(buffer, 0, read);
+            string statusLine = head.Split('\r', '\n')[0];
+            bool alive = read > 0 && statusLine.StartsWith("HTTP/1.1 200", StringComparison.Ordinal);
+            return new ListenerProbe(alive, alive ? "answered" : "answered '" + statusLine + "'", clock.Elapsed);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new ListenerProbe(false, $"no answer within {timeout.TotalMilliseconds:0} ms", clock.Elapsed);
+        }
+        catch (SocketException ex)
+        {
+            return new ListenerProbe(false, ex.SocketErrorCode.ToString(), clock.Elapsed);
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            return new ListenerProbe(false, ex.GetType().Name + ": " + ex.Message, clock.Elapsed);
+        }
+    }
+
+    /// <summary>
+    /// Make sure the listener is serving: probe it, and rebuild it if it is not. Safe
+    /// to call on every return to the foreground; on a healthy listener it costs one
+    /// loopback round trip and changes nothing — an open event stream is left alone.
+    /// </summary>
+    public async Task<ListenerReport> EnsureListeningAsync(TimeSpan probeTimeout, CancellationToken ct = default)
+    {
+        var clock = Stopwatch.StartNew();
+        if (_cts.IsCancellationRequested)
+            return new ListenerReport(ListenerHealth.Failed, "the server has been disposed", Port, clock.Elapsed);
+        ListenerProbe probe = await ProbeAsync(probeTimeout, ct).ConfigureAwait(false);
+        if (probe.Alive)
+            return new ListenerReport(ListenerHealth.Alive, $"answered in {probe.Elapsed.TotalMilliseconds:0} ms", Port, clock.Elapsed);
+
+        // A refused connection is proof; anything else might be this instant rather
+        // than this listener. The probe runs as the app wakes, when every thread the
+        // answer needs is waking too, so a slow round trip is a real possibility --
+        // and a restart on a healthy listener would cancel work that was going to
+        // finish. Ask once more before deciding.
+        if (!probe.Detail.Contains(nameof(SocketError.ConnectionRefused), StringComparison.Ordinal)
+            && !ct.IsCancellationRequested)
+        {
+            ListenerProbe again = await ProbeAsync(probeTimeout, ct).ConfigureAwait(false);
+            if (again.Alive)
+            {
+                _log.LogInformation(
+                    "the loopback listener missed one probe ({First}) and answered the next in {Ms} ms",
+                    probe.Detail, again.Elapsed.TotalMilliseconds);
+                return new ListenerReport(ListenerHealth.Alive,
+                    $"answered the second probe in {again.Elapsed.TotalMilliseconds:0} ms (the first said {probe.Detail})",
+                    Port, clock.Elapsed);
+            }
+            probe = again;
+        }
+        return Restart("the listener did not answer a probe (" + probe.Detail + ")", clock);
+    }
+
+    /// <summary>
+    /// Rebuild the listener without asking it first. <see cref="EnsureListeningAsync"/>
+    /// is the ordinary entry; this exists for a caller that already knows.
+    /// </summary>
+    public ListenerReport Restart(string why) => Restart(why, Stopwatch.StartNew());
+
+    private ListenerReport Restart(string why, Stopwatch clock)
+    {
+        ListenerReport report;
+        int? movedTo = null;
+        lock (_lifecycle)
+        {
+            if (_cts.IsCancellationRequested)
+                return new ListenerReport(ListenerHealth.Failed, "the server has been disposed", Port, clock.Elapsed);
+
+            int oldPort = _port;
+            // Retire the current incarnation before touching the listener: the accept
+            // loop reads the generation to tell "stopped by a restart" from "failed",
+            // and the requests it accepted are ended now rather than left to discover a
+            // closed response stream (which the managed listener lets them write to,
+            // silently, for as long as their producer runs).
+            Interlocked.Increment(ref _generation);
+            CancellationTokenSource retired = _epoch;
+            _epoch = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+            try { retired.Cancel(); } catch (Exception) { /* a registered callback threw; the epoch is still cancelled */ }
+
+            try { _listener.Stop(); }
+            catch (Exception ex) { _log.LogDebug(ex, "stopping the dead loopback listener threw"); }
+
+            string how;
+            try
+            {
+                // Same instance, same prefix, same port. Stop -> Start is allowed on
+                // HttpListener; only Close/Abort/Dispose retire an instance for good.
+                StartListenerLocked(_listener);
+                how = $"rebound on port {oldPort}";
+            }
+            catch (Exception sameInstance)
+            {
+                // A Start() that throws closes the instance permanently, so from here it
+                // is a new listener: on the old port if the OS will give it back, else on
+                // whatever port is free -- which changes the page's origin and is why
+                // Relisted exists.
+                try { _listener.Close(); } catch (Exception) { }
+                _listener = NewListener(oldPort);
+                try
+                {
+                    StartListenerLocked(_listener);
+                    how = $"replaced on port {oldPort} ({sameInstance.Message})";
+                }
+                catch (Exception samePort)
+                {
+                    try { _listener.Close(); } catch (Exception) { }
+                    int port = FreePort();
+                    _listener = NewListener(port);
+                    try
+                    {
+                        StartListenerLocked(_listener);
+                    }
+                    catch (Exception anyPort)
+                    {
+                        try { _listener.Close(); } catch (Exception) { }
+                        _log.LogError(anyPort, "loopback listener could not be restarted on port {Old} or {New}", oldPort, port);
+                        return new ListenerReport(ListenerHealth.Failed,
+                            $"{why}; port {oldPort} could not be rebound ({samePort.Message}) and port {port} failed too ({anyPort.Message})",
+                            Port, clock.Elapsed);
+                    }
+                    Volatile.Write(ref _port, port);
+                    movedTo = port;
+                    how = $"moved from port {oldPort} to {port} ({samePort.Message})";
+                }
+            }
+            Restarts++;
+            report = new ListenerReport(movedTo is null ? ListenerHealth.Restarted : ListenerHealth.Relisted,
+                why + "; " + how, _port, clock.Elapsed);
+        }
+        _log.LogWarning("loopback listener restarted: {Why}; {How}", why, report.Detail[(why.Length + 2)..]);
+        if (movedTo is { } newPort)
+            Relisted?.Invoke(newPort);
+        return report;
+    }
+
+    private static HttpListener NewListener(int port)
+    {
+        var listener = new HttpListener { IgnoreWriteExceptions = false };
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        return listener;
     }
 
     private bool IsPublic(string path)
@@ -612,8 +900,11 @@ public sealed class LoopbackServer : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        try { _listener.Stop(); } catch { }
-        try { _listener.Close(); } catch { }
+        lock (_lifecycle)
+        {
+            try { _listener.Stop(); } catch { }
+            try { _listener.Close(); } catch { }
+        }
 
         var deadline = Stopwatch.StartNew();
         while (Volatile.Read(ref _inFlight) > 0 && deadline.Elapsed < DrainTimeout)

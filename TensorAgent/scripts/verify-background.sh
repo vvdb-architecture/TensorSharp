@@ -18,13 +18,28 @@
 # when the GPU went away (which poisons the backend) or not, the answer must finish and
 # the next one must work.
 #
+# CHECK=page drives the SAME transition through the real WebView instead: the prompt
+# is typed into the page (TENSORAGENT_DEMO_PROMPT), the app is sent away for long
+# enough for iOS to suspend it -- and, on a device with a long enough absence, to
+# reclaim its sockets, which is the "Could not open the shared item: Load failed"
+# report -- and what is asserted is what the USER sees: that the page shows the whole
+# answer in one bubble and stops saying "working" after the turn ends, plus the
+# host's own line about whether its listener survived (foreground: loopback
+# listener ...). On a simulator sockets are never reclaimed, so what CHECK=page proves
+# there is the page's recovery of a stream the suspended WebView lost; on a device
+# with AWAY_SECONDS past ~660 it also proves the listener repair.
+#
 # Usage:
 #   verify-background.sh sim     [seconds-away]   # the booted simulator, Debug build
 #   verify-background.sh device  [seconds-away]   # the connected iPhone, Debug build
 #
 # Env:
+#   CHECK                   engine (default): the host-side probe described above
+#                           page: the WebView path described above
 #   TENSORAGENT_USE_MODEL   catalog id to load (default: the remembered choice)
-#   AWAY_SECONDS            how long to stay away (default: 20)
+#   AWAY_SECONDS            how long to stay away (default: 20; CHECK=page on a device: 720)
+#   PAGE_PROMPT             CHECK=page: the message typed into the page (default: a
+#                           long counting answer)
 #   LEAVE_DURING            decode (default): leave once tokens are flowing.
 #                           prefill: leave the moment the answer is asked for, with a
 #                           long prompt, so a prefill chunk is in flight when the GPU
@@ -38,7 +53,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 TARGET="${1:?usage: verify-background.sh sim|device [seconds-away]}"
-AWAY_SECONDS="${2:-${AWAY_SECONDS:-20}}"
+CHECK="${CHECK:-engine}"
+case "${CHECK}" in engine|page) ;; *) echo "verify-background: CHECK must be engine or page" >&2; exit 1 ;; esac
+if [[ "${CHECK}" == "page" && "${TARGET}" == "device" ]]; then
+    DEFAULT_AWAY=720
+else
+    DEFAULT_AWAY=20
+fi
+AWAY_SECONDS="${2:-${AWAY_SECONDS:-${DEFAULT_AWAY}}}"
+# The simulator has no Metal: its ~0.5 tok/s turns a long answer into an hour, which is
+# longer than every wait in this script. Ask it for something it can finish.
+if [[ "${CHECK}" == "page" && "${TARGET}" == "sim" ]]; then
+    DEFAULT_PAGE_PROMPT="Count from one to twenty in words, one per line."
+else
+    DEFAULT_PAGE_PROMPT="Count from one to one hundred and twenty. Write each number in words on its own line, and after each one add a short sentence about that number."
+fi
+PAGE_PROMPT="${PAGE_PROMPT:-${DEFAULT_PAGE_PROMPT}}"
 OTHER_APP="${OTHER_APP:-com.apple.Preferences}"
 LEAVE_DURING="${LEAVE_DURING:-decode}"
 if [[ "${LEAVE_DURING}" == "prefill" && -z "${TENSORAGENT_BACKGROUND_PROMPT:-}" ]]; then
@@ -57,6 +87,13 @@ RUN_ID="$(date '+%Y%m%d-%H%M%S')-$$"
 
 fail() { echo "verify-background: $*" >&2; exit 1; }
 
+# Refused rather than ignored: the page check always leaves once the answer is on
+# screen, and a run that asked for the prefill case and got the decode one would be
+# reported as proving something it never exercised.
+if [[ "${CHECK}" == "page" && "${LEAVE_DURING}" != "decode" ]]; then
+    fail "LEAVE_DURING=${LEAVE_DURING} is an engine-probe setting; CHECK=page leaves once the page is showing the answer"
+fi
+
 case "${TARGET}" in
     sim)
         APP="${REPO_ROOT}/TensorAgent/src/TensorAgent.Maui/bin/Debug/net10.0-ios/iossimulator-arm64/TensorAgent.Maui.app"
@@ -74,7 +111,12 @@ case "${TARGET}" in
         fi
         xcrun simctl terminate "${SIM_UDID}" "${BUNDLE_ID}" 2>/dev/null || true
 
-        export SIMCTL_CHILD_TENSORAGENT_BACKGROUND_CHECK=1
+        if [[ "${CHECK}" == "page" ]]; then
+            export SIMCTL_CHILD_TENSORAGENT_PAGE_BACKGROUND_CHECK=1
+            export SIMCTL_CHILD_TENSORAGENT_DEMO_PROMPT="${PAGE_PROMPT}"
+        else
+            export SIMCTL_CHILD_TENSORAGENT_BACKGROUND_CHECK=1
+        fi
         export SIMCTL_CHILD_TENSORAGENT_BACKGROUND_RUN="${RUN_ID}"
         [[ -n "${TENSORAGENT_USE_MODEL:-}" ]] && export SIMCTL_CHILD_TENSORAGENT_USE_MODEL="${TENSORAGENT_USE_MODEL}"
         [[ -n "${TENSORAGENT_BACKGROUND_PROMPT:-}" ]] && export SIMCTL_CHILD_TENSORAGENT_BACKGROUND_PROMPT="${TENSORAGENT_BACKGROUND_PROMPT}"
@@ -111,7 +153,12 @@ case "${TARGET}" in
             xcrun devicectl --timeout 300 device install app --device "${DEVICE_ID}" "${APP}" >/dev/null
         fi
 
-        ENV_JSON="{\"TENSORAGENT_BACKGROUND_CHECK\":\"1\",\"TENSORAGENT_BACKGROUND_RUN\":\"${RUN_ID}\""
+        if [[ "${CHECK}" == "page" ]]; then
+            ENV_JSON="{\"TENSORAGENT_PAGE_BACKGROUND_CHECK\":\"1\",\"TENSORAGENT_BACKGROUND_RUN\":\"${RUN_ID}\""
+            ENV_JSON+=",\"TENSORAGENT_DEMO_PROMPT\":$(PAGE_PROMPT="${PAGE_PROMPT}" python3 -c 'import json,os; print(json.dumps(os.environ["PAGE_PROMPT"]))')"
+        else
+            ENV_JSON="{\"TENSORAGENT_BACKGROUND_CHECK\":\"1\",\"TENSORAGENT_BACKGROUND_RUN\":\"${RUN_ID}\""
+        fi
         [[ -n "${TENSORAGENT_USE_MODEL:-}" ]] && ENV_JSON+=",\"TENSORAGENT_USE_MODEL\":\"${TENSORAGENT_USE_MODEL}\""
         [[ -n "${TENSORAGENT_BACKGROUND_PROMPT:-}" ]] && ENV_JSON+=",\"TENSORAGENT_BACKGROUND_PROMPT\":$(python3 -c 'import json,os; print(json.dumps(os.environ["TENSORAGENT_BACKGROUND_PROMPT"]))')"
         [[ -n "${TENSORAGENT_BACKGROUND_TOKENS:-}" ]] && ENV_JSON+=",\"TENSORAGENT_BACKGROUND_TOKENS\":\"${TENSORAGENT_BACKGROUND_TOKENS}\""
@@ -125,7 +172,27 @@ case "${TARGET}" in
         CONSOLE_PID=""
 
         send_away() { xcrun devicectl --timeout 60 device process launch --device "${DEVICE_ID}" "${OTHER_APP}" >/dev/null 2>&1; }
-        bring_back() { xcrun devicectl --timeout 60 device process launch --device "${DEVICE_ID}" "${BUNDLE_ID}" >/dev/null 2>&1; }
+        # Retried, because a phone left alone for the length of these absences locks
+        # itself -- and a launch onto a locked screen reports success while the app
+        # stays suspended and writes nothing. The trace is the only honest signal that
+        # it really came back, so wait for it and keep asking.
+        bring_back() {
+            local marker_before
+            marker_before="$(read_trace | wc -l | tr -d ' ')"
+            local i
+            for i in $(seq 1 30); do
+                xcrun devicectl --timeout 60 device process launch --device "${DEVICE_ID}" "${BUNDLE_ID}" >/dev/null 2>&1
+                sleep 6
+                if [[ "$(read_trace | wc -l | tr -d ' ')" != "${marker_before}" ]]; then
+                    return 0
+                fi
+                if [[ "${i}" == 1 ]]; then
+                    echo "    the app did not resume; the phone has probably locked itself. Unlock it -- retrying for three minutes."
+                fi
+            done
+            echo "    the app never resumed after 30 attempts (a locked phone cannot be resumed from the Mac)."
+            return 1
+        }
         read_trace() {
             rm -f "${LOGS}/device-background.log"
             xcrun devicectl --timeout 60 device copy from --device "${DEVICE_ID}" \
@@ -148,9 +215,13 @@ trap cleanup EXIT
 # harder case and is exercised separately (a prefill step in flight when the GPU goes
 # away is the one that poisons the backend), but the FIRST thing to prove is the
 # ordinary one.
-since_launch() { read_trace | awk -v run="bgcheck run ${RUN_ID}" 'found { print } index($0, run) { found = 1 }'; }
+if [[ "${CHECK}" == "page" ]]; then MARK="pagecheck"; else MARK="bgcheck"; fi
+since_launch() { read_trace | awk -v run="${MARK} run ${RUN_ID}" 'found { print } index($0, run) { found = 1 }'; }
 
-if [[ "${LEAVE_DURING}" == "prefill" ]]; then
+if [[ "${CHECK}" == "page" ]]; then
+    STARTED="pagecheck the page's turn started"
+    echo "==> Waiting for the model to load and the page's message to be answered (up to 10 minutes)"
+elif [[ "${LEAVE_DURING}" == "prefill" ]]; then
     STARTED='bgcheck asking for a long answer'
     echo "==> Waiting for the model to load and the answer to be ASKED FOR (up to 10 minutes)"
 else
@@ -159,10 +230,23 @@ else
 fi
 for _ in $(seq 1 1200); do
     if since_launch | grep -qE "${STARTED}"; then break; fi
-    if since_launch | grep -q 'bgcheck FAIL'; then since_launch | sed 's/^/    /'; fail "the probe failed before the app was sent away"; fi
+    if since_launch | grep -q "${MARK} FAIL"; then since_launch | sed 's/^/    /'; fail "the probe failed before the app was sent away"; fi
     sleep 0.5
 done
 since_launch | grep -qE "${STARTED}" || { since_launch | sed 's/^/    /'; fail "the answer never started within 10 minutes"; }
+if [[ "${CHECK}" == "page" ]]; then
+    # Tokens on the screen, not merely a turn on the host: leaving during the prefill
+    # is a different case, and the page must have something to lose.
+    echo "==> Waiting for the page to show the first words (up to 10 minutes)"
+    for _ in $(seq 1 1200); do
+        if since_launch | grep -qE 'pagecheck [0-9]+s: [1-9][0-9]* chars on screen'; then break; fi
+        # Not ten minutes of waiting for something that has already been decided.
+        if since_launch | grep -q 'pagecheck FAIL'; then since_launch | sed 's/^/    /'; fail "the probe failed before the app was sent away"; fi
+        if since_launch | grep -q 'pagecheck the turn ended'; then since_launch | sed 's/^/    /'; fail "the turn ended before the page showed any of the answer"; fi
+        sleep 0.5
+    done
+    since_launch | grep -qE 'pagecheck [0-9]+s: [1-9][0-9]* chars on screen' || { since_launch | sed 's/^/    /'; fail "the page never showed any of the answer"; }
+fi
 
 echo "==> Sending ${BUNDLE_ID} to the background for ${AWAY_SECONDS}s (bringing ${OTHER_APP} to the front)"
 send_away
@@ -172,7 +256,7 @@ bring_back
 
 echo "==> Waiting for the probe to finish (up to 15 minutes)"
 for _ in $(seq 1 900); do
-    if since_launch | grep -q 'bgcheck done'; then break; fi
+    if since_launch | grep -q "${MARK} done"; then break; fi
     sleep 1
 done
 
@@ -182,10 +266,30 @@ since_launch | tee "${LOGS}/background.log" | sed 's/^/    /'
 echo
 
 TRACE="$(since_launch)"
-grep -q 'bgcheck done' <<<"${TRACE}" || fail "the probe never finished"
-grep -q 'bgcheck FAIL' <<<"${TRACE}" && fail "the probe reported a failure"
+grep -q "${MARK} done" <<<"${TRACE}" || fail "the probe never finished"
+grep -q "${MARK} FAIL" <<<"${TRACE}" && fail "the probe reported a failure"
 grep -q 'leaving the foreground' <<<"${TRACE}" || fail "the app was never sent to the background (no resign-active in the trace)"
 grep -q 'back in front' <<<"${TRACE}" || fail "the app never came back to the front"
+
+if [[ "${CHECK}" == "page" ]]; then
+    grep -q 'foreground: loopback listener' <<<"${TRACE}" || fail "the host never checked its listener on the way back (no 'foreground: loopback listener' line)"
+    grep -q 'foreground: loopback listener FAILED' <<<"${TRACE}" && fail "the loopback listener could not be rebuilt"
+    grep -qE 'pagecheck ok [1-9][0-9]* chars on screen in 1 bubble' <<<"${TRACE}" || fail "the page did not end up showing the answer in one bubble with an idle composer"
+    # The page's own diary, not its on-screen wording: a notice never leaves the
+    # WebView, so grepping the trace for the sentence the user saw could never match.
+    grep -qE 'page \((foreground|pagecheck)\).*share-claim-failed' <<<"${TRACE}" \
+        && fail "the page could not claim a share after the return -- the reported failure"
+    grep -qE 'page \((foreground|pagecheck)\).*resume-gave-up' <<<"${TRACE}" \
+        && fail "the page gave up trying to reach the host after the return"
+    if grep -q 'foreground: loopback listener DEAD' <<<"${TRACE}"; then
+        grep -qE 'rebound on port|replaced on port|moved from port' <<<"${TRACE}" || fail "the listener was dead and the trace does not say it was rebuilt"
+        echo "ok  iOS reclaimed the listening socket while the app was away; the host rebuilt it and the page carried on"
+    else
+        echo "ok  the listening socket survived the absence (a device needs a longer AWAY_SECONDS to see it reclaimed); the page re-attached to its stream and finished"
+    fi
+    grep -qE 'page \(foreground\)' <<<"${TRACE}" || echo "note: no page diagnostics line was captured on the way back"
+    exit 0
+fi
 grep -qE 'bgcheck ok [0-9]+ tokens' <<<"${TRACE}" || fail "the long answer did not finish"
 grep -qE 'paused [1-9]' <<<"${TRACE}" || fail "the turn was never paused while the app was away"
 # Held by the gate, OR the step in flight was refused and the engine was rebuilt (a new

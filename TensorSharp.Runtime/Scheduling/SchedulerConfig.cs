@@ -92,6 +92,23 @@ namespace TensorSharp.Runtime.Scheduling
 
         public static SchedulerConfig Default => new();
 
+        /// <summary>This configuration with a different speculation policy: the
+        /// executor swaps it at run time when the host toggles speculation, so the
+        /// planner (a pure function of the config) sees the change on the next step.</summary>
+        public SchedulerConfig WithSpeculation(SpeculationOptions speculation) => new()
+        {
+            MaxNumBatchedTokens = MaxNumBatchedTokens,
+            MaxNumRunningSequences = MaxNumRunningSequences,
+            MaxPrefillChunkSize = MaxPrefillChunkSize,
+            SoloPrefillChunkSize = SoloPrefillChunkSize,
+            NumBlocks = NumBlocks,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = EnablePrefixCaching,
+            StopRepetition = StopRepetition,
+            DecodeQuantumTokens = DecodeQuantumTokens,
+            Speculation = speculation ?? SpeculationOptions.Disabled,
+        };
+
         public static SchedulerConfig FromEnvironment()
         {
             var cfg = new SchedulerConfig

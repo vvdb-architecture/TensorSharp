@@ -34,6 +34,8 @@
     turn: null,
     liveView: null,         // the assistant bubble a turn is being rendered into
     resuming: false,
+    resumingSince: 0,       // when the lookup behind `resuming` started; a hung one is retried
+    lastByteAt: 0,          // when the attached stream last delivered anything, keep-alives included
     modelInfo: null,        // { id, name, state, loading, error } from /api/agent/engine
     modelWatch: 0,
     maxTokens: 2048,
@@ -61,7 +63,15 @@
   // connection rejects -- so a caller that just fires this off cannot tell a refused
   // request from a delivered one. That is survivable for a telemetry ping and not for
   // the menu, where the whole effect of the tap is this request arriving.
-  function post(url, body) {
+  // Retried ONCE when the failure is the transport's, not the host's. The one time that
+  // happens for real is the first request after the app comes back from the background:
+  // the host closes idle keep-alive connections after 15 s, iOS reclaims a suspended
+  // app's sockets, and CFNetwork replays a GET on a fresh connection but never a POST
+  // (QA1941) -- so the POST is the one that surfaces as "Load failed" while the GETs
+  // around it quietly succeed. Every caller of this is idempotent or a nudge: claiming
+  // a share peeks, stopping a turn twice stops it once, and the settings are a whole
+  // document. The chat request itself does not go through here.
+  function post(url, body, retried) {
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -69,7 +79,54 @@
     }).then(function (r) {
       if (!r.ok) throw new Error(url + ' answered HTTP ' + r.status);
       return r;
+    }, function (e) {
+      throw transportError(e);
+    }).catch(function (e) {
+      if (retried || !networkFailure(e)) throw e;
+      note('post-retry', url + ': ' + ((e && e.message) || e));
+      return delay(300).then(function () { return post(url, body, true); });
     });
+  }
+  /**
+   * A request that the TRANSPORT failed -- fetch() rejecting, or a stream's read()
+   * rejecting -- as opposed to anything that went wrong with what came back. WebKit
+   * reports both with a TypeError, so the type alone cannot tell "Load failed" from a
+   * bug in this file; the boundary at which the error arose can, and marks it.
+   */
+  function transportError(e) {
+    if (e && e.transport) return e;
+    var t = new Error((e && e.message) || 'Load failed');
+    t.name = (e && e.name) || 'TypeError';
+    t.transport = true;
+    return t;
+  }
+  function networkFailure(e) { return !!e && e.transport === true && e.name !== 'AbortError'; }
+  function delay(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+  /** A GET with a deadline, for the lookups that must not be able to wedge a flag forever. */
+  function fetchTimed(url, ms) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, ms);
+    return fetch(url, { signal: ctrl.signal }).then(function (r) {
+      clearTimeout(timer);
+      return r;
+    }, function (e) {
+      clearTimeout(timer);
+      throw transportError(e);
+    });
+  }
+
+  // ---- what happened, for the app to read back ----------------------------
+  //
+  // The page cannot log anywhere the app can see: its console is gone the moment the
+  // app is backgrounded, which is when the things worth knowing happen. So it keeps a
+  // short record of its own transport events -- visibility changes, streams ending,
+  // requests failing, recoveries -- and the app pulls it over the bridge into
+  // logs/background.log when the app comes back to the front. Kinds and ids only,
+  // never message text.
+  var diag = [];
+  function note(kind, detail) {
+    diag.push({ t: Date.now(), k: kind, d: detail == null ? '' : String(detail).slice(0, 160) });
+    if (diag.length > 120) diag.shift();
   }
   function atBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 90; }
   function toBottom() { chat.scrollTop = chat.scrollHeight; }
@@ -553,10 +610,13 @@
   }
 
   function refreshModel() {
-    return fetch('/api/models').then(function (r) { return r.json(); }).then(function (d) {
+    return fetchTimed('/api/models', 10000).then(function (r) { return r.json(); }).then(function (d) {
       paintModel(d);
       return d;
-    }).catch(function () { return null; });
+    }).catch(function (e) {
+      note('refresh-model-failed', (e && e.message) || e);
+      return null;
+    });
   }
 
   // While the startup load runs, keep asking. It is the only way the page finds out
@@ -631,19 +691,26 @@
    * running for it -- is both faster and the only version that can hand the user back a
    * turn that carried on while they were somewhere else.
    */
-  function openConversation(conversationId) {
+  function openConversation(conversationId, options) {
     conversationOpening = true;
     detach();
-    state.history = [];
     // A durable shared draft follows the composer between chats (its text already
     // does), so its marker can never outlive the image/file chip it represents and
     // acknowledge missing content on an unrelated send. Preserve the entire draft in
     // that case; retain the established clear-on-switch behaviour for ordinary picks.
-    if (!appliedShareOrder.length) state.attachments = [];
+    // A chat being RE-OPENED under the user -- to pick up a transcript the host finished
+    // while this page could not read it -- keeps whatever they had attached meanwhile.
+    if (!appliedShareOrder.length && !(options && options.keepDraft)) state.attachments = [];
     paintChips();
-    chat.innerHTML = '';
+    // The transcript on screen is NOT cleared here. It used to be, and then a session
+    // request that failed at the transport -- the very failure this page now recovers
+    // from -- left the user with an empty chat and an error line where their
+    // conversation had been. What is on screen is the last thing known to be true;
+    // it is replaced when there is something to replace it with.
     return newSession(conversationId).then(function (s) {
       var msgs = (s && s.messages) || [];
+      state.history = [];
+      chat.innerHTML = '';
       // Assigned in every case, never only when there is something to assign. A saved
       // chat with no skills means no skills; leaving the previous chat's selection in
       // place ran this one with a skill nobody chose for it, and then wrote that skill
@@ -672,7 +739,11 @@
       if (s && s.activeTurn && s.activeTurn.running) attachTurn(s.activeTurn.id);
       return s;
     }).catch(function (e) {
-      emptyState('Could not open that chat: ' + ((e && e.message) || e));
+      // The transcript is no longer cleared before this succeeds, so the chat still
+      // shows whatever it had: say what went wrong instead of replacing it. Only a
+      // chat with nothing in it gets the empty state.
+      if (chat.querySelectorAll('.turn').length) notice('Could not open that chat: ' + ((e && e.message) || e), 'error');
+      else emptyState('Could not open that chat: ' + ((e && e.message) || e));
       return null;
     }).then(function (result) {
       conversationOpening = false;
@@ -940,6 +1011,7 @@
     // the accepted request releases this one.
     shareDrain = claimOneShare(true)
       .catch(function (e) {
+        note('share-claim-failed', (e && e.message) || e);
         notice('Could not open the shared item: ' + ((e && e.message) || e), 'error');
       })
       .then(function (result) {
@@ -973,15 +1045,17 @@
   }
 
   function sendMessage() {
-    if (state.generating) { stop(); return; }
-    if (state.visionChecking) return;
+    if (state.generating) { note('send-is-stop', state.turn); stop(); return; }
+    if (state.visionChecking) { note('send-refused', 'vision check in flight'); return; }
     if (shareDiscarding) {
+      note('send-refused', 'share discard in flight');
       notice('Wait for the shared item to finish being removed, then send again.');
       return;
     }
     var t = text.value.trim();
-    if (!t && !state.attachments.length) return;
+    if (!t && !state.attachments.length) { note('send-refused', 'nothing to send'); return; }
     if (!state.model) {
+      note('send-refused', loadingModel() ? 'model loading' : 'no model');
       // Two different answers, because they ask for two different things. A model
       // that is loading needs a few seconds; no model at all needs a download.
       if (loadingModel()) notice((state.modelInfo.name || 'The model') + ' is still loading. One moment.');
@@ -1008,7 +1082,11 @@
         paintModelButton();
         paintChips();
         if (state.conversation !== conversation) return;
-        if (!modelState || !state.model) {
+        // A refresh that could not reach the host says nothing about the model. The
+        // host checks every request itself, so the last known answer stands rather
+        // than sending the user to choose a model that is still loaded.
+        var unreachable = modelState === null && !!state.model;
+        if (!unreachable && (!modelState || !state.model)) {
           noticeWithAction(
             'The model is no longer loaded. Choose a model, then send this image again.',
             'Open Models',
@@ -1071,7 +1149,12 @@
     // App Group envelope remains the crash-safe backing for this volatile composer.
     if (appliedShareOrder.length) body.shareIds = appliedShareOrder.slice();
 
-    stream(body, { text: t, attachments: atts, message: msg, turn: userView.turn });
+    stream(body, {
+      text: t, attachments: atts, message: msg, turn: userView.turn,
+      // So a recovery can tell the host's acknowledgement of this draft apart from a
+      // request that never arrived: see resumeTurn.
+      shareIds: body.shareIds,
+    });
   }
 
   /**
@@ -1145,7 +1228,8 @@
    */
   function stop() {
     if (state.turn) {
-      post('/api/agent/turns/' + encodeURIComponent(state.turn) + '/stop');
+      post('/api/agent/turns/' + encodeURIComponent(state.turn) + '/stop')
+        .catch(function (e) { notice('Could not stop the answer: ' + ((e && e.message) || e), 'error'); });
       detach();
       return;
     }
@@ -1171,6 +1255,13 @@
     state.abort = null;
     state.turn = null;
     state.liveView = null;
+    // And the recovery with it. A timer left armed here fires minutes later against a
+    // chat the user has left -- withdrawing a message the host DID take back into a
+    // different composer, or attaching another conversation's turn.
+    cancelScheduledResume();
+    stopWatchdog();
+    recovery.sentDraft = null;
+    recovery.attempts = 0;
     progressDone();
     setGenerating(false);
   }
@@ -1189,8 +1280,204 @@
    * answer that completed while the user was on another screen is replayed in full
    * rather than left as the half sentence they walked away from.
    */
+  // ---- getting the answer back after the page could not read it -------------
+  //
+  // Four things end a page's view of a running turn without the turn ending: the
+  // content process is suspended (any other screen, any other app), the app's sockets
+  // are reclaimed while it is suspended, the host's listener is rebuilt, and a network
+  // process that WebKit replaced underneath the page. None of them tell the page
+  // anything it can act on at the time -- the stream simply rejects, ends early, or
+  // says nothing ever again -- and the old rule, "a stream object exists, so nothing
+  // needs doing", turned each of them into an answer that stayed half-written with a
+  // Stop button that stopped nothing. So a stream is trusted only while it is
+  // DELIVERING: the host writes a keep-alive every 5 s, which means an attached stream
+  // that has said nothing for longer than that is presumed dead and replaced, and a
+  // lookup that fails is retried with backoff rather than once.
+
+  var RESUME_DELAYS = [800, 2000, 5000, 10000, 20000];
+  // Every turn id this page has attached to or finished. The host's "what is this
+  // conversation generating" answer is its LAST turn, and a finished turn is now kept
+  // for an hour -- so for a page recovering a request whose turn it never learned the
+  // id of, that answer is very often the PREVIOUS question's answer. Attaching to it
+  // would render the old answer under the new question and then save both.
+  var seenTurns = Object.create(null);
+  function rememberTurn(id) { if (id) seenTurns[id] = 1; }
+  // Longer than the host's 5 s keep-alive with room for a slow wake-up, and shorter
+  // than anything a user would call "stuck".
+  var STREAM_TRUST_MS = 8000;
+  var PREFILL_TRUST_MS = 10 * 60 * 1000;
+  var recovery = { attempts: 0, timer: 0, sentDraft: null };
+
+  /** An attached stream that delivered something recently enough to be believed. */
+  function streamLooksAlive() {
+    if (!state.abort) return false;
+    // Before the first frame there is nothing to deliver: the host holds the headers
+    // back until the model has read the prompt, which is minutes for a long one, and
+    // writes no keep-alive before them. A request still waiting for its headers is
+    // trusted for as long as the prefill can take.
+    var trust = state.abort.awaitingHeaders ? PREFILL_TRUST_MS : STREAM_TRUST_MS;
+    return Date.now() - state.lastByteAt < trust;
+  }
+
+  /**
+   * Stop reading the current stream without giving anything else up: the turn, the
+   * bubble, and the fact that the model is working all stay. The reader's own
+   * failure is ignored when it arrives, because it is no longer the reader.
+   */
+  function supersede(why) {
+    var old = state.abort;
+    if (!old) return false;
+    // NEVER a request that has not been answered yet. Its headers carry the turn id,
+    // and the host consumes a shared draft when it accepts the request -- so aborting
+    // one loses both: the answer becomes unfindable and the share chip can never be
+    // acknowledged, which makes every later send a 409. It is trusted for as long as a
+    // prefill can take (streamLooksAlive), and if it dies it rejects and is recovered.
+    if (old.awaitingHeaders) { note('supersede-declined', why); return false; }
+    state.abort = null;
+    stopWatchdog();
+    try { old.abort(); } catch (e) {}
+    note('supersede', why);
+    return true;
+  }
+
+  function cancelScheduledResume() {
+    if (recovery.timer) { clearTimeout(recovery.timer); recovery.timer = 0; }
+  }
+
+  // The watchdog. Everything above runs when something ASKS -- a visibility change,
+  // the app's nudge, a stream that failed. A stream that simply stops delivering asks
+  // nobody: the phone showed one that replayed its backlog after a restart and then
+  // sat silent while the host went on producing, and nothing ever looked at it again.
+  // A healthy stream is never quiet for long (the host writes a keep-alive every 5 s),
+  // so a quiet one is checked on a timer and replaced.
+  var WATCHDOG_MS = 4000;
+  var watchdog = 0;
+  /** Re-armed while a reader exists and stopped the moment one does not. */
+  function armWatchdog() {
+    if (watchdog || !state.abort) return;
+    watchdog = setTimeout(function () {
+      watchdog = 0;
+      if (!state.abort) return;
+      if (document.visibilityState !== 'visible' || streamLooksAlive()) { armWatchdog(); return; }
+      note('watchdog', 'no bytes for ' + (Date.now() - state.lastByteAt) + 'ms');
+      resumeTurn();
+    }, WATCHDOG_MS);
+  }
+  function stopWatchdog() {
+    if (watchdog) { clearTimeout(watchdog); watchdog = 0; }
+  }
+
+  /** Try again later, a little later each time; give up after a while and say so. */
+  function scheduleResume(reason) {
+    if (recovery.timer) return;
+    var n = recovery.attempts++;
+    if (n >= RESUME_DELAYS.length) { giveUpResuming(reason); return; }
+    var ms = RESUME_DELAYS[n];
+    note('resume-retry', n + 1 + ' in ' + ms + 'ms: ' + reason);
+    recovery.timer = setTimeout(function () {
+      recovery.timer = 0;
+      // Not while hidden: nothing can be read there, and the next visibilitychange
+      // asks again anyway.
+      if (document.visibilityState === 'visible') resumeTurn();
+    }, ms);
+  }
+
+  /**
+   * The host could not be reached for long enough that waiting quietly has become
+   * misleading. Hand the screen back with what was shown, and say why.
+   */
+  function giveUpResuming(reason) {
+    note('resume-gave-up', reason);
+    stopWatchdog();
+    recovery.attempts = 0;
+    // The message stays sent: whether the host took it cannot be known from here,
+    // and taking it back would be claiming it was not.
+    recovery.sentDraft = null;
+    var view = state.liveView;
+    if (view && view.answerSoFar) {
+      // So the next request does not send a history with a hole where this answer
+      // was and write that hole over the saved chat.
+      state.history.push({ role: 'assistant', content: view.answerSoFar });
+    } else if (view && view.turn && view.turn.parentNode) {
+      // Nothing ever arrived in it; an empty bubble under the question says less than
+      // the notice below does.
+      view.turn.remove();
+    }
+    state.abort = null;
+    state.turn = null;
+    state.liveView = null;
+    progressDone();
+    setGenerating(false);
+    notice('Lost the connection to the app while the answer was being written. It carries on in the app; reopen this chat to see it.', 'error');
+  }
+
+  /**
+   * The host has no turn to attach to any more, and this page was mid-answer. The
+   * saved transcript is the record now -- the turn wrote it as it finished -- so the
+   * chat is reopened from it rather than left as a fragment on the screen that the
+   * next request would write over the finished answer.
+   */
+  function settleWithoutTurn(conversation) {
+    note('settle-without-turn', conversation);
+    stopWatchdog();
+    recovery.attempts = 0;
+    var draft = recovery.sentDraft;
+    recovery.sentDraft = null;
+    if (draft) {
+      // The request itself was lost before the host took it: give the words back.
+      withdrawSend(draft);
+      detach();
+      return;
+    }
+    state.abort = null;
+    state.turn = null;
+    progressDone();
+    setGenerating(false);
+    openConversation(conversation, { keepDraft: true });
+  }
+
+  /** Put a sent message back into the composer, and take it off the screen and out of the history. */
+  function withdrawSend(sentDraft) {
+    if (sentDraft.turn && sentDraft.turn.parentNode) sentDraft.turn.remove();
+    if (state.liveView && state.liveView.turn && state.liveView.turn.parentNode) state.liveView.turn.remove();
+    state.liveView = null;
+    var messageIndex = state.history.lastIndexOf(sentDraft.message);
+    if (messageIndex >= 0) state.history.splice(messageIndex, 1);
+    if (sentDraft.text) {
+      var newerText = text.value.trim();
+      text.value = newerText && newerText !== sentDraft.text
+        ? sentDraft.text + '\n' + text.value : sentDraft.text;
+    }
+    sentDraft.attachments.slice().reverse().forEach(function (attachment) {
+      var alreadyPresent = state.attachments.some(function (current) {
+        return current === attachment || (current && attachment && current.file === attachment.file);
+      });
+      if (!alreadyPresent) state.attachments.unshift(attachment);
+    });
+    autoGrow(); paintChips();
+  }
+
+  /**
+   * Pick the generation back up, if this page has lost hold of one.
+   *
+   * Called whenever the page becomes visible again, because that is exactly when it
+   * may have missed something: WebKit suspends a WKWebView's content process the
+   * moment its view leaves the window -- which is what opening any other screen in
+   * this app does, and what leaving the app does -- and the stream it was reading is
+   * dead or stale when it wakes. Also called by the app after it has checked its own
+   * side of the transport, and by the retry timer. Cheap and idempotent: a stream that
+   * is demonstrably delivering is left alone, so a nudge on top of a nudge costs
+   * nothing, and one lookup at a time.
+   */
   function resumeTurn() {
-    if (state.abort || !state.conversation || state.resuming) return true;
+    if (!state.conversation) return true;
+    if (streamLooksAlive()) { note('resume-skip', 'the stream is delivering'); return true; }
+    // One lookup at a time -- but a lookup that never came back must not be the
+    // reason no other one is ever tried.
+    if (state.resuming && Date.now() - state.resumingSince < 12000) return true;
+    cancelScheduledResume();
+    supersede('resume');
+
     // Which chat this lookup is FOR, held across the round trip. Coming back to the app
     // and opening a different saved chat are the same gesture a moment apart -- the app
     // asks the page to resume as the chat reappears, and the answer arrives after the
@@ -1198,21 +1485,55 @@
     // one now on screen and is saved under it.
     var conversation = state.conversation;
     state.resuming = true;
-    fetch('/api/agent/turns?conversation=' + encodeURIComponent(conversation))
+    state.resumingSince = Date.now();
+    note('resume-lookup', conversation);
+    fetchTimed('/api/agent/turns?conversation=' + encodeURIComponent(conversation), 10000)
       .then(function (r) { return r.json(); })
       .then(function (d) {
         state.resuming = false;
+        if (state.conversation !== conversation) return;
         var t = d && d.turn;
-        if (!t || state.abort || state.conversation !== conversation) return;
-        if (t.running || state.liveView) attachTurn(t.id);
+        note('resume-found', t ? t.id + (t.running ? ' running' : ' finished') : 'nothing');
+        recovery.attempts = 0;
+        // Mine, or one this page has never read. Anything else is the previous
+        // question's answer, still retained by the host, and attaching to it would
+        // put it under this question -- see seenTurns.
+        var mine = !!(t && state.turn && t.id === state.turn);
+        var unread = !!(t && !seenTurns[t.id]);
+        if (t && (mine || unread)) {
+          // The host took the request after all, so the shared draft it named went
+          // with it: the chip has to go, or the next send is refused as a second
+          // draft. Only on this branch -- withdrawSend below keeps it, because there
+          // the request never arrived.
+          if (recovery.sentDraft && recovery.sentDraft.shareIds) forgetAppliedShares(recovery.sentDraft.shareIds);
+          recovery.sentDraft = null;
+          attachTurn(t.id);
+          return;
+        }
+        // Nothing to attach to. If this page was in the middle of an answer, the
+        // finished transcript is on the host; otherwise there was nothing to resume.
+        if (state.turn || state.liveView || recovery.sentDraft) settleWithoutTurn(conversation);
+        else if (state.generating) { progressDone(); setGenerating(false); }
       })
-      .catch(function () { state.resuming = false; });
+      .catch(function (e) {
+        state.resuming = false;
+        if (state.conversation !== conversation) return;
+        note('resume-lookup-failed', (e && e.message) || e);
+        if (state.turn || state.liveView || recovery.sentDraft) scheduleResume('the lookup failed');
+        else if (state.generating) { progressDone(); setGenerating(false); }
+      });
     return true;
   }
 
-  function failed(view, e, sentDraft) {
+  function failed(view, e, sentDraft, ctrl) {
+    // A reader that was replaced (resumeTurn's supersede, or the user's Stop through
+    // detach) has nothing left to say: its rejection arrives after the page has
+    // already moved on, and acting on it would flip the Send button and run the share
+    // drain in the middle of the reader that replaced it.
+    if (ctrl && state.abort !== ctrl) { note('stale-reader', (e && e.name) || e); return; }
     progressDone();
     state.abort = null;
+    stopWatchdog();
     if (e && e.name === 'AbortError') { setGenerating(false); return; }
     // The model can change in the narrow interval between the capability refresh and
     // POST, and a selected skill may turn out not to own a host file reader. The
@@ -1224,22 +1545,7 @@
       var networkRefusal = e.code === 'network_disabled';
       state.turn = null;
       if (view && view.turn && view.turn.parentNode) view.turn.remove();
-      if (sentDraft.turn && sentDraft.turn.parentNode) sentDraft.turn.remove();
-      var messageIndex = state.history.lastIndexOf(sentDraft.message);
-      if (messageIndex >= 0) state.history.splice(messageIndex, 1);
-
-      if (sentDraft.text) {
-        var newerText = text.value.trim();
-        text.value = newerText && newerText !== sentDraft.text
-          ? sentDraft.text + '\n' + text.value : sentDraft.text;
-      }
-      sentDraft.attachments.slice().reverse().forEach(function (attachment) {
-        var alreadyPresent = state.attachments.some(function (current) {
-          return current === attachment || (current && attachment && current.file === attachment.file);
-        });
-        if (!alreadyPresent) state.attachments.unshift(attachment);
-      });
-      autoGrow(); paintChips();
+      withdrawSend(sentDraft);
       noticeWithAction(
         e.message || (networkRefusal
           ? 'This workflow needs network access before it can start.'
@@ -1259,10 +1565,23 @@
     // A read that broke while a turn is still the app's is this page losing its
     // connection, not the model failing. Saying "The request failed" for that would be
     // telling the user their answer is gone while it is still being written. Take it
-    // up again instead; the replay starts from the first frame either way.
-    if (state.turn) {
-      setGenerating(false);
-      setTimeout(resumeTurn, 800);
+    // up again instead; the replay starts from the first frame either way. The model
+    // stays "working" on this side meanwhile: Send keeps saying Stop, and the share
+    // drain keeps waiting, because that is the truth of it.
+    if (state.turn && networkFailure(e)) {
+      note('stream-failed', (e && e.message) || e);
+      scheduleResume('the stream failed');
+      return;
+    }
+    // The same loss before the turn's id arrived -- during the prefill, which is the
+    // minute a user is most likely to leave in. The host has very probably started the
+    // turn; ask it which one rather than declaring the request failed and leaving an
+    // empty bubble under the question. If nothing is running, the words go back into
+    // the composer.
+    if (networkFailure(e) && sentDraft && state.conversation) {
+      note('send-lost-before-turn-id', (e && e.message) || e);
+      recovery.sentDraft = sentDraft;
+      scheduleResume('the request lost its stream before the turn was named');
       return;
     }
     if (offerNetworkIfRefused((e && e.message) || '', false)) {
@@ -1286,6 +1605,7 @@
     var live = state.liveView;
     if (live && live.turn.parentNode) {
       live.bubble.innerHTML = '';
+      live.answerSoFar = '';
       Array.prototype.slice.call(live.turn.querySelectorAll('.step, .think, .copy'))
         .forEach(function (n) { n.remove(); });
       live.step = null; live.tool = ''; live.detail = '';
@@ -1304,22 +1624,30 @@
     progress('Thinking…');
 
     var ctrl = new AbortController();
+    ctrl.awaitingHeaders = true;
     state.abort = ctrl;
+    state.lastByteAt = Date.now();
+    armWatchdog();
+    note('send', state.conversation);
     fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: ctrl.signal,
-    }).then(function (res) {
+    }).then(null, function (e) { throw transportError(e); }).then(function (res) {
       // The turn this stream is a view of. Held so the Stop button can stop the
       // model rather than merely stopping us listening to it.
       state.turn = res.headers.get('X-TensorAgent-Turn') || null;
+      rememberTurn(state.turn);
+      ctrl.awaitingHeaders = false;
+      state.lastByteAt = Date.now();
+      note('send-answered', res.status + ' ' + (state.turn || 'no turn id'));
       if (!res.ok) {
         return res.text().then(function (t) { throw responseError(t, res.status); });
       }
       forgetAppliedShares(body.shareIds);
-      return read(res, view);
-    }).catch(function (e) { failed(view, e, sentDraft); });
+      return read(res, view, ctrl);
+    }).catch(function (e) { failed(view, e, sentDraft, ctrl); });
   }
 
   /**
@@ -1331,31 +1659,50 @@
    */
   /** Restart notices already shown, by turn id and ordinal; see read(). */
   var restartsSaid = {};
+  /**
+   * Error notices already shown, by turn id and ordinal. Same reason as the restarts
+   * above and it matters more now: a re-attach replays every frame from the first, so
+   * a turn whose tool hit a refusal would say so again on every glance at another
+   * screen.
+   */
+  var errorsSaid = {};
 
   function attachTurn(id) {
+    var hadAnswer = !!(state.liveView && state.liveView.answerSoFar);
     var view = liveView();
     setGenerating(true);
     state.turn = id;
+    rememberTurn(id);
     progress('Still working…');
+    note('attach', id);
 
     var ctrl = new AbortController();
     state.abort = ctrl;
+    state.lastByteAt = Date.now();
+    armWatchdog();
     fetch('/api/agent/turns/' + encodeURIComponent(id), { signal: ctrl.signal })
+      .then(null, function (e) { throw transportError(e); })
       .then(function (res) {
+        if (ctrl !== state.abort) return null;
         if (!res.ok) {
+          note('attach-refused', res.status);
           // The turn finished and was forgotten between being announced and being
-          // asked for. The saved transcript is the record, so this bubble would only
-          // ever be an empty one under it.
+          // asked for. The saved transcript is the record. A bubble that already had
+          // words in it is the one case worth more than removing: the chat is reopened
+          // from that transcript so the finished answer replaces the fragment.
+          if (hadAnswer) { settleWithoutTurn(state.conversation); return null; }
           if (!view.bubble.innerHTML) view.turn.remove();
+          state.abort = null;
+          stopWatchdog();
           state.liveView = null;
           state.turn = null;
           progressDone();
           setGenerating(false);
           return null;
         }
-        return read(res, view);
+        return read(res, view, ctrl);
       })
-      .catch(function (e) { failed(view, e); });
+      .catch(function (e) { failed(view, e, null, ctrl); });
   }
 
   /** The error sentence out of a JSON refusal body, or the body itself. */
@@ -1386,19 +1733,33 @@
    * every frame after that means the same thing, and two copies of this loop would be
    * two renderings of the same answer that stop agreeing.
    */
-  function read(res, view) {
+  function read(res, view, ctrl) {
     var answer = '', thinking = '', thinkBox = null, thinkBody = null;
-    var steps = '', offered = false, draft = '', restarts = 0;
+    var steps = '', offered = false, draft = '', restarts = 0, errors = 0;
     // What this turn PRODUCED: the files its tools wrote, and a picture it made.
     // Kept so the history entry carries them, because the history is what the next
     // request rewrites the saved transcript from -- an entry that has forgotten the
     // PDF erases the PDF from a chat that had one.
     var made = [], madeSeen = {}, madeImage = null;
     var reader = res.body.getReader(), dec = new TextDecoder(), buf = '';
+    // Whether the host said the turn was over. A stream that ends without it did not
+    // end because the answer did: the connection went away underneath it.
+    var terminal = false;
+    // Whether this reader has already asked for the turn again after an EOF that
+    // carried no terminal frame; see ended().
+    var reattached = false;
+    // Painted once per chunk rather than once per frame. A page re-attaching to a
+    // running turn is handed every frame so far in one read -- thousands, for a long
+    // answer -- and rendering the whole answer for each of them is what made the
+    // replay visibly stall on the phone.
+    var answerDirty = false, thinkingDirty = false;
 
     function pump() {
-      return reader.read().then(function (r) {
-        if (r.done) return finish();
+      return reader.read().then(null, function (e) { throw transportError(e); }).then(function (r) {
+        // Superseded while waiting: another reader owns the bubble now.
+        if (ctrl && ctrl !== state.abort) { note('reader-retired', r.done ? 'eof' : 'data'); return null; }
+        state.lastByteAt = Date.now();
+        if (r.done) return terminal || !state.turn ? finish() : ended();
         buf += dec.decode(r.value, { stream: true });
         var parts = buf.split('\n');
         buf = parts.pop();
@@ -1408,10 +1769,50 @@
           try { f = JSON.parse(line.slice(6)); } catch (e) { return; }
           handle(f);
         });
+        paint();
         return pump();
       });
     }
+    function paint() {
+      if (thinkingDirty && thinkBody) { thinkBody.textContent = thinking; thinkingDirty = false; }
+      if (answerDirty) { view.bubble.innerHTML = render(answer); view.answerSoFar = answer; answerDirty = false; }
+      if (stickBottom) toBottom();
+    }
+    /**
+     * The stream ended and the host never said the turn was over. Ask whether it still
+     * is: a turn cancelled while the app was away ends exactly like this and is
+     * finished here with what it had; one still running is taken up again.
+     */
+    function ended() {
+      note('eof-without-done', state.turn);
+      var conversation = state.conversation, turn = state.turn;
+      state.abort = null;
+      stopWatchdog();
+      fetchTimed('/api/agent/turns?conversation=' + encodeURIComponent(conversation), 10000)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (state.conversation !== conversation || state.abort) return;
+          var t = d && d.turn;
+          // The host still has this turn -- running, or finished while the connection
+          // was going away. Either way its replay is the whole answer and ends with the
+          // frame that says so, and what this reader has is a fragment. Read it again.
+          // Once: the second EOF without a terminal frame is taken at its word, so a
+          // host that never sends one cannot loop here.
+          if (t && t.id === turn && !reattached) {
+            reattached = true;
+            if (t.running) scheduleResume('the stream ended before the answer did');
+            else attachTurn(turn);
+            return;
+          }
+          finish();
+        })
+        .catch(function () {
+          if (state.conversation !== conversation || state.abort) return;
+          scheduleResume('the stream ended before the answer did');
+        });
+    }
     function handle(f) {
+      if (f.done === true) terminal = true;
       if (f.thinking) {
         thinking += f.thinking;
         if (!thinkBox) {
@@ -1421,7 +1822,7 @@
           thinkBox.appendChild(thinkBody);
           view.turn.insertBefore(thinkBox, view.bubble);
         }
-        thinkBody.textContent = thinking;
+        thinkingDirty = true;
         // The whole of it is one tap away in the box above; the tail is what
         // says, without being asked, what the model is thinking about now.
         progress('Thinking…');
@@ -1433,12 +1834,12 @@
         progress('Writing the answer…');
         progressTail('');
       }
-      if (f.token) { answer += f.token; view.bubble.innerHTML = render(answer); }
+      if (f.token) { answer += f.token; answerDirty = true; }
       // Compared against undefined rather than tested for truth: an EMPTY replace is
       // the one that matters most — it is how the host wipes a half-written answer
       // before starting it again, and treating it as "no frame" left the fragment on
       // screen with the fresh answer glued to the end of it.
-      if (typeof f.replace === 'string') { answer = f.replace; view.bubble.innerHTML = render(answer); }
+      if (typeof f.replace === 'string') { answer = f.replace; answerDirty = true; }
       // The host has thrown away a dying engine and is answering again -- carrying
       // the text on screen on, or starting over. Said plainly, because the
       // alternative is an answer that visibly stalls or restarts for no reason the
@@ -1477,8 +1878,14 @@
       if (f.detail || f.output) steps += ' ' + (f.detail || '') + ' ' + (f.output || '');
       if (f.error) {
         steps += ' ' + f.error;
-        offered = offerNetworkIfRefused(String(f.error), offered);
-        if (!offered) notice(String(f.error), 'error');
+        var errorKey = (state.turn || 'live') + ':' + (++errors);
+        if (errorsSaid[errorKey]) {
+          offered = true;
+        } else {
+          errorsSaid[errorKey] = true;
+          offered = offerNetworkIfRefused(String(f.error), offered);
+          if (!offered) notice(String(f.error), 'error');
+        }
       }
       // Guarded deliverables arrive only after the host has proved their package and
       // visible content. They intentionally do not masquerade as a late skill_step,
@@ -1493,13 +1900,19 @@
       });
       if (f.image || f.imageUrl) {
         madeImage = f.imageUrl || f.image;
+        // The picture goes under the text, so the text has to be there first.
+        if (answerDirty) { view.bubble.innerHTML = render(answer); view.answerSoFar = answer; answerDirty = false; }
         var img = document.createElement('img');
         img.src = madeImage;
         view.bubble.appendChild(img);
       }
-      if (stickBottom) toBottom();
     }
     function finish() {
+      if (ctrl && ctrl !== state.abort && state.abort) { note('reader-retired', 'finish'); return; }
+      paint();
+      note('finish', state.turn);
+      stopWatchdog();
+      recovery.attempts = 0;
       progressDone();
       // A file the last step produced and no `finished` frame came back to render.
       // The download is the thing the user asked for; losing it to a stream that
@@ -1516,7 +1929,10 @@
       if (thinking) entry.thinking = thinking;
       if (made.length) entry.artifacts = made;
       if (madeImage) entry.imageUrl = madeImage;
-      state.history.push(entry);
+      // Nothing produced is nothing to remember: the host's own record skips an empty
+      // turn too, and an empty assistant entry in the history would be sent back to
+      // the model as a message it never wrote.
+      if (answer || thinking || made.length || madeImage) state.history.push(entry);
       if (answer) addCopy(view.turn, function () { return answer; });
       setGenerating(false);
       state.abort = null;
@@ -2183,6 +2599,25 @@
     /** Take the generation back up, after this page was away and could not read it. */
     resumeTurn: resumeTurn,
     /**
+     * What this page has been through lately, as one JSON string: the transport
+     * events it noted and where it stands. The app writes it into its own trace on
+     * every return to the foreground, which is the only way anything the page saw
+     * while the app was away ever reaches a log.
+     */
+    diagnostics: function () {
+      return JSON.stringify({
+        conversation: state.conversation,
+        turn: state.turn,
+        attached: !!state.abort,
+        delivering: streamLooksAlive(),
+        generating: state.generating,
+        resuming: state.resuming,
+        retries: recovery.attempts,
+        visibility: document.visibilityState,
+        events: diag.slice(-40),
+      });
+    },
+    /**
      * Open the main menu. For a screenshot, and it exists because neither simctl nor
      * devicectl can touch the screen: without it, the one surface this app's navigation
      * lives on could never be pictured, only measured.
@@ -2215,6 +2650,16 @@
     },
     /** The app calls this once at startup so the page knows native pickers exist. */
     nativeReady: function () { state.native = true; return true; },
+    /**
+     * Knobs for the page's own tests and nothing else: the timings above are what
+     * make recovery invisible on a phone and would make a test take a minute.
+     */
+    __testing: {
+      streamTrustMs: function (ms) { STREAM_TRUST_MS = ms; return true; },
+      watchdogMs: function (ms) { WATCHDOG_MS = ms; stopWatchdog(); armWatchdog(); return true; },
+      resumeDelays: function (list) { RESUME_DELAYS = list.slice(); return true; },
+      recovery: function () { return { attempts: recovery.attempts, pending: !!recovery.timer, lastByteAt: state.lastByteAt }; },
+    },
   };
 
   // ---- a file the model made -----------------------------------------------
@@ -2287,10 +2732,18 @@
   // when the app forgets to call, when the app is backgrounded and comes back, and when
   // the content process was killed and reloaded.
   document.addEventListener('visibilitychange', function () {
+    note('visibility', document.visibilityState);
     if (document.visibilityState !== 'visible') return;
-    resumeTurn();
-    refreshModel();
-    takePendingShare();
+    // A moment later rather than inside the handler: WebKit on iOS 18 and later can
+    // fail a fetch issued synchronously here with "Load failed" against a server that
+    // is perfectly well, and the app's own check of its listener is under way at the
+    // same instant. A quarter of a second is invisible; the failure was not.
+    setTimeout(function () {
+      if (document.visibilityState !== 'visible') return;
+      resumeTurn();
+      refreshModel();
+      takePendingShare();
+    }, 250);
   });
   window.addEventListener('pageshow', function () { resumeTurn(); takePendingShare(); });
 
@@ -2303,5 +2756,15 @@
       return post('/api/agent/events', { type: 'ready', conversation: state.conversation });
     })
     .then(function () { shareIntakeReady = true; return takePendingShare(); })
-    .catch(function (e) { notice('Could not start: ' + ((e && e.message) || e), 'error'); });
+    .catch(function (e) {
+      note('start-failed', (e && e.message) || e);
+      notice('Could not start: ' + ((e && e.message) || e), 'error');
+      // Whatever failed, the page is here and a share waiting on the host must still
+      // reach it: leaving this false meant one lost request at startup disabled sharing
+      // for the life of the page. The host is told again too -- it is what makes the
+      // composer's native pickers work.
+      shareIntakeReady = true;
+      post('/api/agent/events', { type: 'ready', conversation: state.conversation }).catch(function () {});
+      takePendingShare();
+    });
 })();

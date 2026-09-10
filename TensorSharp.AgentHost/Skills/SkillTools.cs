@@ -294,7 +294,8 @@ namespace TensorSharp.AgentHost.Skills
                 {
                     Name = ReadToolName,
                     Description =
-                        "Read one file from a skill. Use path \"SKILL.md\" for the skill's own instructions, "
+                        "Read one file from a skill whose description matches the user's current request. "
+                        + "Do not read an unrelated skill as a preliminary step. Use path \"SKILL.md\" for the skill's own instructions, "
                         + "or a path relative to the skill directory such as \"references/api.md\" or "
                         + "\"scripts/extract.py\" for a file it bundles. Long files come back in pages: if the "
                         + "result says it was truncated, call again with offset set to the next offset it reports.",
@@ -338,6 +339,8 @@ namespace TensorSharp.AgentHost.Skills
                     Name = RunToolName,
                     Description =
                         "Run one of a skill's bundled scripts on this machine and return what it printed. "
+                        + "Use only a skill whose description matches the user's current request, after reading "
+                        + "its SKILL.md. Use a script path documented there; do not invent a script for an unrelated task. "
                         + "Pass the script's path in 'path' and everything you would have typed after it on "
                         + "the command line in 'args'. Only files inside the skill's own directory can be "
                         + "run. A SKILL.md may show `cd <skill>/scripts` followed by `python3 tool.py ...` as a "

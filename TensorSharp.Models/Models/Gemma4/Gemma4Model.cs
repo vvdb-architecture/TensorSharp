@@ -3322,6 +3322,10 @@ namespace TensorSharp.Models
                 Array.Copy(logitsBuf, (long)s * vocab, dst, 0, vocab);
                 outLogits[order[s]] = dst;
                 holders[order[s]].SeqLen = posSorted[s] + 1;
+                // The kernel wrote this holder's K/V on the device; a host-reading
+                // path that follows (a multimodal chunk, a truncation, a checkpoint)
+                // must sync first.
+                holders[order[s]].HostDirty = true;
             }
             return true;
         }
@@ -3336,11 +3340,48 @@ namespace TensorSharp.Models
         /// (caller falls back to the per-op path) when the native kernel declines ÔÇö
         /// e.g. total length exceeds the SWA window so the circular cache has wrapped.
         /// </summary>
+        /// <summary>True when the fused kernels can fold the output norm, the LM head
+        /// and the logit softcap into their graph: a quantized output weight (tied
+        /// token_embd or output.weight) plus the F32 output_norm, and the fold not
+        /// switched off.</summary>
+        private bool CanFoldLmHead
+            => _fdFoldLmHead
+               && _weights.ContainsKey("output_norm.weight")
+               && _quantWeights.TryGetValue(_hasTiedOutput ? "token_embd.weight" : "output.weight", out var lmqw)
+               && lmqw.CacheKey != IntPtr.Zero
+               && lmqw.Ne1 == Config.VocabSize          // the graph writes [vocab x N]
+               && lmqw.Scale == 1.0f;                   // the fold applies no weight scale sidecar
+
+        /// <param name="foldLogitsOut">When non-null and <see cref="CanFoldLmHead"/>,
+        /// the graph also runs the output norm + LM head (+ softcap) for EVERY row
+        /// and writes [n × vocab] logits here; <paramref name="hidden"/> then comes
+        /// back holding the post-output-norm rows instead of the layer-stack output.
+        /// The speculative verify uses this: its per-op tail (norm, a 262K-vocab
+        /// matmul over 8 rows, softcap, and the host round-trips between them) cost
+        /// 13 ms of a 58 ms verify on E4B, against ~2 ms inside the graph.</param>
         private unsafe bool NativeGemma4ModelVerify(Tensor hidden, int startPos, int n, Tensor perLayerInputs,
-            HashSet<int> exceptPositions = null, int[] pleTokenIds = null)
+            HashSet<int> exceptPositions = null, int[] pleTokenIds = null, float[] foldLogitsOut = null)
         {
             if (_decodeArrays == null) return false;
             var a = _decodeArrays;
+
+            bool fold = foldLogitsOut != null && CanFoldLmHead;
+            IntPtr lmHeadKey = IntPtr.Zero; int lmHeadType = 0; long lmHeadNe0 = 0, lmHeadNe1 = 0, lmHeadBytes = 0;
+            IntPtr finalNormPtr = IntPtr.Zero;
+            if (fold)
+            {
+                if ((long)foldLogitsOut.Length < (long)n * Config.VocabSize)
+                    throw new ArgumentException($"The fold logits buffer holds {foldLogitsOut.Length} floats but {n} rows need {(long)n * Config.VocabSize}.", nameof(foldLogitsOut));
+                var lmqw = _quantWeights[_hasTiedOutput ? "token_embd.weight" : "output.weight"];
+                lmHeadKey = lmqw.CacheKey;
+                lmHeadType = lmqw.GgmlType;
+                lmHeadNe0 = lmqw.Ne0;
+                lmHeadNe1 = lmqw.Ne1;
+                lmHeadBytes = lmqw.RawBytes;
+                finalNormPtr = (IntPtr)GetFloatPtr(_weights["output_norm.weight"]);
+                if (lmHeadKey == IntPtr.Zero || finalNormPtr == IntPtr.Zero)
+                    throw new InvalidOperationException("The verify's folded LM head was requested but its weights have no device address.");
+            }
 
             // Multimodal bidirectional-span mask (image/audio soft tokens). Only
             // valid at startPos==0 (the kernel maps view-index to logical position
@@ -3407,7 +3448,9 @@ namespace TensorSharp.Models
                 pleDataPtr = (IntPtr)GetFloatPtr(perLayerInputs);
             }
 
-            return GgmlBasicOps.Gemma4ModelVerify(
+            fixed (float* logitsPtr = foldLogitsOut)
+            {
+                return GgmlBasicOps.Gemma4ModelVerify(
                 (IntPtr)hiddenPtr, Config.HiddenSize, Config.NumLayers, n,
                 a.AttnNorm, a.Qkv, a.QNorm, a.KNorm,
                 a.O, a.PostAttnNorm,
@@ -3436,7 +3479,11 @@ namespace TensorSharp.Models
                 gateArr: a.Gate, gateTypeArr: a.GateType,
                 gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
                 upArr: a.Up, upTypeArr: a.UpType,
-                upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes);
+                upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes,
+                logitsData: fold ? (IntPtr)logitsPtr : IntPtr.Zero, vocabSize: fold ? Config.VocabSize : 0,
+                lmHeadData: lmHeadKey, lmHeadType: lmHeadType, lmHeadNe0: lmHeadNe0, lmHeadNe1: lmHeadNe1, lmHeadBytes: lmHeadBytes,
+                finalNormData: finalNormPtr, logitSoftcap: _finalLogitSoftcap);
+            }
         }
 
         // Gates the whole-model multi-token prefill path. Default on; set

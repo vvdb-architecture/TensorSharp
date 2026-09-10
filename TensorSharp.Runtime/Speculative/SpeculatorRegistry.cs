@@ -61,8 +61,13 @@ namespace TensorSharp.Runtime.Speculative
             {
                 [DraftHead] = new Entry(CreateDraftHead, RequiresDraftHead: true),
                 [Block] = new Entry(CreateBlock, RequiresDraftHead: true),
+                // The trunk's preferred window applies to every algorithm: it is a
+                // property of what a verify batch COSTS on that trunk (a recurrent
+                // state to snapshot per row, the small-batch matmul kernels' row
+                // limit), not of who proposed the rows. n-gram used to take the raw
+                // option and verified 9 rows on trunks that had asked for 3 or 7.
                 [NGram] = new Entry(
-                    (target, options) => new NGramSpeculator(Math.Max(1, options.MaxDraftTokens)),
+                    (target, options) => new NGramSpeculator(ResolveDraftWindow(target, options)),
                     RequiresDraftHead: false),
             };
 

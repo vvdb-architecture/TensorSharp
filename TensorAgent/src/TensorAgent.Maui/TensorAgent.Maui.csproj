@@ -103,6 +103,14 @@
   <ItemGroup>
     <MauiIcon Include="Resources/AppIcon/appicon.svg" ForegroundFile="Resources/AppIcon/appiconfg.svg" Color="#0b1220" />
     <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#0b1220" BaseSize="128,128" />
+
+    <!-- The project banner at the top of the About page. It is the repository's own
+         imgs/banner_1.png rather than a copy of it: the file is already 2 MB in git
+         and a second one would drift from the first. A bitmap MauiImage with no
+         BaseSize is copied into the bundle, not rescaled, so the app gets the single
+         1253x836 original - more pixels than the ~1050 a 3x phone needs across the
+         page's content width. -->
+    <MauiImage Include="../../../imgs/banner_1.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -116,6 +116,16 @@ public sealed class WebUiPageTests : IDisposable
     /// does is promise-chained off its own boot, so the driver waits by giving the
     /// event loop a few turns rather than by reaching into the page's internals.
     /// </summary>
+    /// <remarks>
+    /// Two waits are offered to a driver. <c>settle(n)</c> gives the event loop
+    /// <c>n</c> turns of one millisecond each, which is how a promise chain is let
+    /// run to its end. <c>wait(ms)</c> is a single real <c>setTimeout</c> of that
+    /// many milliseconds, for a page timer a test must outlast — a retry the page
+    /// schedules 800 ms out is waited for with <c>wait(900)</c>, not with
+    /// <c>settle(900)</c>, which would take as long and say nothing about order.
+    /// The engine's timers are wall-clock, so both waits are real time; a run has
+    /// thirty seconds in total.
+    /// </remarks>
     private static string Settle(string drive) => """
         function settle(times) {
           return new Promise(function (done) {
@@ -125,6 +135,9 @@ public sealed class WebUiPageTests : IDisposable
               setTimeout(tick, 1);
             })();
           });
+        }
+        function wait(ms) {
+          return new Promise(function (done) { setTimeout(done, ms); });
         }
         settle(40)
           .then(function () { return (function () {
@@ -1422,8 +1435,805 @@ public sealed class WebUiPageTests : IDisposable
         Assert.Equal("/api/code/artifacts/run1/photo%20one.pdf", open.GetProperty("url").GetString());
     }
 
+    // =====================================================================================
+    // the harness itself
+    // =====================================================================================
+    //
+    // What follows tests PageDom.js, not the page: that the fake network can fail the
+    // way WebKit's does, that a stream can die or go quiet, and that aborting is real.
+    // A test of the page's behaviour under those conditions is only as good as the
+    // model of the conditions, so the model is checked on its own first.
+
+    [Fact]
+    public void HarnessARouteThatRejectsMakesFetchRejectWithATypeError()
+    {
+        JsonElement result = Run("""
+            R['/api/harness/down'] = { __reject: 'Load failed' };
+            R['/api/harness/default'] = function () { return { __reject: true }; };
+            R['/api/harness/throws'] = function () { throw new Error('route exploded'); };
+            var tries = 0;
+            R['/api/harness/flaky'] = function () { return ++tries === 1 ? { __reject: 'Load failed' } : { ok: true, tries: tries }; };
+            """, """
+            function outcome(p) {
+              return p.then(
+                function (res) { return res.json().then(function (body) { return { resolved: true, body: body }; }); },
+                function (e) { return { resolved: false, name: e && e.name, message: e && e.message, typeError: e instanceof TypeError }; });
+            }
+            var threwSynchronously = false, flakyPromise;
+            try { flakyPromise = fetch('/api/harness/throws'); } catch (e) { threwSynchronously = true; }
+            return Promise.all([
+              outcome(fetch('/api/harness/down')),
+              outcome(fetch('/api/harness/default')),
+              outcome(flakyPromise || Promise.reject(new Error('never made'))),
+              outcome(fetch('/api/harness/flaky')),
+              outcome(fetch('/api/harness/flaky')),
+            ]).then(function (all) {
+              return { threwSynchronously: threwSynchronously, down: all[0], byDefault: all[1], throws: all[2],
+                       flakyFirst: all[3], flakySecond: all[4],
+                       recorded: __page.requests('/api/harness/flaky').length };
+            });
+            """);
+
+        Assert.False(result.GetProperty("threwSynchronously").GetBoolean(), "a route that throws must reject fetch, not throw out of it");
+
+        JsonElement down = result.GetProperty("down");
+        Assert.False(down.GetProperty("resolved").GetBoolean());
+        Assert.Equal("TypeError", down.GetProperty("name").GetString());
+        Assert.Equal("Load failed", down.GetProperty("message").GetString());
+        Assert.True(down.GetProperty("typeError").GetBoolean());
+
+        JsonElement byDefault = result.GetProperty("byDefault");
+        Assert.Equal("TypeError", byDefault.GetProperty("name").GetString());
+        Assert.Equal("Load failed", byDefault.GetProperty("message").GetString());
+
+        JsonElement throws = result.GetProperty("throws");
+        Assert.False(throws.GetProperty("resolved").GetBoolean());
+        Assert.Equal("route exploded", throws.GetProperty("message").GetString());
+
+        // A route function decides per call, so "down once, then back" is one counter.
+        Assert.False(result.GetProperty("flakyFirst").GetProperty("resolved").GetBoolean());
+        Assert.True(result.GetProperty("flakySecond").GetProperty("resolved").GetBoolean());
+        Assert.Equal(2, result.GetProperty("flakySecond").GetProperty("body").GetProperty("tries").GetInt32());
+        Assert.Equal(2, result.GetProperty("recorded").GetInt32());
+    }
+
+    [Fact]
+    public void HarnessAHangingStreamReadRejectsWithAbortErrorWhenItsSignalFires()
+    {
+        JsonElement result = Run("""
+            R['/api/harness/quiet'] = { __sse: [{ token: 'one' }], __then: 'hang' };
+            """, """
+            var ctrl = new AbortController();
+            var fired = 0;
+            ctrl.signal.addEventListener('abort', function () { fired++; });
+            var abortedBefore = ctrl.signal.aborted;
+            return fetch('/api/harness/quiet', { signal: ctrl.signal }).then(function (res) {
+              var reader = res.body.getReader();
+              return reader.read().then(function (first) {
+                var settled = null;
+                var second = reader.read().then(
+                  function (r) { settled = { resolved: true, done: r.done }; },
+                  function (e) { settled = { resolved: false, name: e && e.name }; });
+                return wait(30).then(function () {
+                  var stillPending = settled === null;
+                  ctrl.abort();
+                  return second.then(function () {
+                    return reader.read().then(
+                      function () { return { resolved: true }; },
+                      function (e) { return { resolved: false, name: e && e.name }; });
+                  }).then(function (third) {
+                    return { abortedBefore: abortedBefore, abortedAfter: ctrl.signal.aborted, fired: fired,
+                             first: first, stillPending: stillPending, second: settled, third: third };
+                  });
+                });
+              });
+            });
+            """);
+
+        Assert.False(result.GetProperty("abortedBefore").GetBoolean());
+        Assert.True(result.GetProperty("abortedAfter").GetBoolean());
+        Assert.Equal(1, result.GetProperty("fired").GetInt32());
+
+        JsonElement first = result.GetProperty("first");
+        Assert.False(first.GetProperty("done").GetBoolean());
+        Assert.Equal("data: {\"token\":\"one\"}\n", first.GetProperty("value").GetString());
+
+        Assert.True(result.GetProperty("stillPending").GetBoolean(), "a hanging read settled on its own");
+        JsonElement second = result.GetProperty("second");
+        Assert.False(second.GetProperty("resolved").GetBoolean());
+        Assert.Equal("AbortError", second.GetProperty("name").GetString());
+        // And the reader stays dead: every read after the abort is refused the same way.
+        Assert.Equal("AbortError", result.GetProperty("third").GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public void HarnessAStreamCanDropAfterItsFramesAndTakeRealTimePerRead()
+    {
+        JsonElement result = Run("""
+            R['/api/harness/drops'] = { __sse: [{ token: 'a' }, { token: 'b' }], __then: 'reject', __delay: 20 };
+            R['/api/harness/plain'] = { fine: true };
+            """, """
+            var began = Date.now(), frames = [];
+            var dead = new AbortController(); dead.abort();
+            var preAborted = fetch('/api/harness/plain', { signal: dead.signal }).then(
+              function () { return { resolved: true }; },
+              function (e) { return { resolved: false, name: e && e.name }; });
+            return fetch('/api/harness/drops').then(function (res) {
+              var reader = res.body.getReader();
+              function pump() {
+                return reader.read().then(function (r) {
+                  if (r.done) return { how: 'ended' };
+                  frames.push(r.value);
+                  return pump();
+                }, function (e) { return { how: 'rejected', name: e && e.name, message: e && e.message }; });
+              }
+              return pump();
+            }).then(function (end) {
+              return preAborted.then(function (pre) {
+                var n = __page.element('div'); n.className = 'notice error'; n.textContent = 'It broke.';
+                var b = __page.element('button'); b.className = 'notice-action'; b.textContent = 'Retry';
+                n.appendChild(b);
+                __page.byId['chat'].appendChild(n);
+                var plain = __page.element('div'); plain.className = 'notice'; plain.textContent = 'Just so you know.';
+                __page.byId['chat'].appendChild(plain);
+                return { elapsed: Date.now() - began, frames: frames, end: end, preAborted: pre,
+                         errorNotices: __page.errorNotices(), notices: __page.notices(),
+                         recordedDead: __page.requests('/api/harness/plain').length };
+              });
+            });
+            """);
+
+        Assert.Equal(new[] { "data: {\"token\":\"a\"}\n", "data: {\"token\":\"b\"}\n" }, Strings(result, "frames"));
+        JsonElement end = result.GetProperty("end");
+        Assert.Equal("rejected", end.GetProperty("how").GetString());
+        Assert.Equal("TypeError", end.GetProperty("name").GetString());
+        Assert.Equal("Load failed", end.GetProperty("message").GetString());
+        // Three reads (two frames and the drop) at 20 ms each: the delay is real time.
+        Assert.True(result.GetProperty("elapsed").GetInt32() >= 55,
+            "the delayed reads came back in " + result.GetProperty("elapsed").GetInt32() + " ms");
+
+        JsonElement pre = result.GetProperty("preAborted");
+        Assert.False(pre.GetProperty("resolved").GetBoolean());
+        Assert.Equal("AbortError", pre.GetProperty("name").GetString());
+        Assert.Equal(1, result.GetProperty("recordedDead").GetInt32());
+
+        Assert.Equal(new[] { "It broke.Retry" }, Strings(result, "errorNotices"));
+        Assert.Equal(new[] { "It broke.Retry", "Just so you know." }, Strings(result, "notices"));
+    }
+
+    [Fact]
+    public void ASendLostBeforeTheTurnIdIsNeverAnsweredWithAnEarlierTurnsAnswer()
+    {
+        // The host keeps a finished turn for an hour, so "what is this conversation
+        // generating" answers with the PREVIOUS question's turn long after it ended.
+        // A page recovering a request whose turn it never learned must not take that
+        // for its own, or the old answer appears under the new question and both are
+        // saved.
+        JsonElement result = Run($$"""
+            var sends = 0;
+            R['/api/chat'] = function () {
+              sends++;
+              return sends === 1
+                ? { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Paris.' }, { done: true, truncated: false }] } }
+                : { __reject: 'Load failed' };
+            };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: false } };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Paris.' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([10]);
+            __page.byId['text'].value = 'capital of France?';
+            __page.byId['send'].dispatch('click');
+            return wait(200).then(function () {
+              __page.byId['text'].value = 'and of Spain?';
+              __page.byId['send'].dispatch('click');
+              return wait(400);
+            }).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                text: __page.byId['text'].value,
+                generating: window.TensorAgent.isGenerating(),
+                attaches: __page.requests('/api/agent/turns/t1').length,
+              };
+            });
+            """);
+
+        // The first question and its answer, and nothing else: the second question is
+        // back in the composer because the host never took it.
+        var turns = Bubbles(result.GetProperty("transcript"));
+        Assert.Equal(2, turns.Count);
+        Assert.Equal("user", turns[0].GetProperty("role").GetString());
+        Assert.Contains("Paris.", turns[1].GetProperty("html").GetString());
+        var history = result.GetProperty("history").EnumerateArray().ToList();
+        Assert.Equal(2, history.Count);
+        Assert.Equal("capital of France?", history[0].GetProperty("content").GetString());
+        Assert.Equal("and of Spain?", result.GetProperty("text").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        // Never re-read: the page had already read t1 to its end.
+        Assert.Equal(0, result.GetProperty("attaches").GetInt32());
+    }
+
+    [Fact]
+    public void StoppingDuringARecoveryDisarmsIt()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __reject: 'Load failed' };
+            R['/api/agent/turns'] = { turn: null };
+            R['/api/agent/turns/t9/stop'] = { stopped: true };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([250]);
+            __page.byId['text'].value = 'a question';
+            __page.byId['send'].dispatch('click');
+            return wait(60).then(function () {
+              var pendingBefore = window.TensorAgent.__testing.recovery().pending;
+              window.TensorAgent.stop();
+              var pendingAfter = window.TensorAgent.__testing.recovery().pending;
+              __page.byId['text'].value = 'something else entirely';
+              return wait(500).then(function () {
+                return {
+                  pendingBefore: pendingBefore,
+                  pendingAfter: pendingAfter,
+                  text: __page.byId['text'].value,
+                  generating: window.TensorAgent.isGenerating(),
+                  lookups: __page.requests('/api/agent/turns').length,
+                };
+              });
+            });
+            """);
+
+        Assert.True(result.GetProperty("pendingBefore").GetBoolean(), "the recovery was never armed");
+        Assert.False(result.GetProperty("pendingAfter").GetBoolean(), "stopping left the recovery timer armed");
+        // The composer is what the user typed after stopping, not that plus a message
+        // the recovery decided to hand back minutes later.
+        Assert.Equal("something else entirely", result.GetProperty("text").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+    }
+
+    [Fact]
+    public void AResumeDuringASendsPrefillLeavesTheRequestAlone()
+    {
+        // The host answers a chat request's headers only with its first frame, so for
+        // the whole of a prefill there is nothing to deliver and nothing to trust by.
+        // Aborting the request there loses the turn id AND the acknowledgement of any
+        // shared draft it named, which makes every later send a 409.
+        JsonElement result = Run($$"""
+            var shareTaken = false;
+            R['/api/agent/share/claim'] = function () {
+              return shareTaken ? { share: null }
+                : { share: { id: 'share-1', text: 'look at this', newChat: false, attachments: [] } };
+            };
+            R['/api/chat'] = function () {
+              shareTaken = true;
+              return { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Well' }, { done: true, truncated: false }], __delay: 400 } };
+            };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            """, """
+            window.TensorAgent.__fromHost('takeShare', 'e30=');
+            return wait(120).then(function () {
+              var shared = __page.byId['chips'].querySelectorAll('.shared').length;
+              __page.byId['send'].dispatch('click');
+              window.TensorAgent.resumeTurn();
+              return wait(60).then(function () {
+                document.visibilityState = 'hidden';
+                document.dispatch('visibilitychange', {});
+                document.visibilityState = 'visible';
+                document.dispatch('visibilitychange', {});
+                window.TensorAgent.resumeTurn();
+                return wait(1800).then(function () {
+                  return {
+                    sharedBefore: shared,
+                    sends: __page.requests('/api/chat').length,
+                    sharedAfter: __page.byId['chips'].querySelectorAll('.shared').length,
+                    lookups: __page.requests('/api/agent/turns').length,
+                    transcript: __page.transcript(),
+                    generating: window.TensorAgent.isGenerating(),
+                    kinds: JSON.parse(window.TensorAgent.diagnostics()).events.map(function (e) { return e.k; }),
+                  };
+                });
+              });
+            });
+            """);
+
+        Assert.Equal(1, result.GetProperty("sharedBefore").GetInt32());
+        Assert.Equal(1, result.GetProperty("sends").GetInt32());
+        // The request was answered, so the share was consumed and its chip is gone.
+        Assert.Equal(0, result.GetProperty("sharedAfter").GetInt32());
+        Assert.Equal(0, result.GetProperty("lookups").GetInt32());
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Well", assistant[0].GetProperty("html").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        // The resume looked at the request, saw one that had not been answered yet, and
+        // left it alone rather than superseding it.
+        Assert.Contains("resume-skip", result.GetProperty("kinds").EnumerateArray().Select(k => k.GetString()));
+    }
+
+    [Fact]
+    public void AStreamThatGoesSilentIsReplacedByTheWatchdogWithoutAnyEvent()
+    {
+        // Nothing fires when a connection dies without a FIN: no error, no visibility
+        // change, no host nudge. The host writes a keep-alive every five seconds, so
+        // silence is the signal.
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }], __then: 'hang' } };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Hel' }, { token: 'lo' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.streamTrustMs(50);
+            window.TensorAgent.__testing.watchdogMs(60);
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(700).then(function () {
+              return {
+                transcript: __page.transcript(),
+                generating: window.TensorAgent.isGenerating(),
+                attaches: __page.requests('/api/agent/turns/t1').length,
+                kinds: JSON.parse(window.TensorAgent.diagnostics()).events.map(function (e) { return e.k; }),
+              };
+            });
+            """);
+
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Hello", assistant[0].GetProperty("html").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Equal(1, result.GetProperty("attaches").GetInt32());
+        Assert.Contains("watchdog", result.GetProperty("kinds").EnumerateArray().Select(k => k.GetString()));
+    }
+
+    [Fact]
+    public void AnErrorInATurnIsSaidOnceHoweverOftenTheTurnIsReplayed()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ error: 'The tool could not run.' }, { token: 'Sorry' }], __then: 'reject' } };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            R['/api/agent/turns/t1'] = { __sse: [{ error: 'The tool could not run.' }, { token: 'Sorry' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([10]);
+            __page.byId['text'].value = 'run it';
+            __page.byId['send'].dispatch('click');
+            return wait(400).then(function () {
+              return { errors: __page.errorNotices(), generating: window.TensorAgent.isGenerating() };
+            });
+            """);
+
+        var errors = result.GetProperty("errors").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Single(errors, e => e!.Contains("The tool could not run.", StringComparison.Ordinal));
+        Assert.False(result.GetProperty("generating").GetBoolean());
+    }
+
+    [Fact]
+    public void AChatThatCannotBeReopenedKeepsWhatIsOnTheScreen()
+    {
+        JsonElement result = Run("""
+            var sessions = 0;
+            R['/api/sessions?conversation=new'] = function () {
+              sessions++;
+              return sessions === 1
+                ? { sessionId: 's1', conversationId: 'c1', messages: [], think: false, skills: [] }
+                : { __reject: 'Load failed' };
+            };
+            R['/api/chat'] = { __sse: [{ token: 'An answer.' }, { done: true, truncated: false }] };
+            """, """
+            __page.byId['text'].value = 'a question';
+            __page.byId['send'].dispatch('click');
+            return wait(200).then(function () {
+              return window.TensorAgent.openConversation(null);
+            }).then(function () {
+              return wait(400);
+            }).then(function () {
+              return { transcript: __page.transcript().map(function (t) { return t.html; }), errors: __page.errorNotices() };
+            });
+            """);
+
+        string shown = string.Join(" | ", result.GetProperty("transcript").EnumerateArray().Select(t => t.GetString()));
+        Assert.Contains("An answer.", shown, StringComparison.Ordinal);
+        var reopenErrors = result.GetProperty("errors").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Contains(reopenErrors, e => e!.Contains("Could not open that chat", StringComparison.Ordinal));
+    }
+
     private static string[] Strings(JsonElement parent, string name) =>
         parent.TryGetProperty(name, out JsonElement list) && list.ValueKind == JsonValueKind.Array
             ? list.EnumerateArray().Select(e => e.GetString()!).ToArray()
             : Array.Empty<string>();
+
+    // =====================================================================================
+    // coming back to a stream the page could not read
+    // =====================================================================================
+    //
+    // The report these guard: "switch to another app while the model is answering, come
+    // back later, see 'Could not open the shared item: Load failed', and nothing works".
+    // Behind it were four separate things the page did wrong once its stream was gone:
+    // trusted a stream object that would never deliver again, retried a lookup once and
+    // gave up, mistook a stream that ended without the host's `done` for a finished
+    // answer, and let a POST that failed at the transport level surface as a share error.
+
+    private const string TurnHeader = "'X-TensorAgent-Turn': 't1'";
+
+    /// <summary>
+    /// The transcript without the empty-state placeholder: the fake DOM registers ids
+    /// lazily, so the page's <c>$('empty').remove()</c> removes a different element and
+    /// the placeholder stays in the chat's children for the life of the test.
+    /// </summary>
+    private static List<JsonElement> Bubbles(JsonElement transcript) => transcript.EnumerateArray()
+        .Where(t => !(t.GetProperty("html").GetString() ?? string.Empty).StartsWith("<h1>TensorAgent</h1>", StringComparison.Ordinal))
+        .ToList();
+
+    [Fact]
+    public void AStaleStreamIsReplacedWhenThePageBecomesVisibleAgain()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }], __then: 'hang' } };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Hel' }, { token: 'lo' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.streamTrustMs(0);
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return settle(20).then(function () {
+              var during = { generating: window.TensorAgent.isGenerating(), lookups: __page.requests('/api/agent/turns').length };
+              document.visibilityState = 'hidden';
+              document.dispatch('visibilitychange', {});
+              document.visibilityState = 'visible';
+              document.dispatch('visibilitychange', {});
+              return wait(500).then(function () {
+                return {
+                  during: during,
+                  transcript: __page.transcript(),
+                  history: window.TensorAgent.history(),
+                  generating: window.TensorAgent.isGenerating(),
+                  attaches: __page.requests('/api/agent/turns/t1').length,
+                  errors: __page.errorNotices(),
+                  diag: JSON.parse(window.TensorAgent.diagnostics()),
+                };
+              });
+            });
+            """);
+
+        Assert.True(result.GetProperty("during").GetProperty("generating").GetBoolean(), "the answer was streaming before the page was hidden");
+        Assert.Equal(0, result.GetProperty("during").GetProperty("lookups").GetInt32());
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Hello", assistant[0].GetProperty("html").GetString());
+        var history = result.GetProperty("history").EnumerateArray().ToList();
+        Assert.Equal(2, history.Count);
+        Assert.Equal("Hello", history[1].GetProperty("content").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean(), "the page still said it was working after the replayed answer finished");
+        Assert.Equal(1, result.GetProperty("attaches").GetInt32());
+        Assert.Empty(result.GetProperty("errors").EnumerateArray());
+        var kinds = result.GetProperty("diag").GetProperty("events").EnumerateArray().Select(e => e.GetProperty("k").GetString()).ToList();
+        Assert.Contains("visibility", kinds);
+        Assert.Contains("supersede", kinds);
+        Assert.Contains("attach", kinds);
+        Assert.Contains("finish", kinds);
+        Assert.False(result.GetProperty("diag").GetProperty("attached").GetBoolean());
+    }
+
+    [Fact]
+    public void AStreamThatIsStillDeliveringIsLeftAloneByANudge()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }], __then: 'hang' } };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            """, """
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return settle(20).then(function () {
+              var nudged = window.TensorAgent.resumeTurn();
+              return settle(20).then(function () {
+                return {
+                  nudged: nudged,
+                  lookups: __page.requests('/api/agent/turns').length,
+                  generating: window.TensorAgent.isGenerating(),
+                  delivering: JSON.parse(window.TensorAgent.diagnostics()).delivering,
+                };
+              });
+            });
+            """);
+
+        Assert.True(result.GetProperty("nudged").GetBoolean());
+        Assert.Equal(0, result.GetProperty("lookups").GetInt32());
+        Assert.True(result.GetProperty("generating").GetBoolean());
+        Assert.True(result.GetProperty("delivering").GetBoolean());
+    }
+
+    [Fact]
+    public void AStreamThatRejectsMidAnswerIsTakenUpAgainWithBackoffNotOnce()
+    {
+        JsonElement result = Run($$"""
+            var lookups = 0;
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }], __then: 'reject' } };
+            R['/api/agent/turns'] = function () {
+              lookups++;
+              return lookups < 3 ? { __reject: 'Load failed' } : { turn: { id: 't1', running: true } };
+            };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Hel' }, { token: 'lo' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([10, 20, 30, 40, 50]);
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(600).then(function () {
+              return {
+                lookups: __page.requests('/api/agent/turns').length,
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                errors: __page.errorNotices(),
+                kinds: JSON.parse(window.TensorAgent.diagnostics()).events.map(function (e) { return e.k; }),
+              };
+            });
+            """);
+
+        Assert.True(result.GetProperty("lookups").GetInt32() >= 3, "the page gave up before the third lookup");
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Hello", assistant[0].GetProperty("html").GetString());
+        Assert.Equal(2, result.GetProperty("history").GetArrayLength());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Empty(result.GetProperty("errors").EnumerateArray());
+        var kinds = result.GetProperty("kinds").EnumerateArray().Select(k => k.GetString()).ToList();
+        Assert.Contains("stream-failed", kinds);
+        Assert.Contains("resume-retry", kinds);
+        Assert.Contains("resume-lookup-failed", kinds);
+    }
+
+    [Fact]
+    public void AStreamThatEndsWithoutADoneFrameIsTakenUpAgainWhenTheTurnIsStillRunning()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }] } };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Hel' }, { token: 'lo' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([10]);
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(300).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                attaches: __page.requests('/api/agent/turns/t1').length,
+                kinds: JSON.parse(window.TensorAgent.diagnostics()).events.map(function (e) { return e.k; }),
+              };
+            });
+            """);
+
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Hello", assistant[0].GetProperty("html").GetString());
+        // ONE assistant entry, carrying the whole answer -- not a fragment and then the whole.
+        var history = result.GetProperty("history").EnumerateArray().ToList();
+        Assert.Equal(2, history.Count);
+        Assert.Equal("Hello", history[1].GetProperty("content").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Equal(1, result.GetProperty("attaches").GetInt32());
+        Assert.Contains("eof-without-done", result.GetProperty("kinds").EnumerateArray().Select(k => k.GetString()));
+    }
+
+    [Fact]
+    public void AStreamThatEndsWithoutADoneFrameIsReadAgainWhenTheTurnFinishedMeanwhile()
+    {
+        // The connection died as the answer was ending. The host still has the turn --
+        // finished turns are kept for an hour -- so its replay, which ends with the
+        // frame that says the turn is over, is the whole answer; the fragment this
+        // reader was left holding is not.
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }] } };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: false } };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Hel' }, { token: 'lo there' }, { done: true, truncated: false }] };
+            """, """
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(300).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                attaches: __page.requests('/api/agent/turns/t1').length,
+              };
+            });
+            """);
+
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Hello there", assistant[0].GetProperty("html").GetString());
+        var history = result.GetProperty("history").EnumerateArray().ToList();
+        Assert.Equal(2, history.Count);
+        Assert.Equal("Hello there", history[1].GetProperty("content").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Equal(1, result.GetProperty("attaches").GetInt32());
+    }
+
+    [Fact]
+    public void AStreamThatEndsWithoutADoneFrameFinishesWithWhatItHasWhenTheTurnIsGone()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }] } };
+            R['/api/agent/turns'] = { turn: null };
+            """, """
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(300).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                attaches: __page.requests('/api/agent/turns/t1').length,
+              };
+            });
+            """);
+
+        var assistant = Bubbles(result.GetProperty("transcript")).Where(t => t.GetProperty("role").GetString() == "assistant").ToList();
+        Assert.Single(assistant);
+        Assert.Contains("Hel", assistant[0].GetProperty("html").GetString());
+        var history = result.GetProperty("history").EnumerateArray().ToList();
+        Assert.Equal(2, history.Count);
+        Assert.Equal("Hel", history[1].GetProperty("content").GetString());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Equal(0, result.GetProperty("attaches").GetInt32());
+    }
+
+    [Fact]
+    public void ASendThatLosesItsStreamBeforeTheTurnIdAttachesToTheTurnTheHostStarted()
+    {
+        JsonElement result = Run("""
+            R['/api/chat'] = { __reject: 'Load failed' };
+            R['/api/agent/turns'] = { turn: { id: 't1', running: true } };
+            R['/api/agent/turns/t1'] = { __sse: [{ token: 'Hel' }, { token: 'lo' }, { done: true, truncated: false }] };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([10]);
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(300).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                errors: __page.errorNotices(),
+                text: __page.byId['text'].value,
+              };
+            });
+            """);
+
+        var turns = Bubbles(result.GetProperty("transcript"));
+        Assert.Equal(2, turns.Count);
+        Assert.Equal("user", turns[0].GetProperty("role").GetString());
+        Assert.Contains("Hello", turns[1].GetProperty("html").GetString());
+        Assert.Equal(2, result.GetProperty("history").GetArrayLength());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Empty(result.GetProperty("errors").EnumerateArray());
+        Assert.Equal("", result.GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public void ASendThatNeverReachedTheHostGoesBackIntoTheComposer()
+    {
+        JsonElement result = Run("""
+            R['/api/chat'] = { __reject: 'Load failed' };
+            R['/api/agent/turns'] = { turn: null };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([10]);
+            window.TensorAgent.addAttachment({ ok: true, file: 'a1.png', fileName: 'cat.png', mediaType: 'image', url: '/uploads/a1.png' });
+            __page.byId['text'].value = 'what is this';
+            __page.byId['send'].dispatch('click');
+            return wait(300).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                text: __page.byId['text'].value,
+                attachments: window.TensorAgent.attachmentCount(),
+              };
+            });
+            """);
+
+        Assert.Empty(Bubbles(result.GetProperty("transcript")));
+        Assert.Empty(result.GetProperty("history").EnumerateArray());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Equal("what is this", result.GetProperty("text").GetString());
+        Assert.Equal(1, result.GetProperty("attachments").GetInt32());
+    }
+
+    [Fact]
+    public void WhenTheHostCannotBeReachedForLongEnoughThePageHandsTheScreenBackAndSaysSo()
+    {
+        JsonElement result = Run($$"""
+            R['/api/chat'] = { __status: 200, headers: { {{TurnHeader}} }, body: { __sse: [{ token: 'Hel' }], __then: 'reject' } };
+            R['/api/agent/turns'] = { __reject: 'Load failed' };
+            """, """
+            window.TensorAgent.__testing.resumeDelays([5, 5]);
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return wait(300).then(function () {
+              return {
+                transcript: __page.transcript(),
+                history: window.TensorAgent.history(),
+                generating: window.TensorAgent.isGenerating(),
+                errors: __page.errorNotices(),
+                lookups: __page.requests('/api/agent/turns').length,
+              };
+            });
+            """);
+
+        Assert.False(result.GetProperty("generating").GetBoolean());
+        Assert.Equal(2, result.GetProperty("lookups").GetInt32());
+        var history = result.GetProperty("history").EnumerateArray().ToList();
+        Assert.Equal(2, history.Count);
+        Assert.Equal("Hel", history[1].GetProperty("content").GetString());
+        var errors = result.GetProperty("errors").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Contains(errors, e => e!.Contains("Lost the connection", StringComparison.Ordinal));
+        Assert.DoesNotContain(errors, e => e!.Contains("Load failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AShareClaimThatFailsAtTheTransportIsRetriedOnceAndNotReported()
+    {
+        JsonElement result = Run("""
+            var claims = 0;
+            R['/api/agent/share/claim'] = function () {
+              claims++;
+              return claims === 1 ? { __reject: 'Load failed' } : { share: null };
+            };
+            """, """
+            var claimsBefore = __page.requests('/api/agent/share/claim').length;
+            window.TensorAgent.__fromHost('takeShare', 'e30=');
+            return wait(500).then(function () {
+              return {
+                claims: __page.requests('/api/agent/share/claim').length - claimsBefore,
+                errors: __page.errorNotices(),
+              };
+            });
+            """);
+
+        Assert.Equal(2, result.GetProperty("claims").GetInt32());
+        Assert.Empty(result.GetProperty("errors").EnumerateArray());
+    }
+
+    [Fact]
+    public void AShareClaimTheHostRefusesIsReportedWithoutARetry()
+    {
+        JsonElement result = Run("""
+            R['/api/agent/share/claim'] = { __status: 500, body: { error: 'broken' } };
+            """, """
+            var claimsBefore = __page.requests('/api/agent/share/claim').length;
+            window.TensorAgent.__fromHost('takeShare', 'e30=');
+            return wait(500).then(function () {
+              return {
+                claims: __page.requests('/api/agent/share/claim').length - claimsBefore,
+                errors: __page.errorNotices(),
+              };
+            });
+            """);
+
+        Assert.Equal(1, result.GetProperty("claims").GetInt32());
+        var errors = result.GetProperty("errors").EnumerateArray().Select(e => e.GetString()).ToList();
+        Assert.Contains(errors, e => e!.Contains("Could not open the shared item", StringComparison.Ordinal) && e.Contains("HTTP 500", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ALongAnswerOfThousandsOfFramesRendersWholeAndOnce()
+    {
+        // A page re-attaching to a long answer is handed every frame so far at once;
+        // the answer is painted per chunk rather than per frame, and must still come
+        // out complete, in one bubble.
+        JsonElement result = Run("""
+            var frames = [];
+            for (var i = 0; i < 2000; i++) frames.push({ token: 'w' + i + ' ' });
+            frames.push({ done: true, truncated: false });
+            R['/api/chat'] = { __sse: frames };
+            """, """
+            __page.byId['text'].value = 'hi';
+            __page.byId['send'].dispatch('click');
+            return settle(20).then(function () {
+              var assistant = __page.transcript().filter(function (t) { return t.role === 'assistant' && t.html.indexOf('<h1>TensorAgent</h1>') !== 0; });
+              return { bubbles: assistant.length, words: (assistant[0] && assistant[0].html || '').split('w').length - 1, generating: window.TensorAgent.isGenerating() };
+            });
+            """);
+
+        Assert.Equal(1, result.GetProperty("bubbles").GetInt32());
+        Assert.Equal(2000, result.GetProperty("words").GetInt32());
+        Assert.False(result.GetProperty("generating").GetBoolean());
+    }
+
 }

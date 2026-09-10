@@ -150,6 +150,70 @@ after that. Every draft is still verified by the trunk either way, so a stale
 speculator can only cost throughput, never a wrong token. Measured in the server
 chat path: 1.02x → 1.85x.
 
+A per-token head can opt in too, through its weights adapter:
+`IDraftHead.DraftHeadResumesAfterGap`. A NextN/MTP block with a KV cache of its
+own (Qwen 3.6, GLM 5.2) keeps it false — a gap in what it replayed makes every
+later proposal garbage. Gemma 4's assistant head keeps no state at all: every
+draft step reads the trunk's donor KV and the hidden state it is handed, so it
+drafts from any position and reports true. Without that, a Gemma 4 chat armed
+its draft head on the first turn and never again.
+
+**Not a reuse: the next chunk of the same prompt.** A prompt longer than one
+prefill chunk arrives as several prefill steps, and every one of them satisfies
+the executor's arming test (the trunk position always agrees with the scheduler
+between chunks). The executor used to arm again on each chunk — an n-gram
+drafter lost the tokens it had mined from chunk one, and from chunk two the arm
+looked like a KV-prefix reuse at position 1024, so a per-token head was declined
+for the rest of the request. With the phone's 1024-token chunk and a 5-7k-token
+agent prompt that was every request TensorAgent made. The executor now keeps a
+context that continues the sequence at the expected position
+(`EngineSpec_PromptLongerThanOnePrefillChunk_StaysArmedAcrossTheChunks`).
+
+**Arming after a plain prefill.** A turn that carries an image, audio or video
+prefills on the plain path — only `Forward`'s inject hook can place the media
+embeddings — and used to decode plainly to its last token, because nothing armed
+once that prefill was done. A speculator that needs no hidden state now arms at
+the first decode step, seeded with the tokens the trunk already holds
+(`SpeculativeExecution.SeedCommitted`); a learned head is left alone, since no
+trunk hidden state was captured for it to chain from
+(`EngineSpec_MediaTurn_ArmsAHiddenFreeSpeculatorAfterThePlainPrefill`). The CLI's
+single-shot path still declines `--spec` on a media turn.
+
+**Arming on a per-request fused holder.** Every turn a real chat makes after its
+first lives in a per-request fused holder — the clone of the shared-prefix
+checkpoint that starts a new chat, the retained holder the previous turn left —
+and the planner routes those to the per-sequence fused path, where the linear
+speculative route was rejected ("sequence lives in a per-request fused cache").
+A host that continues conversations from holders, TensorAgent, therefore never
+speculated at all, whatever the setting said. The bound holder IS the model's
+active cache (`BindSequenceCache` repoints the live arrays), so the linear trunk
+runs on it unchanged; the fused path now keeps a speculative context per request
+(`BatchExecutor.TrySpeculativeFusedDecode`), armed over the tokens the holder
+already holds the way a plain prefill is, and disposed when the request leaves.
+
+The linear path used to arm at the FIRST prefill chunk of every request and run
+the whole prompt through the speculative context: the per-op speculative
+forward, capturing a hidden row for every prompt token and catching the head up
+over all of them. On a 1.2k-token first turn that cost 33% (E2B n-gram, 478
+against 358 ms) to 36% (E4B with the draft head, 856 against 627 ms) of the
+time to first token, and a request arriving behind it waited on that too. A
+drafter that can be seeded from the trunk's tokens - n-gram, or a head that
+resumes after a gap - now prefills plainly on the fused path and is armed by
+the late-arming branch at the first decode step (`SeedCommitted`); only a head
+that needs the prompt's hidden rows still prefills through the context.
+
+One more gap sat on the linear path itself. When the executor armed at a prefill
+chunk that started at a reused position (a follow-up turn continuing the live
+cache), it never handed the reused tokens to the speculator: the n-gram
+drafter's first commit then arrived at that position against an EMPTY corpus,
+which it rightly treats as a gap it cannot account for, and it stayed silent for
+the rest of the request. Every follow-up turn on the linear path drafted nothing
+while the same turn on a holder drafted at 95%. The chunk arming now seeds the
+execution with the reused prefix (`SeedCommitted`), the way the holder path and
+the late-arming path already did; a learned head that cannot resume after a gap
+declines there as before. `TS_NGRAM_DEBUG=1` prints the drafter's guard
+decisions, which is how this was found.
+
 ## Adding a new speculation algorithm
 
 Write the class and register it. No model, executor or scheduler code changes.
@@ -195,11 +259,15 @@ same class (there is an `ISpeculativeModel` alias for the pair) and report the
 matching `DraftHeadKind`.
 
 One caveat worth stating: some models' `SpecForward` is not drafter-independent
-— Gemma 4, Muse-Glimmer and DeepSeek V4 share the fused verify kernel with their
-drafter and refuse to run without it. Those report `SpeculationProfitable` as
-false when no drafter is loaded, so weight-free speculation is declined rather
-than crashed. Qwen 3.5/3.6 and GLM 5.2 have drafter-independent trunks and
-accept `--spec-type ngram` on any checkpoint.
+— Muse-Glimmer and DeepSeek V4 share the fused verify kernel with their drafter
+and refuse to run without it. Those report `SpeculationProfitable` as false when
+no drafter is loaded, so weight-free speculation is declined rather than
+crashed. Qwen 3.5/3.6, GLM 5.2 and Gemma 4 have drafter-independent trunks and
+accept `--spec-type ngram` on any checkpoint. (Gemma 4 used to be gated on its
+assistant GGUF too; the gate was an artifact — its multi-row verify is the same
+fused whole-model kernel its prefill runs, and the hidden-state capture is only
+filled when a speculator asks for it. TensorAgent ships the assistant GGUF as an
+optional download, so this is what makes speculation reachable there at all.)
 
 ## Operator surface
 
@@ -511,6 +579,364 @@ will not persist falls back to, automatically. The cost of the snapshots is
 VRAM: the GDN op's output grows by one state per slot, ~150 MB per slot for this
 model across all 48 recurrent layers, which is the other reason the default
 window is 3 rather than 8.
+
+## Sliding-window caches and rollback
+
+A verify writes every row's K/V at its true position. Gemma 4's local (SWA)
+layers keep exactly one window of positions in a circular cache — slot =
+position % 512 — so once the context has wrapped, row `p+i` of a verify lands on
+the slot that held position `p+i-512`. The token decoded right after a rollback
+still attends to that position whenever two or more rows were rejected (its
+window is `[q-511, q]` with `q = p+m+1`, and `p+i-512 >= q-511` for every
+`i >= m+2`). Rewinding the position counter cannot bring those rows back, and
+neither can the kept-prefix re-forward: it rewrites the accepted rows, not the
+evicted ones. `Gemma4SwaRollbackExactnessTests` measures the damage on E2B: under
+the window the first decode after a rollback agrees with plain decoding to 2e-3;
+at a 900-token context it was off by 2.4-3.0 logits on a scale of 20, and greedy
+output diverged within a couple of dozen tokens.
+
+The trunk now keeps what a verify is about to evict — the rows of every
+non-shared SWA layer whose slots the verify overwrites, ~16 KB per layer — and
+puts the rejected ones back in `SpecOnVerifyAccepted`, before any rollback
+decision. Only those byte ranges move between the host mirror and the device
+copy (`TSGgml_SyncHostBufferRanges` / `TSGgml_UploadHostBufferRanges`), never
+the whole cache. A trunk with a linear cache (every global layer, Qwen 3.5's
+attention layers) needs none of this: a rewound position simply overwrites the
+rejected rows later.
+
+## How many rows to verify
+
+ggml's small-batch matmul kernels — ggml-metal's `mul_mv_ext`, ggml-cuda's
+`mul_mat_vec_q` — serve 2 to 8 rows. A verify of 9 rows tips every matmul in
+the graph onto the large-batch path, and that is what the default window of 8
+produced. Measured on Gemma 4 E4B Q8_0 (M5 Pro, Metal, 1.1k-token context,
+greedy, 160 tokens, plain 46 tok/s):
+
+| window | verify rows | verify ms | draft head tok/s | n-gram tok/s |
+| ---: | ---: | ---: | ---: | ---: |
+| 8 | 9 | 89 | 69 | 49 |
+| 7 | 8 | 51 | **92** | 63 |
+| 5 | 6 | 44 | 89 | **70** |
+| 3 | 4 | 38 | 80 | 66 |
+
+Gemma 4 therefore prefers a window of 7 on the ggml backends
+(`SpecPreferredDraftWindow`), the way Qwen 3.5/3.8 prefer 3 for their recurrent
+state, and the preference now applies to every algorithm — n-gram used to take
+the raw option and verified 9 rows on trunks that had asked for 3 or 7. An
+explicit `--spec-draft` still wins.
+
+Two more things were hiding in the 8-row verify, both found with the phase
+counters (`TS_GMTP_PROFILE=1`) on the real TensorAgent host path:
+
+- **The per-op tail.** After the fused kernel the trunk ran the output norm, a
+  262K-vocab LM-head matmul over the 8 rows and the tanh softcap as separate ops
+  with host round-trips between them: 13 ms of a 58 ms E4B verify, 11 of 34 on
+  E2B. The verify kernel now folds all three into its graph, the way the decode
+  kernel already did for a single row (`TSGgml_Gemma4ModelVerify`'s trailing
+  `logits_data / lm_head / final_norm / logit_softcap` arguments; the model
+  passes them whenever it wants every row's logits and the output weight is
+  quantized, `CanFoldLmHead`); the rows come back post-norm, which is what the
+  draft head consumes, and the tail costs about 3 ms inside the graph. E4B: 58
+  to 48 ms per verify. `TS_GMTP_NO_FOLD_HEAD=1` restores the tail for an A/B.
+- **IQ4_XS had no small-batch kernel on Metal.** ggml-metal's `mul_mv_ext`
+  covers Q4_0/Q5_0/Q8_0/IQ4_NL for 2..8 rows and the K-quants for 4..8, but not
+  IQ4_XS, which is what 234 of the E4B catalog model's tensors use (unsloth's
+  gemma-4-E4B-it-IQ4_XS); an 8-row verify on it fell to the per-row `mul_mv`
+  path and cost 4.5x a single-row decode. `eng/ggml-patches/0002` instantiates
+  the 256-element-block `q4x4` template for IQ4_XS (four `r1` variants) and adds
+  it to the dispatch condition; the trunk kernel went from 53 to 42 ms. Q8_0
+  (E2B) already had the kernel. Upstream ggml has no such kernel as of
+  2026-09-09, so the patch has to survive `eng/fetch-ggml.sh`, which resets the
+  checkout on every native build.
+
+What is left is measured by varying the window on the same host path (E4B
+IQ4_XS, draft head, folded head, 5k-token context; plain step 15 ms):
+
+| verify rows | verify ms | quote turn tok/s |
+| ---: | ---: | ---: |
+| 2 | 26 | 69 |
+| 4 | 32 | 94 |
+| 8 | 49 | 101 |
+
+A line through those is 16 ms fixed plus 3.7 ms per row. The fixed part is the
+verify graph itself: 2,136 nodes (51 per layer) built and encoded on every call,
+where the decode kernel captures its graph once and replays it with input
+refreshes (`G4DecodeCache`, rebuilt only when a window crosses a 256-token
+stride). The slope is the small-batch kernel's design: `mul_mv_ext` handles
+`r1ptg` = 4 rows per threadgroup and dispatches `ne11 / r1ptg` of them, so 8
+rows read the weights twice. Persisting the verify graph per row count is the
+next step on this path and is not done; it would take the 8-row verify to
+roughly 35 ms. Until then, on E4B a verify is 3x a plain step, break-even is
+about 30% acceptance, and the governor is what keeps prose from paying for it.
+
+A parked speculator runs nothing but plain steps, and those used to go through a
+one-row `SpecForward` — the fused decode kernel followed by that same per-op
+tail — 14% (E4B) to 19% (E2B) slower than the ordinary decode while drafting
+nothing. A speculator that needs no hidden state (n-gram) now takes the model's
+own `Forward` for its plain steps on trunks that declare the two paths leave
+identical state behind (`ISpeculativeTarget.SpecPlainStepUsesForward`; Gemma 4).
+
+## Stops inside a verify window
+
+A chat prompt contains the turn boundary several times, so an n-gram drafter
+proposes exactly that continuation after an end-of-turn token, and the trunk
+agrees with it. The accept loop used to take those rows: the engine then ended
+the sequence at the stop and trimmed the token list, but the accepted rows past
+it stayed in the cache — a retained holder was longer than the tokens it was
+recorded as holding, and on a sliding-window ring those rows had evicted
+positions the next turn still attends to. The executor's draw hook now returns
+no token once a stop (end-of-turn, or the repetition guard) has been accepted,
+so the loop ends there and the rows past it are rejected rows, which the ring
+backup restores; a window never starts at a stop token either
+(`EngineSpec_EosInsideAcceptedWindow_StopsAndTruncatesTrailingDrafts` checks
+the trunk holds exactly the prompt and the emitted tokens).
+
+## What the governor measures
+
+The cost governor's verdict is about the (model, drafter, backend) triple, so
+the executor now shares ONE governor across every request it arms: a chat's
+short turns no longer each pay a fresh probe round to rediscover that drafting
+loses on prose (it still re-probes with backoff). And while a learned head that
+can resume after a gap is parked, its plain steps take the model's own decode
+(the carry is captured again by the first step after the park) — before, the
+parked baseline was a one-row speculative forward with a per-op head, dearer
+than the real plain step, and the governor kept calling speculation a win
+against that inflated baseline: E4B-IQ4_XS on the host benchmark ran prose at
+23-40 tok/s under it, against 65 plain. A request that cannot decode two tokens
+(`maxTokens: 1`, the warm-up) is never armed.
+
+The probe itself is paid in speculative steps, which on a losing pairing are the
+dear ones (E4B-IQ4_XS with its draft head spends about four plain steps per
+speculative one, so an eight-step re-probe every 64 tokens kept prose 30-50%
+slower while nominally parked). After a losing verdict a re-probe is three steps
+and the park backs off to 256 tokens; a winning verdict restores the full probe.
+
+A winning verdict is not a blind hold either. Every turn starts with the same
+thinking preamble ("The user is asking me to write three short paragraphs..."),
+which a draft head predicts almost perfectly, so the first probe of a prose turn
+wins honestly and the free prose behind it then loses at 12-17% acceptance: held
+for 64 steps that ran E4B-IQ4_XS prose at 30-34 tok/s against 65 plain in two of
+three runs (61-69 verify steps of ~80). While a win holds, the governor keeps
+timing its speculative steps against the plain baseline the round measured and
+parks as soon as the last eight of them average a loss, so a wrong win now costs
+about eight steps. The hold is still re-measured every 64 steps (three plain
+steps, since the speculative samples are productive) to refresh the baseline.
+
+The governor is shared by every request an executor runs, so a park earned on
+one turn's text would carry into the next: a quote turn after a prose turn
+reached 99% acceptance and still ran 122 of its 135 steps plain under a 128-step
+park. A new request caps whatever park is left at the first interval and
+forgets the backoff (one loss is remembered, so the re-probe stays the short
+one): the new turn re-probes within its first 32 steps, and a re-probe that
+loses parks 32, not 256 - with the backoff kept, one noisy three-step re-probe
+parked the remaining 200 steps of a quote turn that runs 85 tok/s against 65.
+The first park is 32 rather than 16 because on a losing turn each re-probe is
+three dear speculative steps, and 16/32/64/128 fitted four of them into a
+160-token prose turn where 32/64/128 fits two.
+
+The per-turn stats line reports what the governor did:
+`governor plain=15.3ms/tok spec=29.1ms/tok wins=0 losses=2 parked=96`.
+
+A probe also ends early: once four measured speculative steps in a row have
+accepted nothing, the verdict is a loss and the remaining probe steps - each a
+verify costing 2-4x a plain step for one token - are not paid. An n-gram drafter
+on free prose accepts nothing for whole turns (30 drafted, 0 accepted over 10
+verifies on Qwen 3.5-9B).
+
+Two accounting rules matter for those verdicts. A step whose draft HEAD ran and
+proposed nothing (under its confidence gate) is recorded as a SPECULATIVE sample
+of one token: the head pass is in its cost, and charging it to the plain side
+inflated the baseline every verdict is measured against; worse, a head that
+stayed under its gate never filled the probe's speculative quota, so the round
+never closed and the head ran unparked on every step. A matchless n-gram
+lookup is recorded the same way even though it paid no head pass: its step ran
+on the speculative path's plain step, which on a trunk whose state families
+differ (Qwen 3.5) is the dearer one, and that is precisely the cost a parked
+step avoids; recording it as plain instead inflated the baseline and let n-gram
+run through prose unparked (Qwen prose 47 to 38 tok/s). The consequence that
+four matchless steps park an n-gram drafter is intended: it re-probes within
+32 steps. And the plain baseline is taken with the
+model's own decode step while the speculator is parked or calibrating, never
+with a one-row speculative forward: on Qwen 3.5 that costs a state-family
+switch each way per round (the verify family's state drained to the host, the
+decode graph re-seeded, and back), which is the price of a baseline that is
+not 25% inflated - an inflated one made prose look like a win.
+
+Two more rules protect the trunk. The sampled token itself can complete a
+repetition loop; the engine then stops at it and truncates every accepted draft
+from the sequence, which a bound holder that cannot be truncated (Qwen 3.5)
+would keep, leaving the next turn a cache longer than its tokens. The executor
+therefore runs the guard on the sampled token before drafting and verifies
+nothing past a token it is about to stop at. And Qwen's pre-verify recurrent
+snapshot settles the fused decode's device-resident state into the host mirrors
+first: a parked run leaves the state in the decode graph's slot, the executor
+snapshots before the verify forward that would sync it, and a rollback from a
+stale snapshot (the host-mode verify, the per-op fallback) would continue from
+the pre-park state.
+
+Greedy verification is exact only up to the kernels' arithmetic: the 8-row
+verify kernel and the 1-row decode kernel accumulate in different orders, so a
+token that is a near-tie in the logits can come out differently depending on
+which kernel produced it - and which one did depends on the governor's timing.
+The stream-equality benchmarks pass on their prompts; on the host benchmark one
+run in ten took a different (still well-formed) greedy path at such a tie.
+
+A holder can only be speculated on by a trunk that forwards on the BOUND cache
+(`ISpeculativeTarget.SpecTrunkFollowsBoundCache`; Gemma 4 and Qwen 3.5 both
+declare it, the default is false and the executor warns once for a model that
+does not). Qwen 3.5 used to lose the request at position 0 when tried: not
+because its state went to the wrong cache - every field the speculative trunk
+touches is what `BindSequenceCache` swapped in, and a holder switch drains the
+verify graph's device-live recurrent state into the outgoing holder first - but
+because entering its speculative session flipped `SupportsPerSequenceFusedForward`
+off, so the planner re-routed the holder-resident sequence to the linear path on
+the next step. The capability no longer depends on the session; entering the
+session is a one-time transition (it used to hard-drop every holder's Metal
+decode graph on every speculative step) and the fused decode leaves the session
+itself, draining the verify family's state, when it is next asked to run.
+
+Qwen's plain steps have a second subtlety. Its fused decode and its verify graph
+keep the recurrent state in different device families, and switching costs a
+drain and a re-seed each way (~50 MB per direction on the 9B, ~150 MB on the 27B). A one-row pass through
+the verify family costs 25.6 ms against 20.4 for the fused decode, so a parked
+speculator - 32 to 256 plain steps at a time - ran prose 25% slower than plain
+decoding while drafting nothing. `SpecPlainStepUsesForward` now routes a PARKED
+plain step through the fused decode, and `SpecPlainStepCostsFamilySwitch` keeps
+an ordinary no-proposal plain step inside the verify family, where alternating
+with verifies is free. Prose came back to within 5% of plain.
+
+## Switching it at run time
+
+`InferenceEngine.UpdateSpeculation(SpeculationOptions)` replaces the policy for
+every step from then on without rebuilding the engine: queued like a trim, applied
+on the engine thread between steps, the executor drops its armed contexts and
+re-arms under the new policy on the next turn (`BatchExecutor.SetSpeculation`).
+`InferenceEngineHost.UpdateSpeculation` hands it to the standing engine. It exists
+for a settings switch — TensorAgent's applies at once through it — and for an A/B
+that must not reload the model between its passes.
+
+## Measuring it
+
+On the phone, `TensorAgent/scripts/bench-spec-device.sh` deploys the app, launches
+it with `TENSORAGENT_SPEC_BENCH=1` and pulls back `specbench.log`: the same four
+turns (a one-word answer, prose, a file quoted from the prompt, the same text quoted
+from the model's own answer) under plain and speculative decoding, twice each,
+switching the engine's policy in place, with prefill and decode rates per turn
+(`TensorAgent.Core/Hosting/SpeculationBench.cs`). The Mac host benchmark runs the
+same turns as `TensorAgentTtftBench --scenarios spec`, with `--no-spec` for the
+other half of the A/B.
+
+`benchmarks/AgentTurnBench` drives the engine — the path the server and
+TensorAgent use — with the conversation shapes an agent produces and reports,
+per request, the tokens per prefill step, TTFT, prefill and decode rates and the
+speculative counters; it compares every speculative stream against plain greedy
+token for token. `TS_GMTP_PROFILE=1` prints the Gemma 4 verify's phase timing
+(embed+PLE / kernel / norm+head+copy), `TS_SPEC_DRAFT=N` sets the window.
+
+Final Mac numbers on the TensorAgent host path (M5 Pro, ggml_metal, the phone's
+settings, a 5k-token system prompt, greedy; `benchmarks/TensorAgentTtftBench
+--scenarios spec` against `--no-spec`, three speculative runs each, decode tok/s):
+
+| model | turn | plain | speculative |
+| --- | --- | ---: | ---: |
+| E2B Q8_0, n-gram | one word (32 tok) | 78 | 72-74 |
+| | prose (159 tok) | 77 | 73-74 |
+| | quote the prompt (218 tok) | 76 | 145-190 |
+| | quote own answer (218 tok) | 78 | 161-179 |
+| E4B IQ4_XS + draft head | one word | 65 | 42-44 |
+| | prose | 65 | 53-57 |
+| | quote the prompt | 65 | 82-100 |
+| | quote own answer | 65 | 86-89 |
+| Qwen 3.5-9B IQ4_XS, n-gram | one word (1 tok) | - | - |
+| | prose | 49 | 46-47 |
+| | quote the prompt | 49 | 78-86 |
+| | quote own answer | 49 | 89-90 |
+
+Prefill (tokens per second of fresh prompt) is unchanged within noise in every
+row: speculation touches decode only.
+
+On the phone (iPhone 17 Pro Max, `TensorAgent/scripts/bench-spec-device.sh`,
+Release build, the app's own chat path, 160-token budget, two passes per mode;
+mean decode tok/s plain -> speculative, and the first-token cost of the setting):
+
+| model | one word | prose | quote the prompt | quote own answer | first token, spec minus plain |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| E4B IQ4_XS + draft head, run 1 | 4.8 -> 4.5 | 6.5 -> 8.2 | 7.1 -> 13.3 | 14.1 -> 14.2 | +0.1 to +0.6 s |
+| E4B IQ4_XS + draft head, run 2 | 8.4 -> 4.3 | 7.0 -> 6.6 | 12.3 -> 15.5 | 12.6 -> 14.8 | +0.1 to +0.2 s |
+| Qwen 3.5-9B IQ4_XS, n-gram, run 1 | - | 7.2 -> 6.6 | 8.2 -> 10.4 | 6.3 -> 10.0 | +0.0 to +0.5 s |
+| Qwen 3.5-9B IQ4_XS, n-gram, run 2 | - | 6.5 -> 5.0 | 5.1 -> 9.7 | 6.3 -> 9.7 | +0.1 to +0.2 s |
+
+Read these as shapes, not decimals: the phone runs both models under memory
+pressure (a few hundred MB free, the compressor busy), plain decode itself
+swings between passes (one plain quote turn stalled at 0.9 tok/s for four
+minutes and was dropped from the mean above), and the app samples at
+temperature 0.7 so passes answer differently (the "one word" prompt sometimes
+gets a 32-token thinking answer). What holds across all four runs: quoting and
+echoing decode 1.2-1.9x faster with the setting on; free prose runs 0.8-1.0x
+of plain (the governor's probe is dearer on the phone, where a verify is more
+expensive relative to a plain step); and every turn pays 0.1-0.6 s more to its
+first token with the setting on, which is the per-turn arming - a fresh
+holder per chat means fresh verify graphs - and is the part that would repay
+work next. E2B was not installed on the phone at the time, so its on-device
+row is missing; on the Mac host path it is the strongest of the three. The one-word turn is the first turn of the
+process and pays the 8-step probe once; prose is the governor's floor (a probe,
+then parked re-probes); quoting is where drafting pays. Qwen 3.5 (n-gram only in the catalog: no draft
+head ships for it) speculates on the same holder path since the session fix above.
+
+## Concurrent requests
+
+A multi-sequence step never speculates: the planner rejects both speculative
+paths for it, and the per-sequence fused path speculates only when the request
+is alone in the engine (a solo step with no other sequence running: while a
+newcomer prefills, the lone decoder gets steps of its own between the
+newcomer's chunks, and speculating on those delayed the newcomer's first token
+by 600 ms on E4B), so the batched kernels (Gemma's token-batched fused decode, Qwen's arena
+decode, the paged batched path) serve every running sequence in one graph and
+a neighbour's latency stays bounded. Letting the lone decoder keep speculating
+beside a newcomer's prefill chunk was tried and measured: the running stream
+gained, but the newcomer's first token slipped from 776 to 1,429 ms on E4B
+(every chunk step also carried a verify) and on Qwen each such step switched
+holders and drained the verify family's state, so the gate stays strictly solo.
+
+A request keeps its holder across a mixed phase, and since 2026-09-09 it keeps
+its speculative context too. A solo request starts in the primary linear cache
+with a linear speculative context; when a neighbour arrives it is adopted into
+a per-request holder, and the context now moves with it (its linear trunk
+forwards on whatever cache is bound). Once the request is solo again the
+executor resumes that context over the tokens the interlude took plainly
+(`SpeculativeExecution.CatchUp` commits them to the drafter with no hidden
+rows, which n-gram and a head that resumes after a gap accept; the governor
+counts the steps against its park or hold). Before that the context was
+dropped and re-armed from scratch on every 1 -> N -> 1 transition - the whole
+context re-indexed for n-gram, and a fresh probe of eight verifies - which
+staggered short requests hit on every arrival and every completion.
+
+Measured with `benchmarks/AgentTurnBench --scenarios conc --conc 1,2,4
+--spec-engine ngram|auto [--conc-stagger 600]` (M5 Pro, Metal, 32-token
+answers, decode aggregate tok/s after the last first token; both the engine
+default path and the app's holder path give the same picture):
+
+| model | arrival | plain 1 / 2 / 4 | speculative 1 / 2 / 4 | first token, plain vs spec (2 / 4) |
+| --- | --- | ---: | ---: | ---: |
+| E2B Q8_0, n-gram | simultaneous | 77 / 80 / 88 | 80 / 81 / 87 | 639 vs 634 / 1556 vs 1528 |
+| | staggered 600 ms | - / 60 / 50 | - / 55 / 50 | 478 vs 472 / 558 vs 552 |
+| E4B IQ4_XS + draft head | simultaneous | 68 / 68 / 73 | 69 / 68 / 73 | 1201 vs 1203 / 2662 vs 2678 |
+| | staggered 600 ms | - / 43 / 40 | - / 44 / 40 | 776 vs 764 / 1377 vs 1358 |
+| Qwen 3.5-9B IQ4_XS, n-gram | simultaneous | 51 / 59 / 83 | 46 / 58 / 79 | 2228 vs 2182 / 4638 vs 4581 |
+| | staggered 600 ms | - / 59 / 34 | - / 58 / 33 | 2182 vs 2150 / 3271 vs 3338 |
+
+Every cell is at parity with the setting off, within run-to-run noise. Two
+things had to change to get there, both found with this benchmark. The first
+run of the staggered rows showed E2B 5-11% down and, once the engine log was
+read, an E4B newcomer's first token at 1,397 ms against 797: the first request
+had armed on the linear path at its prefill and run its whole prompt through
+the speculative context (33-36% slower than the fused prefill), and the
+newcomer waited on it. That is the late-arming change above. The second was the
+context churn on every 1 -> N -> 1 transition, now the resume described above.
+A third idea - letting the lone decoder keep speculating beside a newcomer's
+prefill chunk - was measured and rejected (the newcomer's first token slipped
+by 600 ms on E4B), as was speculating on a solo step while another request is
+still prefilling; the gate is "alone in the engine".
 
 ## Where n-gram pays
 

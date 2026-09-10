@@ -100,6 +100,14 @@ public sealed class AppSettings
     /// <summary>Whether the optional projector/draft files are downloaded with a model.</summary>
     [JsonPropertyName("downloadOptionalFiles")] public bool DownloadOptionalFiles { get; set; } = true;
 
+    /// <summary>
+    /// Speculative decoding: draft a few tokens ahead (the model's draft head when it
+    /// is downloaded, otherwise a lookup over the conversation's own tokens) and
+    /// verify them in one forward. Same output, fewer forwards; the engine parks it
+    /// by itself while it is not paying. Applied to the running engine at once.
+    /// </summary>
+    [JsonPropertyName("speculativeDecoding")] public bool SpeculativeDecoding { get; set; } = true;
+
     /// <summary>Per-turn wall-clock limit for a single tool call, seconds.</summary>
     [JsonPropertyName("toolTimeoutSeconds")] public int ToolTimeoutSeconds { get; set; } = 120;
 

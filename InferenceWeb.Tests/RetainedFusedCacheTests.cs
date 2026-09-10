@@ -13,6 +13,7 @@ using TensorSharp;
 using TensorSharp.Runtime;
 using TensorSharp.Runtime.Paged;
 using TensorSharp.Runtime.Scheduling;
+using TensorSharp.Runtime.Speculative;
 using Xunit;
 
 namespace InferenceWeb.Tests;
@@ -377,6 +378,156 @@ public class RetainedFusedCacheTests
             Assert.Single(model.Checkpoints);
             Assert.Empty(model.DiscardedRetainedRequestIds);
         });
+    }
+
+    [Fact]
+    public async Task SpeculationRunsOnARetainedHolder_AndTheStreamIsWhatPlainDecodingGives()
+    {
+        // Every turn after a chat's first lives in a per-request fused holder, and
+        // the planner sends those to the per-sequence fused path, where speculation
+        // used to be impossible ("sequence lives in a per-request fused cache"). The
+        // follow-up here continues the retained holder of round one and must still
+        // draft, verify in batches, and emit the plain stream.
+        string prevRetained = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
+        string prevPerSeq = Environment.GetEnvironmentVariable("TS_PER_SEQ_FUSED");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "1");
+        Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
+        try
+        {
+            SpeculationOptions ngram = new()
+            {
+                Enabled = true,
+                SpeculatorName = TensorSharp.Runtime.Speculative.SpeculatorRegistry.NGram,
+                MaxDraftTokens = 4,
+            };
+
+            // The same conversation twice: plain, and speculative. Round one is a
+            // CONCURRENT pair, which is what puts each conversation in its own fused
+            // holder; the follow-up is then solo and continues its retained holder.
+            async Task<(List<int> output, SequenceState seq, FusedStubModel model, int contexts)> RunAsync(bool speculative)
+            {
+                var model = new FusedStubModel(periodicPeak: true);
+                SchedulerConfig cfg = speculative ? Config().WithSpeculation(ngram) : Config();
+                using var engine = new InferenceEngine(model, cfg, NullLogger.Instance);
+
+                var promptA = Enumerable.Repeat(1, PromptLen).ToList();
+                var promptB = Enumerable.Repeat(2, PromptLen).ToList();
+                var hA = engine.SubmitRequest(new SequenceState("spec-A1", promptA, Round1NewTokens, BlockSize, SamplingConfig.Greedy));
+                var hB = engine.SubmitRequest(new SequenceState("spec-B1", promptB, Round1NewTokens, BlockSize, SamplingConfig.Greedy));
+                var rA = DrainAsync(hA);
+                var rB = DrainAsync(hB);
+                await Task.WhenAll(rA, rB);
+                var (_, outA) = await rA;
+
+                var follow = new List<int>(promptA);
+                follow.AddRange(outA);
+                follow.AddRange(Enumerable.Repeat(PeakToken + 1, SuffixLen));
+                var seq = new SequenceState("spec-A2", follow, 24, BlockSize, SamplingConfig.Greedy);
+                var (completion, output) = await DrainAsync(engine.SubmitRequest(seq));
+                Assert.Equal(PromptLen + Round1NewTokens, completion.PrefixCacheReusedTokens);
+                // The context is dropped when the engine thread retains the holder,
+                // a moment after the completion reached us.
+                int contexts = FusedSpecContexts(engine);
+                for (int i = 0; i < 200 && contexts != 0; i++)
+                {
+                    await Task.Delay(10);
+                    contexts = FusedSpecContexts(engine);
+                }
+                return (output, seq, model, contexts);
+            }
+
+            var plain = await RunAsync(speculative: false);
+            var spec = await RunAsync(speculative: true);
+
+            Assert.Equal(24, plain.output.Count);
+            Assert.Equal(plain.output, spec.output);
+            Assert.Null(plain.seq.SpecStats);
+            Assert.NotNull(spec.seq.SpecStats);
+            Assert.True(spec.seq.SpecStats.VerifySteps > 0, "speculation never verified a window on the fused holder");
+            Assert.True(spec.seq.SpecStats.TokensAccepted > 0);
+            Assert.True(spec.model.SpecForwardCalls > 0);
+            // The holder is retained for the next turn; the speculative context is not.
+            Assert.Equal(0, spec.contexts);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", prevRetained);
+            Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", prevPerSeq);
+        }
+    }
+
+    [Fact]
+    public async Task ANeighbourArrivingMidStream_LeavesTheSpeculatingRequestsStreamUnchanged()
+    {
+        // A solo request speculates on its holder; a second request lands while it
+        // decodes, so the step turns mixed (plain for both, batched) and turns solo
+        // again when the neighbour finishes. The first request's stream must be
+        // what plain decoding gives, the transition must re-arm speculation, and
+        // no speculative context may outlive its request.
+        string prevRetained = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
+        string prevPerSeq = Environment.GetEnvironmentVariable("TS_PER_SEQ_FUSED");
+        Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", "1");
+        Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", "1");
+        try
+        {
+            SpeculationOptions ngram = new()
+            {
+                Enabled = true,
+                SpeculatorName = TensorSharp.Runtime.Speculative.SpeculatorRegistry.NGram,
+                MaxDraftTokens = 4,
+            };
+            const int newTokens = 96;
+            var promptA = Enumerable.Repeat(1, PromptLen).ToList();
+            var promptB = Enumerable.Repeat(2, PromptLen).ToList();
+
+            async Task<(List<int> a, SequenceState seqA, SequenceState seqB, int contexts)> RunAsync(bool speculative)
+            {
+                var model = new FusedStubModel(periodicPeak: true);
+                SchedulerConfig cfg = speculative ? Config().WithSpeculation(ngram) : Config();
+                using var engine = new InferenceEngine(model, cfg, NullLogger.Instance);
+                var seqA = new SequenceState(speculative ? "stag-A-spec" : "stag-A-plain", promptA, newTokens, BlockSize, SamplingConfig.Greedy);
+                var hA = engine.SubmitRequest(seqA);
+                // Let A decode a while alone (its probe runs here), then admit B.
+                var a = new List<int>();
+                while (a.Count < 12)
+                    a.Add(await hA.Tokens.ReadAsync());
+                var statsBefore = seqA.SpecStats;
+                var seqB = new SequenceState(speculative ? "stag-B-spec" : "stag-B-plain", promptB, 24, BlockSize, SamplingConfig.Greedy);
+                var (_, _) = await DrainAsync(engine.SubmitRequest(seqB));
+                await foreach (var t in hA.Tokens.ReadAllAsync())
+                    a.Add(t);
+                await hA.Completion;
+                // The interlude must not have re-armed A from scratch: the same
+                // execution (and its stats) carries on once A is the only decoder.
+                if (speculative)
+                    Assert.Same(statsBefore, seqA.SpecStats);
+                int contexts = FusedSpecContexts(engine);
+                for (int i = 0; i < 200 && contexts != 0; i++) { await Task.Delay(10); contexts = FusedSpecContexts(engine); }
+                return (a, seqA, seqB, contexts);
+            }
+
+            var plain = await RunAsync(speculative: false);
+            var spec = await RunAsync(speculative: true);
+            Assert.Equal(newTokens, plain.a.Count);
+            Assert.Equal(plain.a, spec.a);
+            Assert.NotNull(spec.seqA.SpecStats);
+            Assert.True(spec.seqA.SpecStats.VerifySteps > 0, "A never verified a window across its solo phases");
+            Assert.Equal(0, spec.contexts);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE", prevRetained);
+            Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", prevPerSeq);
+        }
+    }
+
+    private static int FusedSpecContexts(InferenceEngine engine)
+    {
+        const System.Reflection.BindingFlags flags =
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        object executor = typeof(InferenceEngine).GetField("_executor", flags)!.GetValue(engine)!;
+        var contexts = (System.Collections.IDictionary)executor.GetType().GetField("_fusedSpecCtx", flags)!.GetValue(executor)!;
+        return contexts.Count;
     }
 
     /// <summary>A store that keeps checkpoints in memory, keyed exactly as a file store would.</summary>
@@ -993,9 +1144,37 @@ public class RetainedFusedCacheTests
     /// re-keyed. Forward only tracks a per-holder token count; logits always peak at
     /// <see cref="PeakToken"/> so greedy decode is deterministic.
     /// </summary>
-    private sealed class FusedStubModel : IModelArchitecture, IBatchedPagedModel
+    private sealed class FusedStubModel : IModelArchitecture, IBatchedPagedModel, ISpeculativeTarget
     {
         private sealed class Holder { public int SeqLen; }
+
+        // ---- ISpeculativeTarget: a verify over the active holder, rows all peaking
+        // at PeakToken, so a lookup drafter's proposals are accepted and the stream
+        // stays what plain decoding produces.
+        public int SpecForwardCalls { get; private set; }
+        public int CacheSeqLen => Active.SeqLen;
+        public int MaxContextLength => 4096;
+        public bool SpeculationProfitable => true;
+        public void SpecForward(int[] tokens, float[] hAllOut, float[] logitsOut, bool allLogitsRows)
+        {
+            SpecForwardCalls++;
+            int startPos = Active.SeqLen;
+            Active.SeqLen += tokens.Length;
+            int rows = allLogitsRows ? tokens.Length : 1;
+            Array.Clear(logitsOut, 0, rows * VocabSize);
+            for (int r = 0; r < rows; r++)
+            {
+                // Row r predicts the token after position startPos + r, exactly as
+                // Forward does for a cache that then holds startPos + r + 1 tokens.
+                int position = allLogitsRows ? startPos + r + 1 : Active.SeqLen;
+                logitsOut[r * VocabSize + PeakAt(position)] = 10.0f;
+            }
+        }
+        public bool SpecTrunkFollowsBoundCache => true;
+        public void SpecEnsureCapacity(int requiredSeqLen) { }
+        public void SpecSnapshotRecurrentState() { }
+        public void SpecRestoreRecurrentState() { }
+        public void SpecRewindCache(int length) => Active.SeqLen = length;
 
         private readonly Dictionary<string, Holder> _holders = new(StringComparer.Ordinal);
         private readonly Dictionary<string, Holder> _retained = new(StringComparer.Ordinal);
@@ -1017,6 +1196,13 @@ public class RetainedFusedCacheTests
 
         private Holder Active => _activeKey == null ? _primary : _holders[_activeKey];
 
+        // With periodicPeak the argmax alternates PeakToken / PeakToken+1 by cache
+        // position, so the stream repeats with period two and a lookup drafter has
+        // something to find (a constant stream never has a token AFTER its last
+        // occurrence to propose).
+        private readonly bool _periodicPeak;
+        private int PeakAt(int position) => _periodicPeak ? PeakToken + (position % 2) : PeakToken;
+
         public FusedStubModel(
             bool peakIsEos = false,
             int forwardDelayMs = 0,
@@ -1024,8 +1210,10 @@ public class RetainedFusedCacheTests
             bool supportsCrossSequenceKvReuse = true,
             int maxReusablePrefixTokens = Cap,
             bool supportsRetainedFusedCache = true,
-            bool batchedFusedDecodeSucceeds = false)
+            bool batchedFusedDecodeSucceeds = false,
+            bool periodicPeak = false)
         {
+            _periodicPeak = periodicPeak;
             Tokenizer = new StubTokenizer(peakIsEos);
             _forwardDelayMs = forwardDelayMs;
             _supportsKvCacheTruncation = supportsKvCacheTruncation;
@@ -1068,7 +1256,7 @@ public class RetainedFusedCacheTests
                 System.Threading.Thread.Sleep(_forwardDelayMs);
             Active.SeqLen += tokens.Length;
             var logits = new float[VocabSize];
-            logits[PeakToken] = 10.0f;
+            logits[PeakAt(Active.SeqLen)] = 10.0f;
             return logits;
         }
 
@@ -1146,7 +1334,7 @@ public class RetainedFusedCacheTests
                     return false;
                 holder.SeqLen = positions[i] + 1;
                 var logits = new float[VocabSize];
-                logits[PeakToken] = 10.0f;
+                logits[PeakAt(holder.SeqLen)] = 10.0f;
                 outLogits[i] = logits;
             }
             SuccessfulBatchedFusedDecodeCalls++;

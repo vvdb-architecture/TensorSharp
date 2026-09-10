@@ -516,6 +516,66 @@ with their stacks, and every lifecycle event and gate wait to `logs/background.l
 failures worth reading about happen, and the files come back with `devicectl device
 copy from`.
 
+**Coming back after minutes away no longer needs a force-quit.** The gate above keeps
+the *model* alive across an absence; the thing that died instead was the page's way of
+reaching it. iOS reclaims — "defuncts" — the sockets of a suspended app, the listening
+socket included and 127.0.0.1 no exception, and the app is suspended about thirty
+seconds after it leaves the screen. The managed `HttpListener` the loopback server is
+built on hides that completely: the pending accept stays parked, `IsListening` stays
+true, nothing is thrown and nothing is logged, while every connection the WebView
+opens is refused. The page saw that as WebKit's one-size-fits-all `TypeError: Load
+failed` on every request; the only request whose failure it displayed was the share
+claim it makes on becoming visible — hence "Could not open the shared item: Load
+failed" — and the lookups that would have re-attached the answer failed silently
+around it. The host, meanwhile, was fine: the trace shows the turn resuming after a
+27-minute absence in the same second the user saw the error, and the process being
+force-quit thirty seconds later.
+
+Two layers fix it, because two things were wrong. The host now PROBES its listener on
+every return to the foreground (`LoopbackLifecycle` on `willEnterForeground` →
+`AgentAppHost.OnForegroundAsync` → `LoopbackServer.EnsureListeningAsync`: a real TCP
+connect and a `GET /health`, the one thing a defunct socket cannot fake) and rebuilds
+it when the probe fails — `Stop()` + `Start()` on the same instance keeps the same
+port, so the page's origin, its token cookie and its composer are untouched; only if
+the port cannot be had again does the server move, and then the WebView is
+navigated to the new entry URL and comes back to the same chat and the same running
+turn. The result is one line in `background.log` either way (`foreground: loopback
+listener alive (...)` or `... DEAD; ...; rebound on port N`), and the page is nudged
+again once the transport is known good.
+
+The page, for its part, had four habits that turned any lost stream into a chat that
+never recovered, and a lost stream needs no reclaimed socket — a suspended content
+process, a replaced WebKit networking process, or a keep-alive connection the host
+closed after 15 s idle will all do it. It trusted a stream *object* as proof of a
+stream (`resumeTurn` returned early while one existed, so a dead one was never
+replaced); it retried a failed lookup exactly once, 800 ms later, and then stopped
+forever; it took a stream that ended without the host's `done` frame for a finished
+answer, pushed the fragment into the history, and then, when it re-attached, rendered
+the whole answer under it in a second bubble and saved both; and a POST that failed
+at the transport — which CFNetwork never replays, unlike a GET — surfaced as an error.
+Now a stream is trusted only while it is *delivering* (the host writes a keep-alive
+every 5 s, so eight seconds of silence means it is dead and it is superseded — checked
+on becoming visible, on the app's nudge, and by a watchdog, because a connection that
+dies without a FIN raises no event at all), a failed lookup is retried with backoff for
+about forty seconds before the page gives the screen back and says so, an early end
+re-reads the turn — running or just finished — rather than mistaking a fragment for the
+answer, a send that lost its stream during the prefill attaches to the turn the host
+started (or puts the words back in the composer if it never did), and every `post()` is
+retried once on a transport failure. Three things it will not do: supersede a request
+that has not been answered yet (its headers carry the turn id, and the host consumes a
+shared draft when it accepts it — aborting one made every later send a 409); take a
+turn it has already read for the answer to a new question (a finished turn is retained
+for an hour, so "what is this conversation generating" is very often the *previous*
+question's); or leave a recovery armed after Stop or a chat switch. A reader that was
+superseded, or stopped, is ignored when its failure finally arrives; the replayed
+answer is painted once per chunk rather than once per frame, and a turn's errors and
+restart notices are said once however often it is replayed. What the page
+saw is kept in a small ring buffer (`window.TensorAgent.diagnostics()`) that the app
+writes into `background.log` on every return, because nothing else ever records what
+happened on that side. The whole transition is driven by
+`scripts/verify-background.sh` with `CHECK=page`; the page's state machine is pinned
+by `WebUiPageTests` against a fake transport that can refuse, hang, drop and abort.
+
 **Metal.** On a device `ggml_metal` is the default and the first backend offered.
 The simulator slice has no Metal at all — the simulator GPU is Apple1/Apple2 and
 has no `simdgroup_matrix` — so there it is not offered, and CPU is the default.
@@ -720,6 +780,45 @@ where it took ~40 s before. A message sent after that warm-up starts in ~0.6 s.
 `PrefixCheckpointExactnessTests` proves the restored copy is the model: a chat started
 from it produces the same tokens as a cold prefill, on Metal, for Qwen 3.5 and Gemma 4.
 
+### Speculative decoding
+
+Every turn is decoded speculatively unless the "Speculative decoding" switch in
+Settings is off: a drafter guesses a few tokens ahead and the model verifies them in
+one batched forward, so the answer is exactly what plain decoding would have
+produced and it arrives in fewer forwards. The drafter is the model's own draft head
+when the catalog lists one and it is downloaded with the optional files (Gemma 4 E4B
+and 12B; a model installed before this change gets it with its next optional
+download, and the head attaches at the next load), and otherwise a lookup over the
+conversation's own tokens (n-gram), which
+needs no weights and pays where an agent turn quotes a file, a tool result or an
+earlier answer. `SpeculationPolicy` hands both to the engine at load time, through
+the same environment the CLI's `--draft-model` and `--spec` use, and the engine's cost
+governor parks drafting while it measures as a loss. Both catalog families
+speculate on the app's cached-holder path: Gemma 4 with its draft head when the
+optional file is downloaded (n-gram otherwise), Qwen 3.5 with n-gram. Measured on
+the Mac host with the phone's settings, quoting or echoing text runs 1.6-2.5x plain
+decoding and free prose stays within about 5% (Qwen) to 15% (E4B with the draft
+head) of it. On an iPhone 17 Pro Max (`scripts/bench-spec-device.sh`) quoting runs
+1.2-1.9x, prose 0.8-1.0x, and each turn's first token costs 0.1-0.6 s more with the
+setting on; leave it off for chats that are mostly free prose.
+
+The switch applies at once: the engine keeps running and follows the new policy on
+the next turn (`InferenceEngine.UpdateSpeculation`). To measure it on the phone,
+`scripts/bench-spec-device.sh` deploys the app, launches it with
+`TENSORAGENT_SPEC_BENCH=1`, and pulls back `Library/Caches/TensorAgent/logs/specbench.log`:
+the same four turns under plain and speculative decoding, twice each, with prefill and
+decode rates per turn (`SpeculationBench`). The Mac host benchmark runs the same turns
+as `TensorAgentTtftBench --scenarios spec`, and `--no-spec` gives the other half.
+
+Measured on the Mac (ggml_metal, greedy, plain → speculative, streams identical):
+Gemma 4 E4B with its draft head 46 → 92 tok/s; Qwen 3.5-9B with n-gram 31 → 86 tok/s
+on an answer that quotes a file and 31 → 27 on prose; Gemma 4 E2B with n-gram 81.5 →
+80.9 on prose. Two engine faults this depended on are fixed in the same change: the
+executor re-armed speculation on every prefill chunk (so any prompt longer than the
+phone's 1024-token chunk lost its draft head), and a rejected verify window left
+stale rows in Gemma 4's sliding-window cache
+(`Gemma4SwaRollbackExactnessTests`). `benchmarks/AgentTurnBench` measures all of it.
+
 ### Every conversation shape, on Metal
 
 `benchmarks/TensorAgentTtftBench` starts the real app host on the Mac with the phone's
@@ -842,6 +941,16 @@ gate is proved but no refusal can occur): it launches a Debug build with
 (`LEAVE_DURING=prefill` leaves the moment the answer is asked for, with a long prompt),
 brings the app back, and reads `logs/background.log`. On the simulator pass
 `TENSORAGENT_BACKGROUND_TOKENS=120`: a 4,096-token answer takes hours on its CPU.
+
+`CHECK=page` runs the same transition through the real WebView instead of the host's
+own HTTP client: the prompt is typed into the page (`TENSORAGENT_DEMO_PROMPT`), the app
+is sent away for `AWAY_SECONDS` (720 by default on a device — long enough for iOS to
+suspend the app and reclaim its sockets; the simulator never reclaims them and proves
+only the page's side), and what is asserted is what the user sees: `pagecheck ok N
+chars on screen in 1 bubble after the turn ended, page idle`, plus the host's own
+`foreground: loopback listener alive|DEAD; ...; rebound on port N` line and the absence
+of `Could not open the shared item`. The page's transport diary (`page (foreground):
+{...}`) lands in the same trace.
 
 Two things that run only here and nowhere else: the device slice of the engine (the
 simulator's has no Metal at all) and the device staging of CPython, where every

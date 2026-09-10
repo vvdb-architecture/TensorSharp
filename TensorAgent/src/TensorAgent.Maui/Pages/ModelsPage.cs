@@ -371,7 +371,14 @@ public sealed class ModelsPage : ContentPage
         }
 
         row.BeginVisionDownload();
-        _app.Downloads.Start(row.Model, new[] { CatalogFileRole.Projector });
+        // The draft head rides along when the model lists one and it is not here yet:
+        // a model installed before the draft was fetched at all has no other way to
+        // get it, and the manager skips files already complete.
+        var roles = new List<CatalogFileRole> { CatalogFileRole.Projector };
+        if (row.Model.Files.Any(f => f.Role == CatalogFileRole.Draft)
+            && _app.Models.CompanionPath(row.Model, CatalogFileRole.Draft) is null)
+            roles.Add(CatalogFileRole.Draft);
+        _app.Downloads.Start(row.Model, roles);
     }
 
     /// <summary>
