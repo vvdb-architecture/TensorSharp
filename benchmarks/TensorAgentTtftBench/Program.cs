@@ -36,6 +36,7 @@
 //   --follow N                follow-up turns in the first conversation (default 2)
 //   --max-tokens N            answer budget for the short turns (default 32)
 //   --kv f16|q8_0|q4_0        the K/V cache precision setting (default: the app's default)
+//   --no-spec                 turn the speculative-decoding setting off (on by default), for an A/B
 //   --context N               the context-length setting (default: the catalog entry's)
 //   --chunk N                 TS_SCHED_SOLO_PREFILL_CHUNK (default 1024, as the phone sets it)
 //   --device-gb N             the device memory tier to pretend to be (default 16)
@@ -148,6 +149,7 @@ internal static class Program
         settings.SelectedModelId = model.Id;
         if (opts.KvCacheDtype is { Length: > 0 } kv)
             settings.KvCacheDtype = kv;
+        settings.SpeculativeDecoding = !opts.NoSpec;
         if (opts.ContextLength is int ctx && ctx > 0)
             settings.ContextLength = ctx;
         if (opts.Network)
@@ -211,6 +213,9 @@ internal static class Program
                         break;
                     case "tool":
                         await runner.ToolTurnAsync();
+                        break;
+                    case "spec":
+                        await runner.SpeculationAsync();
                         break;
                     case "agentic":
                         await runner.AgenticAsync();
@@ -316,15 +321,18 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine($"## {model.Id} on {backend}");
         Console.WriteLine();
-        Console.WriteLine("| scenario | turn | prompt | reused | reuse % | first token | total | tokens | note |");
-        Console.WriteLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+        Console.WriteLine("| scenario | turn | prompt | reused | reuse % | first token | total | tokens | prefill tok/s | decode tok/s | note |");
+        Console.WriteLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
         foreach (TurnRow r in rows)
         {
             string note = r.Error is { Length: > 0 } ? "ERROR " + Shorten(r.Error, 60)
                 : r.Aborted ? "stopped: " + Shorten(r.Answer, 40)
                 : Shorten(r.Answer, 48);
+            double prefillTps = r.FirstTokenSeconds > 0 ? (r.PromptTokens - r.ReusedTokens) / r.FirstTokenSeconds : 0;
+            double decodeSeconds = r.TotalSeconds - r.FirstTokenSeconds;
+            double decodeTps = r.Tokens > 1 && decodeSeconds > 0 ? (r.Tokens - 1) / decodeSeconds : 0;
             Console.WriteLine($"| {r.Scenario} | {r.Label} | {r.PromptTokens} | {r.ReusedTokens} | {r.ReusePercent:0.0} | " +
-                              $"{r.FirstTokenSeconds:0.00}s | {r.TotalSeconds:0.0}s | {r.Tokens} | {note} |");
+                              $"{r.FirstTokenSeconds:0.00}s | {r.TotalSeconds:0.0}s | {r.Tokens} | {prefillTps:0} | {decodeTps:0.0} | {note} |");
         }
         Console.WriteLine();
     }
@@ -380,6 +388,25 @@ internal sealed class Runner
         Chat chat = await NewChatSessionAsync();
         await AskAsync(chat, "stop", "turn 1 (stopped)", "Write three paragraphs about the sea.", 400, think: false, stopAfterTokens: 8);
         await AskAsync(chat, "stop", "turn 2", "Now say: banana.", _opts.MaxTokens, think: false);
+    }
+
+    /// <summary>
+    /// The turns that decide whether speculative decoding pays, in one conversation:
+    /// a one-word answer (the thinking preamble), free prose, a file quoted back from
+    /// the prompt, and the same text quoted from the model's own previous answer. Run
+    /// once with the setting on and once with --no-spec, and compare the decode
+    /// tok/s column. The same four turns are what the phone's SpeculationBench runs.
+    /// </summary>
+    public async Task SpeculationAsync()
+    {
+        Chat chat = await NewChatSessionAsync();
+        string quoted = TensorAgent.Core.Hosting.SpeculationBench.QuotedText();
+        int tokens = Math.Max(96, _opts.MaxTokens * 5);
+        await AskAsync(chat, "spec", "1 one word", "Say the single word: apple.", 32, think: false);
+        await AskAsync(chat, "spec", "2 prose", "Write three short paragraphs about the sea.", tokens, think: false);
+        await AskAsync(chat, "spec", "3 quote prompt",
+            $"Repeat the following text exactly, character for character:\n```\n{quoted}```", tokens + 60, think: false);
+        await AskAsync(chat, "spec", "4 quote own answer", "Now repeat that same text once more, exactly.", tokens + 60, think: false);
     }
 
     public async Task ToolTurnAsync()
@@ -583,6 +610,7 @@ internal sealed class Options
     public int FollowUps { get; private set; } = 2;
     public int MaxTokens { get; private set; } = 32;
     public string? KvCacheDtype { get; private set; }
+    public bool NoSpec { get; private set; }
     public int? ContextLength { get; private set; }
     public int Chunk { get; private set; } = 1024;
     public int DeviceGb { get; private set; } = 16;
@@ -623,6 +651,7 @@ internal sealed class Options
                     case "--follow": o.FollowUps = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--max-tokens": o.MaxTokens = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--kv": o.KvCacheDtype = Next(); break;
+                    case "--no-spec": o.NoSpec = true; break;
                     case "--context": o.ContextLength = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--chunk": o.Chunk = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--device-gb": o.DeviceGb = int.Parse(Next(), CultureInfo.InvariantCulture); break;

@@ -271,12 +271,17 @@ public sealed class LoopbackServerTests : IDisposable
     }
 
     /// <summary>Wait for something that must happen, and say what it means when it does not.</summary>
-    private static async Task Completes(Task task, string because)
+    private static Task Completes(Task task, string because) => Completes(task, TimeSpan.FromSeconds(20), because);
+
+    private static async Task Completes(Task task, TimeSpan within, string because)
     {
-        Task first = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(20)));
+        Task first = await Task.WhenAny(task, Task.Delay(within));
         Assert.True(ReferenceEquals(first, task), because);
         await task;
     }
+
+    /// <summary>Every wait on the network in the suspension tests is bounded by this, so a regression fails in seconds.</summary>
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(10);
 
     private static int Occurrences(string text, string needle)
     {
@@ -426,6 +431,35 @@ public sealed class LoopbackServerTests : IDisposable
             _tcp.Close();
         }
 
+        /// <summary>
+        /// Wait for the SERVER to end the connection: a read that returns nothing, or
+        /// a reset. True when it did within <paramref name="within"/>; false when the
+        /// stream is still open, which is the failure the restart tests look for.
+        /// </summary>
+        public async Task<bool> EndsAsync(TimeSpan within)
+        {
+            byte[] buffer = new byte[4096];
+            using var deadline = new CancellationTokenSource(within);
+            try
+            {
+                while (true)
+                {
+                    int read = await _tcp.GetStream().ReadAsync(buffer, deadline.Token);
+                    if (read == 0)
+                        return true;
+                    _received.Append(Encoding.UTF8.GetString(buffer, 0, read));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException)
+            {
+                return true;
+            }
+        }
+
         public void Dispose() => _tcp.Dispose();
     }
 
@@ -436,4 +470,285 @@ public sealed class LoopbackServerTests : IDisposable
         object frame = new { token = "hi", n = (int?)null };
         Assert.Equal("data: " + JsonSerializer.Serialize(frame) + "\n\n", SseFraming.Format(frame));
     }
+
+    // ---- surviving a suspension ------------------------------------------------------
+    //
+    // iOS reclaims a suspended app's sockets, the listening one included, and the
+    // managed HttpListener shows nothing of it afterwards: IsListening stays true,
+    // GetContextAsync never returns, nothing is logged, and every connect from the
+    // page is refused. These do to the listening socket exactly what the kernel does
+    // (ListeningSockets.Kill: the socket object is closed under the listener, which is
+    // NOT disposed) and check that the server notices, rebuilds itself on the port it
+    // had, ends what the dead incarnation was still serving, and moves — saying so —
+    // only when the old port cannot be had again.
+
+    [Fact]
+    public async Task AHealthyListenerAnswersTheProbeAndEnsureListeningIsANoOp()
+    {
+        // The check runs on every return to the foreground, so on a healthy listener
+        // it has to be free of side effects: no restart, no port change, no warning,
+        // and a stream that was open across it is the same stream afterwards.
+        var log = new RecordingLogger();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var server = new LoopbackServer(log) { RequireToken = false };
+        server.MapGet("/api/ping", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { pong = true })));
+        server.MapGet("/api/chat-stream", (request, ct) =>
+            Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(
+                FirstThenWhenReleased(ct), request.Cancellation, keepAlive: TimeSpan.FromMilliseconds(120))));
+        server.Start();
+        int port = server.Port;
+
+        LoopbackServer.ListenerProbe probe = await server.ProbeAsync(TimeSpan.FromSeconds(2));
+        Assert.True(probe.Alive, "a listener that has just started did not answer its own probe: " + probe.Detail);
+        Assert.Equal("answered", probe.Detail);
+
+        using var reader = await RawStream.OpenAsync(server, "/api/chat-stream");
+        string opening = await reader.ReadUntilAsync(body => body.Contains("data: {\"token\":\"first\"}", StringComparison.Ordinal));
+        Assert.Contains("data: {\"token\":\"first\"}", opening, StringComparison.Ordinal);
+
+        LoopbackServer.ListenerReport report = await server.EnsureListeningAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(LoopbackServer.ListenerHealth.Alive, report.Health);
+        Assert.StartsWith("answered in ", report.Detail, StringComparison.Ordinal);
+        Assert.Equal(0, server.Restarts);
+        Assert.Equal(port, server.Port);
+        Assert.Equal(port, report.Port);
+
+        // The stream that was open across the check still breathes, and the frame
+        // released after it arrives on the same connection.
+        string quiet = await reader.ReadUntilAsync(body => body.Contains(": keep-alive", StringComparison.Ordinal));
+        Assert.Contains(": keep-alive", quiet, StringComparison.Ordinal);
+        release.TrySetResult();
+        string rest = await reader.ReadUntilAsync(body => body.Contains("data: {\"token\":\"second\"}", StringComparison.Ordinal));
+        Assert.Contains("data: {\"token\":\"second\"}", rest, StringComparison.Ordinal);
+
+        using HttpClient http = Client();
+        Assert.Equal("{\"pong\":true}", await http.GetStringAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound));
+        Assert.True(log.Entries.Count == 0, "a healthy listener was warned about: " + string.Join(" | ", log.Entries));
+
+        async IAsyncEnumerable<object> FirstThenWhenReleased(CancellationToken ct)
+        {
+            yield return new { token = "first" };
+            await release.Task.WaitAsync(ct);
+            yield return new { token = "second" };
+        }
+    }
+
+    [SkippableFact]
+    public async Task AListenerWhoseSocketWasReclaimedIsReboundOnTheSamePortAndServesAgain()
+    {
+        Skip.If(!ListeningSockets.ManagedHttpListenerInUse, ListeningSockets.WhyNotManaged);
+        var log = new RecordingLogger();
+        using var server = new LoopbackServer(log) { RequireToken = false };
+        server.MapGet("/api/ping", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { pong = true })));
+        server.Start();
+        int port = server.Port;
+
+        using (HttpClient before = Client())
+            Assert.Equal("{\"pong\":true}", await before.GetStringAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound));
+
+        ListeningSockets.Kill(port);
+
+        // What the page sees from here on: every connect refused, and the listener
+        // itself none the wiser.
+        using (var tcp = new TcpClient())
+        using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+        {
+            SocketException refused = await Assert.ThrowsAsync<SocketException>(
+                () => tcp.ConnectAsync(IPAddress.Loopback, port, deadline.Token).AsTask());
+            Assert.Equal(SocketError.ConnectionRefused, refused.SocketErrorCode);
+        }
+
+        LoopbackServer.ListenerProbe probe = await server.ProbeAsync(TimeSpan.FromSeconds(2));
+        Assert.False(probe.Alive, "the probe was answered on a port whose listening socket is closed: " + probe.Detail);
+        Assert.Contains("ConnectionRefused", probe.Detail, StringComparison.Ordinal);
+
+        LoopbackServer.ListenerReport report = await server.EnsureListeningAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(LoopbackServer.ListenerHealth.Restarted, report.Health);
+        Assert.Equal(port, server.Port);
+        Assert.Equal(port, report.Port);
+        Assert.Equal(1, server.Restarts);
+        Assert.Contains("ConnectionRefused", report.Detail, StringComparison.Ordinal);
+        Assert.Contains($"rebound on port {port}", report.Detail, StringComparison.Ordinal);
+
+        // A new client, because the old one's pooled connection belonged to the
+        // incarnation that was just retired.
+        using (HttpClient after = Client())
+            Assert.Equal("{\"pong\":true}", await after.GetStringAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound));
+
+        LoopbackServer.ListenerProbe again = await server.ProbeAsync(TimeSpan.FromSeconds(2));
+        Assert.True(again.Alive, "the rebuilt listener does not answer its probe: " + again.Detail);
+
+        string warning = Assert.Single(log.Entries);
+        Assert.StartsWith("Warning: ", warning, StringComparison.Ordinal);
+        Assert.Contains("loopback listener restarted", warning, StringComparison.Ordinal);
+        Assert.Contains($"rebound on port {port}", warning, StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
+    public async Task AnInFlightStreamOfADeadListenerIsEndedByTheRestartNotLeftRunning()
+    {
+        Skip.If(!ListeningSockets.ManagedHttpListenerInUse, ListeningSockets.WhyNotManaged);
+        // A request the dead incarnation accepted is still running when the listener
+        // is rebuilt; the managed listener would let it write to its closed response
+        // stream, silently, for as long as its producer ran. The restart retires the
+        // epoch instead, so the producer is cancelled now and the reader sees the end.
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var server = new LoopbackServer { RequireToken = false };
+        server.MapGet("/api/chat-stream", (request, ct) =>
+            Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(
+                Prefill(ct), request.Cancellation, keepAlive: TimeSpan.FromMilliseconds(120))));
+        server.Start();
+
+        using var reader = await RawStream.OpenAsync(server, "/api/chat-stream");
+        string opening = await reader.ReadUntilAsync(body => body.Contains("data: ", StringComparison.Ordinal));
+        Assert.Contains("data: ", opening, StringComparison.Ordinal);
+
+        // The listening socket goes; the established socket under the stream is a
+        // different one and stays, exactly as after a suspension.
+        ListeningSockets.Kill(server.Port);
+        Assert.False(cancelled.Task.IsCompleted, "losing the listening socket alone must not end an established stream");
+
+        LoopbackServer.ListenerReport report = server.Restart("test");
+        Assert.Equal(LoopbackServer.ListenerHealth.Restarted, report.Health);
+        Assert.Equal(1, server.Restarts);
+
+        await Completes(cancelled.Task, TimeSpan.FromSeconds(5),
+            "the listener was rebuilt and the producer of the stream it was serving is still running: the retired epoch was not cancelled");
+        Assert.True(await reader.EndsAsync(TimeSpan.FromSeconds(5)),
+            "the stream of the retired listener is still open to its reader after the restart");
+
+        async IAsyncEnumerable<object> Prefill(CancellationToken ct)
+        {
+            using CancellationTokenRegistration stop = ct.Register(() => cancelled.TrySetResult());
+            yield return new { token = "first" };
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            yield return new { done = true, error = (string?)null };
+        }
+    }
+
+    [SkippableFact]
+    public async Task WhenTheOldPortCannotBeReboundTheServerMovesAndSaysSo()
+    {
+        Skip.If(!ListeningSockets.ManagedHttpListenerInUse, ListeningSockets.WhyNotManaged);
+        var log = new RecordingLogger();
+        using var server = new LoopbackServer(log);
+        server.MapGet("/", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Text("ui")));
+        server.MapGet("/api/ping", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { pong = true })));
+        server.Start();
+        int oldPort = server.Port;
+        string token = server.Token;
+        var relisted = new List<int>();
+        server.Relisted += relisted.Add;
+
+        ListeningSockets.Kill(oldPort);
+        // Somebody else has the port by the time the app is back: Stop()+Start() on
+        // the same instance and a fresh listener on that port both fail with
+        // address-in-use, so the server has to move.
+        var squatter = new TcpListener(IPAddress.Loopback, oldPort);
+        squatter.Start();
+        try
+        {
+            LoopbackServer.ListenerReport report = await server.EnsureListeningAsync(TimeSpan.FromSeconds(1));
+            Assert.Equal(LoopbackServer.ListenerHealth.Relisted, report.Health);
+            Assert.NotEqual(oldPort, server.Port);
+            Assert.Equal(server.Port, report.Port);
+            Assert.Equal(new[] { server.Port }, relisted);
+            Assert.Equal(1, server.Restarts);
+            Assert.Contains($"moved from port {oldPort} to {server.Port}", report.Detail, StringComparison.Ordinal);
+            Assert.Equal($"http://127.0.0.1:{server.Port}", server.BaseUrl);
+            Assert.Equal($"http://127.0.0.1:{server.Port}/?token={token}", server.EntryUrl);
+            Assert.Equal(token, server.Token);
+
+            // The new origin is served, with the same handshake as the first one.
+            using HttpClient http = Client();
+            Assert.Equal(HttpStatusCode.Forbidden, (await http.GetAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await http.GetAsync(server.EntryUrl).WaitAsync(Bound)).StatusCode);
+            Assert.Equal("{\"pong\":true}", await http.GetStringAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound));
+
+            string warning = Assert.Single(log.Entries);
+            Assert.Contains($"moved from port {oldPort} to {server.Port}", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            squatter.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task ARestartedServerStillRefusesRequestsWithoutTheToken()
+    {
+        // The rebuilt listener is the same server: the per-launch secret is unchanged,
+        // a request without it is still refused, and the entry URL still sets the cookie.
+        using var server = new LoopbackServer();
+        server.MapGet("/", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Text("ui")));
+        server.MapGet("/api/ping", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Json(new { pong = true })));
+        server.Start();
+        int port = server.Port;
+        string token = server.Token;
+
+        LoopbackServer.ListenerReport report = server.Restart("test");
+        Assert.Equal(LoopbackServer.ListenerHealth.Restarted, report.Health);
+        Assert.Equal(port, server.Port);
+        Assert.Equal(token, server.Token);
+
+        using HttpClient http = Client();
+        HttpResponseMessage denied = await http.GetAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+
+        using (var wrong = new HttpRequestMessage(HttpMethod.Get, server.BaseUrl + "/api/ping"))
+        {
+            wrong.Headers.Add("Cookie", LoopbackServer.TokenCookie + "=not-the-token");
+            Assert.Equal(HttpStatusCode.Forbidden, (await http.SendAsync(wrong).WaitAsync(Bound)).StatusCode);
+        }
+
+        HttpResponseMessage entry = await http.GetAsync(server.EntryUrl).WaitAsync(Bound);
+        Assert.Equal(HttpStatusCode.OK, entry.StatusCode);
+        Assert.Contains(entry.Headers.GetValues("Set-Cookie"),
+            cookie => cookie.StartsWith(LoopbackServer.TokenCookie + "=" + token, StringComparison.Ordinal));
+        Assert.Equal("{\"pong\":true}", await http.GetStringAsync(server.BaseUrl + "/api/ping").WaitAsync(Bound));
+    }
+
+    /// <summary>
+    /// The phone's own trace, 2026-09-09 19:39: the listener was rebuilt on the way
+    /// back to the foreground, the page re-attached to the running turn, received the
+    /// frames buffered so far, and then nothing more -- while the host kept producing.
+    /// The server side of that is pinned here: a stream opened AFTER a restart must keep
+    /// delivering frames that are produced after it was opened, not only the backlog.
+    /// </summary>
+    [SkippableFact]
+    public async Task AStreamOpenedAfterARestartKeepsDeliveringNewFrames()
+    {
+        Skip.IfNot(ListeningSockets.ManagedHttpListenerInUse, "the managed HttpListener is what iOS uses");
+        var log = new RecordingLogger();
+        using var server = new LoopbackServer(log) { RequireToken = false };
+        var produce = new SemaphoreSlim(0);
+        server.MapGet("/api/stream", (_, _) => Task.FromResult<LoopbackResponse?>(LoopbackResponse.Sse(Slowly(produce))));
+        server.Start();
+
+        ListeningSockets.Kill(server.Port);
+        LoopbackServer.ListenerReport report = server.Restart("test");
+        Assert.Equal(LoopbackServer.ListenerHealth.Restarted, report.Health);
+
+        using RawStream stream = await RawStream.OpenAsync(server, "/api/stream");
+        produce.Release(3);
+        string backlog = await stream.ReadUntilAsync(body => Occurrences(body, "data:") >= 3);
+        Assert.Equal(3, Occurrences(backlog, "data:"));
+
+        // Frames produced AFTER the stream was opened on the rebuilt listener.
+        produce.Release(4);
+        string more = await stream.ReadUntilAsync(body => Occurrences(body, "data:") >= 7);
+        Assert.True(Occurrences(more, "data:") >= 7, "the stream opened after the restart stopped delivering: " + more);
+        Assert.DoesNotContain(log.Entries, e => e.StartsWith("Error", StringComparison.Ordinal));
+
+        static async IAsyncEnumerable<object> Slowly(SemaphoreSlim produce, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        {
+            for (int i = 0; i < 7; i++)
+            {
+                await produce.WaitAsync(ct);
+                yield return new { token = "t" + i };
+            }
+            yield return new { done = true, error = (string?)null };
+        }
+    }
+
 }

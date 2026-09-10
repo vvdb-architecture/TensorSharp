@@ -115,12 +115,28 @@ public sealed class ChatTurnManager : IDisposable
     }
 
     /// <summary>
-    /// How long a finished turn stays attachable. It exists for the narrow window that
-    /// matters most: an answer that completes while the user is on another screen, and
-    /// is read the moment they come back. After this the saved conversation is the
-    /// record, which is what a relaunch reads anyway.
+    /// How long a finished turn stays attachable. It exists for the window that matters
+    /// most: an answer that completes while the user is somewhere else, and is read when
+    /// they come back. After this the saved conversation is the record, which is what a
+    /// relaunch reads anyway.
+    ///
+    /// <para>
+    /// An hour rather than ten minutes, because "somewhere else" is routinely longer
+    /// than that: the phone's own trace shows returns after 15, 27 and 52 minutes with
+    /// the app still alive. A page that comes back to find its turn evicted cannot show
+    /// the ending it missed, and the cost of keeping a finished turn is a few thousand
+    /// small frames per conversation.
+    /// </para>
     /// </summary>
-    public TimeSpan RetainFinished { get; init; } = TimeSpan.FromMinutes(10);
+    public TimeSpan RetainFinished { get; init; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// How many finished turns are kept at once, whatever <see cref="RetainFinished"/>
+    /// says. The hour above is for the one turn a page might come back to; it is not a
+    /// reason to hold every answer of a long session's worth of chats in memory, and a
+    /// turn's buffer can reach <see cref="MaxBufferedFrames"/>. The oldest go first.
+    /// </summary>
+    public int MaxRetainedFinished { get; init; } = 8;
 
     /// <summary>
     /// The most frames one turn keeps for replay. Reached only by a runaway generation —
@@ -487,6 +503,7 @@ public sealed class ChatTurnManager : IDisposable
     /// <summary>Forget turns nobody can still be waiting for. Called under <see cref="_gate"/>.</summary>
     private void EvictExpired()
     {
+        EvictSurplusFinished();
         DateTimeOffset cutoff = DateTimeOffset.UtcNow - RetainFinished;
         List<string>? expired = null;
         foreach (KeyValuePair<string, Turn> entry in _byId)
@@ -497,12 +514,37 @@ public sealed class ChatTurnManager : IDisposable
         if (expired is null)
             return;
         foreach (string id in expired)
+            Forget(id);
+    }
+
+    /// <summary>
+    /// Keep the newest <see cref="MaxRetainedFinished"/> finished turns and let the
+    /// rest go. Under <see cref="_gate"/>, called beside <see cref="EvictExpired"/>:
+    /// an hour is a long time on a phone, and a session that answers steadily would
+    /// otherwise hold every one of those answers' frames until it ended.
+    /// </summary>
+    private void EvictSurplusFinished()
+    {
+        List<KeyValuePair<string, DateTimeOffset>>? finished = null;
+        foreach (KeyValuePair<string, Turn> entry in _byId)
         {
-            if (!_byId.Remove(id, out Turn? turn))
-                continue;
-            if (_byKey.TryGetValue(turn.Key, out Turn? current) && ReferenceEquals(current, turn))
-                _byKey.Remove(turn.Key);
+            if (entry.Value.FinishedAt is { } at)
+                (finished ??= new List<KeyValuePair<string, DateTimeOffset>>()).Add(new(entry.Key, at));
         }
+        if (finished is null || finished.Count <= MaxRetainedFinished)
+            return;
+        finished.Sort(static (a, b) => a.Value.CompareTo(b.Value));
+        for (int i = 0; i < finished.Count - MaxRetainedFinished; i++)
+            Forget(finished[i].Key);
+    }
+
+    /// <summary>Drop one turn from both indexes. Under <see cref="_gate"/>.</summary>
+    private void Forget(string id)
+    {
+        if (!_byId.Remove(id, out Turn? turn))
+            return;
+        if (_byKey.TryGetValue(turn.Key, out Turn? current) && ReferenceEquals(current, turn))
+            _byKey.Remove(turn.Key);
     }
 
     public void Dispose()
@@ -624,6 +666,9 @@ public sealed class ChatTurnManager : IDisposable
             lock (Sync)
                 return _finishedAt is { } finished && finished < cutoff;
         }
+
+        /// <summary>When this turn ended, or null while it is still running.</summary>
+        public DateTimeOffset? FinishedAt { get { lock (Sync) return _finishedAt; } }
 
         /// <summary>Wake every reader. Called under <see cref="Sync"/>.</summary>
         private void Signal()

@@ -107,8 +107,9 @@ namespace TensorSharp.Models
             if ((_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal)
                 || IsTensorParallel || _fusedHolders == null)
                 return false;
-            if (!_fullDecodeEnabled || _fdUnsupported || _fdSpecSessionActive)
+            if (!_fullDecodeEnabled || _fdUnsupported)
                 return false;
+            ExitSpecSession();   // a batched decode outside the speculative session ends it
             int n = requestIds.Count;
             if (n < 2 || tokens.Length != n || positions.Length != n)
                 return false;

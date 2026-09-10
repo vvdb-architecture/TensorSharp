@@ -273,7 +273,7 @@ namespace TensorSharp.Runtime.Scheduling
                 var options = ExecutionOptions.FromEnvironment();
                 var caps = ExecutionCapabilities.FromModel(_model);
                 var features = ComputeStepFeatures(output, caps);
-                var plan = ExecutionPlanner.PlanStep(caps, options, _scheduler.Config, features);
+                var plan = ExecutionPlanner.PlanStep(caps, options, PlanConfig, features);
 
                 if (plan.SpeculationUnprofitable)
                     WarnSpeculationUnprofitableOnce();
@@ -869,6 +869,9 @@ namespace TensorSharp.Runtime.Scheduling
             // back to the per-sequence path; invalidating before that call
             // destroys a planned live-cache continuation on the fallback.
             _liveCacheValid = false;
+            // A batched step advanced every trunk past the linear speculative context;
+            // drop it (and its drafter's buffers) rather than leaving it to the GC.
+            _specCtx?.Exec?.Dispose();
             _specCtx = null;
 
             // Update per-sequence state and assemble results.
@@ -919,6 +922,47 @@ namespace TensorSharp.Runtime.Scheduling
         // Continuous-batching routing trace, off unless TS_CB_DEBUG=1. Prints
         // which path each step took, the scheduled work, and the current owner -
         // the context a per-sequence cache bug is impossible to read without.
+        // The request a late arm (see TryExecuteStepSpecPerSequence) was declined for,
+        // so the decision - and the speculator it would allocate - is made once per
+        // request rather than at every decode step.
+        private string _lateArmDeclinedFor;
+
+        // The speculation policy in force. Starts as the scheduler config's and is
+        // replaced by SetSpeculation when the host toggles speculation at run time (a
+        // settings switch), so a change applies to the next turn instead of the next
+        // model load. _planConfig is the scheduler config with this policy, for the
+        // planner, which is a pure function of its config.
+        private SpeculationOptions _speculation;
+        private SchedulerConfig _planConfig;
+
+        /// <summary>The speculation policy this executor currently applies.</summary>
+        public SpeculationOptions Speculation => _speculation ?? _scheduler.Config.Speculation;
+
+        private SchedulerConfig PlanConfig => _planConfig ?? _scheduler.Config;
+
+        /// <summary>
+        /// Replace the speculation policy for every step from now on. Engine thread
+        /// only, between steps: every armed context is dropped (the next step re-arms
+        /// under the new policy, over the tokens the caches already hold), and the
+        /// one-time decline notices are re-armed so the new policy reports its own.
+        /// </summary>
+        public void SetSpeculation(SpeculationOptions options)
+        {
+            options ??= SpeculationOptions.Disabled;
+            _speculation = options;
+            _planConfig = _scheduler.Config.WithSpeculation(options);
+            _specCtx?.Exec?.Dispose();
+            _specCtx = null;
+            foreach (var ctx in _fusedSpecCtx.Values)
+                ctx.Exec?.Dispose();
+            _fusedSpecCtx.Clear();
+            _fusedSpecDeclined.Clear();
+            _lateArmDeclinedFor = null;
+            _speculationDeclineWarned = false;
+            _specPrefixReuseDeclineWarned = false;
+            _sharedGovernor = null;   // a new policy is measured afresh
+        }
+
         private static readonly bool _cbDebug =
             string.Equals(Environment.GetEnvironmentVariable("TS_CB_DEBUG"), "1", StringComparison.Ordinal);
 
@@ -976,8 +1020,28 @@ namespace TensorSharp.Runtime.Scheduling
             // re-establishes it cleanly from the primary cache.
             _liveCacheValid = false;
             // Fused per-request caches replace the shared linear cache the
-            // speculative context tracks.
-            _specCtx = null;
+            // speculative context tracks. A context that belongs to the owner just
+            // adopted into its holder moves with it - its linear trunk forwards on
+            // whatever cache is bound, which is now that holder - so the request
+            // resumes speculating (TrySpeculativeFusedDecode catches it up over the
+            // tokens the interlude took plainly) instead of re-arming from scratch
+            // once it is solo again. A solo request always starts in the primary
+            // cache, so this is every staggered arrival's first transition.
+            if (_specCtx != null)
+            {
+                bool carry = _specCtx.BatchedTrunk == null
+                    && _specCtx.Exec != null
+                    && _specCtx.Seq != null
+                    && fused.HasFusedSequenceCache(_specCtx.Seq.RequestId)
+                    && _model is ISpeculativeTarget carriedSpec
+                    && carriedSpec.SpecTrunkFollowsBoundCache
+                    && !_fusedSpecCtx.ContainsKey(_specCtx.Seq.RequestId);
+                if (carry)
+                    _fusedSpecCtx[_specCtx.Seq.RequestId] = _specCtx;
+                else
+                    _specCtx.Exec?.Dispose();
+                _specCtx = null;
+            }
 
             // Track every request entering this path before the token-batched
             // fast path can return. Previously NoteFusedSequence lived only in
@@ -1169,6 +1233,27 @@ namespace TensorSharp.Runtime.Scheduling
                     if (freshCache && seq.NumComputedTokens > 0)
                         InjectAllBlocks(seq, seq.NumComputedTokens);
 
+                    // A solo decode step on the bound holder may speculate (see
+                    // TrySpeculativeFusedDecode); a mixed step keeps every request
+                    // plain so its neighbours' latency stays bounded.
+                    // Strictly solo: letting the lone decoder keep speculating beside a
+                    // newcomer's prefill chunk was measured and rejected - the newcomer's
+                    // first token slipped from 776 to 1429 ms on E4B (each chunk step
+                    // also carried a verify), and on Qwen every such step switched
+                    // holders and drained the verify family's state.
+                    // ...and solo in the ENGINE, not just in this step: while a newcomer
+                    // prefills, the scheduler hands the lone decoder steps of its own
+                    // between the newcomer's chunks, and speculating on those (a verify
+                    // plus a draft per step) delayed the newcomer's first token by 600 ms
+                    // on E4B. A request that is the only one running speculates; one
+                    // with a neighbour in flight decodes plainly until it is alone again.
+                    if (!work.IsPrefill && n == 1 && _scheduler.RunningCount == 1
+                        && TrySpeculativeFusedDecode(seq, prevComputed, out SequenceStepResult specResult))
+                    {
+                        results.Add(specResult);
+                        continue;
+                    }
+
                     int sampledToken = -1;
                     int[] inputTokens;
                     if (work.IsPrefill)
@@ -1358,7 +1443,10 @@ namespace TensorSharp.Runtime.Scheduling
                     // stale from here on: the plain Forward below advances the
                     // trunk without capturing the hidden states drafting needs.
                     if (_specCtx != null && ReferenceEquals(_specCtx.Seq, seq))
+                    {
+                        _specCtx.Exec?.Dispose();
                         _specCtx = null;
+                    }
 
                     // For decode steps we sample the next token from the
                     // sequence's last logits BEFORE forwarding it. The forward
@@ -1484,7 +1572,7 @@ namespace TensorSharp.Runtime.Scheduling
         private SequenceStepResult TryExecuteSpeculativeStep(
             SequenceState seq, ScheduledSequenceWork work, int prevComputed)
         {
-            if (!_scheduler.Config.Speculation.Enabled)
+            if (!Speculation.Enabled)
                 return null;
             if (_model is not ISpeculativeTarget spec)
                 return null;
@@ -1518,11 +1606,40 @@ namespace TensorSharp.Runtime.Scheduling
             //
             // Replaces any stale context (including this sequence's own, e.g.
             // after preemption + re-prefill).
-            if (work.IsPrefill && spec.CacheSeqLen == prevComputed)
+            //
+            // NOT on a chunk boundary of a prompt this context is already serving.
+            // A prompt longer than one prefill chunk arrives as several prefill
+            // steps, and every one of them satisfies the arming test above (the
+            // trunk position always agrees with the scheduler between chunks). Arming
+            // again on chunk two threw away the context chunk one built - an n-gram
+            // drafter lost the tokens it had mined - and, worse, looked to the gate
+            // below like a KV-prefix reuse at position 1024: a per-token draft head
+            // was then declined for the rest of the request. With the phone's
+            // 1024-token chunk and a 5-7k-token agent prompt, that was EVERY request.
+            bool continuesThisContext = _specCtx != null
+                && _specCtx.BatchedTrunk == null
+                && ReferenceEquals(_specCtx.Seq, seq)
+                && _specCtx.NextPosition == prevComputed;
+            if (work.IsPrefill && spec.CacheSeqLen == prevComputed && !continuesThisContext)
             {
                 var exec = TryArmSpeculation(spec, seq, trunk: null, trunkLabel: "linear");
                 if (exec == null)
                     return null;
+                if (exec.CanSeedCommitted)
+                {
+                    // A drafter that can be seeded from the trunk's tokens (n-gram, a
+                    // head that resumes after a gap) does not need the prompt to run
+                    // through this context: that prefill takes the per-op speculative
+                    // forward, capturing hidden rows for every prompt token and
+                    // catching the head up over all of them, and cost a 1.2k-token
+                    // first turn 33% (E2B n-gram: 478 vs 358 ms) to 36% (E4B draft
+                    // head: 856 vs 627 ms) of its time to first token - and every
+                    // request arriving behind it waited on that. Prefill plainly on
+                    // the fused path; the late-arming branch below seeds the drafter
+                    // at the first decode step.
+                    exec.Dispose();
+                    return null;
+                }
                 if (prevComputed > 0 && !exec.Speculator.CanArmAfterPrefixReuse)
                 {
                     // This algorithm chains per-position state; a gap makes every
@@ -1543,6 +1660,61 @@ namespace TensorSharp.Runtime.Scheduling
                     exec.Dispose();
                     return null;
                 }
+                if (prevComputed > 0)
+                {
+                    // The trunk already holds prevComputed tokens this context never
+                    // saw (a reused prefix). Hand them to the speculator now: an
+                    // n-gram drafter armed here used to get its first commit at
+                    // position prevComputed against an EMPTY corpus, treat it as a
+                    // gap it could not account for, and stay silent for the rest of
+                    // the request - every follow-up turn on the linear path drafted
+                    // nothing, while the same turn on a holder drafted at 95%.
+                    if (!exec.CanSeedCommitted)
+                    {
+                        exec.Dispose();
+                        return null;
+                    }
+                    var committed = new int[prevComputed];
+                    for (int i = 0; i < prevComputed; i++)
+                        committed[i] = seq.TokenAt(i);
+                    exec.SeedCommitted(committed);
+                }
+                _specCtx = new SpecSeqContext
+                {
+                    Seq = seq,
+                    Exec = exec,
+                    NextPosition = prevComputed,
+                };
+                seq.SpecStats = exec.Stats;
+            }
+
+            // Late arming, at a DECODE step with no context for this sequence: its
+            // prefill ran on the plain path - a media turn, whose image/audio
+            // embeddings only Forward's inject hook can place, is the everyday case -
+            // and until now such a request decoded plainly to its last token. A
+            // speculator that needs no hidden state (n-gram) can start here from the
+            // tokens the trunk already holds; a learned head cannot (no trunk hidden
+            // state for the last committed token to chain from) and is left alone.
+            else if (!work.IsPrefill && !continuesThisContext && spec.CacheSeqLen == prevComputed
+                     && prevComputed > 0
+                     && !string.Equals(_lateArmDeclinedFor, seq.RequestId, StringComparison.Ordinal))
+            {
+                var exec = TryArmSpeculation(spec, seq, trunk: null, trunkLabel: "linear, after a plain prefill");
+                if (exec == null)
+                {
+                    _lateArmDeclinedFor = seq.RequestId;   // decided once per request, not per token
+                    return null;
+                }
+                if (!exec.CanSeedCommitted)
+                {
+                    exec.Dispose();
+                    _lateArmDeclinedFor = seq.RequestId;
+                    return null;
+                }
+                var committed = new int[prevComputed];
+                for (int i = 0; i < prevComputed; i++)
+                    committed[i] = seq.TokenAt(i);
+                exec.SeedCommitted(committed);
                 _specCtx = new SpecSeqContext
                 {
                     Seq = seq,
@@ -1650,11 +1822,24 @@ namespace TensorSharp.Runtime.Scheduling
         /// can serve this model, and the plan's next candidate then serves the
         /// step with plain decoding.
         /// </summary>
+        // One governor for every speculative execution this executor arms: its
+        // verdict is about the (model, drafter, backend) triple, which is the same
+        // for every request, and a chat's turns are short - re-measuring from
+        // scratch on each of them cost more than it decided. Replaced with the policy.
+        private SpeculationCostGovernor _sharedGovernor;
+        private SpeculationCostGovernor SharedGovernor => _sharedGovernor ??= new SpeculationCostGovernor();
+
+        /// <summary>Whether a request can profit from drafting at all: it needs at
+        /// least two tokens to decode, or every proposal would be wasted.</summary>
+        private static bool CanSpeculate(SequenceState seq) => seq.MaxNewTokens >= 2;
+
         private SpeculativeExecution TryArmSpeculation(
             ISpeculativeTarget spec, SequenceState seq, ISpecTrunk trunk, string trunkLabel)
         {
+            if (!CanSpeculate(seq))
+                return null;
             var speculator = SpeculatorRegistry.Create(
-                spec, _scheduler.Config.Speculation, out string declineReason);
+                spec, Speculation, out string declineReason);
             if (speculator == null)
             {
                 WarnSpeculationDeclinedOnce(declineReason);
@@ -1667,7 +1852,7 @@ namespace TensorSharp.Runtime.Scheduling
             // state - release it here rather than leaving it to the GC.
             _specCtx?.Exec?.Dispose();
 
-            var exec = new SpeculativeExecution(spec, speculator, trunk);
+            var exec = new SpeculativeExecution(spec, speculator, trunk, SharedGovernor);
             _logger.LogInformation(
                 "Speculative decoding armed for {RequestId} (algorithm={Algorithm}, maxDraft={MaxDraft}, "
                 + "pMin={PMin}, trunk={Trunk})",
@@ -1713,58 +1898,15 @@ namespace TensorSharp.Runtime.Scheduling
             }
 
             // ---- Speculative decode step ----
-            // The next output token: the one DRAWN during the previous step's
-            // verification when available (emitting anything else would bias
-            // the stream toward the drafts), otherwise sampled as usual.
-            int sampledToken;
-            if (_specCtx.PendingNextToken >= 0)
-            {
-                sampledToken = _specCtx.PendingNextToken;
-                _specCtx.PendingNextToken = -1;
-            }
-            else
-            {
-                sampledToken = TakePendingOrSample(seq);
-            }
-            seq.AppendOutputToken(sampledToken);
-
-            // Cap the draft window so this step's 1+K forwarded tokens fit in
-            // (a) the request's remaining token budget and (b) the KV blocks
-            // the scheduler allocated ÔÇö it reserves capacity for ONE decode
-            // token per step, so block-boundary steps degrade to plain decode
-            // for one step instead of overrunning the block table.
-            int kMax = Math.Min(
-                seq.MaxNewTokens - seq.OutputTokens.Count,
-                seq.BlockTable.FreeSlotsInCurrentBlocks - 1);
-
-            var accepted = new List<int>();
-            var penaltySampler = seq.GetOrCreateSampler();
-            var swDecode = Stopwatch.StartNew();
-            SpeculativeStepOutcome outcome = _specCtx.Exec.DecodeStep(
-                sampledToken,
-                prevComputed,
-                kMax,
-                // Each verify row is drawn with the request's own sampler over
-                // the live output history (kept exact by onDraftAccepted).
-                drawNext: rowLogits =>
-                    seq.GetOrCreateSampler().Sample(rowLogits, seq.OutputTokens),
-                // Penalty-aligned drafting: the draft head must argmax the
-                // same penalized distribution verification draws from, or
-                // acceptance decays toward zero as the output history grows.
-                adjustDraftLogits: (draftLogits, pendingDrafts) =>
-                    penaltySampler.ApplyPenalties(draftLogits, seq.OutputTokens, pendingDrafts),
-                onDraftAccepted: d =>
-                {
-                    seq.AppendOutputToken(d);
-                    accepted.Add(d);
-                });
-            swDecode.Stop();
+            SpeculativeStepOutcome outcome = RunSpeculativeDecodeStep(
+                _specCtx, seq, prevComputed, out int sampledToken, out List<int> accepted, out long decodeTicks);
 
             seq.LastLogits = outcome.NextLogits;
             int advanced = 1 + outcome.AcceptedCount;
             CompleteSpeculativeStepBookkeeping(seq, advanced, batchedTrunk);
             _specCtx.NextPosition = prevComputed + advanced;
             _specCtx.PendingNextToken = outcome.NextToken;
+            PublishDrawnToken(seq, outcome.NextToken);
 
             int capturedBlocks = batchedTrunk ? 0 : CaptureNewlyFullBlocks(seq);
             if (!seq.FirstTokenAt.HasValue)
@@ -1778,8 +1920,250 @@ namespace TensorSharp.Runtime.Scheduling
                 ExtraTokens = accepted.Count > 0 ? accepted : null,
                 IsPrefill = false,
                 FullBlocksCaptured = capturedBlocks,
-                ForwardElapsedTicks = swDecode.ElapsedTicks,
+                ForwardElapsedTicks = decodeTicks,
             };
+        }
+
+        /// <summary>
+        /// The token a verify DREW for the sequence's next position, stashed on the
+        /// sequence as well as on the speculative context: if the next step leaves the
+        /// speculative path (a neighbour admitted, a context dropped), the plain paths'
+        /// Take/PeekPendingOrSample then emit exactly that draw instead of drawing the
+        /// same row a second time - which under temperature would bias the stream
+        /// toward the rejected draft. Greedy never noticed; sampling did, on every
+        /// admission.
+        /// </summary>
+        private static void PublishDrawnToken(SequenceState seq, int drawn)
+        {
+            if (drawn < 0) return;
+            seq.PendingDeviceToken = drawn;
+            seq.PendingDevicePosition = seq.NumComputedTokens;
+        }
+
+        /// <summary>
+        /// One speculative decode step for <paramref name="seq"/> over
+        /// <paramref name="ctx"/>: takes the next output token (the one drawn by the
+        /// previous verify when there is one), caps the window to the request's
+        /// budget and block capacity, and runs draft / verify / rollback. The caller
+        /// does the path's own bookkeeping with the outcome.
+        /// </summary>
+        private SpeculativeStepOutcome RunSpeculativeDecodeStep(
+            SpecSeqContext ctx, SequenceState seq, int prevComputed,
+            out int sampledToken, out List<int> accepted, out long elapsedTicks)
+        {
+            // The next output token: the one DRAWN during the previous step's
+            // verification when available (emitting anything else would bias
+            // the stream toward the drafts), otherwise sampled as usual.
+            if (ctx.PendingNextToken >= 0)
+            {
+                sampledToken = ctx.PendingNextToken;
+                ctx.PendingNextToken = -1;
+                seq.PendingDeviceToken = null;   // the same draw, published for the plain paths; consumed here
+            }
+            else
+            {
+                sampledToken = TakePendingOrSample(seq);
+            }
+            seq.AppendOutputToken(sampledToken);
+
+            // Cap the draft window so this step's 1+K forwarded tokens fit in
+            // (a) the request's remaining token budget and (b) the KV blocks
+            // the scheduler allocated - it reserves capacity for ONE decode
+            // token per step, so block-boundary steps degrade to plain decode
+            // for one step instead of overrunning the block table.
+            int kMax = Math.Min(
+                seq.MaxNewTokens - seq.OutputTokens.Count,
+                seq.BlockTable.FreeSlotsInCurrentBlocks - 1);
+
+            // Nothing is forwarded PAST a stop. The engine ends the sequence at an
+            // end-of-turn token (or a repetition stop) and trims the token list
+            // there; rows the verify had accepted beyond it stayed in the cache, so a
+            // retained holder was longer than the tokens it was recorded as holding
+            // and - on a sliding-window ring - those rows had evicted positions the
+            // next turn still attends to. A chat prompt contains the turn boundary
+            // several times, so an n-gram drafter proposes exactly that continuation
+            // and the trunk agrees with it. The window therefore does not start at a
+            // stop token, and the accept loop ends at the first stop it draws.
+            bool stopRepetition = _scheduler.Config.StopRepetition && (seq.SamplingConfig?.StopRepetition ?? true);
+            bool IsStop(int token) => _model.Tokenizer != null && _model.Tokenizer.IsEos(token);
+            if (IsStop(sampledToken))
+                kMax = 0;
+            // The sampled token can itself complete a repetition loop. The engine then
+            // stops at it and truncates every accepted draft from the sequence - but a
+            // bound holder that cannot be truncated (Qwen 3.5) would keep those rows,
+            // and the next turn would continue from a cache longer than its tokens.
+            // Do not verify past a token the guard is about to stop at.
+            if (kMax > 0 && stopRepetition
+                && RepetitionGuard.IsLooping(seq.OutputTokens, seq.OutputTokens.Count, out _, out _))
+                kMax = 0;
+            bool stopped = false;
+
+            var acceptedTokens = new List<int>();
+            var penaltySampler = seq.GetOrCreateSampler();
+            var swDecode = Stopwatch.StartNew();
+            SpeculativeStepOutcome outcome = ctx.Exec.DecodeStep(
+                sampledToken,
+                prevComputed,
+                kMax,
+                // Each verify row is drawn with the request's own sampler over
+                // the live output history (kept exact by onDraftAccepted). Once a
+                // stop has been accepted no further row is drawn: -1 matches no
+                // draft, so the loop ends there and the rows past it are rejected.
+                drawNext: rowLogits =>
+                    stopped ? -1 : seq.GetOrCreateSampler().Sample(rowLogits, seq.OutputTokens),
+                // Penalty-aligned drafting: the draft head must argmax the
+                // same penalized distribution verification draws from, or
+                // acceptance decays toward zero as the output history grows.
+                adjustDraftLogits: (draftLogits, pendingDrafts) =>
+                    penaltySampler.ApplyPenalties(draftLogits, seq.OutputTokens, pendingDrafts),
+                onDraftAccepted: d =>
+                {
+                    seq.AppendOutputToken(d);
+                    acceptedTokens.Add(d);
+                    if (IsStop(d)
+                        || (stopRepetition
+                            && RepetitionGuard.IsLooping(seq.OutputTokens, seq.OutputTokens.Count, out _, out _)))
+                        stopped = true;
+                });
+            swDecode.Stop();
+            accepted = acceptedTokens;
+            elapsedTicks = swDecode.ElapsedTicks;
+            return outcome;
+        }
+
+        // ---- Speculation on a per-request fused holder ----
+        //
+        // Every turn a real chat makes after its first lives in a per-request fused
+        // holder: the clone of the shared-prefix checkpoint that starts a new chat,
+        // the retained holder the previous turn left. The planner routes those to
+        // the per-sequence fused path and rejects the linear speculative route for
+        // them ("sequence lives in a per-request fused cache"), so a host that
+        // continues conversations from holders - TensorAgent - never speculated at
+        // all. The bound holder IS the model's active cache (BindSequenceCache
+        // repoints the live arrays), so the linear speculative trunk runs on it
+        // unchanged; what the fused path needs is its own context per request,
+        // armed over the tokens the holder already holds.
+        private readonly Dictionary<string, SpecSeqContext> _fusedSpecCtx = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _fusedSpecDeclined = new(StringComparer.Ordinal);
+
+        private void DisposeFusedSpecContext(string requestId)
+        {
+            if (string.IsNullOrEmpty(requestId)) return;
+            if (_fusedSpecCtx.Remove(requestId, out var ctx))
+                ctx.Exec?.Dispose();
+            _fusedSpecDeclined.Remove(requestId);
+        }
+
+        /// <summary>
+        /// A speculative decode step for a solo sequence served from its bound
+        /// per-request fused holder. Returns false - nothing forwarded - when
+        /// speculation is off, cannot serve this model, or cannot arm over this
+        /// request; the caller then runs the plain fused step.
+        /// </summary>
+        private bool TrySpeculativeFusedDecode(
+            SequenceState seq, int prevComputed, out SequenceStepResult result)
+        {
+            result = null;
+            if (!Speculation.Enabled || prevComputed <= 0 || !CanSpeculate(seq))
+                return false;
+            if (_model is not ISpeculativeTarget spec || !spec.SpeculationProfitable)
+                return false;
+            // Only a trunk that forwards on the BOUND cache can serve a holder; one
+            // written against the primary linear cache (Qwen 3.5) would unbind it.
+            if (!spec.SpecTrunkFollowsBoundCache)
+            {
+                WarnSpeculationDeclinedOnce(
+                    $"{_model.GetType().Name}'s speculative trunk forwards on its primary cache, not on a bound holder; "
+                    + "turns served from a cached holder (every turn after a chat's first) decode plainly");
+                return false;
+            }
+            // A batched-trunk model keeps its own paged route.
+            if (spec is IBatchedSpeculativeTarget batchedSpec && batchedSpec.SupportsBatchedSpecTrunk)
+                return false;
+            if (_model.MultimodalInjector != null && _model.MultimodalInjector.HasPendingEmbeddings(seq.RequestId))
+                return false;
+            // The bound holder must agree with the scheduler about the position.
+            if (spec.CacheSeqLen != prevComputed)
+                return false;
+
+            if (_fusedSpecCtx.TryGetValue(seq.RequestId, out var ctx) && ctx.NextPosition < prevComputed
+                && ctx.Exec != null && ctx.Exec.CanSeedCommitted)
+            {
+                // The holder advanced plainly while this request shared its steps
+                // with neighbours (or took a plain step after a decline). Resume the
+                // context over those tokens rather than re-arming: a re-arm
+                // re-indexed the whole context and re-ran the probe on every
+                // 1 -> N -> 1 transition, which staggered short requests hit constantly.
+                var gap = new int[prevComputed - ctx.NextPosition];
+                for (int i = 0; i < gap.Length; i++)
+                    gap[i] = seq.TokenAt(ctx.NextPosition + i);
+                ctx.Exec.CatchUp(gap, ctx.NextPosition);
+                ctx.NextPosition = prevComputed;
+                ctx.PendingNextToken = -1;   // the plain path drew and consumed it
+            }
+            if (!_fusedSpecCtx.TryGetValue(seq.RequestId, out ctx) || ctx.NextPosition != prevComputed)
+            {
+                if (ctx != null)
+                {
+                    // Something forwarded past this context (a truncation, a head that
+                    // cannot resume); start over from the holder's tokens.
+                    _fusedSpecCtx.Remove(seq.RequestId);
+                    ctx.Exec?.Dispose();
+                }
+                if (_fusedSpecDeclined.Contains(seq.RequestId))
+                    return false;
+                var speculator = SpeculatorRegistry.Create(spec, Speculation, out string declineReason);
+                if (speculator == null)
+                {
+                    WarnSpeculationDeclinedOnce(declineReason);
+                    _fusedSpecDeclined.Add(seq.RequestId);
+                    return false;
+                }
+                var exec = new SpeculativeExecution(spec, speculator, trunk: null, SharedGovernor);
+                if (!exec.CanSeedCommitted)
+                {
+                    exec.Dispose();
+                    _fusedSpecDeclined.Add(seq.RequestId);
+                    return false;
+                }
+                var committed = new int[prevComputed];
+                for (int i = 0; i < prevComputed; i++)
+                    committed[i] = seq.TokenAt(i);
+                exec.SeedCommitted(committed);
+                ctx = new SpecSeqContext { Seq = seq, Exec = exec, NextPosition = prevComputed };
+                _fusedSpecCtx[seq.RequestId] = ctx;
+                seq.SpecStats = exec.Stats;
+                _logger.LogInformation(
+                    "Speculative decoding armed for {RequestId} (algorithm={Algorithm}, maxDraft={MaxDraft}, "
+                    + "pMin={PMin}, trunk=fused holder over {Committed} committed tokens)",
+                    seq.RequestId, speculator.Describe(), exec.MaxDraftTokens, exec.MinDraftProb, prevComputed);
+            }
+
+            SpeculativeStepOutcome outcome = RunSpeculativeDecodeStep(
+                ctx, seq, prevComputed, out int sampledToken, out List<int> accepted, out long decodeTicks);
+
+            // The fused path's own bookkeeping: the holder is the request's, so
+            // there is no live-cache claim and no block capture to make.
+            seq.LastLogits = outcome.NextLogits;
+            int advanced = 1 + outcome.AcceptedCount;
+            seq.AdvanceComputedTokens(advanced);
+            ctx.NextPosition = prevComputed + advanced;
+            ctx.PendingNextToken = outcome.NextToken;
+            PublishDrawnToken(seq, outcome.NextToken);
+            if (!seq.FirstTokenAt.HasValue)
+                seq.FirstTokenAt = DateTime.UtcNow;
+
+            result = new SequenceStepResult
+            {
+                Sequence = seq,
+                TokensForwarded = advanced,
+                SampledToken = sampledToken,
+                ExtraTokens = accepted.Count > 0 ? accepted : null,
+                IsPrefill = false,
+                FullBlocksCaptured = 0,
+                ForwardElapsedTicks = decodeTicks,
+            };
+            return true;
         }
 
         /// <summary>Per-step bookkeeping for MTP steps (which may advance more
@@ -2367,7 +2751,16 @@ namespace TensorSharp.Runtime.Scheduling
             int neededBlocks = (lcp + _blockSize - 1) / _blockSize;
             var blocks = _pool.AllocateNew(neededBlocks);
             if (blocks == null)
-                return false; // pool pressure -> let the caller use the capped pool path
+            {
+                // Pool pressure -> let the caller use the capped pool path. Said out
+                // loud: from the request's side this is a full re-prefill with no cause.
+                var stats = _pool.GetStats();
+                _logger.LogInformation(
+                    "Retained state {Key} matches {RequestId} for {Lcp} tokens but the block pool cannot back it "
+                    + "({Needed} blocks needed, {Free} of {Total} free); re-prefilling instead.",
+                    match.RequestId, seq.RequestId, lcp, neededBlocks, stats.freeBlocks, stats.totalBlocks);
+                return false;
+            }
 
             bool bound;
             try
@@ -2548,6 +2941,7 @@ namespace TensorSharp.Runtime.Scheduling
             if (string.IsNullOrEmpty(requestId)) return;
             _pendingRetainedFusedTruncations.Remove(requestId);
             _fusedSeqById.Remove(requestId);
+            DisposeFusedSpecContext(requestId);
         }
 
         /// <summary>Remove stale retained metadata (and its model holder) before a
@@ -2585,6 +2979,7 @@ namespace TensorSharp.Runtime.Scheduling
         public bool TryRetainReleasedFusedCache(string requestId)
         {
             if (string.IsNullOrEmpty(requestId)) return false;
+            DisposeFusedSpecContext(requestId);
             _pendingRetainedFusedTruncations.Remove(requestId);
             if (!_fusedSeqById.TryGetValue(requestId, out var seq))
                 return false;

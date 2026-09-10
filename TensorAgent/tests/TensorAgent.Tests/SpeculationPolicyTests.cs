@@ -1,0 +1,108 @@
+// Copyright (c) Zhongkai Fu. All rights reserved.
+// https://github.com/zhongkaifu/TensorSharp
+//
+// This file is part of TensorSharp.
+//
+// TensorSharp is licensed under the BSD-3-Clause license found in the LICENSE file in the root directory of this source tree.
+using TensorAgent.Core;
+using TensorAgent.Core.Hosting;
+using TensorAgent.Core.Settings;
+using TensorSharp.Runtime.Speculative;
+
+namespace TensorAgent.Tests;
+
+/// <summary>
+/// The speculative-decoding setting and the downloaded draft head have to REACH
+/// the engine, through the same environment the loader and the scheduler read.
+/// </summary>
+[Collection(ProcessEnvironmentCollection.Name)]
+public sealed class SpeculationPolicyTests : IDisposable
+{
+    private readonly string? _savedEnabled = Environment.GetEnvironmentVariable(SpeculationPolicy.EnabledVariable);
+    private readonly string? _savedType = Environment.GetEnvironmentVariable(SpeculationPolicy.TypeVariable);
+    private readonly string? _savedDraft = Environment.GetEnvironmentVariable(SpeculationPolicy.DraftModelVariable);
+
+    public SpeculationPolicyTests()
+    {
+        // The launch environment is captured once per process; another test may have
+        // set these variables before this type was first touched.
+        SpeculationPolicy.UseLaunchEnvironment(null, null);
+    }
+
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable(SpeculationPolicy.EnabledVariable, _savedEnabled);
+        Environment.SetEnvironmentVariable(SpeculationPolicy.TypeVariable, _savedType);
+        Environment.SetEnvironmentVariable(SpeculationPolicy.DraftModelVariable, _savedDraft);
+    }
+
+    [Fact]
+    public void OnByDefault_AndTheDraftHeadIsNamedForTheLoader()
+    {
+        string note = SpeculationPolicy.PrepareLoad(new AppSettings(), "/models/e4b/mtp-gemma-4-E4B-it-Q8_0.gguf", launchEnabled: null);
+        Assert.Equal("1", Environment.GetEnvironmentVariable(SpeculationPolicy.EnabledVariable));
+        Assert.Equal("/models/e4b/mtp-gemma-4-E4B-it-Q8_0.gguf", Environment.GetEnvironmentVariable(SpeculationPolicy.DraftModelVariable));
+        Assert.Contains("mtp-gemma-4-E4B-it-Q8_0.gguf", note);
+    }
+
+    [Fact]
+    public void TheSettingTurnsItOff_AndAStaleDraftHeadIsCleared()
+    {
+        Environment.SetEnvironmentVariable(SpeculationPolicy.DraftModelVariable, "/models/old/draft.gguf");
+        SpeculationPolicy.PrepareLoad(new AppSettings { SpeculativeDecoding = false }, null, launchEnabled: null);
+        Assert.Equal("0", Environment.GetEnvironmentVariable(SpeculationPolicy.EnabledVariable));
+        Assert.Null(Environment.GetEnvironmentVariable(SpeculationPolicy.DraftModelVariable));
+    }
+
+    [Fact]
+    public void TheLaunchEnvironmentWinsOverTheSetting()
+    {
+        Environment.SetEnvironmentVariable(SpeculationPolicy.EnabledVariable, "0");
+        SpeculationPolicy.UseLaunchEnvironment("0", null);
+        string note = SpeculationPolicy.PrepareLoad(new AppSettings { SpeculativeDecoding = true }, null, launchEnabled: "0");
+        Assert.Equal("0", Environment.GetEnvironmentVariable(SpeculationPolicy.EnabledVariable));
+        Assert.Contains("launch environment", note);
+
+        Assert.Equal("ngram", SpeculationPolicy.ChooseAlgorithm(draftHeadAttached: true, launchType: "ngram"));
+    }
+
+    [Fact]
+    public void TheHostAppliesTheSwitchToTheEnvironmentAtOnce()
+    {
+        // No model is loaded in this test host, so the account says the policy waits
+        // for the next load; the environment still changes immediately, which is what
+        // an engine built later reads.
+        string root = Path.Combine(Path.GetTempPath(), "tensoragent-spec-" + Guid.NewGuid().ToString("N"));
+        var paths = new AgentPaths(Path.Combine(root, "data"), Path.Combine(root, "cache"));
+        using var host = new AgentAppHost(paths);
+        try
+        {
+            AppSettings settings = host.Settings.Load();
+            settings.SpeculativeDecoding = false;
+            string offAccount = host.ApplySpeculationSetting(settings);
+            Assert.Contains("off", offAccount, StringComparison.Ordinal);
+            Assert.Equal("0", Environment.GetEnvironmentVariable(SpeculationPolicy.EnabledVariable));
+
+            settings.SpeculativeDecoding = true;
+            string onAccount = host.ApplySpeculationSetting(settings);
+            Assert.Contains("on", onAccount, StringComparison.Ordinal);
+            Assert.Equal("1", Environment.GetEnvironmentVariable(SpeculationPolicy.EnabledVariable));
+            Assert.Equal(SpeculatorRegistry.NGram, Environment.GetEnvironmentVariable(SpeculationPolicy.TypeVariable));
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch { /* best effort */ }
+        }
+    }
+
+    [Theory]
+    [InlineData(true, SpeculatorRegistry.Auto)]
+    [InlineData(false, SpeculatorRegistry.NGram)]
+    public void TheAlgorithmFollowsWhetherADraftHeadActuallyAttached(bool attached, string expected)
+    {
+        // "auto" with no draft head declines outright instead of falling back, so
+        // a model whose optional draft file is not on the phone must ask for n-gram.
+        Assert.Equal(expected, SpeculationPolicy.ChooseAlgorithm(attached, launchType: null));
+        Assert.Equal(expected, Environment.GetEnvironmentVariable(SpeculationPolicy.TypeVariable));
+    }
+}

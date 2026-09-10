@@ -140,7 +140,19 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
     // gemma-4-12b UD-Q4_K_XL. When gate_arr[l] != nullptr this layer runs two
     // matmuls over the mapped weights and gu_arr[l] is ignored.
     void** gate_arr, int* gate_type_arr, std::int64_t* gate_ne0_arr, std::int64_t* gate_ne1_arr, std::int64_t* gate_bytes_arr,
-    void** up_arr, int* up_type_arr, std::int64_t* up_ne0_arr, std::int64_t* up_ne1_arr, std::int64_t* up_bytes_arr)
+    void** up_arr, int* up_type_arr, std::int64_t* up_ne0_arr, std::int64_t* up_ne1_arr, std::int64_t* up_bytes_arr,
+    // Folded output norm + LM head for EVERY row (nullable, the multi-row sibling
+    // of the fold in TSGgml_Gemma4ModelDecode). When logits_data / lm_head_data /
+    // final_norm_data are non-null and vocab_size > 0, the graph appends the
+    // output RMSNorm, the lm_head matmul over all N rows and (when
+    // logit_softcap > 0) the tanh softcap, writes logits[N][vocab] to logits_data
+    // and returns the POST-NORM rows in hidden_data. The speculative verify is
+    // the caller: its per-op tail (norm, a 262K-vocab matmul over 8 rows, softcap
+    // and the host round-trips between them) was 13 ms of a 58 ms E4B verify.
+    // Ignored in tensor-parallel plan mode (the plan's output is the hidden).
+    void* logits_data, int vocab_size,
+    const void* lm_head_data, int lm_head_type, std::int64_t lm_head_ne0, std::int64_t lm_head_ne1, std::int64_t lm_head_bytes,
+    const void* final_norm_data, float logit_softcap)
 {
     try
     {
@@ -167,8 +179,22 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
 
         const int N = num_tokens;
         const int totalSeqLen = start_pos + N;
+        const bool fold = !tp_mode && logits_data != nullptr && lm_head_data != nullptr
+            && final_norm_data != nullptr && vocab_size > 0;
         if (N <= 1)
             return 0;
+
+        // Opt-in setup attribution without the per-node profiler's loss of
+        // graph fusion. The explicit compute drain only runs while profiling,
+        // separating execution (including the folded head) from output copies.
+        static const bool native_profile_enabled = [] {
+            const char* value = std::getenv("TS_GMTP_NATIVE_PROFILE");
+            return value != nullptr && value[0] == '1';
+        }();
+        const bool native_profile = native_profile_enabled && !tp_mode && N <= 16;
+        using ProfileClock = std::chrono::steady_clock;
+        const auto profile_now = [&] { return native_profile ? ProfileClock::now() : ProfileClock::time_point{}; };
+        const auto profile_start = profile_now();
 
         // Batch (query-count) padding, Vulkan only. ggml-vulkan's quantized
         // GEMMs and flash attention both run measurably faster when the batch
@@ -536,6 +562,23 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
         std::vector<ggml_tensor*> layer_k_prev(num_layers, nullptr);
         std::vector<ggml_tensor*> layer_v_prev(num_layers, nullptr);
 
+        // A shared layer reads precisely its donor's prepared attention window.
+        // Keep the final representation too: the previous-window gather and
+        // fresh rows were already shared, but concat and cache-dtype conversion
+        // were repeated for every borrower.
+        struct PreparedAttentionKv {
+            ggml_tensor* k = nullptr;
+            ggml_tensor* v = nullptr;
+            int attend_len = 0;
+            int padded_len = 0;
+            int mask_window = 0;
+        };
+        std::vector<PreparedAttentionKv> prepared_kv(num_layers);
+        // Read the A/B switch per call so numerical tests can compare the
+        // original and shared graphs against exactly the same resident weights.
+        const char* reuse_shared_kv_env = std::getenv("TS_GMTP_REUSE_KV");
+        const bool reuse_shared_kv_enabled = reuse_shared_kv_env == nullptr || reuse_shared_kv_env[0] != '0';
+
         for (int l = 0; l < num_layers; l++)
         {
             auto& lt = layers[l];
@@ -706,7 +749,24 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             int maskWindow;
             ggml_tensor* k_full;
             ggml_tensor* v_full;
-            if (swaFresh || swaFreshShared)
+            const int donor = info.kvSource;
+            const bool same_donor_view = reuse_shared_kv_enabled && g_backend_type == BACKEND_TYPE_METAL
+                && info.isShared && donor >= 0 && donor < l
+                && prepared_kv[donor].k != nullptr && prepared_kv[donor].v != nullptr
+                && lt.k_cached_t == layers[donor].k_cached_t
+                && lt.v_cached_t == layers[donor].v_cached_t
+                && info.hd == li[donor].hd && info.kvHeads == li[donor].kvHeads
+                && info.cacheSize == li[donor].cacheSize && info.isLocal == li[donor].isLocal;
+            if (same_donor_view)
+            {
+                const auto& prepared = prepared_kv[donor];
+                k_full = prepared.k;
+                v_full = prepared.v;
+                attendLen = prepared.attend_len;
+                attnKvLen = prepared.padded_len;
+                maskWindow = prepared.mask_window;
+            }
+            else if (swaFresh || swaFreshShared)
             {
                 ggml_tensor* k_fresh = swaFresh ? k_write : layer_k_full[info.kvSource];  // [hd, NQ, kvHeads]
                 ggml_tensor* v_fresh = swaFresh ? v_write : layer_v_full[info.kvSource];  // [hd, NQ, kvHeads]
@@ -797,6 +857,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
                 set_last_error("Failed to create Gemma4 verify KV cache views.");
                 return 0;
             }
+            prepared_kv[l] = {k_full, v_full, attendLen, attnKvLen, maskWindow};
 
             // Flash attention (Gemma scale = 1.0). q_t [hd, N, num_heads]; the mask
             // (kvLen=attnKvLen, validLen=attendLen, window=maskWindow) encodes causal
@@ -938,6 +999,29 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
 
         // hidden holds NQ columns; only the first N (real) columns are downloaded
         // below — they are the contiguous prefix of the buffer.
+        // Folded tail: output norm on every row (what the caller downloads as the
+        // per-row hidden state) and the LM head + softcap over all NQ columns.
+        ggml_tensor* lm_head_t = nullptr;
+        ggml_tensor* final_norm_t = nullptr;
+        ggml_tensor* logits_out = nullptr;
+        ggml_tensor* out_logits = nullptr;
+        if (fold)
+        {
+            final_norm_t = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, hidden_size);
+            lm_head_t = ggml_new_tensor_2d(ctx, static_cast<ggml_type>(lm_head_type), lm_head_ne0, lm_head_ne1);
+            hidden = ggml_mul(ctx, ggml_rms_norm(ctx, hidden, eps), final_norm_t);   // [hidden, NQ]
+            ggml_tensor* logits = ggml_mul_mat(ctx, lm_head_t, hidden);             // [vocab, NQ]
+            if (logit_softcap > 0.0f)
+            {
+                logits = ggml_scale(ctx, logits, 1.0f / logit_softcap);
+                logits = ggml_tanh(ctx, logits);
+                logits = ggml_scale(ctx, logits, logit_softcap);
+            }
+            logits_out = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, vocab_size, NQ);
+            out_logits = ggml_cpy(ctx, logits, logits_out);
+            ggml_set_output(out_logits);
+        }
+
         ggml_tensor* hidden_out = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, hidden_size, NQ);
         ggml_tensor* out_hidden = ggml_cpy(ctx, hidden, hidden_out);
         ggml_set_output(out_hidden);
@@ -965,6 +1049,10 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             if (layers[l].v_cpy2 != nullptr) ggml_build_forward_expand(graph, layers[l].v_cpy2);
         }
         ggml_build_forward_expand(graph, out_hidden);
+        if (out_logits != nullptr)
+            ggml_build_forward_expand(graph, out_logits);
+
+        const auto profile_build_end = profile_now();
 
         ggml_backend_dev_t dev = ggml_backend_get_device(g_backend);
         struct HostBinding { ggml_tensor* tensor; void* data; std::size_t bytes; };
@@ -1056,14 +1144,22 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
 
 
         // Allocation strategy. Small N (MTP speculative verify, N<=16) keeps the
-        // bump allocator (alloc_ctx_tensors_reuse: each tensor its own slot, stable
-        // addresses, lowest per-call overhead). Large N (prefill routed through this
+        // retained compute buffer (unique activation slots and stable addresses,
+        // with completed Metal attention workspaces shared). Large N (prefill routed through this
         // kernel) MUST use the gallocr lifetime-packing allocator: the bump
         // allocator's footprint is the SUM of every layer's N-token intermediates
         // (~31 GB at N=776 over 48 layers → OOM), whereas gallocr packs by tensor
         // lifetime so the peak is one layer's working set (~10-20x smaller). The
         // pre-bound weights / KV caches above already own buffers and are skipped
         // by both allocators.
+        if (fold)
+        {
+            bind_or_mark(lm_head_t, const_cast<void*>(lm_head_data), static_cast<std::size_t>(lm_head_bytes), true);
+            bind_or_mark(final_norm_t, const_cast<void*>(final_norm_data), static_cast<std::size_t>(hidden_size) * sizeof(float), true);
+        }
+
+        const auto profile_bind_end = profile_now();
+
         const bool useGallocr = (N > 16);
         BufferHandle buffer(nullptr);
         if (useGallocr)
@@ -1074,7 +1170,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
                 return 0;
             }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
             buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
             if (buffer.value == nullptr)
@@ -1085,6 +1181,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
         }
 
 
+        const auto profile_alloc_end = profile_now();
         host_read_barrier();
 
 
@@ -1193,6 +1290,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             return 1;
         }
 
+        const auto profile_upload_end = profile_now();
         ggml_status status = tsg::graph_compute_profiled(g_backend, graph, "gemma4 model verify");
         if (status != GGML_STATUS_SUCCESS)
         {
@@ -1200,8 +1298,20 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
             return 0;
         }
 
+        if (native_profile)
+            sync_backend(g_backend);
+        const auto profile_compute_end = profile_now();
+
 
         finalize_compute_with_download(hidden_out, hidden_data, static_cast<std::size_t>(hidden_size) * N * sizeof(float));
+        if (fold)
+        {
+            // The first N rows of logits_out are a contiguous prefix, like hidden_out.
+            finalize_compute_with_download(logits_out, logits_data, static_cast<std::size_t>(vocab_size) * N * sizeof(float));
+            // The caller samples from logits_data as soon as we return; a queued
+            // (async) download must have landed by then.
+            host_read_barrier();
+        }
 
 
         // If this call allocated a per-call backend buffer (the reuse-buffer
@@ -1210,6 +1320,22 @@ TSG_EXPORT int TSGgml_Gemma4ModelVerify(
         // and Metal keeps it resident. No-op (and zero cost) on the common path
         // where the persistent reuse buffer is used (buffer.value == nullptr).
         if (buffer.value != nullptr) host_read_barrier();
+        if (native_profile)
+        {
+            host_read_barrier();
+            const auto end = ProfileClock::now();
+            const auto ms = [](ProfileClock::time_point from, ProfileClock::time_point to) {
+                return std::chrono::duration<double, std::milli>(to - from).count();
+            };
+            std::fprintf(stderr,
+                "[gemma4 verify phases] rows=%d pos=%d nodes=%d uploads=%zu fold=%d "
+                "ms: build=%.3f bind=%.3f alloc=%.3f upload=%.3f compute=%.3f download=%.3f total=%.3f\n",
+                N, start_pos, ggml_graph_n_nodes(graph), upload_list.size(), fold ? 1 : 0,
+                ms(profile_start, profile_build_end), ms(profile_build_end, profile_bind_end),
+                ms(profile_bind_end, profile_alloc_end), ms(profile_alloc_end, profile_upload_end),
+                ms(profile_upload_end, profile_compute_end), ms(profile_compute_end, end),
+                ms(profile_start, end));
+        }
         clear_last_error();
         return 1;
     }
@@ -1440,7 +1566,7 @@ TSG_EXPORT int TSGgml_Gemma4DraftStep(
         }
 
         BufferHandle buffer(nullptr);
-        if (!alloc_ctx_tensors_reuse(ctx))
+        if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
             buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
             if (buffer.value == nullptr) { set_last_error("Failed to allocate backend buffer for Gemma4 draft step."); return 0; }
@@ -1482,4 +1608,3 @@ TSG_EXPORT int TSGgml_Gemma4DraftStep(
         return 0;
     }
 }
-

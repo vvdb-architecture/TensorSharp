@@ -6,6 +6,7 @@
 // final RMSNorm + quantized LM head into the same Metal submission.
 
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 
 #include <mutex>
@@ -655,7 +656,9 @@ TSG_EXPORT int TSGgml_Qwen3ModelDecodeLogits(
         ggml_backend_buffer_t persistent_buffer = nullptr;
         if (persist)
         {
-            persistent_buffer = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persistent_buffer = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persistent_buffer == nullptr)
             {
                 set_last_error("Failed to allocate persistent Qwen3 decode buffer.");
@@ -665,7 +668,9 @@ TSG_EXPORT int TSGgml_Qwen3ModelDecodeLogits(
         }
         else
         {
-            transient_buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            transient_buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (transient_buffer.value == nullptr)
             {
                 set_last_error("Failed to allocate Qwen3 decode buffer.");

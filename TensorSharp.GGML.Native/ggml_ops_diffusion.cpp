@@ -535,7 +535,7 @@ TSG_EXPORT int TSGgml_DiffusionDecodeLayer(const TSGgmlDiffusionDecodeLayerDesc*
         // Reuse a persistent compute buffer across the per-layer calls (as Gemma4MoELayerDecode
         // does) so we don't pay a fresh backend allocation for every layer of every step.
         BufferHandle buffer(nullptr);
-        if (!alloc_ctx_tensors_reuse(ctx))
+        if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
             buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
             if (buffer.value == nullptr)

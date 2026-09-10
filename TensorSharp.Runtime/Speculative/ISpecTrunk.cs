@@ -31,6 +31,28 @@ namespace TensorSharp.Runtime.Speculative
         /// by <c>tokens.Length</c>.</summary>
         void Forward(int[] tokens, float[] hAllOut, float[] logitsOut, bool allLogitsRows);
 
+        /// <summary>
+        /// One plain single-token step for a speculator that needs no hidden state:
+        /// forward <paramref name="token"/> at the trunk's position, fill the
+        /// next-token logits, advance by one. The default is the generic
+        /// <see cref="Forward"/>; a trunk whose ordinary decode is cheaper than its
+        /// speculative forward (a fused decode kernel with the LM head folded in,
+        /// against a per-op norm + head + softcap tail) overrides it, because a
+        /// PARKED speculator runs nothing but plain steps and was paying that
+        /// tail on every one of them: measured 14% (Gemma 4 E4B) to 19% (E2B)
+        /// slower than the non-speculative decode while drafting nothing.
+        /// </summary>
+        /// <param name="parked">True when the governor has parked speculation, so
+        /// this is one of a long run of plain steps; a trunk whose cheap plain step
+        /// costs a state-family switch (<see cref="ISpeculativeTarget.SpecPlainStepCostsFamilySwitch"/>)
+        /// takes it only then.</param>
+        void ForwardPlain(int token, float[] logitsOut, bool parked)
+            => Forward(new[] { token }, null, logitsOut, allLogitsRows: false);
+
+        /// <summary>True when <see cref="ForwardPlain"/> is genuinely cheaper than a
+        /// one-row <see cref="Forward"/> on this trunk (the model's own decode).</summary>
+        bool HasCheapPlainStep => false;
+
         /// <summary>Snapshot recurrent state before a verify batch.</summary>
         void SnapshotRecurrentState();
 
@@ -73,6 +95,25 @@ namespace TensorSharp.Runtime.Speculative
 
         public void Forward(int[] tokens, float[] hAllOut, float[] logitsOut, bool allLogitsRows)
             => _model.SpecForward(tokens, hAllOut, logitsOut, allLogitsRows);
+
+        private readonly int[] _plainToken = new int[1];
+
+        /// <summary>The model's own decode step - the same fused kernel the
+        /// non-speculative engine path runs - which on the linear cache advances
+        /// exactly like <see cref="ISpeculativeTarget.SpecForward"/> does.</summary>
+        public bool HasCheapPlainStep => _model.SpecPlainStepUsesForward;
+
+        public void ForwardPlain(int token, float[] logitsOut, bool parked)
+        {
+            _plainToken[0] = token;
+            if (!_model.SpecPlainStepUsesForward || (!parked && _model.SpecPlainStepCostsFamilySwitch))
+            {
+                _model.SpecForward(_plainToken, null, logitsOut, allLogitsRows: false);
+                return;
+            }
+            float[] logits = _model.Forward(_plainToken);
+            Array.Copy(logits, logitsOut, Math.Min(logits.Length, logitsOut.Length));
+        }
 
         public void SnapshotRecurrentState() => _model.SpecSnapshotRecurrentState();
 

@@ -110,6 +110,10 @@ public sealed class ModelDownloadManager : IDisposable
     private static readonly CatalogFileRole[] Optional =
     {
         CatalogFileRole.Projector,
+        // The speculative draft head (Gemma 4 E4B / 12B): listed in the catalog as
+        // optional since the start, fetched by nothing until it was wired to the
+        // engine (see SpeculationPolicy).
+        CatalogFileRole.Draft,
         CatalogFileRole.Lora,
         CatalogFileRole.TextEncoder,
         CatalogFileRole.Vae,

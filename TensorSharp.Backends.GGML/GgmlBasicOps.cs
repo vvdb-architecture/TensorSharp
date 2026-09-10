@@ -1549,6 +1549,10 @@ namespace TensorSharp.GGML
         /// <summary>True if the active GGML backend device is an integrated GPU (unified-memory iGPU).</summary>
         public static bool IsActiveDeviceIntegrated() => GgmlNative.IsActiveDeviceIntegrated();
         public static void SyncHostBuffer(IntPtr ptr, long byteCount) => GgmlNative.SyncHostBuffer(ptr, byteCount);
+        public static void SyncHostBufferRanges(IntPtr ptr, ReadOnlySpan<long> offsets, ReadOnlySpan<long> lengths)
+            => GgmlNative.SyncHostBufferRanges(ptr, offsets, lengths);
+        public static void UploadHostBufferRanges(IntPtr ptr, ReadOnlySpan<long> offsets, ReadOnlySpan<long> lengths)
+            => GgmlNative.UploadHostBufferRanges(ptr, offsets, lengths);
         public static void SetAsyncCompute(bool enabled) => GgmlNative.SetAsyncCompute(enabled);
         public static bool GetAsyncCompute() => GgmlNative.GetAsyncCompute();
 
@@ -3537,7 +3541,10 @@ namespace TensorSharp.GGML
             IntPtr pleProjNormData = default,
             int tpDegree = 1, IntPtr[] tpPlanOut = null,
             IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
-            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null,
+            IntPtr logitsData = default, int vocabSize = 0,
+            IntPtr lmHeadData = default, int lmHeadType = 0, long lmHeadNe0 = 0, long lmHeadNe1 = 0, long lmHeadBytes = 0,
+            IntPtr finalNormData = default, float logitSoftcap = 0f)
         {
             return GgmlNative.Gemma4ModelVerify(
                 hiddenData, hiddenSize, numLayers, numTokens,
@@ -3570,7 +3577,10 @@ namespace TensorSharp.GGML
                 pleProjNormData,
                 tpDegree, tpPlanOut,
                 gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
-                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr);
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr,
+                logitsData, vocabSize,
+                lmHeadData, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes,
+                finalNormData, logitSoftcap);
         }
 
         /// <summary>

@@ -49,14 +49,18 @@ namespace TensorSharp.Runtime.Grammar
     /// </remarks>
     public static class JsonSchemaGrammarCompiler
     {
-        /// <summary>Grammar for a single well-formed JSON object of any shape.</summary>
+        /// <summary>Grammar for a single well-formed JSON object of any shape.
+        /// A string character excludes the raw control characters (U+0000-U+001F,
+        /// U+007F) that RFC 8259 requires to be escaped - the same class llama.cpp's
+        /// json.gbnf uses. Without it a model could put a literal newline inside a
+        /// string and the "constrained" output would not parse.</summary>
         public const string JsonObjectGrammar = @"
 root   ::= object
 value  ::= object | array | string | number | boolean | null
 object ::= ""{"" ws ( string "":"" ws value ("","" ws string "":"" ws value)* )? ""}"" ws
 array  ::= ""["" ws ( value ("","" ws value)* )? ""]"" ws
 string ::= ""\"""" char* ""\"""" ws
-char   ::= [^""\\] | ""\\"" ([""\\bfnrt/] | ""u"" [0-9a-fA-F]{4})
+char   ::= [^""\\\x7F\x00-\x1F] | ""\\"" ([""\\bfnrt/] | ""u"" [0-9a-fA-F]{4})
 number ::= ""-""? ([0-9] | [1-9] [0-9]{0,15}) (""."" [0-9]{1,16})? ([eE] [-+]? [0-9]{1,3})? ws
 boolean::= (""true"" | ""false"") ws
 null   ::= ""null"" ws
@@ -70,7 +74,7 @@ value  ::= object | array | string | number | boolean | null
 object ::= ""{"" ws ( string "":"" ws value ("","" ws string "":"" ws value)* )? ""}"" ws
 array  ::= ""["" ws ( value ("","" ws value)* )? ""]"" ws
 string ::= ""\"""" char* ""\"""" ws
-char   ::= [^""\\] | ""\\"" ([""\\bfnrt/] | ""u"" [0-9a-fA-F]{4})
+char   ::= [^""\\\x7F\x00-\x1F] | ""\\"" ([""\\bfnrt/] | ""u"" [0-9a-fA-F]{4})
 number ::= ""-""? ([0-9] | [1-9] [0-9]{0,15}) (""."" [0-9]{1,16})? ([eE] [-+]? [0-9]{1,3})? ws
 boolean::= (""true"" | ""false"") ws
 null   ::= ""null"" ws
@@ -183,7 +187,7 @@ ws     ::= [ \t\n]{0,20}
                             _rules["string"] = "\"\\\"\" char* \"\\\"\" ws";
                             break;
                         case "char":
-                            _rules["char"] = "[^\"\\\\] | \"\\\\\" ([\"\\\\bfnrt/] | \"u\" [0-9a-fA-F]{4})";
+                            _rules["char"] = "[^\"\\\\\\x7F\\x00-\\x1F] | \"\\\\\" ([\"\\\\bfnrt/] | \"u\" [0-9a-fA-F]{4})";
                             break;
                         case "integer":
                             Primitive("ws");

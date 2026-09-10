@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp.Runtime.Paged;
+using TensorSharp.Runtime.Speculative;
 
 namespace TensorSharp.Runtime.Scheduling
 {
@@ -223,6 +224,22 @@ namespace TensorSharp.Runtime.Scheduling
         public void TrimIdleMemory()
         {
             _commands.Writer.TryWrite(new EngineCommand { Kind = EngineCommandKind.Trim });
+        }
+
+        /// <summary>
+        /// Switch the speculation policy for every step from now on - what a settings
+        /// switch does while a model is loaded, instead of waiting for the next load.
+        /// Queued like a trim and applied on the engine thread between steps; the
+        /// executor drops its armed contexts and re-arms under the new policy on the
+        /// next turn. Safe to call at any time; a no-op after disposal.
+        /// </summary>
+        public void UpdateSpeculation(SpeculationOptions options)
+        {
+            _commands.Writer.TryWrite(new EngineCommand
+            {
+                Kind = EngineCommandKind.Speculation,
+                Speculation = options ?? SpeculationOptions.Disabled,
+            });
         }
 
         public void Dispose()
@@ -590,6 +607,13 @@ namespace TensorSharp.Runtime.Scheduling
                     }
                     break;
 
+                case EngineCommandKind.Speculation:
+                    _executor.SetSpeculation(cmd.Speculation);
+                    _logger.LogInformation(
+                        "Speculation policy updated on the host's request: enabled={Enabled} algorithm={Algorithm} maxDraft={MaxDraft}",
+                        cmd.Speculation.Enabled, cmd.Speculation.SpeculatorName, cmd.Speculation.MaxDraftTokens);
+                    break;
+
                 case EngineCommandKind.Abort:
                     _scheduler.Abort(cmd.RequestId);
                     if (_model is Runtime.Scheduling.IBatchedPagedModel batchedAbort)
@@ -738,10 +762,11 @@ namespace TensorSharp.Runtime.Scheduling
             if (st == null || (st.VerifySteps + st.PlainSteps) == 0)
                 return;
             _logger.LogInformation(
-                "Speculative decoding stats for {RequestId}: drafted={Drafted} accepted={Accepted} acceptance={Acceptance:P0} verifySteps={VerifySteps} plainSteps={PlainSteps} rollbacks={Rollbacks} | phaseMs draft={DraftMs:F0} verify={VerifyMs:F0} snapshot={SnapshotMs:F0} rollback={RollbackMs:F0} catchUp={CatchUpMs:F0} plain={PlainMs:F0}",
+                "Speculative decoding stats for {RequestId}: drafted={Drafted} accepted={Accepted} acceptance={Acceptance:P0} verifySteps={VerifySteps} plainSteps={PlainSteps} rollbacks={Rollbacks} | phaseMs draft={DraftMs:F0} verify={VerifyMs:F0} snapshot={SnapshotMs:F0} rollback={RollbackMs:F0} catchUp={CatchUpMs:F0} plain={PlainMs:F0} | governor plain={GovPlain:F1}ms/tok spec={GovSpec:F1}ms/tok wins={GovWins} losses={GovLosses} parked={GovParked}",
                 seq.RequestId, st.TokensDrafted, st.TokensAccepted, st.AcceptanceRate,
                 st.VerifySteps, st.PlainSteps, st.RollbackSteps,
-                st.DraftMs, st.VerifyMs, st.SnapshotMs, st.RollbackMs, st.CatchUpMs, st.PlainMs);
+                st.DraftMs, st.VerifyMs, st.SnapshotMs, st.RollbackMs, st.CatchUpMs, st.PlainMs,
+                st.PlainMsPerToken, st.SpecMsPerToken, st.GovernorWins, st.GovernorLosses, st.GovernorParkedSteps);
         }
 
         private static long ComputeBlockByteSize(IModelArchitecture model, int blockSize)
@@ -796,6 +821,7 @@ namespace TensorSharp.Runtime.Scheduling
             public EngineCommandKind Kind;
             public SequenceState Sequence;
             public string RequestId;
+            public SpeculationOptions Speculation;
         }
 
         private enum EngineCommandKind
@@ -803,6 +829,7 @@ namespace TensorSharp.Runtime.Scheduling
             Submit,
             Abort,
             Trim,
+            Speculation,
         }
     }
 }

@@ -37,6 +37,7 @@
 // given (token, h), so the shared SpeculativeExecution core's draft/verify/rollback
 // loop drives it with only an attention-KV position rewind on rejection.
 using System;
+using System.Collections.Generic;
 using TensorSharp;
 using TensorSharp.Cuda;
 using TensorSharp.GGML;
@@ -94,11 +95,81 @@ namespace TensorSharp.Models
         /// CPU / MLX (no fused kernels AND no GPU-resident per-op path) stay off — there
         /// the verify can't keep up and the engine serves the fast standard decode.
         /// </summary>
-        // Gated on HasDraftHead as well as the backend because Gemma 4's
-        // SpecForward is not drafter-independent: it refuses to run without the
-        // MTP head (it shares the fused verify kernel with it), so a weight-free
-        // speculator has no trunk to verify with here.
-        public bool SpeculationProfitable => HasDraftHead && (IsGgmlBackend || _backend == BackendType.Cuda);
+        // The trunk side is drafter-independent: the multi-row verify is the same
+        // fused whole-model kernel the prefill runs, and the hidden-state capture
+        // is only filled when a speculator asks for it. So a weight-free drafter
+        // (n-gram) verifies on every Gemma 4 checkpoint, draft GGUF or not - which
+        // is what TensorAgent's tool loops need, since the assistant GGUF is an
+        // optional download there. The gate is the backend alone.
+        public bool SpeculationProfitable => IsGgmlBackend || _backend == BackendType.Cuda;
+
+        /// <summary>
+        /// Seven drafts, so a verify is EIGHT rows: the last row count ggml's
+        /// small-batch matmul kernels serve (ggml-metal's mul_mv_ext and ggml-cuda's
+        /// mul_mat_vec_q both take 2..8 rows); a ninth row tips every matmul in the
+        /// verify graph onto the large-batch path. Measured on E4B Q8_0 (M5 Pro,
+        /// Metal, 1.1k-token context, greedy, 160 tokens, plain 46 tok/s): window 8 ->
+        /// verify 89 ms, 69 tok/s with the draft head; window 7 -> 51 ms, 92 tok/s;
+        /// 5 -> 44 ms, 89 tok/s; 3 -> 38 ms, 80 tok/s. n-gram peaks at 5-7 (63-70
+        /// tok/s). Predominantly IQ4_XS dense models on Metal prefer two drafts because upstream ggml uses
+        /// independent matvecs for that format: longer windows spend more time
+        /// verifying rejected rows. Other formats retain the eight-row batch.
+        /// An explicit --spec-draft still wins.
+        /// </summary>
+        public int SpecPreferredDraftWindow
+        {
+            get
+            {
+                if (!IsGgmlBackend) return 0;
+                // Routed expert matrices use MUL_MAT_ID, which was unaffected
+                // by the missing IQ4_XS small-batch MUL_MAT optimization.
+                if (_backend == BackendType.GgmlMetal && _numExperts == 0)
+                    return SelectMetalSpecDraftWindow(_quantWeights, _weights, _hasTiedOutput);
+                return 7;
+            }
+        }
+
+        internal static int SelectMetalSpecDraftWindow(
+            IReadOnlyDictionary<string, QuantizedWeight> quantWeights,
+            IReadOnlyDictionary<string, Tensor> weights, bool hasTiedOutput)
+        {
+            var (iq4Bytes, matmulBytes) = MeasureMatmulWeightBytes(
+                quantWeights, weights, (int)GgmlTensorType.IQ4_XS, IsActiveMatrix);
+            return SelectMetalSpecDraftWindow(iq4Bytes, matmulBytes);
+
+            bool IsActiveMatrix(string name)
+            {
+                // Embedding-only tables do not run through MUL_MAT; the tied
+                // token table does when it supplies the LM head.
+                if (!name.StartsWith("blk.", StringComparison.Ordinal) && name != "output.weight" &&
+                    !(hasTiedOutput && name == "token_embd.weight"))
+                    return false;
+                const string gate = ".ffn_gate.weight", up = ".ffn_up.weight";
+                string suffix = name.EndsWith(gate, StringComparison.Ordinal) ? gate :
+                    name.EndsWith(up, StringComparison.Ordinal) ? up : null;
+                if (suffix == null)
+                    return true;
+                string fused = name[..^suffix.Length] + ".ffn_gate_up.weight";
+                return !quantWeights.ContainsKey(fused) && !weights.ContainsKey(fused);
+            }
+        }
+
+        // A small IQ4 PLE matrix in an otherwise Q8/F32 model should not change the
+        // default. Weight bytes approximate the verify's bandwidth cost; require
+        // IQ4 to account for at least half of the active matrix workload.
+        internal static int SelectMetalSpecDraftWindow(long iq4Bytes, long matmulBytes)
+            => iq4Bytes > 0 && iq4Bytes >= matmulBytes - iq4Bytes ? 2 : 7;
+
+        /// <summary>Both paths run the same fused decode kernel over the same
+        /// linear cache; Forward additionally folds the LM head into the graph,
+        /// which is what makes it the cheaper plain step (E2B: 12.3 ms against a
+        /// 15 ms one-row SpecForward).</summary>
+        public bool SpecPlainStepUsesForward => _mtpBatchedMode == false && IsGgmlBackend;
+
+        /// <summary>The linear-cache trunk reads whatever holder is bound (the same
+        /// arrays Forward uses), so a request served from a checkpoint clone or a
+        /// retained conversation holder speculates on it directly.</summary>
+        public bool SpecTrunkFollowsBoundCache => true;
 
         /// <summary>
         /// Load the Gemma 4 assistant (MTP draft) GGUF and attach it to this target
@@ -294,16 +365,38 @@ namespace TensorSharp.Models
         /// caches and _cacheSeqLen exactly like Forward(). Runs the per-op layer
         /// path (no model-wide fused decode) so every row's hidden state is available.
         /// </summary>
+        // Where a speculative trunk forward spends its time, by phase, for the
+        // multi-row (verify) calls only. TS_GMTP_PROFILE=1 prints a running summary
+        // to stderr every 16 verifies; the counters are always kept (one timestamp
+        // per phase per call), so a benchmark can read them without the print.
+        private static readonly bool s_specProfile =
+            Environment.GetEnvironmentVariable("TS_GMTP_PROFILE") == "1";
+        private long _specProfCalls, _specProfRows, _specProfEmbedTicks, _specProfKernelTicks,
+            _specProfPerOpTicks, _specProfHeadTicks, _specProfTotalTicks, _specProfPleGatherCalls;
+
+        /// <summary>One line: verify calls, rows, and ms per call by phase.</summary>
+        public string DescribeSpecProfile()
+        {
+            double ms(long t) => t * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+            long n = Math.Max(1, _specProfCalls);
+            return $"spec verify calls={_specProfCalls} rows/call={(double)_specProfRows / n:0.0} " +
+                   $"ms/call: total={ms(_specProfTotalTicks) / n:0.0} embed+ple={ms(_specProfEmbedTicks) / n:0.0} " +
+                   $"kernel={ms(_specProfKernelTicks) / n:0.0} perOp={ms(_specProfPerOpTicks) / n:0.0} " +
+                   $"norm+head+copy={ms(_specProfHeadTicks) / n:0.0} ple-gather={_specProfPleGatherCalls}";
+        }
+
         public unsafe void SpecForward(int[] tokens, float[] hAllOut, float[] logitsOut, bool allLogitsRows)
         {
-            if (!HasDraftHead)
-                throw new InvalidOperationException("Model has no Gemma 4 MTP draft head.");
-
+            // No draft-head requirement: nothing below reads the assistant weights.
+            // A weight-free speculator (n-gram) drives this trunk on any checkpoint.
             _mtpBatchedMode = false;   // this is the linear-cache trunk
             int seqLen = tokens.Length;
             int startPos = _cacheSeqLen;
             int hidden = Config.HiddenSize;
             EnsureCacheCapacity(startPos + seqLen);
+            bool profile = seqLen > 1;
+            long tProf0 = profile ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
+            long tProfKernel0 = 0, tProfKernel1 = 0, tProfPerOp0 = 0, tProfPerOp1 = 0, tProfHead0 = 0;
 
             // PROMPT PREFILL (not a decode verify): a large multi-token batch is a
             // prompt prefill, never a speculative verify window (those are <= K+1,
@@ -325,13 +418,30 @@ namespace TensorSharp.Models
                 return;
             }
 
+            // A verify window may be rejected in part; keep what its rows are about
+            // to evict from the sliding-window ring so SpecOnVerifyAccepted can put
+            // it back. Any other multi-row call (a kept-prefix re-forward) commits
+            // every row, and a single row evicts nothing the next step still reads.
+            _swaVerifyBackup = null;
+            if (allLogitsRows && seqLen > 1)
+                SaveSwaSlotsForVerify(startPos, seqLen);
+
             Tensor h = Embedding(tokens);
             ScaleEmbedding(h);
 
-            // Per-layer embeddings (PLE) for Gemma 4 E-series targets (e.g. E4B).
-            // Threaded into BOTH the fused trunk (the dense decode/verify kernels
-            // accept PLE) and the per-op fallback below.
-            Tensor perLayerInputs = _pleDim > 0 ? ComputePLE(tokens, h, seqLen) : null;
+            // The dense verify already supports the same resident PLE gather and
+            // projection used by prefill. Pass token IDs into that graph instead
+            // of dispatching each PLE operation separately and downloading its
+            // output merely to upload it again. Keep the managed PLE path for
+            // decode and unsupported forms, and materialize it lazily if the
+            // native verify declines the batch.
+            bool gatherPleInVerify = seqLen > 1 && _decodeArrays != null
+                && _canUseFusedFullModelDecode && !_kvCacheDtype.IsBlockQuantized()
+                && Environment.GetEnvironmentVariable("TS_GMTP_NO_FUSED") != "1"
+                && Environment.GetEnvironmentVariable("TS_GMTP_PLE_IN_KERNEL") != "0"
+                && CanGatherPleInKernel();
+            Tensor perLayerInputs = _pleDim > 0 && !gatherPleInVerify
+                ? ComputePLE(tokens, h, seqLen) : null;
 
             // Fused single-graph trunk: a verify batch (seqLen>1) runs through the
             // multi-token kernel (NativeGemma4ModelVerify), a plain step (seqLen==1)
@@ -372,6 +482,15 @@ namespace TensorSharp.Models
                 && _pleDim == 0 && _kvDonorMap.Count == 0
                 && (seqLen == 1 || seqLen < kFusedMoeVerifyMaxBatch);
             bool usedFused = false;
+            // A verify wants every row's logits: fold the output norm, the LM head
+            // and the softcap into the graph rather than running them per-op on
+            // the host side afterwards (13 ms of a 58 ms E4B verify).
+            bool foldHead = allLogitsRows && seqLen > 1 && logitsOut != null
+                && (long)logitsOut.Length >= (long)seqLen * Config.VocabSize
+                && CanFoldLmHead
+                && Environment.GetEnvironmentVariable("TS_GMTP_NO_FOLD_HEAD") != "1";
+            bool foldedHead = false;
+            if (profile) tProfKernel0 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (fusedDenseOk)
             {
                 RefreshDecodeArraysKvCache();
@@ -382,7 +501,10 @@ namespace TensorSharp.Models
                 }
                 else
                 {
-                    usedFused = NativeGemma4ModelVerify(h, startPos, seqLen, perLayerInputs);
+                    usedFused = NativeGemma4ModelVerify(h, startPos, seqLen, perLayerInputs,
+                        pleTokenIds: gatherPleInVerify ? tokens : null,
+                        foldLogitsOut: foldHead ? logitsOut : null);
+                    foldedHead = usedFused && foldHead;
                 }
             }
             else if (fusedMoeOk)
@@ -392,6 +514,7 @@ namespace TensorSharp.Models
                     ? TryFusedMoEModelDecode(h, startPos, null, out _)   // spec wants bare hidden (own norm+lm_head)
                     : TryFusedMoEModelVerify(h, startPos, seqLen);
             }
+            if (profile) tProfKernel1 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (usedFused)
             {
                 _kvCacheHostDirty = true;   // device write; draft re-syncs donor layers
@@ -400,8 +523,11 @@ namespace TensorSharp.Models
                 InvalidateTensorDeviceCache(h);
             }
 
+            if (profile) tProfPerOp0 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (!usedFused)
             {
+                if (gatherPleInVerify)
+                    perLayerInputs = ComputePLE(tokens, h, seqLen);
                 // Per-op fallback (past the SWA window, an unsupported model shape,
                 // or a PLE target). Processes the batch exactly like a normal
                 // prefill chunk so a verify batch is numerically a prefill of the
@@ -438,54 +564,89 @@ namespace TensorSharp.Models
                     DisposeSwaPrevWindows();
             }
             perLayerInputs?.Dispose();
-
-            // Post-output-norm hidden state for every row (h_nextn).
-            Ops.RMSNorm(h, h, _weights["output_norm.weight"], null, Config.Eps);
-
-            if (hAllOut != null)
+            if (profile)
             {
-                float* src = GetFloatPtr(h);
-                fixed (float* dst = hAllOut)
-                    Buffer.MemoryCopy(src, dst, (long)hAllOut.Length * 4, (long)seqLen * hidden * 4);
+                tProfPerOp1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                tProfHead0 = tProfPerOp1;
             }
 
-            string outputWeight = _hasTiedOutput ? "token_embd.weight" : "output.weight";
-            if (allLogitsRows)
+            if (foldedHead)
             {
-                Tensor logitsT = LinearForward(h, outputWeight);
+                // The graph already applied the output norm to every row (h holds
+                // them) and wrote the softcapped logits for all rows into logitsOut.
+                if (hAllOut != null)
+                {
+                    float* src = GetFloatPtr(h);
+                    fixed (float* dst = hAllOut)
+                        Buffer.MemoryCopy(src, dst, (long)hAllOut.Length * 4, (long)seqLen * hidden * 4);
+                }
                 h.Dispose();
-                if (_finalLogitSoftcap > 0f)
-                    ApplyLogitSoftcap(logitsT);
-                float* src = GetFloatPtr(logitsT);
-                fixed (float* dst = logitsOut)
-                    Buffer.MemoryCopy(src, dst, (long)logitsOut.Length * 4, (long)seqLen * Config.VocabSize * 4);
-                logitsT.Dispose();
             }
             else
             {
-                Tensor lastRow;
-                if (seqLen > 1)
+                // Post-output-norm hidden state for every row (h_nextn).
+                Ops.RMSNorm(h, h, _weights["output_norm.weight"], null, Config.Eps);
+
+                if (hAllOut != null)
                 {
-                    using var narrowed = h.Narrow(0, seqLen - 1, 1);
-                    lastRow = Ops.NewContiguous(narrowed);
+                    float* src = GetFloatPtr(h);
+                    fixed (float* dst = hAllOut)
+                        Buffer.MemoryCopy(src, dst, (long)hAllOut.Length * 4, (long)seqLen * hidden * 4);
+                }
+
+                string outputWeight = _hasTiedOutput ? "token_embd.weight" : "output.weight";
+                if (allLogitsRows)
+                {
+                    Tensor logitsT = LinearForward(h, outputWeight);
                     h.Dispose();
+                    if (_finalLogitSoftcap > 0f)
+                        ApplyLogitSoftcap(logitsT);
+                    float* src = GetFloatPtr(logitsT);
+                    fixed (float* dst = logitsOut)
+                        Buffer.MemoryCopy(src, dst, (long)logitsOut.Length * 4, (long)seqLen * Config.VocabSize * 4);
+                    logitsT.Dispose();
                 }
                 else
                 {
-                    lastRow = h;
+                    Tensor lastRow;
+                    if (seqLen > 1)
+                    {
+                        using var narrowed = h.Narrow(0, seqLen - 1, 1);
+                        lastRow = Ops.NewContiguous(narrowed);
+                        h.Dispose();
+                    }
+                    else
+                    {
+                        lastRow = h;
+                    }
+                    Tensor logitsT = LinearForward(lastRow, outputWeight);
+                    lastRow.Dispose();
+                    if (_finalLogitSoftcap > 0f)
+                        ApplyLogitSoftcap(logitsT);
+                    float* src = GetFloatPtr(logitsT);
+                    fixed (float* dst = logitsOut)
+                        Buffer.MemoryCopy(src, dst, (long)logitsOut.Length * 4, (long)Config.VocabSize * 4);
+                    logitsT.Dispose();
                 }
-                Tensor logitsT = LinearForward(lastRow, outputWeight);
-                lastRow.Dispose();
-                if (_finalLogitSoftcap > 0f)
-                    ApplyLogitSoftcap(logitsT);
-                float* src = GetFloatPtr(logitsT);
-                fixed (float* dst = logitsOut)
-                    Buffer.MemoryCopy(src, dst, (long)logitsOut.Length * 4, (long)Config.VocabSize * 4);
-                logitsT.Dispose();
             }
 
             _cacheSeqLen += seqLen;
             _forwardCount++;
+
+            if (profile)
+            {
+                long tEnd = System.Diagnostics.Stopwatch.GetTimestamp();
+                _specProfCalls++;
+                if (gatherPleInVerify && usedFused) _specProfPleGatherCalls++;
+                _specProfRows += seqLen;
+                _specProfEmbedTicks += tProfKernel0 - tProf0;
+                _specProfKernelTicks += tProfKernel1 - tProfKernel0;
+                _specProfPerOpTicks += tProfPerOp1 - tProfPerOp0;
+                _specProfHeadTicks += tEnd - tProfHead0;
+                _specProfTotalTicks += tEnd - tProf0;
+                if (s_specProfile && (_specProfCalls & 15) == 0)
+                    Console.Error.WriteLine($"[gemma4 spec] {DescribeSpecProfile()} fused={usedFused}");
+            }
         }
 
         // A spec trunk forward with more than this many tokens and no per-row logit
@@ -737,6 +898,203 @@ namespace TensorSharp.Models
         /// <summary>Gemma 4's draft head holds no KV of its own (it reads the
         /// target's), so there is nothing to replay — the no-op here is correct.</summary>
         public void DraftCatchUp(int[] tokens, float[] hRows, int startPos) { }
+
+        /// <summary>The Gemma 4 draft head keeps no state of its own: every draft
+        /// step reads the trunk's donor KV and the hidden state it is handed, so it
+        /// resumes at any trunk position - the turn after a reused prefix included.</summary>
+        public bool DraftHeadResumesAfterGap => true;
+
+        // ====================================================================
+        // Sliding-window ring protection for a rejected verify window.
+        //
+        // A verify writes every row's K/V at its true position, and a local (SWA)
+        // layer keeps exactly one window of positions in a circular cache: slot =
+        // position % W. Once the context has wrapped, row p+i therefore lands on
+        // the slot that held position p+i-W - and the token decoded right after a
+        // rollback still attends to that position whenever two or more rows were
+        // rejected (its window is [q-W+1, q] with q = p+m+1, and p+i-W >= q-W+1
+        // for every i >= m+2). Rewinding the position counter cannot bring those
+        // rows back; only a copy taken before the write can. Measured on E2B at a
+        // 900-token context: without this, the first decode after a rollback
+        // differed from plain decoding by 2.4-3.0 logits (scale 20) and greedy
+        // output diverged within a few tokens; under the window (nothing evicted)
+        // it agreed to 2e-3.
+        //
+        // The copy is small - the rejected rows of each non-shared SWA layer,
+        // ~16 KB per layer per verify - and moves only those byte ranges between
+        // the host mirror and the device copy (SyncHostBufferRanges /
+        // UploadHostBufferRanges), never the whole cache.
+        // ====================================================================
+        private sealed class SwaVerifyBackup
+        {
+            public int StartPos;
+            public int Rows;
+            public int FirstRow;          // first row index whose slot held a real position
+            public readonly List<SwaLayerBackup> Layers = new();
+        }
+
+        private sealed class SwaLayerBackup
+        {
+            public Tensor K, V;
+            public int CacheSize, KvHeads;
+            public long RowBytes;
+            public byte[] KBytes, VBytes;
+        }
+
+        private SwaVerifyBackup _swaVerifyBackup;
+
+        private void SaveSwaSlotsForVerify(int startPos, int rows)
+        {
+            if (rows <= 1 || _kvCacheK == null || _kvCacheSize == null)
+                return;
+            // The range moves are the ggml backends' (and the CPU's, where host memory
+            // is the cache). On the pure-C# CUDA backend the storage pointer is a whole
+            // device-to-host synchronisation of the cache per verify, which would cost
+            // more than speculation saves; that backend keeps its previous behaviour
+            // (an inexact window after a rejected verify past 512 tokens) until its
+            // rows can be saved on the device.
+            if (!IsGgmlBackend && _backend != BackendType.Cpu)
+                return;
+            int window = _slidingWindow;
+            if (window <= 0 || startPos + rows - 1 < window)
+                return;   // no row lands on a slot that holds a real position yet
+            int firstRow = Math.Max(1, window - startPos);
+            int count = rows - firstRow;
+            if (count <= 0)
+                return;
+
+            var backup = new SwaVerifyBackup { StartPos = startPos, Rows = rows, FirstRow = firstRow };
+            var seen = new HashSet<Tensor>();
+            for (int l = 0; l < Config.NumLayers; l++)
+            {
+                if (!IsLocalLayer(l) || _kvDonorMap.ContainsKey(l))
+                    continue;
+                Tensor k = _kvCacheK[l];
+                Tensor v = _kvCacheV[l];
+                if (k == null || v == null || !seen.Add(k))
+                    continue;
+                var layer = new SwaLayerBackup
+                {
+                    K = k,
+                    V = v,
+                    CacheSize = _kvCacheSize[l],
+                    KvHeads = KVHeadsForLayer(l),
+                    RowBytes = _kvCacheDtype.ByteLengthFor(HeadDimForLayer(l)),
+                };
+                if (layer.CacheSize <= 0)
+                    continue;
+                layer.KBytes = new byte[count * layer.KvHeads * layer.RowBytes];
+                layer.VBytes = new byte[count * layer.KvHeads * layer.RowBytes];
+                CopySwaSlots(layer, startPos + firstRow, count, layer.KBytes, layer.VBytes, toBackup: true);
+                backup.Layers.Add(layer);
+            }
+            if (backup.Layers.Count > 0)
+                _swaVerifyBackup = backup;
+        }
+
+        /// <inheritdoc />
+        public void SpecOnVerifyAccepted(int acceptedRows, int verifyRows)
+        {
+            SwaVerifyBackup backup = _swaVerifyBackup;
+            _swaVerifyBackup = null;
+            if (backup == null)
+                return;
+            // Rows 0..acceptedRows are kept (row 0 is the token the window started
+            // from); rows acceptedRows+1..verifyRows were rejected and their slots
+            // must hold what they held before the verify. When the executor will
+            // re-forward the kept prefix instead of keeping the verify's rows
+            // (SpecVerifyPersistsAcceptedKv false), the kept rows attend the positions
+            // THEIR slots evicted too, so every saved row goes back: the re-forward
+            // then rewrites the kept rows' slots with the same K/V the verify wrote.
+            int firstRejected = SpecVerifyPersistsAcceptedKv
+                ? Math.Max(backup.FirstRow, acceptedRows + 1)
+                : backup.FirstRow;
+            int lastRow = Math.Min(backup.Rows - 1, verifyRows);
+            int count = lastRow - firstRejected + 1;
+            if (count <= 0)
+                return;
+            int skip = firstRejected - backup.FirstRow;   // rows of the backup to skip
+            foreach (SwaLayerBackup layer in backup.Layers)
+            {
+                int stride = (int)(layer.KvHeads * layer.RowBytes);
+                var kSlice = new byte[count * stride];
+                var vSlice = new byte[count * stride];
+                for (int h = 0; h < layer.KvHeads; h++)
+                {
+                    // The backup is laid out [head][row]; take rows skip.. of each head.
+                    int savedRows = backup.Rows - backup.FirstRow;
+                    Array.Copy(layer.KBytes, ((long)h * savedRows + skip) * layer.RowBytes, kSlice, (long)h * count * layer.RowBytes, count * layer.RowBytes);
+                    Array.Copy(layer.VBytes, ((long)h * savedRows + skip) * layer.RowBytes, vSlice, (long)h * count * layer.RowBytes, count * layer.RowBytes);
+                }
+                CopySwaSlots(layer, backup.StartPos + firstRejected, count, kSlice, vSlice, toBackup: false);
+            }
+        }
+
+        /// <summary>
+        /// Move the K and V rows of positions [firstPos, firstPos+count) between the
+        /// cache tensors and a [head][row] byte image. Reading pulls the ranges down
+        /// from the device copy first; writing pushes them back up afterwards.
+        /// </summary>
+        private unsafe void CopySwaSlots(SwaLayerBackup layer, int firstPos, int count, byte[] kImage, byte[] vImage, bool toBackup)
+        {
+            int cacheSize = layer.CacheSize;
+            long rowBytes = layer.RowBytes;
+            // Contiguous slot runs per head: at most two (the run may cross the ring end).
+            var offsets = new List<long>(layer.KvHeads * 2);
+            var lengths = new List<long>(layer.KvHeads * 2);
+            for (int h = 0; h < layer.KvHeads; h++)
+            {
+                int slot0 = firstPos % cacheSize;
+                int n1 = Math.Min(count, cacheSize - slot0);
+                offsets.Add(((long)h * cacheSize + slot0) * rowBytes);
+                lengths.Add(n1 * rowBytes);
+                if (n1 < count)
+                {
+                    offsets.Add((long)h * cacheSize * rowBytes);
+                    lengths.Add((count - n1) * rowBytes);
+                }
+            }
+            Span<long> off = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(offsets);
+            Span<long> len = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(lengths);
+
+            IntPtr kBase = TensorComputePrimitives.GetStoragePointer(layer.K);
+            IntPtr vBase = TensorComputePrimitives.GetStoragePointer(layer.V);
+            if (toBackup && IsGgmlBackend)
+            {
+                GgmlBasicOps.SyncHostBufferRanges(kBase, off, len);
+                GgmlBasicOps.SyncHostBufferRanges(vBase, off, len);
+            }
+            byte* kp = (byte*)kBase;
+            byte* vp = (byte*)vBase;
+            fixed (byte* ki = kImage)
+            fixed (byte* vi = vImage)
+            {
+                for (int h = 0; h < layer.KvHeads; h++)
+                {
+                    for (int r = 0; r < count; r++)
+                    {
+                        int slot = (firstPos + r) % cacheSize;
+                        long cacheOff = ((long)h * cacheSize + slot) * rowBytes;
+                        long imageOff = ((long)h * count + r) * rowBytes;
+                        if (toBackup)
+                        {
+                            Buffer.MemoryCopy(kp + cacheOff, ki + imageOff, rowBytes, rowBytes);
+                            Buffer.MemoryCopy(vp + cacheOff, vi + imageOff, rowBytes, rowBytes);
+                        }
+                        else
+                        {
+                            Buffer.MemoryCopy(ki + imageOff, kp + cacheOff, rowBytes, rowBytes);
+                            Buffer.MemoryCopy(vi + imageOff, vp + cacheOff, rowBytes, rowBytes);
+                        }
+                    }
+                }
+            }
+            if (!toBackup && IsGgmlBackend)
+            {
+                GgmlBasicOps.UploadHostBufferRanges(kBase, off, len);
+                GgmlBasicOps.UploadHostBufferRanges(vBase, off, len);
+            }
+        }
 
         /// <summary>Pre-grow the trunk KV caches. Safe at any time for Gemma 4: the
         /// draft writes no MTP rows into the cache (it only reads the target's).

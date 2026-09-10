@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 
 #include <algorithm>
@@ -1193,7 +1194,9 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             // pool, which is what lets this graph survive prefills and holder
             // churn. Zero it: fattn reads masked-but-unwritten arena rows, and
             // recycled VRAM decodes as NaN which survives the -inf mask.
-            e.buffer = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            e.buffer = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, e.graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (e.buffer == nullptr)
                 return abort_build("failed to allocate the arena backend buffer.");
             ggml_backend_buffer_clear(e.buffer, 0);

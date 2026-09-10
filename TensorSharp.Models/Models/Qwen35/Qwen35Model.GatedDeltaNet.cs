@@ -1223,12 +1223,42 @@ namespace TensorSharp.Models
         // the next ResetKVCache. Spec is net-negative for this model anyway.
         internal void EnterSpecSession()
         {
+            // A transition, not a per-step latch: the invalidation below hard-drops
+            // the Metal decode graphs of EVERY holder, and it used to run on every
+            // speculative step.
+            if (_fdSpecSessionActive)
+                return;
             _fdSpecSessionActive = true;
+            // Metal keeps its decode graph across the switch (the next replay takes
+            // a reseed flag and uploads the host conv/delta state into its stable
+            // bindings); a grow or reset still hard-drops it. A hard drop here meant
+            // a graph rebuild every time a parked speculator went back to the fused
+            // decode.
             // Speculative paths may fall back to host/per-op recurrent kernels,
             // which invalidate the state buffers captured by the decode graph.
             // Speculation already latches fused decode off for the session, so
             // retaining that graph has no benefit and risks dangling bindings.
-            InvalidateFullDecodeState(hardBindings: true);
+            InvalidateFullDecodeState(hardBindings: _backend != BackendType.GgmlMetal);
+        }
+
+        /// <summary>
+        /// Leave the speculative session so the fused whole-model decode can run
+        /// again: the verify family may have left the recurrent state device-live in
+        /// its own slices, so settle it into the host mirrors first (the decode
+        /// graph re-seeds from them). Costs one state drain per family switch, which
+        /// happens at request boundaries, not per step. Until this existed the latch
+        /// held until the next KV reset, and on the TensorAgent path (one holder per
+        /// chat, never reset) that meant per-op decode for the rest of the process.
+        /// </summary>
+        internal void ExitSpecSession()
+        {
+            if (!_fdSpecSessionActive)
+                return;
+            DrainDeviceRecurrentState();
+            // The fused decode is about to move the state; the opt-in resident verify
+            // seed (TS_QWEN35_VERIFY_RESIDENT) would otherwise be reused stale.
+            _fvStateResident = false;
+            _fdSpecSessionActive = false;
         }
 
         /// <summary>
@@ -1362,8 +1392,9 @@ namespace TensorSharp.Models
             // shape. GDN recurrence and MoE top-K routing remain device-resident.
             if (!_fullDecodeEnabled)
                 return FdBail("disabled via TS_QWEN35_FULL_DECODE=0");
-            if (_fdSpecSessionActive)
-                return FdBail("speculative/MTP session active (host GDN state is authoritative)");
+            // A decode outside the speculative session ends it (the drain below and
+            // the re-seed make the host mirrors authoritative again).
+            ExitSpecSession();
             if (_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal
                 && _backend != BackendType.GgmlVulkan)
                 return FdBail($"backend {_backend} has no fused whole-model decode graph");
@@ -1876,12 +1907,14 @@ namespace TensorSharp.Models
             // switching graph families.
             if (_fdStateResident)
                 InvalidateFullDecodeState();
-            // A non-persist prefill may leave its current state in either half of
-            // the shared ping-pong buffer. Persistent verify graphs always bind
-            // their live input to half 0, so settle that state into the host mirror
-            // before crossing graph families; the ordinary final prefill chunk
-            // (last-row logits, seqLen > 1) remains zero-copy chained.
-            if (_fvDeviceStateCurrent && (seqLen == 1 || nLogitRows <= 0))
+            // Metal's verifier tracks which shared state half is authoritative,
+            // including after prefill and snapshot commits. It selects that half
+            // when building a graph and rejects cached graphs bound to the other
+            // half. Keep this chain on-device; draining here needlessly downloaded
+            // and re-uploaded every recurrent layer before each speculative step.
+            // Other backends retain their existing graph-family transition.
+            if (_backend != BackendType.GgmlMetal && _fvDeviceStateCurrent
+                && (seqLen == 1 || nLogitRows <= 0))
                 DrainDeviceRecurrentState();
 
             int n = Config.NumLayers;
@@ -2059,10 +2092,13 @@ namespace TensorSharp.Models
                     float* convIn = convInBase + (long)_fvGdnSlot[l] * convBlock;
                     float* convOut = convOutBase + (long)_fvGdnSlot[l] * convBlock;
                     IntPtr deltaPtr = (IntPtr)GetFloatPtr(_deltaStateTensor[l]);
-                    // Resident: the device buffer persists across calls, so only seed
-                    // (convert ring -> ggml + invalidate so the cacheable bind re-uploads)
-                    // on the first call / after an invalidation. Host mode seeds every call.
-                    if (!residentThisCall || !_fvStateResident)
+                    // Seed from the host only when it is authoritative. A current
+                    // Metal verify state lives in the native shared slices, so the
+                    // host ring may be stale and its packing/upload is unnecessary.
+                    // The separate experimental resident mode still seeds on its
+                    // first call and after invalidation.
+                    if (!(_backend == BackendType.GgmlMetal && _fvDeviceStateCurrent)
+                        && (!residentThisCall || !_fvStateResident))
                     {
                         float[] ring = _convState[l];
                         int w = _convStateWriteIdx[l];

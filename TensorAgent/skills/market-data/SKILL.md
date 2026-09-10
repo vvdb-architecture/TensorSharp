@@ -1,6 +1,6 @@
 ---
 name: market-data
-description: Look up current share prices from a structured market endpoint rather than by reading web pages - the day's biggest gainers, losers and most-traded shares, or a quote for named symbols. Returns typed, ranked rows with price, change, percentage and volume, and can write them straight into a slide-deck spec. Use whenever the request is about stock or share prices, market movers, tickers, or "what is X trading at". Needs the app's Network switch to be on; no API key.
+description: Use only for current stock/share prices, ticker quotes, and financial market movers (gainers, losers, most-traded shares). Needs the app's Network switch on; no API key.
 ---
 
 # Market data

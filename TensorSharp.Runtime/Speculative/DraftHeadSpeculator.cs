@@ -112,6 +112,16 @@ namespace TensorSharp.Runtime.Speculative
 
         public bool HandlesOwnPrefill => _head.DraftSelfCatchUp;
 
+        /// <summary>
+        /// A head that keeps per-position state of its own (a NextN/MTP block with
+        /// its own KV cache) cannot start drafting after trunk positions it never
+        /// replayed, so a request that adopted a KV prefix decodes plainly. A head
+        /// that keeps none - it reads the trunk's cache and the trunk hidden state
+        /// handed to it - can start at any position, and in a chat EVERY turn after
+        /// the first adopts a prefix. See <see cref="IDraftHead.DraftHeadResumesAfterGap"/>.
+        /// </summary>
+        public bool CanArmAfterPrefixReuse => _head.DraftHeadResumesAfterGap;
+
         public int Propose(in DraftContext ctx, List<int> draftOut)
         {
             float[] hIn = ctx.CarryHidden;

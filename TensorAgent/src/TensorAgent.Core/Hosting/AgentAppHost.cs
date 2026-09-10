@@ -28,6 +28,7 @@ using TensorSharp.GGML;
 using TensorSharp.Runtime.Scheduling;
 using TensorSharp.Server;
 using TensorSharp.Server.Hosting;
+using TensorSharp.Runtime.Speculative;
 using TensorAgent.Sharing;
 
 namespace TensorAgent.Core.Hosting;
@@ -414,6 +415,93 @@ public sealed class AgentAppHost : IDisposable
         Server.Start();
         LoadSelectedModelInBackground();
     }
+
+    // ---- coming back to the foreground -----------------------------------------
+    //
+    // iOS reclaims the sockets of a suspended app, listening socket included, and the
+    // managed HttpListener cannot tell (see LoopbackServer.EnsureListeningAsync). The
+    // page then gets "Load failed" on every request while the host is perfectly healthy
+    // -- the turn resumes, the gate opens, nothing is logged -- and the only thing the
+    // user could do about it was force-quit. This is the host's half of the answer:
+    // probe the listener as the app comes back, rebuild it if it is dead, write down
+    // what was found, and tell whoever owns the WebView so the page can be nudged (or,
+    // if the port had to change, reloaded).
+
+    /// <summary>What <see cref="OnForegroundAsync"/> found and did.</summary>
+    /// <param name="Listener">The listener's state after the check.</param>
+    /// <param name="Detail">Why, in the words the trace uses.</param>
+    /// <param name="Port">The loopback port in force afterwards.</param>
+    /// <param name="EntryUrlChanged">True when the page's origin moved and the WebView must be navigated to <see cref="EntryUrl"/> again.</param>
+    public sealed record ForegroundReport(
+        LoopbackServer.ListenerHealth Listener, string Detail, int Port, TimeSpan Elapsed, bool EntryUrlChanged);
+
+    /// <summary>
+    /// Raised after every <see cref="OnForegroundAsync"/>, on the thread that ran it.
+    /// The WebView's owner uses it to nudge the page once the transport is known good.
+    /// </summary>
+    public event Action<ForegroundReport>? ForegroundChecked;
+
+    /// <summary>
+    /// Raised when the loopback server had to move to another port, with the new
+    /// <see cref="EntryUrl"/>. The page's origin, and so its token cookie, are gone with
+    /// the old port: the WebView has to be navigated to the new URL.
+    /// </summary>
+    public event Action<string>? EntryUrlChanged;
+
+    /// <summary>How many times the listener was found dead and rebuilt this launch.</summary>
+    public int ListenerRestarts => Server.Restarts;
+
+    /// <summary>
+    /// The app is coming back in front of the user: make sure the page can reach the
+    /// host. Cheap on a healthy listener (one loopback round trip), and the only path
+    /// that repairs a reclaimed one. Never throws.
+    /// </summary>
+    public async Task<ForegroundReport> OnForegroundAsync(CancellationToken cancellationToken = default)
+    {
+        string entryBefore = EntryUrl;
+        LoopbackServer.ListenerReport listener;
+        try
+        {
+            listener = await Server.EnsureListeningAsync(ListenerProbeTimeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            listener = new LoopbackServer.ListenerReport(
+                LoopbackServer.ListenerHealth.Failed, ex.GetType().Name + ": " + ex.Message, Server.Port, TimeSpan.Zero);
+        }
+        bool moved = !string.Equals(entryBefore, EntryUrl, StringComparison.Ordinal);
+
+        TraceBackground(listener.Health switch
+        {
+            LoopbackServer.ListenerHealth.Alive => $"foreground: loopback listener alive ({listener.Detail})",
+            LoopbackServer.ListenerHealth.Restarted => $"foreground: loopback listener DEAD; {listener.Detail}",
+            LoopbackServer.ListenerHealth.Relisted => $"foreground: loopback listener DEAD; {listener.Detail}; the page will be reloaded at {EntryUrl}",
+            _ => $"foreground: loopback listener FAILED; {listener.Detail}",
+        });
+        if (listener.Health != LoopbackServer.ListenerHealth.Alive)
+        {
+            _loggerFactory.CreateLogger("TensorAgent.Loopback").LogWarning(
+                "the loopback listener was {Health} on returning to the foreground: {Detail}", listener.Health, listener.Detail);
+        }
+
+        var report = new ForegroundReport(listener.Health, listener.Detail, Server.Port, listener.Elapsed, moved);
+        if (moved)
+        {
+            try { EntryUrlChanged?.Invoke(EntryUrl); }
+            catch (Exception ex) { TraceBackground("foreground: the entry-url listener threw: " + ex.Message); }
+        }
+        try { ForegroundChecked?.Invoke(report); }
+        catch (Exception ex) { TraceBackground("foreground: a listener threw: " + ex.Message); }
+        return report;
+    }
+
+    /// <summary>
+    /// How long the foreground probe waits for the listener to answer. Generous for a
+    /// loopback round trip because it runs the instant the app wakes, when every thread
+    /// pool thread is also waking; a dead listener refuses immediately, so the budget is
+    /// only ever spent on a slow live one.
+    /// </summary>
+    public TimeSpan ListenerProbeTimeout { get; set; } = TimeSpan.FromSeconds(3);
 
     /// <summary>
     /// Import durable envelopes left by the share extension. A claimed directory is
@@ -1322,6 +1410,31 @@ public sealed class AgentAppHost : IDisposable
     /// </summary>
     private static string? ErrorIn(object? frame) => PropertyIn(frame, "error", ErrorProperties);
 
+    /// <summary>A named string property of a chat frame (an anonymous object), or null.</summary>
+    internal static string? StringIn(object? frame, string name) => ValueIn(frame, name) as string;
+
+    /// <summary>A named property of a chat frame, boxed, or null when absent.</summary>
+    internal static object? ValueIn(object? frame, string name)
+        => frame?.GetType().GetProperty(name)?.GetValue(frame);
+
+    internal static int IntIn(object? frame, string name) => ValueIn(frame, name) switch
+    {
+        int i => i,
+        long l => (int)Math.Clamp(l, int.MinValue, int.MaxValue),
+        double d => (int)d,
+        _ => 0,
+    };
+
+    internal static double DoubleIn(object? frame, string name) => ValueIn(frame, name) switch
+    {
+        double d => d,
+        float f => f,
+        int i => i,
+        long l => l,
+        decimal m => (double)m,
+        _ => 0,
+    };
+
     private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> TokenProperties = new();
     private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> ReplaceProperties = new();
     private static readonly Dictionary<Type, System.Reflection.PropertyInfo?> ErrorProperties = new();
@@ -1886,7 +1999,55 @@ public sealed class AgentAppHost : IDisposable
 
         Options.RepointSandboxPermissions(settings.AllowCodeExecution, settings.AllowNetwork);
         Options.RepointSkills(settings.SkillsEnabled);
+        ApplySpeculationSetting(settings);
         _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation("settings applied: {Engine}", DescribeEngine());
+    }
+
+    /// <summary>
+    /// The speculative-decoding switch, applied to the engine that is standing: the
+    /// policy goes into the environment (where the next engine reads it) AND to the
+    /// current engine, which drops its armed drafters and follows the new policy on
+    /// the next turn. Without the second half the switch would only mean something
+    /// at the next model load, which is exactly the kind of setting nobody can tell
+    /// is inert. The draft head is the selected model's, when it is downloaded.
+    /// </summary>
+    /// <summary>True when the loaded model carries a usable draft head.</summary>
+    public bool DraftHeadAttached => ModelService.Model is IDraftHead { HasDraftHead: true };
+
+    /// <summary>
+    /// Switch speculation on or off for the running engine without touching the saved
+    /// settings - what the on-device benchmark does between its passes. Returns a
+    /// one-line account for the log.
+    /// </summary>
+    internal string SetSpeculationEnabled(bool enabled)
+    {
+        AppSettings settings = Settings.Load();
+        settings.SpeculativeDecoding = enabled;
+        return ApplySpeculationSetting(settings);
+    }
+
+    internal string ApplySpeculationSetting(AppSettings settings)
+    {
+        CatalogModel? model = settings.SelectedModelId is { Length: > 0 } id ? ModelCatalog.Find(id) : null;
+        string? draftHead = model is null ? null : Models.CompanionPath(model, CatalogFileRole.Draft);
+        string note = SpeculationPolicy.PrepareLoad(settings, draftHead);
+        bool draftAttached = ModelService.Model is IDraftHead { HasDraftHead: true };
+        string algorithm = SpeculationPolicy.ChooseAlgorithm(draftAttached);
+        bool live = ModelService.EngineHost.UpdateSpeculation(SpeculationOptions.FromEnvironment());
+        string account = $"{note}; algorithm {algorithm}; {(live ? "applied to the running engine" : "no engine standing, applies at the next load")}";
+        HostLog.LogInformation("{Speculation}", account);
+        return account;
+    }
+
+    private int _speculationBenchStarted;
+
+    /// <summary>Start the on-device plain-vs-speculative benchmark once, when the
+    /// launch environment asks for it (see <see cref="SpeculationBench"/>).</summary>
+    private void StartSpeculationBenchIfRequested()
+    {
+        if (!SpeculationBench.Requested || Interlocked.Exchange(ref _speculationBenchStarted, 1) != 0)
+            return;
+        _ = Task.Run(() => new SpeculationBench(this).RunAsync(CancellationToken.None));
     }
 
     /// <summary>
@@ -2270,6 +2431,12 @@ public sealed class AgentAppHost : IDisposable
 
                 EngineMemoryPolicy.Apply(model, settings);
 
+                // Speculative decoding, and the draft head that makes it best: the
+                // catalog's optional companion, handed to the loader the way the CLI's
+                // --draft-model is. Before the load for the same reason as the budget.
+                string? draftHead = Models.CompanionPath(model, CatalogFileRole.Draft);
+                HostLog.LogInformation("{Model}: {Speculation}", model.Id, SpeculationPolicy.PrepareLoad(settings, draftHead));
+
                 // The entry's own card values, for the same reason and in the same place.
                 // CatalogModel.Sampling was written for every entry and read by nothing, so
                 // every model was sampled at the built-in Ollama-compatible default
@@ -2297,8 +2464,15 @@ public sealed class AgentAppHost : IDisposable
                     try
                     {
                         ModelService.LoadModel(weights, projector, backend.Value);
+                        // The engine is built after this, so the algorithm it reads is
+                        // decided here, from whether the draft head really attached.
+                        bool draftAttached = ModelService.Model is IDraftHead { HasDraftHead: true };
+                        string algorithm = SpeculationPolicy.ChooseAlgorithm(draftAttached);
+                        if (draftHead is not null && !draftAttached)
+                            HostLog.LogWarning("{Model}: the draft head {File} did not attach ({Reason}); speculating with {Algorithm} instead",
+                                model.Id, Path.GetFileName(draftHead), ModelService.DraftHeadActivationError ?? "no reason given", algorithm);
                         _loggerFactory.CreateLogger("TensorAgent.Host").LogInformation(
-                            "using {Model} on {Backend}", model.Id, backend.Value);
+                            "using {Model} on {Backend} (speculation: {Algorithm})", model.Id, backend.Value, algorithm);
                         LogMemory($"after loading {model.Id}");
                         SetModelLoad(ModelLoadState.Loaded, null);
                         loaded = backend.Value;
@@ -2330,6 +2504,7 @@ public sealed class AgentAppHost : IDisposable
         // was the same mistake wearing a different hat.
         if (warmAfterwards)
             WarmThePrefixCache();
+        StartSpeculationBenchIfRequested();
         return loaded;
     }
 

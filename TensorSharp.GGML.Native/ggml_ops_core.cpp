@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 
 #if defined(TSG_GGML_USE_METAL)
 #include "ggml-backend-impl.h"
@@ -40,6 +41,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <thread>
 
 // ============================================================================
@@ -1866,7 +1868,7 @@ namespace tsg
 #endif
     }
 
-    bool alloc_ctx_tensors_reuse(ggml_context* ctx)
+    bool alloc_ctx_tensors_reuse(ggml_context* ctx, ggml_cgraph* graph)
     {
         // Escape hatch for A/B testing / regression isolation.
         static const bool s_disabled = []() {
@@ -1883,8 +1885,9 @@ namespace tsg
         if (buft == nullptr)
             return false;
 
-        const std::size_t needed = ggml_backend_alloc_ctx_tensors_from_buft_size(ctx, buft);
-        if (needed == 0)
+        const bool reuse_attention = graph != nullptr && g_backend_type == BACKEND_TYPE_METAL;
+        const std::size_t needed = reuse_attention ? 0 : ggml_backend_alloc_ctx_tensors_from_buft_size(ctx, buft);
+        if (!reuse_attention && needed == 0)
             return true; // every tensor already has a buffer (all inputs pre-bound)
 
         const std::size_t max_size = ggml_backend_buft_get_max_size(buft);
@@ -1903,36 +1906,49 @@ namespace tsg
             g_reuse_compute_backend = g_backend;
         }
 
-        if (g_reuse_compute_buf == nullptr || g_reuse_compute_size < needed)
+        // The optional graph-aware planner supplies its actual packed size to
+        // this same retained-buffer policy. Ordinary tensors still have unique
+        // slots, and only completed attention workspaces may share addresses.
+        const auto acquire_buffer = [&](std::size_t required_bytes) -> ggml_backend_buffer_t
         {
-            // Grow with slack rounded up to a 64 MiB boundary. The graph's
-            // intermediate footprint creeps up by sub-MB amounts every decode step
-            // (the attention scratch scales with the growing context), so allocating
-            // exactly `needed` reallocates the buffer on EVERY step. On Metal each
-            // realloc frees+allocs a multi-hundred-MB shared (vm_allocate) buffer;
-            // doing that hundreds of times fragments the device VM until a large
-            // contiguous allocation (e.g. the MTP verify graph) can no longer be
-            // satisfied -> kIOGPUCommandBufferCallbackErrorOutOfMemory even though
-            // total free bytes remain. Rounding to 64 MiB makes the buffer grow in
-            // rare, big steps and be reused unchanged across thousands of decodes.
-            std::size_t alloc_size = needed;
-            const std::size_t slab = static_cast<std::size_t>(64) * 1024 * 1024;
-            alloc_size = ((alloc_size + slab - 1) / slab) * slab;
-            if (alloc_size > max_size) alloc_size = max_size; // never exceed a single buffer
-            if (alloc_size < needed) alloc_size = needed;
-            if (g_reuse_compute_buf != nullptr)
-                ggml_backend_buffer_free(g_reuse_compute_buf);
-            g_reuse_compute_buf = ggml_backend_buft_alloc_buffer(buft, alloc_size);
-            if (g_reuse_compute_buf == nullptr)
+            if (required_bytes > max_size)
+                return nullptr;
+            if (g_reuse_compute_buf == nullptr || g_reuse_compute_size < required_bytes)
             {
-                g_reuse_compute_size = 0;
-                return false;
+                // Grow with slack rounded up to a 64 MiB boundary. The graph's
+                // intermediate footprint creeps up by sub-MB amounts every decode step
+                // (the attention scratch scales with the growing context), so allocating
+                // exactly `required_bytes` reallocates the buffer on EVERY step. On Metal each
+                // realloc frees+allocs a multi-hundred-MB shared (vm_allocate) buffer;
+                // doing that hundreds of times fragments the device VM until a large
+                // contiguous allocation (e.g. the MTP verify graph) can no longer be
+                // satisfied -> kIOGPUCommandBufferCallbackErrorOutOfMemory even though
+                // total free bytes remain. Rounding to 64 MiB makes the buffer grow in
+                // rare, big steps and be reused unchanged across thousands of decodes.
+                std::size_t alloc_size = required_bytes;
+                const std::size_t slab = static_cast<std::size_t>(64) * 1024 * 1024;
+                alloc_size = ((alloc_size + slab - 1) / slab) * slab;
+                if (alloc_size > max_size) alloc_size = max_size; // never exceed a single buffer
+                if (alloc_size < required_bytes) alloc_size = required_bytes;
+                if (g_reuse_compute_buf != nullptr)
+                    ggml_backend_buffer_free(g_reuse_compute_buf);
+                g_reuse_compute_buf = ggml_backend_buft_alloc_buffer(buft, alloc_size);
+                if (g_reuse_compute_buf == nullptr)
+                {
+                    g_reuse_compute_size = 0;
+                    return nullptr;
+                }
+                g_reuse_compute_size = alloc_size;
+                ggml_backend_buffer_set_usage(g_reuse_compute_buf, GGML_BACKEND_BUFFER_USAGE_COMPUTE);
+                if (vram_log_enabled())
+                    vram_log("reuse-compute-buf(grew)", static_cast<std::int64_t>(alloc_size));
             }
-            g_reuse_compute_size = alloc_size;
-            ggml_backend_buffer_set_usage(g_reuse_compute_buf, GGML_BACKEND_BUFFER_USAGE_COMPUTE);
-            if (vram_log_enabled())
-                vram_log("reuse-compute-buf(grew)", static_cast<std::int64_t>(alloc_size));
-        }
+            return g_reuse_compute_buf;
+        };
+        if (reuse_attention)
+            return alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend, acquire_buffer) != nullptr;
+        if (acquire_buffer(needed) == nullptr)
+            return false;
 
         // Re-pack this graph's unallocated tensors into the cached buffer. Mirrors
         // ggml-alloc.c's alloc_tensor_range exactly (the size query above used the
@@ -2774,6 +2790,15 @@ namespace tsg
 
     ggml_status graph_compute_profiled(ggml_backend_t backend, ggml_cgraph* graph, const char* tag)
     {
+        // TS_GGML_NODE_PROFILE_TAG=<substring> profiles only the graphs whose tag
+        // contains it (e.g. "verify"), so a decode-dominated run does not bury
+        // the graph of interest; the others run unprofiled.
+        {
+            static const char* want = std::getenv("TS_GGML_NODE_PROFILE_TAG");
+            if (want != nullptr && want[0] != '\0' && graph_node_profile_enabled()
+                && (tag == nullptr || std::strstr(tag, want) == nullptr))
+                return tsg::compute_graph(backend, graph);
+        }
         // TSG debug: identify the backend object actually executing graphs.
         { static int tsg_dbg_n = 0;
           if (tsg_dbg_n < 4) { tsg_dbg_n++;
@@ -2825,14 +2850,14 @@ namespace tsg
             std::vector<std::pair<std::string, NodeProfileBucket>> sorted(s.buckets.begin(), s.buckets.end());
             std::sort(sorted.begin(), sorted.end(),
                       [](const auto& a, const auto& b) { return a.second.us > b.second.us; });
-            std::printf("[node-profile] %s: %lld graphs x %d nodes, %.3f ms/graph (profiled, includes a synchronize per node)\n",
+            std::fprintf(stderr, "[node-profile] %s: %lld graphs x %d nodes, %.3f ms/graph (profiled, includes a synchronize per node)\n",
                         tag != nullptr ? tag : "graph",
                         static_cast<long long>(s.graphs), s.nodes,
                         s.total_us / 1000.0 / static_cast<double>(s.graphs));
             for (std::size_t i = 0; i < sorted.size() && i < 16; i++)
             {
                 const NodeProfileBucket& b = sorted[i].second;
-                std::printf("    %-18s %8.3f ms/graph  %6.1f%%  %6lld nodes/graph  worst %s\n",
+                std::fprintf(stderr, "    %-18s %8.3f ms/graph  %6.1f%%  %6lld nodes/graph  worst %s\n",
                             sorted[i].first.c_str(),
                             b.us / 1000.0 / static_cast<double>(s.graphs),
                             100.0 * b.us / s.total_us,
@@ -3516,6 +3541,107 @@ TSG_EXPORT int TSGgml_SyncHostBuffer(void* ptr, size_t size)
         return 1;
     }
     set_last_error("Failed to synchronize cached GGML device buffer back to host memory.");
+    return 0;
+}
+
+// Range variants of TSGgml_SyncHostBuffer / re-upload, for a caller that edits a
+// FEW rows of a large cached tensor on the host - Gemma 4 restoring the sliding-
+// window rows a rejected speculative verify evicted. The whole-buffer pair
+// (sync everything down, invalidate, re-upload everything on the next bind)
+// moved the entire K/V cache for a 16 KB edit; these move only the ranges. A
+// tensor with no device copy (a zero-copy host wrap, or a CPU backend) needs
+// nothing: its host memory IS what the device reads.
+static bool cached_buffer_ranges(void* base, const std::int64_t* offsets, const std::int64_t* lengths, int count, bool to_host)
+{
+    if (base == nullptr || count <= 0)
+        return true;
+
+    ggml_backend_buffer_t buffer = nullptr;
+    tsg::CachedBufferMode mode = tsg::CachedBufferMode::HostPtr;
+    std::size_t cached_bytes = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_host_buffer_cache_mutex);
+        auto it = g_host_buffer_cache.find(base);
+        if (it == g_host_buffer_cache.end())
+            return true;
+        buffer = it->second.buffer;
+        mode = it->second.mode;
+        cached_bytes = it->second.bytes;
+    }
+    if (mode != tsg::CachedBufferMode::DeviceCopy || buffer == nullptr)
+        return true;
+
+    for (int i = 0; i < count; ++i)
+    {
+        if (offsets[i] < 0 || lengths[i] < 0 ||
+            static_cast<std::size_t>(offsets[i] + lengths[i]) > cached_bytes)
+        {
+            // The cached copy belongs to a previous, smaller occupant of this host
+            // address (a K/V resize); the next bind rebuilds it from host memory.
+            return true;
+        }
+    }
+
+    tsg::PooledContextHandle context;
+    if (!context.init(64 * 1024))
+        return false;
+    ggml_tensor* tensor = ggml_new_tensor_1d(context.value, GGML_TYPE_I8, static_cast<std::int64_t>(cached_bytes));
+    if (tensor == nullptr)
+        return false;
+    void* addr = ggml_backend_buffer_get_base(buffer);
+    if (addr == nullptr)
+        return false;
+    if (ggml_backend_tensor_alloc(buffer, tensor, addr) != GGML_STATUS_SUCCESS)
+        return false;
+
+    // Pending GPU work may still be writing (or reading) this buffer; drain it
+    // before touching the bytes either way.
+    tsg::host_read_barrier();
+    for (int i = 0; i < count; ++i)
+    {
+        if (lengths[i] == 0)
+            continue;
+        char* host = static_cast<char*>(base) + offsets[i];
+        if (to_host)
+            ggml_backend_tensor_get(tensor, host, static_cast<std::size_t>(offsets[i]), static_cast<std::size_t>(lengths[i]));
+        else
+            ggml_backend_tensor_set(tensor, host, static_cast<std::size_t>(offsets[i]), static_cast<std::size_t>(lengths[i]));
+    }
+    tsg::sync_backend(g_backend);
+    return true;
+}
+
+TSG_EXPORT int TSGgml_SyncHostBufferRanges(void* ptr, const std::int64_t* offsets, const std::int64_t* lengths, int count)
+{
+    bool ok = true;
+    for (int r = 0; r < tsg::g_device_count.load(std::memory_order_acquire); ++r)
+    {
+        tsg::ScopedRank rank(r);
+        ok &= cached_buffer_ranges(ptr, offsets, lengths, count, /*to_host=*/true);
+    }
+    if (ok)
+    {
+        clear_last_error();
+        return 1;
+    }
+    set_last_error("Failed to synchronize a range of a cached GGML device buffer back to host memory.");
+    return 0;
+}
+
+TSG_EXPORT int TSGgml_UploadHostBufferRanges(void* ptr, const std::int64_t* offsets, const std::int64_t* lengths, int count)
+{
+    bool ok = true;
+    for (int r = 0; r < tsg::g_device_count.load(std::memory_order_acquire); ++r)
+    {
+        tsg::ScopedRank rank(r);
+        ok &= cached_buffer_ranges(ptr, offsets, lengths, count, /*to_host=*/false);
+    }
+    if (ok)
+    {
+        clear_last_error();
+        return 1;
+    }
+    set_last_error("Failed to upload a range of host memory into a cached GGML device buffer.");
     return 0;
 }
 

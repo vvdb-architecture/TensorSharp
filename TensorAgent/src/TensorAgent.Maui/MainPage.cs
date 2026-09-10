@@ -854,6 +854,19 @@ public sealed class MainPage : ContentPage
             // was silently refused, which is exactly the bug being tested for, produced
             // by the harness instead of by the product. Polling refreshModel() is both
             // the correct wait and a direct exercise of the fix.
+            // The HOST's word first: /api/models says "loaded" the moment the text
+            // weights are in, while the projector is still being read and the warm-up
+            // has not run. A send in that window is the harness racing the load, not
+            // the product; wait for the load to settle, and -- for the page check,
+            // whose turn must be the only one -- for the warm-up too.
+            Core.Hosting.AgentAppHost app = _host.App;
+            for (int i = 0; i < 600 && app.ModelLoad == Core.Hosting.AgentAppHost.ModelLoadState.Loading; i++)
+                await Task.Delay(500);
+            if (string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_PAGE_BACKGROUND_CHECK"), "1", StringComparison.Ordinal))
+            {
+                for (int i = 0; i < 180 && app.ModelLoad == Core.Hosting.AgentAppHost.ModelLoadState.Loaded && !app.PrefixCacheIsWarm; i++)
+                    await Task.Delay(500);
+            }
             bool ready = false;
             for (int i = 0; i < 60 && !ready; i++)
             {
@@ -868,18 +881,38 @@ public sealed class MainPage : ContentPage
             }
             Console.WriteLine($"TensorAgent: demo prompt sees a loaded model = {ready}");
             if (!ready)
+            {
+                // Into the trace as well: a device launch captures no stdout, so this
+                // used to end as eight minutes of silence and 'no turn started'.
+                _host.App.TraceBackground(
+                    "pagecheck FAIL the page never saw a loaded model, so nothing was sent"
+                    + $" (host says {app.ModelLoad}{(app.ModelLoadError is { Length: > 0 } why ? ": " + why : string.Empty)})");
                 return;
+            }
 
             // Through the page's own bridge, not through the desktop page's globals.
             // This used to write into #message-input and call sendMessage(), which are
             // TensorSharp.Server's page; the app has had its own since, so the hook was
             // typing into an element that does not exist and the "demo prompt sent"
             // line was printed for a prompt nobody received.
-            string js =
-                "document.getElementById('text').value = " + JsonSerializer.Serialize(prompt) + ";"
-                + "window.TensorAgent.send(); true";
-            await _webView.EvaluateJavaScriptAsync(js);
+            // Through the base64 bridge rather than spliced into the script: MAUI wraps
+            // the script in a single-quoted literal (see CallBridgeAsync), so a prompt
+            // with a newline or an apostrophe in it made eval throw and nothing was
+            // sent -- while the line below still said it had been.
+            // Emptied first: insertText APPENDS (it is what dictation uses), and a
+            // composer holding a draft would send that draft plus the prompt.
+            await _webView.EvaluateJavaScriptAsync("document.getElementById('text').value = ''; true");
+            string? typed = await CallBridgeAsync("insertText", new { text = prompt });
+            if (typed is null || !typed.Contains("ok", StringComparison.Ordinal))
+                _host.App.TraceBackground("pagecheck FAIL the page refused the prompt: " + (typed ?? "no answer"));
+            await _webView.EvaluateJavaScriptAsync("window.TensorAgent.send(); true");
             Console.WriteLine("TensorAgent: demo prompt sent through the Web UI: " + prompt);
+            if (string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_PAGE_BACKGROUND_CHECK"), "1", StringComparison.Ordinal))
+            {
+                // What the page made of the send, for the trace the check reads.
+                await Task.Delay(3000);
+                await TracePageDiagnosticsAsync("after the demo prompt");
+            }
 
             // And, if asked, walk away from it while it is being answered.
             await RunNavigationProbeAsync();
@@ -1333,6 +1366,222 @@ public sealed class MainPage : ContentPage
     /// <summary>Call one method on the page's bridge, if the page has one yet.</summary>
     private Task<string?> Tell(string method) => _webView.EvaluateJavaScriptAsync(
         $"window.TensorAgent && window.TensorAgent.{method} ? window.TensorAgent.{method}() : false");
+
+    /// <summary>
+    /// The loopback server had to move to another port (see
+    /// <see cref="Core.Hosting.LoopbackServer.EnsureListeningAsync"/>): the page's origin,
+    /// and with it the token cookie, are gone. Navigate to the new entry URL, exactly as
+    /// a dead page is reloaded. The page comes back to the same chat and the same
+    /// running turn through /api/agent/launch, as any reload does.
+    /// </summary>
+    private void OnEntryUrlChanged(string url)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            Console.WriteLine("TensorAgent: the loopback server moved; reloading the page at " + url);
+            _pageReady = false;
+            _webView.Source = new UrlWebViewSource { Url = url };
+        });
+    }
+
+    /// <summary>
+    /// The host has checked (and, if it had to, rebuilt) its listener on the way back to
+    /// the foreground. Now the page: it fired its own visibilitychange requests at about
+    /// the same instant, possibly against a listener that was still being rebuilt and
+    /// possibly on connections iOS had reclaimed, so it is nudged once more, a moment
+    /// later, when the transport is known to be good. A page whose content process was
+    /// reclaimed while the app was away answers nothing and is reloaded, as OnAppearing
+    /// does for the same reason. And what the page saw is written into the trace,
+    /// because it is the only record of it there will ever be.
+    /// </summary>
+    private void OnForegroundChecked(Core.Hosting.AgentAppHost.ForegroundReport report)
+    {
+        // A moved port is a reload (OnEntryUrlChanged), which carries everything below.
+        if (report.EntryUrlChanged)
+            return;
+        MainThread.BeginInvokeOnMainThread(async () =>
+        {
+            try
+            {
+                // After DidBecomeActive and after the page's own quarter-second deferral,
+                // so this is the second, informed attempt rather than a race with the
+                // first.
+                await Task.Delay(700);
+                if (!_pageReady)
+                {
+                    // The page never announced itself (its start chain failed, or it is
+                    // still loading). Nothing here can be sent to it; say so, because
+                    // otherwise a page in that state looks identical to a healthy one.
+                    _host.App.TraceBackground("foreground: the page has not announced itself; nothing was nudged");
+                    return;
+                }
+                if (!await PageIsAliveAsync())
+                {
+                    Console.WriteLine("TensorAgent: the page stopped answering while the app was away; reloading it");
+                    _host.App.TraceBackground("foreground: the page did not answer; reloading it");
+                    _pageReady = false;
+                    _webView.Source = new UrlWebViewSource { Url = _host.EntryUrl };
+                    return;
+                }
+                await Tell("resumeTurn");
+                await Tell("takeShare");
+                await Task.Delay(1500);
+                await TracePageDiagnosticsAsync("foreground");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("TensorAgent: the foreground nudge failed: " + ex.Message);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Pull the page's own record of its transport events into logs/background.log.
+    /// Bounded and tolerant: a page mid-resume may not answer in time, and that is
+    /// worth one line, not a failure.
+    /// </summary>
+    private async Task TracePageDiagnosticsAsync(string when)
+    {
+        string line;
+        try
+        {
+            string? answer = await _webView
+                .EvaluateJavaScriptAsync(
+                    "window.TensorAgent && window.TensorAgent.diagnostics ? window.TensorAgent.diagnostics() : 'nopage'")
+                .WaitAsync(TimeSpan.FromSeconds(3));
+            line = UnwrapEvaluated(answer);
+        }
+        catch (TimeoutException)
+        {
+            line = "(the page did not answer within 3 s)";
+        }
+        catch (Exception ex)
+        {
+            line = "(asking the page failed: " + ex.Message + ")";
+        }
+        // The TAIL. The diary ends with `events`, oldest first, so cutting the end
+        // throws away exactly the events being traced -- the ones from the return.
+        if (line.Length > 3000)
+            line = "…" + line[^3000..];
+        _host.App.TraceBackground($"page ({when}): {line}");
+    }
+
+    /// <summary>
+    /// MAUI hands back the JSON.stringify of what the script returned, so a string
+    /// arrives quoted and escaped. Unwrap it when it is one; pass anything else through.
+    /// </summary>
+    private static string UnwrapEvaluated(string? answer)
+    {
+        if (answer is null)
+            return "null";
+        // MAUI hands back the JSON.stringify of what the script returned, and then
+        // trims the outer quotes itself -- so a returned STRING arrives with its inner
+        // quotes still escaped, which is not JSON and cannot be read by anything. Put
+        // the quotes back and decode it properly. Anything that is already valid JSON,
+        // or is not a JSON string at all, is passed through untouched.
+        string quoted = answer.Length >= 2 && answer[0] == '"' && answer[^1] == '"' ? answer : "\"" + answer + "\"";
+        try { return JsonSerializer.Deserialize<string>(quoted) ?? answer; }
+        catch (JsonException) { return answer; }
+    }
+
+    /// <summary>
+    /// Device E2E hook (Debug builds only): the reported failure, driven through the
+    /// real WebView. TENSORAGENT_DEMO_PROMPT sends a message the way a user does;
+    /// scripts/verify-background.sh then sends the app away for long enough for iOS to
+    /// suspend it (and, for a long enough absence, to reclaim its sockets) and brings
+    /// it back. This traces, one 'pagecheck' line at a time, whether the page carried
+    /// on: the characters on screen while the turn runs, whether the host's listener
+    /// had to be rebuilt, and — the assertion the whole fix is for — whether the page
+    /// shows the finished answer, in ONE bubble, and stops saying "working" within a
+    /// minute of the turn ending.
+    /// </summary>
+    private async Task RunPageBackgroundProbeAsync()
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("TENSORAGENT_PAGE_BACKGROUND_CHECK"), "1", StringComparison.Ordinal))
+            return;
+
+        Core.Hosting.AgentAppHost app = _host.App;
+        void Say(string line)
+        {
+            Console.WriteLine("TensorAgent: pagecheck " + line);
+            app.TraceBackground("pagecheck " + line);
+        }
+
+        try
+        {
+            if (Environment.GetEnvironmentVariable("TENSORAGENT_BACKGROUND_RUN") is { Length: > 0 } run)
+                Say($"run {run}");
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TENSORAGENT_DEMO_PROMPT")))
+            {
+                Say("FAIL TENSORAGENT_DEMO_PROMPT is not set, so nothing will be sent through the page");
+                return;
+            }
+
+            // A clean share state, or the check measures the wrong thing: a share left in
+            // the App Group inbox by an earlier run is applied the moment the turn ends --
+            // as designed, into a NEW chat -- and the answer this watches vanishes from
+            // the screen for a reason that has nothing to do with the background.
+            try { await app.DrainSharedInboxAsync(); }
+            catch (Exception ex) { Say("note: draining the share inbox first failed: " + ex.Message); }
+            int discarded = 0;
+            while (app.Shares.Peek() is { } head && app.DiscardPendingShare(head.Id))
+                discarded++;
+            if (discarded > 0)
+                Say($"discarded {discarded} pending share(s) left by earlier runs");
+
+            // The demo prompt waits for the model, then sends through the page's own
+            // bridge; the turn it starts is the one this watches.
+            if (!await Until(() => app.Turns.IsBusy, TimeSpan.FromMinutes(8)))
+            {
+                Say("FAIL no turn started within 8 minutes · " + app.Turns.Describe());
+                return;
+            }
+            Say("the page's turn started · " + app.Turns.Describe());
+
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (app.Turns.IsBusy && clock.Elapsed < TimeSpan.FromMinutes(40))
+            {
+                await Task.Delay(3000);
+                // The page can only be asked while the app is in front; while it is
+                // away the answer would be silence, and silence would be the story.
+                string page = "not asked (the app is away)";
+                if (app.Compute.IsOpen)
+                {
+                    try
+                    {
+                        int shown = await AnswerLengthAsync().WaitAsync(TimeSpan.FromSeconds(2));
+                        string? generating = await Tell("isGenerating").WaitAsync(TimeSpan.FromSeconds(2));
+                        page = $"{shown} chars on screen, page generating={(generating ?? "?").Trim('"')}";
+                    }
+                    catch (Exception ex) { page = "the page did not answer: " + ex.GetType().Name; }
+                }
+                Say($"{clock.Elapsed.TotalSeconds:0}s: {page}, host frames {app.Turns.TotalFrames}, gate {(app.Compute.IsOpen ? "open" : "CLOSED")}, listener restarts {app.ListenerRestarts}");
+            }
+            Say("the turn ended · " + app.Turns.Describe());
+
+            // The page's half: within a minute of the turn ending, the whole answer is on
+            // screen in one bubble and the page no longer says it is working.
+            int chars = 0, bubbles = 0;
+            string idle = "?";
+            bool caughtUp = await Until(async () =>
+            {
+                chars = await AnswerLengthAsync();
+                idle = (await Tell("isGenerating") ?? "?").Trim('"');
+                string? count = await _webView.EvaluateJavaScriptAsync("String(document.querySelectorAll('.turn.bot').length)");
+                bubbles = int.TryParse((count ?? string.Empty).Trim('"'), out int n) ? n : -1;
+                return chars > 0 && idle.Contains("false", StringComparison.OrdinalIgnoreCase);
+            }, TimeSpan.FromSeconds(60));
+            Say(caughtUp && bubbles == 1
+                ? $"ok {chars} chars on screen in {bubbles} bubble after the turn ended, page idle"
+                : $"FAIL after the turn ended: {chars} chars on screen, {bubbles} assistant bubble(s), page generating={idle}");
+            await TracePageDiagnosticsAsync("pagecheck");
+            Say($"done: listener restarts {app.ListenerRestarts}, rebuilt engine {app.EngineRebuilds} time(s)");
+        }
+        catch (Exception ex)
+        {
+            Say("FAIL " + ex.Message);
+        }
+    }
 
     /// <summary>Bring the persistent chat forward and nudge it to claim a new share.</summary>
     private void OnShareArrived()
@@ -1825,6 +2074,10 @@ public sealed class MainPage : ContentPage
             // and a small text/URL envelope can arrive before Start returns.
             _host.App.PageEvent += OnPageEvent;
             _host.App.Shares.Arrived += OnShareArrived;
+            // The host checks its own listener as the app comes back to the front;
+            // this page owns the WebView, so the page-facing half is here.
+            _host.App.ForegroundChecked += OnForegroundChecked;
+            _host.App.EntryUrlChanged += OnEntryUrlChanged;
             _host.Start();
             EngineProbeResult probe = EngineProbe.Run();
             Console.WriteLine("TensorAgent: engine probe " + JsonSerializer.Serialize(probe, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
@@ -1852,6 +2105,7 @@ public sealed class MainPage : ContentPage
             _ = RunUploadProbeAsync();
             _ = RunShareProbeAsync();
             _ = RunBackgroundProbeAsync();
+            _ = RunPageBackgroundProbeAsync();
             RunNetworkProbe();
             DownloadIfAsked();
 #endif

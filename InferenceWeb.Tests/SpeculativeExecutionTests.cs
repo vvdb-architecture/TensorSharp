@@ -186,6 +186,11 @@ public class SpeculativeExecutionTests
         Assert.Equal(ExpectedChain(model, promptLen, 5), seq.OutputTokens.Take(5));
         Assert.Equal(eosToken, seq.OutputTokens[^1]);
         Assert.Equal(6, seq.OutputTokens.Count);
+        // Nothing was forwarded past the stop: the trunk holds exactly the prompt
+        // and the six emitted tokens, so a holder retained from here matches the
+        // tokens it is recorded as holding (and, on a sliding-window ring, no
+        // post-stop row evicted a position the next turn still attends to).
+        Assert.Equal(promptLen + 6, model.CacheSeqLen);
         Assert.Equal(0, model.ProtocolViolations.Count);
     }
 
@@ -313,6 +318,252 @@ public class SpeculativeExecutionTests
 
     /// <summary>Build the shared core over whatever algorithm the fake's draft
     /// head implies — the same resolution the engine and the CLI go through.</summary>
+    [Fact]
+    public void EngineSpec_NGramArmedAfterAPrefixReuse_IsSeededWithTheReusedTokens()
+    {
+        // A follow-up whose prompt reuses cached blocks arms at a prefill chunk that
+        // starts past position 0. The n-gram drafter's corpus used to be empty
+        // there, its first commit looked like a gap, and it stayed silent for the
+        // whole request. The fake's stream is periodic in position (period 64), so
+        // a seeded corpus holding the first request's output must yield drafts.
+        const int promptLen = 100;
+        const int maxNew = 70;
+        var model = new FakeSpeculativeModel();
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 256,
+            MaxNumRunningSequences = 4,
+            MaxPrefillChunkSize = 64,
+            SoloPrefillChunkSize = 8192,
+            NumBlocks = 64,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = true,
+            DecodeQuantumTokens = 1,
+            Speculation = new SpeculationOptions
+            {
+                Enabled = true,
+                SpeculatorName = SpeculatorRegistry.NGram,
+                MaxDraftTokens = 4,
+            },
+        };
+        using var engine = new InferenceEngine(model, cfg, NullLogger.Instance);
+        var greedy = new SamplingConfig { Temperature = 0f, TopK = 0, TopP = 1f, RepetitionPenalty = 1f, PresencePenalty = 0f, FrequencyPenalty = 0f };
+
+        var first = new SequenceState("reuse-1", Enumerable.Range(1, promptLen).ToList(), maxNew, BlockSize, greedy);
+        engine.SubmitRequest(first).Completion.GetAwaiter().GetResult();
+        Assert.Equal(ExpectedChain(model, promptLen, maxNew), first.OutputTokens);
+
+        var prompt2 = Enumerable.Range(1, promptLen).Concat(first.OutputTokens).Concat(new[] { 3, 5 }).ToList();
+        var second = new SequenceState("reuse-2", prompt2, maxNew, BlockSize, greedy);
+        var completion = engine.SubmitRequest(second).Completion.GetAwaiter().GetResult();
+
+        Assert.True(completion.PrefixCacheReusedTokens > 0, "the follow-up should have reused the first request's cache");
+        Assert.Equal(ExpectedChain(model, prompt2.Count, maxNew), second.OutputTokens);
+        Assert.NotNull(second.SpecStats);
+        Assert.True(second.SpecStats.VerifySteps > 0, "speculation never verified a window after the prefix reuse");
+        Assert.True(second.SpecStats.TokensAccepted > 0, "no draft was accepted: the corpus was not seeded with the reused tokens");
+        Assert.Empty(model.ProtocolViolations);
+    }
+
+    [Fact]
+    public void EngineSpec_PromptLongerThanOnePrefillChunk_StaysArmedAcrossTheChunks()
+    {
+        // A 200-token prompt through 64-token solo chunks is four prefill steps.
+        // The executor used to re-arm speculation on every one of them, and from
+        // chunk two the arm looked like a KV-prefix reuse at position 64, which a
+        // per-token head declines - so the whole request decoded plainly. With the
+        // phone's 1024-token chunk and a 5-7k-token agent prompt that was every
+        // request TensorAgent ever made.
+        const int promptLen = 200;
+        const int maxNew = 24;
+        var model = new FakeSpeculativeModel();
+        var seq = RunEngineRequest(model, promptLen, maxNew, specEnabled: true, soloPrefillChunk: 64);
+        Assert.Equal(ExpectedChain(model, promptLen, maxNew), seq.OutputTokens);
+        Assert.NotNull(seq.SpecStats);
+        Assert.True(seq.SpecStats.VerifySteps > 0,
+            "speculation never verified a window: the second prefill chunk disarmed it");
+        Assert.True(seq.SpecStats.TokensAccepted > 0);
+        Assert.Empty(model.ProtocolViolations);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DraftHeadSpeculator_ArmsAfterAPrefixReuse_OnlyWhenTheHeadKeepsNoState(bool resumes)
+    {
+        // Gemma 4's head reads the trunk's donor KV and the hidden state it is
+        // handed, so it drafts from any position; a NextN block with its own KV
+        // cache cannot, and the executor must keep declining it after a reuse.
+        var model = new FakeSpeculativeModel { ResumesAfterGap = resumes };
+        var spec = SpeculatorRegistry.Create(model,
+            new SpeculationOptions { Enabled = true, SpeculatorName = SpeculatorRegistry.DraftHead },
+            out string decline);
+        Assert.Null(decline);
+        Assert.Equal(resumes, spec.CanArmAfterPrefixReuse);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void PlainStep_OfAHiddenFreeSpeculator_UsesTheModelsOwnDecodeWhenTheTrunkAllows(bool viaForward)
+    {
+        // n-gram needs no hidden state, so a step it cannot draft for (an empty
+        // corpus) is an ordinary decode - which on a trunk that says so runs the
+        // model's fused decode with the LM head folded in, not a one-row
+        // SpecForward with a per-op tail. The stream is the same either way.
+        var model = new FakeSpeculativeModel { PlainStepUsesForward = viaForward };
+        var speculator = SpeculatorRegistry.Create(model,
+            new SpeculationOptions { Enabled = true, SpeculatorName = SpeculatorRegistry.NGram },
+            out string decline);
+        Assert.Null(decline);
+        var exec = new SpeculativeExecution(model, speculator);
+        int pos = PrefillPrompt(model, exec, promptLen: 5, out int lastToken);
+        int specCallsBefore = model.LinearSpecForwardCalls;
+        int forwardBefore = model.ForwardCalls;
+
+        var outcome = exec.DecodeStep(lastToken, pos, kMax: 4, drawNext: Argmax);
+
+        Assert.False(outcome.UsedSpeculation);
+        Assert.Equal(model.ExpectedNext(pos), Argmax(outcome.NextLogits));
+        Assert.Equal(pos + 1, model.CacheSeqLen);
+        Assert.Equal(viaForward ? 1 : 0, model.ForwardCalls - forwardBefore);
+        Assert.Equal(viaForward ? 0 : 1, model.LinearSpecForwardCalls - specCallsBefore);
+    }
+
+    [Fact]
+    public void EngineSpec_MediaTurn_ArmsAHiddenFreeSpeculatorAfterThePlainPrefill()
+    {
+        // An image/audio turn prefills on the plain path (only Forward's inject
+        // hook can place the embeddings), and until now that was the end of it:
+        // nothing armed at the first decode step, so the whole answer decoded
+        // plainly. n-gram needs no hidden state, so it starts there from the tokens
+        // the trunk already holds. The fake's truth stream repeats every 64
+        // positions, which is what gives the lookup something to find.
+        const int promptLen = 5;
+        const int maxNew = 150;
+        var injector = new FakeInjector { PromptTokens = promptLen };
+        var model = new FakeSpeculativeModel { Injector = injector };
+        var seq = RunEngineRequest(model, promptLen, maxNew, specEnabled: true, speculator: SpeculatorRegistry.NGram);
+        Assert.Equal(ExpectedChain(model, promptLen, maxNew), seq.OutputTokens);
+        Assert.True(injector.SlicesQueued > 0, "the plain prefill never queued the media embeddings");
+        Assert.NotNull(seq.SpecStats);
+        Assert.True(seq.SpecStats.VerifySteps > 0, "speculation never armed after the plain prefill");
+        Assert.True(seq.SpecStats.TokensAccepted > 0);
+        Assert.Empty(model.ProtocolViolations);
+    }
+
+    [Fact]
+    public void EngineSpec_MediaTurn_LeavesALearnedHeadAlone()
+    {
+        // A per-token head chains the trunk's hidden state of the last committed
+        // token, which a plain prefill never captured: it must not arm late.
+        const int promptLen = 5;
+        const int maxNew = 40;
+        var model = new FakeSpeculativeModel { Injector = new FakeInjector { PromptTokens = promptLen } };
+        var seq = RunEngineRequest(model, promptLen, maxNew, specEnabled: true, speculator: SpeculatorRegistry.DraftHead);
+        Assert.Equal(ExpectedChain(model, promptLen, maxNew), seq.OutputTokens);
+        Assert.True(seq.SpecStats == null || seq.SpecStats.VerifySteps == 0);
+        Assert.Empty(model.ProtocolViolations);
+    }
+
+    /// <summary>A media turn's injector: pending until the plain prefill has queued
+    /// the whole prompt's slices, exactly the signal the planner reads.</summary>
+    private sealed class FakeInjector : IMultimodalInjector
+    {
+        public int PromptTokens { get; set; }
+        public int SlicesQueued { get; private set; }
+        private int _queuedThrough;
+
+        public void LoadProjectors(string mmProjPath) { }
+        public List<int> ProcessPromptTokens(List<ChatMessage> history, List<int> inputTokens, string requestId = null) => inputTokens;
+        public bool QueuePromptEmbeddings(int reusablePrefixTokenCount, string requestId = null) => true;
+        public bool QueuePromptEmbeddingsForSlice(int promptStartToken, int tokenCount, string requestId = null)
+        {
+            SlicesQueued++;
+            _queuedThrough = Math.Max(_queuedThrough, promptStartToken + tokenCount);
+            return true;
+        }
+        public int ClampReusablePrefix(int reusablePrefixTokenCount, string requestId = null) => reusablePrefixTokenCount;
+        public int ClampTrimStart(int trimStartTokenCount, string requestId = null) => trimStartTokenCount;
+        public void TrimPreparedPrompt(int trimStartTokenCount, string requestId = null) { }
+        public bool HasPendingEmbeddings(string requestId) => _queuedThrough < PromptTokens;
+        public void ClearPreparedPromptState(string requestId) { }
+    }
+
+    [Fact]
+    public void Engine_UpdateSpeculation_SwitchesThePolicyForTheNextRequestWithoutARebuild()
+    {
+        // The settings switch in the app: the engine keeps running, and the next
+        // turn follows the new policy - on, off, and on again.
+        const int promptLen = 5;
+        const int maxNew = 24;
+        var model = new FakeSpeculativeModel();
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 256,
+            MaxNumRunningSequences = 4,
+            MaxPrefillChunkSize = 64,
+            NumBlocks = 32,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = false,
+            DecodeQuantumTokens = 1,
+            Speculation = SpeculationOptions.Disabled,
+        };
+        using var engine = new InferenceEngine(model, cfg, NullLogger.Instance);
+        var greedy = new SamplingConfig { Temperature = 0f, TopK = 0, TopP = 1f, RepetitionPenalty = 1f };
+
+        SequenceState Run(string id)
+        {
+            var seq = new SequenceState(id, Enumerable.Range(1, promptLen).ToList(), maxNew, BlockSize, greedy);
+            engine.SubmitRequest(seq).Completion.GetAwaiter().GetResult();
+            Assert.Equal(ExpectedChain(model, promptLen, maxNew), seq.OutputTokens);
+            model.Reset();
+            return seq;
+        }
+
+        Assert.Null(Run("off-1").SpecStats);
+
+        engine.UpdateSpeculation(new SpeculationOptions { Enabled = true, MaxDraftTokens = 8, MinDraftProb = 0.5f });
+        SequenceState on = Run("on-1");
+        Assert.NotNull(on.SpecStats);
+        Assert.True(on.SpecStats.VerifySteps > 0, "the new policy did not reach the next request");
+
+        engine.UpdateSpeculation(SpeculationOptions.Disabled);
+        Assert.Null(Run("off-2").SpecStats);
+        Assert.Empty(model.ProtocolViolations);
+    }
+
+    [Fact]
+    public void SeedCommitted_WithAResumableLearnedHead_RunsOnePlainStepThenDrafts()
+    {
+        // Gemma 4's head keeps no state of its own, so it can start over tokens the
+        // trunk already holds - but it chains the trunk hidden state of the last
+        // committed token, which a plain prefill never captured. The first step is
+        // therefore plain (and captures it); the second drafts from it.
+        var model = new FakeSpeculativeModel { ResumesAfterGap = true };
+        var speculator = SpeculatorRegistry.Create(model,
+            new SpeculationOptions { Enabled = true, SpeculatorName = SpeculatorRegistry.DraftHead, MaxDraftTokens = 4, MinDraftProb = 0.5f },
+            out string decline);
+        Assert.Null(decline);
+        var exec = new SpeculativeExecution(model, speculator);
+        Assert.True(exec.CanSeedCommitted);
+
+        int[] prompt = Enumerable.Range(1, 5).ToArray();
+        float[] logits = model.Forward(prompt);          // the plain prefill
+        int lastToken = Argmax(logits);
+        exec.SeedCommitted(prompt);
+
+        var first = exec.DecodeStep(lastToken, prompt.Length, kMax: 4, drawNext: Argmax);
+        Assert.False(first.UsedSpeculation);
+        Assert.Equal(model.ExpectedNext(prompt.Length), Argmax(first.NextLogits));
+
+        int next = Argmax(first.NextLogits);
+        var second = exec.DecodeStep(next, prompt.Length + 1, kMax: 4, drawNext: Argmax);
+        Assert.True(second.UsedSpeculation);
+        Assert.True(second.AcceptedCount > 0);
+        Assert.Empty(model.ProtocolViolations);
+    }
+
     private static SpeculativeExecution NewExec(FakeSpeculativeModel model, int maxDraftTokens,
         float? minDraftProb = null)
     {
@@ -347,13 +598,14 @@ public class SpeculativeExecutionTests
     }
 
     private static SequenceState RunEngineRequest(FakeSpeculativeModel model, int promptLen, int maxNewTokens,
-        bool specEnabled, bool enablePrefixCaching = false)
+        bool specEnabled, bool enablePrefixCaching = false, int soloPrefillChunk = 0, string speculator = null)
     {
         var cfg = new SchedulerConfig
         {
             MaxNumBatchedTokens = 256,
             MaxNumRunningSequences = 4,
             MaxPrefillChunkSize = 64,
+            SoloPrefillChunkSize = soloPrefillChunk > 0 ? soloPrefillChunk : 8192,
             NumBlocks = 32,
             BlockSize = BlockSize,
             EnablePrefixCaching = enablePrefixCaching,
@@ -361,8 +613,9 @@ public class SpeculativeExecutionTests
             Speculation = new SpeculationOptions
             {
                 Enabled = specEnabled,
+                SpeculatorName = speculator ?? SpeculatorRegistry.Auto,
                 MaxDraftTokens = 8,
-                MinDraftProb = 0.5f,
+                MinDraftProb = speculator == SpeculatorRegistry.NGram ? null : 0.5f,
             },
         };
         using var engine = new InferenceEngine(model, cfg, NullLogger.Instance);
@@ -793,7 +1046,9 @@ public class SpeculativeExecutionTests
             HiddenSize = HiddenSize,
         };
         public ITokenizer Tokenizer { get; }
-        public IMultimodalInjector MultimodalInjector => null;
+        /// <summary>A media turn's injector (see <see cref="FakeInjector"/>); null for text.</summary>
+        public IMultimodalInjector Injector { get; set; }
+        public IMultimodalInjector MultimodalInjector => Injector;
         public IBackendExecutionPlan ExecutionPlan => null;
         public bool SupportsKVCacheTruncation => false;
         public bool SupportsKVStateSnapshot => true;
@@ -815,8 +1070,19 @@ public class SpeculativeExecutionTests
         }
         public void Dispose() { }
 
+        public int ForwardCalls { get; private set; }
+        /// <summary>Whether a hidden-free speculator's plain step may run through
+        /// <see cref="Forward"/> (see <see cref="ISpeculativeTarget.SpecPlainStepUsesForward"/>).</summary>
+        public bool PlainStepUsesForward { get; set; }
+        public bool SpecPlainStepUsesForward => PlainStepUsesForward;
+        /// <summary>Whether the fake's per-token head keeps no per-position state
+        /// (see <see cref="IDraftHead.DraftHeadResumesAfterGap"/>).</summary>
+        public bool ResumesAfterGap { get; set; }
+        public bool DraftHeadResumesAfterGap => ResumesAfterGap;
+
         public float[] Forward(int[] tokens)
         {
+            ForwardCalls++;
             // Plain path (MTP disabled / disarmed): same truth stream.
             var logits = new float[VocabSize];
             int startPos = _trunk.Count;
@@ -924,6 +1190,15 @@ public class SpeculativeExecutionTests
 
         public void DraftCatchUp(int[] tokens, float[] hRows, int startPos)
         {
+            if (hRows == null)
+            {
+                // A seeded start (SeedCommitted) hands over the committed tokens with
+                // no hidden rows; only a head that keeps no per-position state may
+                // accept that, and it has nothing to replay.
+                if (!ResumesAfterGap)
+                    ProtocolViolations.Add($"catch-up at startPos {startPos} without hidden rows on a head that keeps state");
+                return;
+            }
             for (int k = 0; k < tokens.Length; k++)
             {
                 float expectH = startPos + k == 0 ? 0f : startPos + k;

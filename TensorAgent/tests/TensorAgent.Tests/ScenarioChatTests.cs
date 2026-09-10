@@ -776,6 +776,69 @@ public sealed class ScenarioChatTests : LiveModelHarness
             + $"answer: {answer}");
     }
 
+    [LiveModelFact]
+    public async Task UnrelatedPromptsDoNotUseMarketData()
+    {
+        Assert.Null(Unavailable(out CatalogModel model, out string weights));
+        Start(model, weights, skills: true);
+        await LoadAsync(model);
+        Assert.Contains(Host.Skills.Skills, skill => skill.Id == "market-data");
+
+        foreach (string prompt in new[]
+        {
+            "明天天气怎么样？",
+            "北京明天天气怎么样？",
+            "What will the weather be like tomorrow?",
+            "你好！",
+        })
+        {
+            // Fresh conversations, automatic discovery, and the app's default of
+            // thinking off. The reported Qwen failure called a nonexistent
+            // market-data/scripts/weather.py before answering the Chinese prompt.
+            JsonElement session = await OpenSessionAsync();
+            List<JsonElement> frames = await StreamAsync(new
+            {
+                sessionId = session.GetProperty("sessionId").GetString(),
+                messages = new[] { new { role = "user", content = prompt } },
+                maxTokens = 512,
+                think = false,
+                temperature = 0,
+                seed = 42,
+            });
+
+            string answer = TextOf(frames);
+            List<SkillStep> steps = StepsOf(frames);
+            // Failed reads/runs have no skill id in skill_step. Inspect the streamed
+            // arguments too, including a hallucinated direct market-data tool name.
+            string attemptedCalls = string.Concat(frames
+                .Where(frame => Text(frame, "tool_progress") == "writing")
+                .Select(frame => Text(frame, "text")));
+            Assert.True(steps.All(step => step.Skill != "market-data" && step.Tool != "market-data")
+                && !attemptedCalls.Contains("market-data", StringComparison.OrdinalIgnoreCase)
+                && ProgressOf(frames).All(step => step.Tool != "market-data"),
+                $"Unrelated prompt '{prompt}' attempted market-data. Calls: {attemptedCalls}; "
+                + $"steps: {Describe(steps)}; answer: {answer}");
+            Assert.False(string.IsNullOrWhiteSpace(answer),
+                $"Prompt '{prompt}' produced no answer. Steps: {Describe(steps)}");
+        }
+
+        // Positive control: narrowing applicability must still allow a real quote
+        // request to discover and read the skill. Network is off in this fixture, so
+        // this checks activation without relying on a live market endpoint.
+        JsonElement stockSession = await OpenSessionAsync();
+        List<JsonElement> stockFrames = await StreamAsync(new
+        {
+            sessionId = stockSession.GetProperty("sessionId").GetString(),
+            messages = new[] { new { role = "user", content = "What is the current AAPL stock price?" } },
+            maxTokens = 512,
+            think = false,
+            temperature = 0,
+            seed = 42,
+        });
+        Assert.Contains(StepsOf(stockFrames), step => step.Tool == SkillTools.ReadToolName
+            && step.Skill == "market-data" && step.Ok);
+    }
+
     // =====================================================================================
     // 6. running a skill's own script
     // =====================================================================================

@@ -204,7 +204,7 @@ namespace TensorSharp.AgentHost.Skills
     /// </summary>
     public static class SkillPrompt
     {
-        /// <summary>The heading the block opens with. Also how tests find it.</summary>
+        /// <summary>The heading that identifies the skills block. Also how tests find it.</summary>
         public const string BlockHeading = "## Agent skills";
 
         /// <summary>
@@ -510,11 +510,17 @@ namespace TensorSharp.AgentHost.Skills
             int describeChars)
         {
             var sb = new StringBuilder();
+            // Establish the user's task before presenting descriptions of other work
+            // the model could do. In particular, missing details call for a question,
+            // not a speculative tool call against the nearest-sounding skill.
+            if (options.ToolsAvailable && options.IncludeUsageInstructions)
+                sb.Append(SelectionWithTools).Append("\n\n");
             sb.Append(BlockHeading).Append('\n');
             sb.Append(
                 "A skill is a set of instructions stored in a SKILL.md file, together with any scripts, "
                 + "references and assets it ships. Treat a skill's instructions as authoritative for the "
-                + "task it covers, above your default approach.\n");
+                + "task it covers, above your default approach. Skills are optional: listing or selecting "
+                + "one does not make it relevant to every request.\n");
 
             if (inlined.Count > 0 || deferred.Count > 0)
             {
@@ -701,12 +707,19 @@ namespace TensorSharp.AgentHost.Skills
         /// (progressive disclosure only saves context if the model exercises it).
         /// </para>
         /// </summary>
+        private const string SelectionWithTools =
+            "Determine the subject and requested action from the latest user message before choosing tools. "
+            + "Only use a skill if BOTH match its description. Skill availability does not imply relevance. "
+            + "If required details are missing, ask the user for them before calling tools. "
+            + "If no skill matches, respond directly or use another appropriate tool.";
+
         private const string UsageWithTools =
-            "- Decide first. If a skill's description matches the task, use it; if none does, work normally. "
-            + "Do not use a skill just because it is listed.\n"
-            + "- Load before acting. The moment you decide to use a skill, call "
-            + "skills_read(skill=\"<name>\", path=\"SKILL.md\") and read the whole result - before any "
-            + "other tool call, and before writing any part of the answer that skill covers. If several "
+            "- Decide first. Use a skill only when its described scope matches the user's current request. "
+            + "Needing current information alone does not make a skill relevant. If none matches, answer "
+            + "normally or use another appropriate tool; do not call skills_list or skills_read just to start a turn.\n"
+            + "- Load before using. Once you have chosen a matching skill, call "
+            + "skills_read(skill=\"<name>\", path=\"SKILL.md\") and read the whole result before doing "
+            + "the work that skill covers. Reading a skill is not a prerequisite for unrelated tools or answers. If several "
             + "skills apply, read them all in the same turn rather than one per turn.\n"
             + "- A description is not a skill. You have read a skill's instructions only when the result "
             + "of that call is in this conversation. Never follow, summarise or paraphrase instructions "

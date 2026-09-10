@@ -38,6 +38,7 @@ public sealed class LoopbackWebHost : IDisposable
     private readonly Platforms.iOS.BackgroundDownloads _backgroundDownloads;
     private readonly Platforms.iOS.BackgroundGeneration _backgroundGeneration;
     private readonly Platforms.iOS.ShareInbox _shareInbox;
+    private readonly Platforms.iOS.LoopbackLifecycle _loopbackLifecycle;
 
     /// <param name="webRoot">The bundled copy of TensorSharp.Server/wwwroot.</param>
     /// <param name="loggerFactory">Where the engine logs; console output is what <c>simctl launch --console</c> shows.</param>
@@ -80,6 +81,7 @@ public sealed class LoopbackWebHost : IDisposable
         // the display sleeps in less than that.
         _backgroundGeneration = new Platforms.iOS.BackgroundGeneration(_host);
         _shareInbox = new Platforms.iOS.ShareInbox(_host);
+        _loopbackLifecycle = new Platforms.iOS.LoopbackLifecycle(_host);
     }
 
     /// <summary>
@@ -112,6 +114,7 @@ public sealed class LoopbackWebHost : IDisposable
 
     public void Dispose()
     {
+        _loopbackLifecycle.Dispose();
         _shareInbox.Dispose();
         _backgroundGeneration.Dispose();
         _backgroundDownloads.Dispose();

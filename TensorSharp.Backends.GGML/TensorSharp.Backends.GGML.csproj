@@ -77,9 +77,6 @@
     <GgmlNativeSource Include="$(GgmlNativeSourceDir)/../eng/fetch-vulkan-toolchain.ps1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <GgmlNativeSource Include="$(GgmlNativeSourceDir)/../eng/fetch-ggml.sh" Condition="!$([MSBuild]::IsOSPlatform('Windows'))" />
     <GgmlNativeSource Include="$(GgmlNativeSourceDir)/../eng/fetch-vulkan-toolchain.sh" Condition="!$([MSBuild]::IsOSPlatform('Windows')) And !$([MSBuild]::IsOSPlatform('OSX'))" />
-    <!-- Patch-only changes must invalidate the native stamp as surely as a
-         fetch-script change; otherwise an already-built checkout stays stale. -->
-    <GgmlNativeSource Include="$(GgmlNativeSourceDir)/../eng/ggml-patches/*.patch" />
     <GgmlNativeSource Include="$(MSBuildProjectFullPath)" />
   </ItemGroup>
   <!-- Records the native build config (currently the CUDA on/off selection). The

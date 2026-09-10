@@ -8,7 +8,12 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 
+using TensorAgent.Core.Hosting;
 using TensorSharp.AgentHost.Skills;
+using TensorSharp.Runtime;
+using TensorSharp.Server;
+using TensorSharp.Server.Hosting;
+using TensorSharp.Server.Skills;
 
 namespace TensorAgent.Tests;
 
@@ -87,8 +92,8 @@ public sealed class SkillCatalogVisibilityTests
     }
 
     /// <summary>
-    /// Shortening is what makes room, so each line must still say enough to choose on,
-    /// and the whole block must still fit the budget it was fitted to.
+    /// Each line must still say enough to choose on, whether it fits unchanged or
+    /// needs shortening to keep the complete catalog visible.
     /// </summary>
     [Fact]
     public void TheCatalogFitsItsBudgetAndEveryLineStillDescribesItsSkill()
@@ -99,18 +104,17 @@ public sealed class SkillCatalogVisibilityTests
             registry.Skills,
             new SkillPromptOptions { ContextTokens = PhoneContextTokens, ToolsAvailable = true });
 
-        // That it fits is what OmittedFromCatalog == 0 above already proves — the fit
-        // is the production code's arithmetic and re-deriving it here would only test
-        // the copy. What this checks is the MECHANISM that made it fit: the rendered
-        // lines are materially shorter than the raw descriptions they came from.
+        // The complete catalog must remain visible. Descriptions may fit unchanged
+        // after authors make them more concise; requiring shortening would penalize
+        // that improvement. The planner may trim metadata but must not expand it.
+        Assert.Equal(0, plan.OmittedFromCatalog);
         int rendered = plan.Instructions
             .Split('\n')
             .Where(l => registry.Skills.Any(s => l.StartsWith("- " + s.Id + ":", StringComparison.Ordinal)))
             .Sum(l => l.Length);
         int raw = registry.Skills.Sum(s => s.Description.Length + s.Id.Length + 4);
-        Assert.True(rendered < raw,
-            $"nothing was shortened ({rendered} vs {raw} chars), yet all {registry.Skills.Count} fitted — "
-            + "either the budget grew or this test is no longer measuring anything");
+        Assert.True(rendered <= raw,
+            $"the rendered descriptions grew from {raw} to {rendered} characters");
 
         foreach (Skill skill in registry.Skills)
         {
@@ -145,5 +149,152 @@ public sealed class SkillCatalogVisibilityTests
                 plan.Instructions.Replace("\n- ", "- ").Replace("\n", " ").Replace("- ", "\n- "),
                 StringComparison.Ordinal);
         }
+    }
+
+    /// <summary>
+    /// The old market-data description put its applicability condition after 308
+    /// characters. Both phone budgets shortened it to "Use...", retaining examples
+    /// but losing the condition that makes them relevant. Check what the request
+    /// actually gives the model, not just the unabridged manifest on disk.
+    /// </summary>
+    [Theory]
+    [InlineData(8_192)]
+    [InlineData(32_768)]
+    public void MarketDataScopeSurvivesThePhoneCatalogBudget(int contextTokens)
+    {
+        SkillRegistry registry = BundledSkills();
+        SkillRequestPlan plan = DiscoveryPlan(registry, contextTokens);
+        Skill market = Assert.Single(registry.Skills, skill => skill.Id == "market-data");
+        string line = Assert.Single(plan.Prompt.Instructions.Split('\n'),
+            entry => entry.StartsWith("- market-data:", StringComparison.Ordinal));
+
+        Assert.Equal("- market-data: " + market.Description, line);
+        Assert.Contains("Use only for current stock/share prices", line, StringComparison.Ordinal);
+        Assert.Contains("ticker quotes", line, StringComparison.Ordinal);
+        Assert.Contains("financial market movers", line, StringComparison.Ordinal);
+        // Keep unrelated domains out of routing metadata: even a negative example
+        // can make a small model associate that topic with the skill.
+        Assert.DoesNotContain("weather", line, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("forecast", line, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Network switch", line, StringComparison.Ordinal);
+
+        Assert.Empty(plan.Selected);
+        Assert.Empty(plan.Prompt.Inlined);
+        Assert.DoesNotContain(market.Manifest.Body, plan.Prompt.Instructions, StringComparison.Ordinal);
+        Assert.DoesNotContain("market_movers.py", plan.Prompt.Instructions, StringComparison.Ordinal);
+        Assert.Contains(plan.ToolContext.Reachable, skill => skill.Id == market.Id);
+    }
+
+    /// <summary>
+    /// Current information lookups need a discoverable general research capability.
+    /// Its old description spent the budget naming indexes and lost the clause
+    /// explaining when to use it, leaving market-data as the apparent lookup option.
+    /// </summary>
+    [Theory]
+    [InlineData(8_192)]
+    [InlineData(32_768)]
+    public void ResearchLookupScopeSurvivesThePhoneCatalogBudget(int contextTokens)
+    {
+        SkillRegistry registry = BundledSkills();
+        SkillRequestPlan plan = DiscoveryPlan(registry, contextTokens);
+        Skill research = Assert.Single(registry.Skills, skill => skill.Id == "research");
+        string line = Assert.Single(plan.Prompt.Instructions.Split('\n'),
+            entry => entry.StartsWith("- research:", StringComparison.Ordinal));
+
+        Assert.Equal("- research: " + research.Description, line);
+        Assert.Contains("Use for web searches and current information lookups", line, StringComparison.Ordinal);
+        Assert.Contains("finding sources", line, StringComparison.Ordinal);
+        Assert.Contains("fact-checking", line, StringComparison.Ordinal);
+        Assert.Contains("without being given any URLs", line, StringComparison.Ordinal);
+        Assert.Contains("Network switch", line, StringComparison.Ordinal);
+        Assert.Empty(plan.Prompt.Inlined);
+        Assert.DoesNotContain(research.Manifest.Body, plan.Prompt.Instructions, StringComparison.Ordinal);
+        Assert.Contains(plan.ToolContext.Reachable, skill => skill.Id == research.Id);
+    }
+
+    /// <summary>
+    /// Ordinary turns remain discovery requests, with no forced first skill read.
+    /// This checks the host's routing and disclosure contract; actual LLM selection
+    /// requires separate live-model validation and is not simulated here.
+    /// </summary>
+    [Theory]
+    [InlineData("明天天气怎么样？")]
+    [InlineData("北京明天天气怎么样？")]
+    [InlineData("What will the weather be like tomorrow?")]
+    [InlineData("你好")]
+    [InlineData("Explain how a rainbow forms.")]
+    public void UnrelatedRequestsDoNotActivateAMarketWorkflow(string prompt)
+    {
+        SkillRegistry registry = BundledSkills();
+        var messages = new List<ChatMessage> { new() { Role = "user", Content = prompt } };
+
+        Assert.Null(TensorAgentSkillRouter.Route(messages, requestedSkills: null, registry));
+        SkillRequestPlan plan = DiscoveryPlan(registry, PhoneContextTokens);
+        List<ChatMessage> injected = plan.Apply(messages);
+
+        Assert.Empty(plan.Selected);
+        Assert.Empty(plan.Prompt.Inlined);
+        Assert.Null(plan.CompletionRequirement);
+        Assert.Equal(prompt, injected[^1].Content);
+        Assert.DoesNotContain(injected, message => message.Role == "tool"
+            || message.ToolCalls is { Count: > 0 });
+    }
+
+    [Fact]
+    public void TheMarketSkillRemainsReadableAfterDiscovery()
+    {
+        SkillRequestPlan plan = DiscoveryPlan(BundledSkills(), PhoneContextTokens);
+
+        // Exercise the real read handler to catch a "fix" that hides or disables the
+        // skill instead of correcting the metadata the model uses to choose it.
+        Assert.Contains(plan.Tools, tool => tool.Name == SkillTools.ReadToolName);
+        SkillToolResult result = SkillTools.Execute(new ToolCall
+        {
+            Name = SkillTools.ReadToolName,
+            Arguments = new Dictionary<string, object>
+            {
+                ["skill"] = "market-data",
+                ["path"] = "SKILL.md",
+            },
+        }, plan.ToolContext);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Contains("scripts/market_movers.py --quote", result.Content, StringComparison.Ordinal);
+    }
+
+    private static SkillRequestPlan DiscoveryPlan(SkillRegistry registry, int contextTokens)
+    {
+        var options = new ServerHostingOptions(
+            startupModelPath: string.Empty,
+            startupMmProjPath: string.Empty,
+            defaultBackend: "ggml_cpu",
+            supportedBackends: Array.Empty<BackendOption>(),
+            defaultMaxTokens: 512,
+            maxTokensPinned: false,
+            defaultVideoFrames: 0,
+            defaultVideoFps: 0,
+            defaultVideoWidth: 0,
+            defaultVideoHeight: 0,
+            defaultVideoSteps: 0,
+            defaultVideoMode: string.Empty,
+            uploadDirectory: string.Empty,
+            logDirectory: string.Empty,
+            fileLoggingEnabled: false,
+            samplingDefaults: new SamplingDefaults(new SamplingConfig()),
+            skillsEnabled: true,
+            skillsDiscovery: true);
+        SkillRequestPlan plan = SkillRequestPlan.Create(
+            registry,
+            requestedSkills: null!,
+            discovery: null,
+            clientTools: new List<ToolFunction>(),
+            architecture: "qwen35",
+            contextTokens: contextTokens,
+            options: options,
+            out IReadOnlyList<string> unknown);
+
+        Assert.Empty(unknown);
+        Assert.NotNull(plan);
+        return plan;
     }
 }
