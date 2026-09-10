@@ -39,6 +39,26 @@ try {
         throw "Timed out waiting for ggml fetch lock."
     }
 
+# `git apply --check` returns non-zero while probing the direction that does not
+# match. Windows PowerShell 5.1 turns a native command's redirected stderr into a
+# terminating NativeCommandError when ErrorActionPreference is Stop, so isolate
+# those expected failures without weakening error handling for the real apply.
+function Test-GitPatchApplies([string] $PatchPath, [switch] $Reverse) {
+    $GitArgs = @("-C", $GgmlDir, "apply")
+    if ($Reverse) { $GitArgs += "--reverse" }
+    $GitArgs += @("--check", $PatchPath)
+
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & git @GitArgs 2>$null
+        return ($LASTEXITCODE -eq 0)
+    }
+    finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+}
+
 # Local patches under eng/ggml-patches, applied in name order after a clone, after an
 # update and on the no-update path; already-applied patches are recognised by applying
 # in reverse, and one that fits neither way is an error (see fetch-ggml.sh).
@@ -46,10 +66,8 @@ function Invoke-LocalPatches {
     $patchDir = Join-Path $PSScriptRoot "ggml-patches"
     if (-not (Test-Path $patchDir)) { return }
     foreach ($patch in (Get-ChildItem -Path $patchDir -Filter *.patch | Sort-Object Name)) {
-        git -C $GgmlDir apply --reverse --check $patch.FullName 2>$null
-        if ($LASTEXITCODE -eq 0) { continue }
-        git -C $GgmlDir apply --check $patch.FullName 2>$null
-        if ($LASTEXITCODE -eq 0) {
+        if (Test-GitPatchApplies -PatchPath $patch.FullName -Reverse) { continue }
+        if (Test-GitPatchApplies -PatchPath $patch.FullName) {
             git -C $GgmlDir apply $patch.FullName
             if ($LASTEXITCODE -ne 0) { throw "git apply $($patch.Name) failed" }
             Write-Host "ggml: applied $($patch.Name)"
