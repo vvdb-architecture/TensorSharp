@@ -31,7 +31,7 @@
 //       [--kv f16|q8_0|q4_0]
 //       [--chunk 1024] [--max-batched 4096] [--long 4096] [--tool 3000] [--new 32]
 //       [--spec-new 192] [--spec-file 600] [--spec-minimal-system] [--spec-engine ngram|auto] [--conc 2,4] [--conc-stagger 400] [--scenarios short,long,tool,newchat,spec,json,conc]
-//       [--out rows.json] [--verbose]
+//       [--warmup 0] [--out rows.json] [--verbose]
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -79,6 +79,22 @@ internal static class Program
         model.WarmUpKernels();
         Console.WriteLine($"[agent-turn-bench] loaded {model.Config.Architecture} in {swLoad.Elapsed.TotalSeconds:0.0}s; " +
                           $"context={model.MaxContextLength} drafter={DescribeDrafter(model)}");
+
+        // Kernel warm-up does not exercise the scheduler, managed decoding, or
+        // background tiered JIT. Optional full passes measure a warmed process
+        // without changing the application's runtime compilation settings.
+        for (int pass = 0; pass < o.Warmup; pass++)
+        {
+            Console.WriteLine($"[agent-turn-bench] warm-up pass {pass + 1}/{o.Warmup}");
+            var warmup = new Bench(model, o);
+            await warmup.RunAsync();
+            if (o.Out != null) warmup.WriteJson(o.Out + $".warmup{pass + 1}.json");
+            if (warmup.Failures != 0)
+            {
+                Console.Error.WriteLine($"[agent-turn-bench] FAIL: warm-up had {warmup.Failures} check(s) failed.");
+                return 1;
+            }
+        }
 
         var bench = new Bench(model, o);
         await bench.RunAsync();
@@ -138,6 +154,7 @@ internal sealed class Options
     public List<string> Scenarios = new() { "short", "long", "tool", "newchat", "spec", "json", "conc" };
     public string Out;
     public bool Verbose;
+    public int Warmup;
 
     public static Options Parse(string[] args)
     {
@@ -173,12 +190,14 @@ internal sealed class Options
                         o.Scenarios = Next().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                         break;
                     case "--out": o.Out = Next(); break;
+                    case "--warmup": o.Warmup = int.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--verbose": o.Verbose = true; break;
                     default: throw new ArgumentException($"unknown option {args[i]}");
                 }
             }
             if (string.IsNullOrEmpty(o.Model)) throw new ArgumentException("--model <gguf> is required");
             if (!File.Exists(o.Model)) throw new ArgumentException($"model not found: {o.Model}");
+            if (o.Warmup < 0) throw new ArgumentException("--warmup must be nonnegative");
         }
         catch (ArgumentException ex)
         {
@@ -197,6 +216,10 @@ internal sealed record Row(
 {
     public int Fresh => Prompt - Reused;
     public List<int> Tokens { get; init; } = new();
+    // Actual delivery times from submission, for individual requests only.
+    public List<double> TokenTimesMs { get; init; }
+    // Boundaries in the flattened token stream for concurrent requests.
+    public int[] TokenCounts { get; init; } = Array.Empty<int>();
     public List<string> ExtraNotes { get; } = new();
     public string AllNotes => string.Join(" | ", new[] { Note }.Concat(ExtraNotes).Where(n => !string.IsNullOrEmpty(n)));
 }
@@ -435,7 +458,11 @@ internal sealed class Bench
                           $"wall {sw.Elapsed.TotalMilliseconds:0} ms; max ttft {maxTtft:0} ms";
             var row = new Row("conc", $"{n} concurrent", promptTokens, runs.Sum(r => r.Reused), steps, 0, 0,
                 runs.Max(r => r.TtftMs), 0, aggregate, outTokens, sw.Elapsed.TotalMilliseconds,
-                string.Join("/", runs.Select(r => r.Finish)), 0, 0, 0, 0, 0, note);
+                string.Join("/", runs.Select(r => r.Finish)), 0, 0, 0, 0, 0, note)
+            {
+                Tokens = runs.SelectMany(r => r.Tokens).ToList(),
+                TokenCounts = runs.Select(r => r.Tokens.Count).ToArray(),
+            };
             Add(row);
             foreach (Run r in runs)
                 if (r.Tokens.Count == 0) { Failures++; Console.Error.WriteLine($"    FAIL: {r.Id} produced no tokens ({r.Error})"); }
@@ -523,6 +550,7 @@ internal sealed class Bench
     {
         public string Id;
         public List<int> Tokens = new();
+        public List<double> TokenTimesMs = new();
         public double TtftMs;
         public double TotalMs;
         public int Reused;
@@ -542,8 +570,10 @@ internal sealed class Bench
             InferenceRequestHandle handle = engine.SubmitRequest(seq);
             await foreach (int t in handle.Tokens.ReadAllAsync())
             {
-                if (run.Tokens.Count == 0) run.TtftMs = sw.Elapsed.TotalMilliseconds;
+                double deliveredMs = sw.Elapsed.TotalMilliseconds;
+                if (run.Tokens.Count == 0) run.TtftMs = deliveredMs;
                 run.Tokens.Add(t);
+                run.TokenTimesMs.Add(deliveredMs);
             }
             InferenceCompletion done = await handle.Completion;
             run.Reused = done.PrefixCacheReusedTokens;
@@ -602,7 +632,7 @@ internal sealed class Bench
             decodeTps, run.Tokens.Count, run.TotalMs, run.Finish,
             run.Stats?.TokensDrafted ?? 0, run.Stats?.TokensAccepted ?? 0, run.Stats?.VerifySteps ?? 0,
             run.Stats?.PlainSteps ?? 0, run.Stats?.RollbackSteps ?? 0, string.Join(" | ", notes))
-        { Tokens = run.Tokens };
+        { Tokens = run.Tokens, TokenTimesMs = run.TokenTimesMs };
         Add(row);
         return row;
     }
@@ -730,12 +760,17 @@ internal sealed class Bench
 
     public void WriteJson(string path)
     {
-        var opts = new JsonSerializerOptions { WriteIndented = true };
+        var opts = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        };
         File.WriteAllText(path, JsonSerializer.Serialize(_rows.Select(r => new
         {
             r.Scenario, r.Label, r.Prompt, r.Reused, r.Fresh, r.Steps, r.PrefillSteps, r.TokensPerPrefillStep,
             r.TtftMs, r.PrefillTps, r.DecodeTps, r.OutTokens, r.TotalMs, r.Finish,
             r.Drafted, r.Accepted, r.VerifySteps, r.PlainSteps, r.Rollbacks, Note = r.AllNotes,
+            r.Tokens, r.TokenCounts, r.TokenTimesMs,
         }), opts));
         Console.WriteLine($"[agent-turn-bench] rows written to {path}");
     }

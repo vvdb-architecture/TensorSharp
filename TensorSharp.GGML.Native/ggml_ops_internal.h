@@ -1187,7 +1187,9 @@ namespace tsg
     // next graph_compute (the per-layer prefill host_read_barrier guarantees
     // this). Returns false (caller should fall back to the stock allocator) if
     // the required size exceeds a single backend buffer's maximum.
-    bool alloc_ctx_tensors_reuse(ggml_context* ctx);
+    // Supplying the final graph lets Metal share only attention workspaces;
+    // ordinary activations/state retain unique slots in the same cached slab.
+    bool alloc_ctx_tensors_reuse(ggml_context* ctx, ggml_cgraph* graph = nullptr);
     // Free the cached reuse buffer (called from TSGgml_Shutdown).
     void free_reuse_compute_buffer();
 

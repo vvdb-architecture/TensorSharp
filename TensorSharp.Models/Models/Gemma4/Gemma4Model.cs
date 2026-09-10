@@ -3536,7 +3536,12 @@ namespace TensorSharp.Models
             if (hasProj)
             {
                 // Only the quantized-proj + F32-norm form is wired in-kernel.
-                if (!_quantWeights.ContainsKey("per_layer_model_proj.weight")) return false;
+                if (!_quantWeights.TryGetValue("per_layer_model_proj.weight", out var projection)) return false;
+                // LinearForward applies a projection's sidecar scale before
+                // RMSNorm; the native PLE path has no scale parameter. Even a
+                // positive scale affects the norm's epsilon, and a negative
+                // scale reverses its sign, so keep those on ComputePLE.
+                if (projection.Scale != 1.0f) return false;
                 if (!_weights.ContainsKey("per_layer_proj_norm.weight")) return false;
             }
             return true;

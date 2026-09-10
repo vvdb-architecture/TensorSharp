@@ -808,7 +808,7 @@ TSG_EXPORT int TSGgml_Gemma4LayerPrefill(
         // host_read_barrier below drains the prior layer's GPU work before this
         // graph runs, so reusing the buffer is race-free.
         BufferHandle buffer(nullptr);
-        if (!alloc_ctx_tensors_reuse(ctx)) {
+        if (!alloc_ctx_tensors_reuse(ctx, graph)) {
             buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
             if (buffer.value == nullptr) {
                 set_last_error("Failed to allocate buffer for Gemma4 layer prefill.");
@@ -1935,7 +1935,7 @@ TSG_EXPORT int TSGgml_Qwen35AttentionLayerPrefill(
                 }
             }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
             buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
             if (buffer.value == nullptr) {

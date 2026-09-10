@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 
 #if defined(TSG_GGML_USE_METAL)
 #include "ggml-backend-impl.h"
@@ -1867,7 +1868,7 @@ namespace tsg
 #endif
     }
 
-    bool alloc_ctx_tensors_reuse(ggml_context* ctx)
+    bool alloc_ctx_tensors_reuse(ggml_context* ctx, ggml_cgraph* graph)
     {
         // Escape hatch for A/B testing / regression isolation.
         static const bool s_disabled = []() {
@@ -1884,8 +1885,9 @@ namespace tsg
         if (buft == nullptr)
             return false;
 
-        const std::size_t needed = ggml_backend_alloc_ctx_tensors_from_buft_size(ctx, buft);
-        if (needed == 0)
+        const bool reuse_attention = graph != nullptr && g_backend_type == BACKEND_TYPE_METAL;
+        const std::size_t needed = reuse_attention ? 0 : ggml_backend_alloc_ctx_tensors_from_buft_size(ctx, buft);
+        if (!reuse_attention && needed == 0)
             return true; // every tensor already has a buffer (all inputs pre-bound)
 
         const std::size_t max_size = ggml_backend_buft_get_max_size(buft);
@@ -1904,36 +1906,49 @@ namespace tsg
             g_reuse_compute_backend = g_backend;
         }
 
-        if (g_reuse_compute_buf == nullptr || g_reuse_compute_size < needed)
+        // The optional graph-aware planner supplies its actual packed size to
+        // this same retained-buffer policy. Ordinary tensors still have unique
+        // slots, and only completed attention workspaces may share addresses.
+        const auto acquire_buffer = [&](std::size_t required_bytes) -> ggml_backend_buffer_t
         {
-            // Grow with slack rounded up to a 64 MiB boundary. The graph's
-            // intermediate footprint creeps up by sub-MB amounts every decode step
-            // (the attention scratch scales with the growing context), so allocating
-            // exactly `needed` reallocates the buffer on EVERY step. On Metal each
-            // realloc frees+allocs a multi-hundred-MB shared (vm_allocate) buffer;
-            // doing that hundreds of times fragments the device VM until a large
-            // contiguous allocation (e.g. the MTP verify graph) can no longer be
-            // satisfied -> kIOGPUCommandBufferCallbackErrorOutOfMemory even though
-            // total free bytes remain. Rounding to 64 MiB makes the buffer grow in
-            // rare, big steps and be reused unchanged across thousands of decodes.
-            std::size_t alloc_size = needed;
-            const std::size_t slab = static_cast<std::size_t>(64) * 1024 * 1024;
-            alloc_size = ((alloc_size + slab - 1) / slab) * slab;
-            if (alloc_size > max_size) alloc_size = max_size; // never exceed a single buffer
-            if (alloc_size < needed) alloc_size = needed;
-            if (g_reuse_compute_buf != nullptr)
-                ggml_backend_buffer_free(g_reuse_compute_buf);
-            g_reuse_compute_buf = ggml_backend_buft_alloc_buffer(buft, alloc_size);
-            if (g_reuse_compute_buf == nullptr)
+            if (required_bytes > max_size)
+                return nullptr;
+            if (g_reuse_compute_buf == nullptr || g_reuse_compute_size < required_bytes)
             {
-                g_reuse_compute_size = 0;
-                return false;
+                // Grow with slack rounded up to a 64 MiB boundary. The graph's
+                // intermediate footprint creeps up by sub-MB amounts every decode step
+                // (the attention scratch scales with the growing context), so allocating
+                // exactly `required_bytes` reallocates the buffer on EVERY step. On Metal each
+                // realloc frees+allocs a multi-hundred-MB shared (vm_allocate) buffer;
+                // doing that hundreds of times fragments the device VM until a large
+                // contiguous allocation (e.g. the MTP verify graph) can no longer be
+                // satisfied -> kIOGPUCommandBufferCallbackErrorOutOfMemory even though
+                // total free bytes remain. Rounding to 64 MiB makes the buffer grow in
+                // rare, big steps and be reused unchanged across thousands of decodes.
+                std::size_t alloc_size = required_bytes;
+                const std::size_t slab = static_cast<std::size_t>(64) * 1024 * 1024;
+                alloc_size = ((alloc_size + slab - 1) / slab) * slab;
+                if (alloc_size > max_size) alloc_size = max_size; // never exceed a single buffer
+                if (alloc_size < required_bytes) alloc_size = required_bytes;
+                if (g_reuse_compute_buf != nullptr)
+                    ggml_backend_buffer_free(g_reuse_compute_buf);
+                g_reuse_compute_buf = ggml_backend_buft_alloc_buffer(buft, alloc_size);
+                if (g_reuse_compute_buf == nullptr)
+                {
+                    g_reuse_compute_size = 0;
+                    return nullptr;
+                }
+                g_reuse_compute_size = alloc_size;
+                ggml_backend_buffer_set_usage(g_reuse_compute_buf, GGML_BACKEND_BUFFER_USAGE_COMPUTE);
+                if (vram_log_enabled())
+                    vram_log("reuse-compute-buf(grew)", static_cast<std::int64_t>(alloc_size));
             }
-            g_reuse_compute_size = alloc_size;
-            ggml_backend_buffer_set_usage(g_reuse_compute_buf, GGML_BACKEND_BUFFER_USAGE_COMPUTE);
-            if (vram_log_enabled())
-                vram_log("reuse-compute-buf(grew)", static_cast<std::int64_t>(alloc_size));
-        }
+            return g_reuse_compute_buf;
+        };
+        if (reuse_attention)
+            return alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend, acquire_buffer) != nullptr;
+        if (acquire_buffer(needed) == nullptr)
+            return false;
 
         // Re-pack this graph's unallocated tensors into the cached buffer. Mirrors
         // ggml-alloc.c's alloc_tensor_range exactly (the size query above used the

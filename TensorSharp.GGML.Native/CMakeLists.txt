@@ -241,6 +241,7 @@ endif()
 
 set(TSG_GGMLOPS_SOURCES
     ggml_ops_core.cpp
+    ggml_ops_attention_alloc.cpp
     ggml_ops_matmul.cpp
     ggml_ops_elementwise.cpp
     ggml_ops_norm_attn.cpp
@@ -403,6 +404,18 @@ set_target_properties(GgmlOps PROPERTIES
 )
 
 if (TENSORSHARP_GGML_NATIVE_BUILD_TESTS)
+    enable_testing()
+    add_executable(GgmlOpsAttentionAllocTest
+        tests/attention_alloc_test.cpp ggml_ops_attention_alloc.cpp)
+    target_include_directories(GgmlOpsAttentionAllocTest PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../ExternalProjects/ggml/include")
+    target_link_libraries(GgmlOpsAttentionAllocTest PRIVATE ggml)
+    if (APPLE AND TENSORSHARP_GGML_NATIVE_ENABLE_METAL)
+        target_compile_definitions(GgmlOpsAttentionAllocTest PRIVATE TSG_GGML_USE_METAL=1)
+    endif()
+    add_test(NAME attention-allocation COMMAND GgmlOpsAttentionAllocTest)
+
     add_executable(GgmlOpsGetRowsQuantTest tests/get_rows_quant_test.cpp)
     target_include_directories(GgmlOpsGetRowsQuantTest PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../ExternalProjects/ggml/include"

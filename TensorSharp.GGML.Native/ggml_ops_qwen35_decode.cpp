@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cmath>
@@ -324,7 +325,9 @@ namespace
                 residual_out_zero_copy = false;
         }
 
-        BufferHandle buffer(ggml_backend_alloc_ctx_tensors(ctx, g_backend));
+        BufferHandle buffer((g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend)));
         if (buffer.value == nullptr)
         {
             set_last_error("Failed to allocate backend buffer for Qwen3.5 attention layer decode.");
@@ -1977,11 +1980,13 @@ namespace
         ggml_backend_buffer_t persist_buf = nullptr;
         if (persist)
         {
-            // Stable unique slots are faster than lifetime-packed scratch for
-            // this replayed Metal graph and retain capture-safe addresses on
-            // CUDA/Vulkan.
+            // Keep unique activation/state slots to protect the recurrent in-place
+            // writes. Metal reuses only non-overlapping attention workspaces;
+            // CUDA/Vulkan retain their existing capture-safe allocations.
             vram_log_ctx_breakdown("q35-decode-persist", ctx, 12);
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Qwen3.5 model decode: failed to allocate persist backend buffer.");
@@ -2005,7 +2010,9 @@ namespace
             // scratch is small so the alloc costs only ~4 ms/token (still ~5x faster
             // than the op-by-op path). The dense Gemma4 decode is unaffected (it has
             // no in-place recurrent state) and keeps the reuse gallocr.
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Qwen3.5 model decode: failed to allocate backend buffer.");
@@ -2997,15 +3004,17 @@ namespace
             }
         }
 
-        // Allocate the graph tensors. Persist uses alloc_ctx_tensors (each tensor
-        // its own slot = STABLE addresses, required for CUDA-graph capture); non-
-        // persist tries gallocr lifetime-packing first.
+        // Allocate the graph tensors. Persist keeps stable addresses for capture;
+        // Metal shares completed attention workspaces while ordinary tensors
+        // keep unique slots. Non-persist tries gallocr lifetime-packing first.
         BufferHandle buffer(nullptr);
         ggml_backend_buffer_t persist_buf = nullptr;
         if (persist)
         {
             vram_log_ctx_breakdown("q35-batched-decode-persist", ctx, 12);
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Qwen3.5 batched decode: failed to allocate persist backend buffer.");
@@ -3017,7 +3026,9 @@ namespace
         }
         else if (!alloc_graph_reuse_gallocr(graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Qwen3.5 batched decode: failed to allocate backend buffer.");

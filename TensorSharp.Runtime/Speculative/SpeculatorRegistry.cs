@@ -61,13 +61,11 @@ namespace TensorSharp.Runtime.Speculative
             {
                 [DraftHead] = new Entry(CreateDraftHead, RequiresDraftHead: true),
                 [Block] = new Entry(CreateBlock, RequiresDraftHead: true),
-                // The trunk's preferred window applies to every algorithm: it is a
-                // property of what a verify batch COSTS on that trunk (a recurrent
-                // state to snapshot per row, the small-batch matmul kernels' row
-                // limit), not of who proposed the rows. n-gram used to take the raw
-                // option and verified 9 rows on trunks that had asked for 3 or 7.
+                // N-gram may use a separate default: long exact suffix matches can
+                // amortize a wide verify without a learned drafter's per-token cost.
+                // Otherwise it shares the trunk's general default preference.
                 [NGram] = new Entry(
-                    (target, options) => new NGramSpeculator(ResolveDraftWindow(target, options)),
+                    (target, options) => new NGramSpeculator(ResolveNGramDraftWindow(target, options)),
                     RequiresDraftHead: false),
             };
 
@@ -213,6 +211,21 @@ namespace TensorSharp.Runtime.Speculative
             if (!options.MaxDraftTokensExplicit && preferred > 0)
                 window = Math.Min(window, preferred);
             return window;
+        }
+
+        private static int ResolveNGramDraftWindow(ISpeculativeTarget target, SpeculationOptions options)
+        {
+            if (!options.MaxDraftTokensExplicit && target.SpecPreferredNGramDraftWindow > 0)
+            {
+                int preferred = target.SpecPreferredNGramDraftWindow;
+                // Older programmatic callers may set a non-default cap without
+                // the CLI's Explicit flag. Preserve that cap; only widen the
+                // unchanged shared default when the model recommends doing so.
+                if (options.MaxDraftTokens != SpeculationOptions.DefaultMaxDraftTokens)
+                    preferred = Math.Min(Math.Max(1, options.MaxDraftTokens), preferred);
+                return Math.Clamp(preferred, 1, SpeculationOptions.MaxAllowedDraftTokens);
+            }
+            return ResolveDraftWindow(target, options);
         }
     }
 }

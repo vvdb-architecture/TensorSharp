@@ -51,19 +51,19 @@ namespace
     // N=accepted+1 (rollback re-forward); a single entry would evict + rebuild every
     // call.
     //
-    // Each entry's activations live in a PRIVATE gallocr (lifetime-packed) that is
-    // planned exactly ONCE and never re-reserved, so node addresses stay stable for
-    // graph reuse / CUDA capture — same stability as the previous every-tensor-its-
-    // own-slot alloc_ctx_tensors layout, at a fraction of the VRAM. Own-slot layouts
-    // measured 0.5 GB (N=1) to 1.8 GB (N=20) PER ENTRY on Qwen3.6-27B: the dominant
-    // cost was 48 GDN layers x ~3.2 MB delta-state in/out slots duplicated into
-    // every entry, which the 16-slot cache turned into multi-GB VRAM growth during
-    // ordinary MTP decoding. The GDN state slices now live in ONE shared device
-    // buffer (g_q35v_state, below) bound into every entry's graph, and gallocr
-    // packing recycles the per-layer intermediates, so an N<=9 verify entry costs
-    // ~10-30 MB.
+    // Metal entries use a private gallocr, planned once to keep stable replay
+    // addresses while recycling temporary activations and full backend attention
+    // workspaces. Other backends retain unique slots, including CUDA capture.
+    // GDN live state is shared across an owner's entries; retained snapshots and
+    // immutable leaf weights stay pinned in each entry's allocation.
     struct Q35VerifyCache
     {
+        struct CommitGraph
+        {
+            ggml_context* ctx = nullptr;
+            ggml_cgraph* graph = nullptr;
+            bool attempted = false;
+        };
         bool valid = false;
         std::uint64_t owner_id = 0;
         int rank = 0;
@@ -72,6 +72,7 @@ namespace
         const void* sig = nullptr;
         ggml_context* ctx = nullptr;
         ggml_backend_buffer_t buffer = nullptr;
+        ggml_gallocr_t allocator = nullptr;
         ggml_cgraph* graph = nullptr;
         ggml_tensor* hidden_t = nullptr;
         ggml_tensor* pos_t = nullptr;
@@ -117,8 +118,15 @@ namespace
         std::vector<const void*> host_bindings;
         std::size_t buffer_bytes = 0;
         std::uint64_t lru = 0;
+        // Metadata only: each graph copies one selected snapshot into the shared
+        // live slices. Its leaf descriptors borrow this entry's existing buffers.
+        std::vector<CommitGraph> commit_graphs;
         void reset()
         {
+            for (auto& commit : commit_graphs)
+                if (commit.ctx != nullptr) ggml_free(commit.ctx);
+            commit_graphs.clear();
+            if (allocator != nullptr) { ggml_gallocr_free(allocator); allocator = nullptr; }
             if (buffer != nullptr) { ggml_backend_buffer_free(buffer); buffer = nullptr; }
             if (ctx != nullptr) { ggml_free(ctx); ctx = nullptr; }
             graph = nullptr; valid = false;
@@ -574,8 +582,14 @@ namespace
         // (last-row logits), never the non-persist MTP-draft path.
         const bool chain_state = defer_state_download != 0 && n_logits < N && !fv_persist
             && !resident_state && g_backend_type == BACKEND_TYPE_METAL;
-        const int n_snap = (defer_state && state_snapshots > 1 && state_snapshots <= N)
+        int n_snap = (defer_state && state_snapshots > 1 && state_snapshots <= N)
             ? state_snapshots : 1;
+        // Wide n-gram windows need not retain a complete recurrent-state matrix
+        // for every prefix. Keep the last three states on Metal; an earlier
+        // rejection uses the existing restore-and-reforward protocol. The live
+        // input remains untouched until a supported snapshot is committed.
+        if (g_backend_type == BACKEND_TYPE_METAL && N > 8)
+            n_snap = std::min(n_snap, 3);
         // What the caller has to do next, and getting it wrong silently decodes from
         // a stale recurrent state:
         //   -1 -> non-persist prefill committed its post-window state into live slices
@@ -619,11 +633,16 @@ namespace
                 std::vector<std::int32_t> pv(N);
                 std::vector<std::int64_t> kv(N);
                 for (int i = 0; i < N; i++) { pv[i] = start_pos + i; kv[i] = start_pos + i; }
-                ggml_backend_tensor_set(c.pos_t, pv.data(), 0, static_cast<std::size_t>(N) * sizeof(std::int32_t));
-                ggml_backend_tensor_set(c.kv_index, kv.data(), 0, static_cast<std::size_t>(N) * sizeof(std::int64_t));
+                // An all-recurrent graph has no attention inputs. Its private
+                // gallocr leaves these unused context tensors unallocated.
+                if (c.pos_t->buffer != nullptr)
+                    ggml_backend_tensor_set(c.pos_t, pv.data(), 0, static_cast<std::size_t>(N) * sizeof(std::int32_t));
+                if (c.kv_index->buffer != nullptr)
+                    ggml_backend_tensor_set(c.kv_index, kv.data(), 0, static_cast<std::size_t>(N) * sizeof(std::int64_t));
                 std::vector<ggml_fp16_t> mk;
                 fill_verify_causal_mask(mk, window, N, start_pos, totalSeqLen);
-                ggml_backend_tensor_set(c.mask_t, mk.data(), 0, mk.size() * sizeof(ggml_fp16_t));
+                if (c.mask_t->buffer != nullptr)
+                    ggml_backend_tensor_set(c.mask_t, mk.data(), 0, mk.size() * sizeof(ggml_fp16_t));
                 // Host mode uploads the per-call GDN state; resident keeps it device-
                 // resident (cacheable, in-place), so no upload/download here.
                 if (!resident_state && device_state_current == 0)
@@ -701,9 +720,9 @@ namespace
             }
         }
 
-        // ===== Build a fresh graph. Persist: raw ctx + alloc_ctx_tensors (each tensor
-        // its OWN slot = stable addresses, required for reuse/capture). Non-persist:
-        // pooled ctx + gallocr lifetime-packing. =====
+        // Persistent graphs own their context and stable allocation (private
+        // gallocr on Metal, unique slots elsewhere). Non-persistent graphs use
+        // the pooled context and reusable allocator.
         ggml_context* ctx = nullptr;
         PooledContextHandle context;
         if (fv_persist)
@@ -1271,6 +1290,12 @@ namespace
                         ggml_build_forward_expand(graph, ggml_cpy(ctx, src, dst));
                         t.conv_snap_slots.push_back(dst);
                     }
+                    // Deferred Metal verifies keep these snapshot tensors alive
+                    // until Commit selects the accepted prefix. Slot zero already
+                    // holds the final conv state, so a second copy into the shared
+                    // output half would only repeat that work.
+                    if (g_backend_type == BACKEND_TYPE_METAL && defer_state)
+                        t.conv_state_out = t.conv_snap_slots[0];
                 }
 
                 // l2-norm over head_k_dim. q/k keep num_k_heads heads: the fused
@@ -1349,7 +1374,15 @@ namespace
                 // (state4 aliases it). Host mode: write to the separate delta_state_out
                 // slice (downloaded after compute) — NOT in-place, so the persist
                 // replay's captured CUDA graph stays valid across re-uploads.
-                t.delta_state_out = ggml_cpy(ctx, new_state, resident_state ? state4 : t.delta_state_out);
+                // Multi-snapshot Metal graphs already retain their GDN states for
+                // Commit. Reuse the final-state view instead of copying it into an
+                // unused output half first. Single-row graphs keep the shared output
+                // copy, which avoids making every cached graph's GDN activation pages
+                // host-resident when Commit reads them through a shared-buffer copy.
+                // Non-persist prefill also needs its shared ping-pong output half.
+                t.delta_state_out = g_backend_type == BACKEND_TYPE_METAL && defer_state && n_snap > 1
+                    ? new_state
+                    : ggml_cpy(ctx, new_state, resident_state ? state4 : t.delta_state_out);
                 if (n_snap > 1)
                 {
                     const std::int64_t d_elems =
@@ -1764,31 +1797,76 @@ namespace
         optimize_graph_for_metal(graph);
         phase_timer.mark("optimize");
 
-        // Persist: give every still-unbound tensor (intermediates, inputs, outputs,
-        // small weights) its OWN stable slot via alloc_ctx_tensors. Own slots (no
-        // lifetime packing / buffer aliasing) are REQUIRED for ggml-cuda's CUDA-graph
-        // capture to replay correctly — a private lifetime-packed gallocr produced a
-        // ~20x smaller buffer but the captured graph's replay read stale aliased
-        // slots and the trunk output degraded to garbage after the first verify.
-        // The bulk of the old per-entry VRAM was the GDN state (delta in/out + conv
-        // in/out, ~300 MB for 48 recurrent layers), which now lives in the ONE shared
-        // g_q35v_state_buf (pre-bound above), so each entry's own-slot buffer is only
-        // its activations + I/O — small for the N<=9 verify shapes MTP decode uses.
+        // Metal retains a graph-specific lifetime allocator. It plans once, so
+        // replay and snapshot descriptors keep stable addresses while temporary
+        // activations (including complete backend attention workspaces) can share
+        // storage. CUDA keeps its established unique-slot capture layout.
+        std::unique_ptr<ggml_gallocr, decltype(&ggml_gallocr_free)> persist_alloc(nullptr, ggml_gallocr_free);
         ggml_backend_buffer_t persist_buf = nullptr;
+        std::size_t persist_bytes = 0;
         if (fv_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
-            if (persist_buf == nullptr)
+            const char* pack_setting = std::getenv("TS_Q35_VERIFY_PACK");
+            const bool pack = g_backend_type == BACKEND_TYPE_METAL &&
+                (pack_setting == nullptr || pack_setting[0] != '0');
+            if (pack)
             {
-                set_last_error("Qwen3.5 model verify: failed to allocate persist buffer.");
-                ggml_free(ctx);
-                return 0;
+                // Small immutable leaf weights are uploaded only on construction,
+                // not on replay. Pin their storage too, so a later activation never
+                // overwrites a constant needed by the next invocation.
+                for (ggml_tensor* tensor = ggml_get_first_tensor(ctx); tensor != nullptr;
+                     tensor = ggml_get_next_tensor(ctx, tensor))
+                {
+                    if (tensor->op == GGML_OP_NONE && tensor->view_src == nullptr && tensor->data == nullptr)
+                    {
+                        ggml_set_input(tensor);
+                        ggml_set_output(tensor);
+                    }
+                    if ((tensor->flags & GGML_TENSOR_FLAG_OUTPUT) != 0)
+                    {
+                        ggml_tensor* root = tensor;
+                        while (root->view_src != nullptr) root = root->view_src;
+                        ggml_set_output(root);
+                    }
+                }
+                persist_alloc.reset(ggml_gallocr_new(ggml_backend_get_default_buffer_type(g_backend)));
+                if (!persist_alloc || !ggml_gallocr_alloc_graph(persist_alloc.get(), graph))
+                {
+                    set_last_error("Qwen3.5 model verify: failed to allocate packed persist buffer.");
+                    ggml_free(ctx);
+                    return 0;
+                }
+                persist_bytes = ggml_gallocr_get_buffer_size(persist_alloc.get(), 0);
+                // Snapshot descriptors can be intentionally absent from the
+                // execution graph. Initialize those views after their retained
+                // storage roots have been allocated, before Commit reads them.
+                for (ggml_tensor* tensor = ggml_get_first_tensor(ctx); tensor != nullptr;
+                     tensor = ggml_get_next_tensor(ctx, tensor))
+                    if (tensor->view_src != nullptr && tensor->buffer == nullptr &&
+                        tensor->view_src->buffer != nullptr &&
+                        ggml_backend_view_init(tensor) != GGML_STATUS_SUCCESS)
+                    {
+                        set_last_error("Qwen3.5 model verify: failed to bind a retained packed view.");
+                        ggml_free(ctx);
+                        return 0;
+                    }
+            }
+            else
+            {
+                persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+                if (persist_buf == nullptr)
+                {
+                    set_last_error("Qwen3.5 model verify: failed to allocate persist buffer.");
+                    ggml_free(ctx);
+                    return 0;
+                }
+                persist_bytes = ggml_backend_buffer_get_size(persist_buf);
             }
             if (vram_log_enabled())
             {
                 char tag[96];
                 std::snprintf(tag, sizeof(tag), "q35-verify-persist(N=%d,w=%d)", N, window);
-                vram_log(tag, static_cast<std::int64_t>(ggml_backend_buffer_get_size(persist_buf)));
+                vram_log(tag, static_cast<std::int64_t>(persist_bytes));
             }
         }
         else if (!alloc_graph_reuse_gallocr(graph))
@@ -1805,6 +1883,9 @@ namespace
                 std::snprintf(tag, sizeof(tag), "q35-verify-ctx(N=%d,w=%d)", N, window);
                 vram_log(tag, static_cast<std::int64_t>(ggml_backend_buffer_get_size(buffer.value)));
             }
+            // Keep the fallback alive through uploads and compute (or transfer
+            // ownership with the other ephemeral buffers for a deferred TP call).
+            ephemeral_bufs.push_back(std::move(buffer));
         }
 
         // Every marked tensor must have come out of the allocation above with a
@@ -1834,19 +1915,22 @@ namespace
         for (auto& u : upload_list)
             ggml_backend_tensor_set(u.tensor, resolve_upload_source(u.data), 0, u.bytes);
         ggml_backend_tensor_set(hidden_t, hidden_data, 0, static_cast<std::size_t>(H) * N * sizeof(float));
-        if (use_mrope)
+        // Packed graphs allocate only inputs they actually consume. Position,
+        // KV index, and causal mask inputs are absent with no attention layers.
+        if (pos_tensor->buffer != nullptr && use_mrope)
         {
             ggml_backend_tensor_set(pos_tensor, mrope_pos, 0, static_cast<std::size_t>(4) * N * sizeof(std::int32_t));
         }
-        else
+        else if (pos_tensor->buffer != nullptr)
         {
             std::vector<std::int32_t> pos_vals(N);
             for (int i = 0; i < N; i++) pos_vals[i] = start_pos + i;
             ggml_backend_tensor_set(pos_tensor, pos_vals.data(), 0, static_cast<std::size_t>(N) * sizeof(std::int32_t));
         }
-        if (uses_dynamic_kv_index)
+        if (uses_dynamic_kv_index && kv_index->buffer != nullptr)
             ggml_backend_tensor_set(kv_index, kv_index_data.data(), 0, static_cast<std::size_t>(N) * sizeof(std::int64_t));
-        ggml_backend_tensor_set(attn_mask, attn_mask_data.data(), 0, attn_mask_data.size() * sizeof(ggml_fp16_t));
+        if (attn_mask->buffer != nullptr)
+            ggml_backend_tensor_set(attn_mask, attn_mask_data.data(), 0, attn_mask_data.size() * sizeof(ggml_fp16_t));
         if (!resident_state && device_state_current == 0)
         {
             // Host mode: upload the per-call GDN state. Resident mode skips this — the
@@ -2091,7 +2175,8 @@ namespace
                 }
             }
             slot->ctx = ctx; slot->buffer = persist_buf; slot->graph = graph;
-            slot->buffer_bytes = persist_buf != nullptr ? ggml_backend_buffer_get_size(persist_buf) : 0;
+            slot->allocator = persist_alloc.release();
+            slot->buffer_bytes = persist_bytes;
             slot->hidden_t = hidden_t; slot->pos_t = pos_tensor;
             slot->kv_index = kv_index; slot->mask_t = attn_mask;
             slot->logits_out = logits_out_t; slot->normed_out = normed_out_t;
@@ -2381,6 +2466,70 @@ namespace
         }
         return true;
     }
+
+    ggml_cgraph* q35v_commit_graph(Q35VerifyCache& cache, int slot)
+    {
+        const bool from_out = slot < 0;
+        const int graph_index = from_out ? cache.n_snapshots : slot;
+        if (cache.commit_graphs.empty())
+            cache.commit_graphs.resize(static_cast<std::size_t>(cache.n_snapshots) + 1);
+        auto& commit = cache.commit_graphs[graph_index];
+        if (commit.attempted) return commit.graph;
+        commit.attempted = true;
+
+        const std::size_t count = cache.conv_in.size();
+        const std::size_t nodes = 2 * count;
+        const std::size_t graph_capacity = 2 * nodes; // two distinct leaf bindings per copy
+        const std::size_t bytes = ggml_graph_overhead_custom(graph_capacity, false)
+            + 3 * nodes * ggml_tensor_overhead() + 1024;
+        ggml_init_params params = {bytes, nullptr, /*no_alloc=*/true};
+        commit.ctx = ggml_init(params);
+        if (commit.ctx == nullptr) return nullptr;
+        ggml_cgraph* graph = ggml_new_graph_custom(commit.ctx, graph_capacity, false);
+
+        // Bind leaf descriptors instead of attaching a snapshot's producer to
+        // this graph. Expanding the original GDN view would replay the verifier,
+        // advancing the recurrent state a second time while committing it.
+        auto leaf = [&](ggml_tensor* source) -> ggml_tensor* {
+            if (!ggml_is_contiguous(source) || source->buffer == nullptr || source->data == nullptr)
+                return nullptr;
+            ggml_tensor* tensor = ggml_dup_tensor(commit.ctx, source);
+            if (ggml_backend_tensor_alloc(source->buffer, tensor, source->data) != GGML_STATUS_SUCCESS)
+                return nullptr;
+            return tensor;
+        };
+        auto add_copy = [&](ggml_tensor* source, ggml_tensor* destination) {
+            ggml_tensor* input = leaf(source);
+            ggml_tensor* output = leaf(destination);
+            if (input == nullptr || output == nullptr) return false;
+            ggml_tensor* copy = ggml_cpy(commit.ctx, input, output);
+            if (!backend_supports_op(copy) || ggml_backend_view_init(copy) != GGML_STATUS_SUCCESS)
+                return false;
+            ggml_build_forward_expand(graph, copy);
+            return true;
+        };
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            const std::size_t index = i * cache.n_snapshots + (from_out ? 0 : slot);
+            ggml_tensor* conv = from_out ? cache.conv_out[i] : cache.conv_snap_slots[index];
+            ggml_tensor* delta = from_out ? cache.delta_out[i] : cache.delta_snap_slots[index];
+            if (!add_copy(conv, cache.conv_in[i]) || !add_copy(delta, cache.delta_in[i]))
+            {
+                ggml_free(commit.ctx);
+                commit.ctx = nullptr;
+                return nullptr;
+            }
+        }
+        // Only the two copies per recurrent layer may execute in a commit.
+        if (ggml_graph_n_nodes(graph) != static_cast<int>(nodes))
+        {
+            ggml_free(commit.ctx);
+            commit.ctx = nullptr;
+            return nullptr;
+        }
+        commit.graph = graph;
+        return graph;
+    }
 }
 
 // Commit ONE recurrent-state snapshot into the LIVE state, entirely on the device.
@@ -2443,8 +2592,43 @@ TSG_EXPORT int TSGgml_Qwen35CommitStateSnapshotOwned(
                 set_last_error("Qwen3.5 state commit: snapshot/live layout mismatch.");
                 return 0;
             }
-            ggml_backend_tensor_copy(csrc, c->conv_in[i]);
-            ggml_backend_tensor_copy(dsrc, c->delta_in[i]);
+        }
+        // Validate every source before writing any live state. On shared Metal
+        // buffers tensor_copy uses the CPU; one small graph lets the GPU copy all
+        // layers together without pulling their snapshots through host caches.
+        // The runtime switch supports an exact CPU/GPU commit comparison; value
+        // 2 requires the GPU path so regression tests cannot pass via a fallback.
+        bool copied = false;
+        const char* gpu_commit = std::getenv("TS_Q35_GPU_STATE_COMMIT");
+        if (g_backend_type == BACKEND_TYPE_METAL && (gpu_commit == nullptr || gpu_commit[0] != '0'))
+        {
+            ScopedRank rank(c->rank);
+            if (ggml_cgraph* graph = q35v_commit_graph(*c, slot))
+            {
+                if (tsg::compute_graph(g_backend, graph) != GGML_STATUS_SUCCESS
+                    || g_backend_compute_failed.load(std::memory_order_acquire))
+                {
+                    set_last_error("Qwen3.5 state commit: Metal copy graph failed.");
+                    return 0;
+                }
+                copied = true;
+            }
+        }
+        if (!copied && gpu_commit != nullptr && gpu_commit[0] == '2')
+        {
+            set_last_error("Qwen3.5 state commit: the required Metal copy graph is unavailable.");
+            return 0;
+        }
+        if (!copied)
+        {
+            // Unsupported layouts/backends keep the existing tensor-copy path;
+            // no live state has been written when graph construction declines.
+            for (int i = 0; i < num_recurrent_layers; i++)
+            {
+                const int idx = i * c->n_snapshots + (from_out ? 0 : slot);
+                ggml_backend_tensor_copy(from_out ? c->conv_out[i] : c->conv_snap_slots[idx], c->conv_in[i]);
+                ggml_backend_tensor_copy(from_out ? c->delta_out[i] : c->delta_snap_slots[idx], c->delta_in[i]);
+            }
         }
         state.live_state.valid = true;
         state.live_state.sig = c->sig;

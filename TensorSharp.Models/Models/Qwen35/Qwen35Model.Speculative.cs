@@ -26,8 +26,10 @@
 // further draft steps. This mirrors llama.cpp's graph_mtp (src/models/qwen35.cpp)
 // and vLLM's Qwen3_5MultiTokenPredictor (qwen3_5_mtp.py).
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using TensorSharp;
+using TensorSharp.Runtime;
 using TensorSharp.Runtime.Scheduling;
 
 using TensorSharp.Runtime.Speculative;
@@ -106,6 +108,56 @@ namespace TensorSharp.Models
         /// An operator who passes --spec-draft still gets exactly that number.
         /// </summary>
         public int SpecPreferredDraftWindow => HasAnyRecurrentLayer ? 3 : 0;
+
+        // Weight-free suffix matches can amortize a wider GEMM without paying
+        // twelve learned draft-head forwards. IQ4_XS uses independent Metal
+        // matvecs through eight verify rows; a twelve-token n-gram draft makes
+        // the thirteen-row GEMM useful. MTP/DFlash keep the existing preference.
+        public int SpecPreferredNGramDraftWindow
+        {
+            get
+            {
+                if (_backend != BackendType.GgmlMetal || _numExperts != 0 || IsTensorParallel || !HasAnyRecurrentLayer)
+                    return 0;
+                bool tiedOutput = _lmHeadQW != null
+                    ? ReferenceEquals(_lmHeadQW, _quantWeights.GetValueOrDefault("token_embd.weight"))
+                    : _lmHeadF32 != null && ReferenceEquals(_lmHeadF32, _weights.GetValueOrDefault("token_embd.weight"));
+                return SelectMetalNGramDraftWindow(_quantWeights, _weights, Config.NumLayers, tiedOutput);
+            }
+        }
+
+        internal static int SelectMetalNGramDraftWindow(
+            IReadOnlyDictionary<string, QuantizedWeight> quantWeights,
+            IReadOnlyDictionary<string, Tensor> weights, int trunkLayers, bool tiedOutput)
+        {
+            var (iq4Bytes, totalBytes) = MeasureMatmulWeightBytes(
+                quantWeights, weights, (int)GgmlTensorType.IQ4_XS, IsActiveMatrix);
+            return iq4Bytes > 0 && iq4Bytes >= totalBytes - iq4Bytes ? 12 : 0;
+
+            bool HasWeight(string name) => quantWeights.ContainsKey(name) || weights.ContainsKey(name);
+            bool IsActiveMatrix(string name)
+            {
+                if (name == "output.weight") return !tiedOutput;
+                if (name == "token_embd.weight") return tiedOutput;
+                if (!name.StartsWith("blk.", StringComparison.Ordinal)) return false;
+                int separator = name.IndexOf('.', 4);
+                if (separator < 0 || !int.TryParse(name.AsSpan(4, separator - 4), out int layer)
+                    || layer < 0 || layer >= trunkLayers)
+                    return false;
+                string suffix = name[(separator + 1)..];
+                string prefix = name[..(separator + 1)];
+                // The non-TP verifier reads the four original recurrent input
+                // projections, while the retained ssm_in_proj pack serves TP.
+                if (suffix is "ssm_in_proj.weight" or "ssm_conv1d.weight"
+                    || suffix.StartsWith("nextn.", StringComparison.Ordinal))
+                    return false;
+                if (suffix is "ffn_gate.weight" or "ffn_up.weight")
+                    return !HasWeight(prefix + "ffn_gate_up.weight");
+                if (suffix is "attn_q.weight" or "attn_k.weight" or "attn_v.weight")
+                    return !HasWeight(prefix + "attn_qkv.weight");
+                return true;
+            }
+        }
 
         private bool HasAnyRecurrentLayer
         {

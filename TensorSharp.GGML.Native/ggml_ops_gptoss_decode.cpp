@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include "ggml_ops_gptoss_kv.h"
 
@@ -991,7 +992,9 @@ static int gptoss_model_decode_impl(
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("GPT-OSS model decode: failed to allocate persist backend buffer.");
@@ -1001,7 +1004,9 @@ static int gptoss_model_decode_impl(
         }
         else if (!alloc_graph_reuse_gallocr(graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("GPT-OSS model decode: failed to allocate backend buffer.");

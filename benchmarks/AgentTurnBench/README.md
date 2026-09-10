@@ -40,9 +40,41 @@ dtype, `--spec-file N` the size of the file the spec prompt asks the model to
 repeat, `--spec-minimal-system` keeps the spec prompt under a 512-token sliding
 window, `--out rows.json` writes the rows. `TS_SPEC_DRAFT` / `TS_SPEC_PMIN` set
 the speculative window and gate; `TS_GMTP_PROFILE=1` prints the Gemma 4 verify's
-phase timing. The run fails when any multi-token input took more prefill steps
+phase timing. `TS_GMTP_NATIVE_PROFILE=1` separates native graph construction,
+binding, allocation, uploads, compute (including the folded head), and downloads;
+it adds a diagnostic synchronization and should be disabled for throughput comparisons.
+The run fails when any multi-token input took more prefill steps
 than `ceil(fresh / chunk) + 2`, or when a grammar-constrained answer the model
 finished is not valid JSON.
+
+Compare runs made with the same model, arguments, and environment:
+
+```sh
+python3 benchmarks/AgentTurnBench/compare.py before.json after.json --max-regression-percent 5
+```
+
+For steady-state measurements, pass `--warmup 1` to both benchmark runs. This
+runs the complete selected workload before measuring, using normal .NET runtime
+settings. Warm-up still checks outputs and batching; a failure fails the run.
+With `--out`, each warm-up pass is saved separately as
+`<output>.warmup1.json`, so startup measurements remain available. The default
+`--warmup 0` continues to measure the first workload after kernel initialization.
+
+The comparison requires identical output token IDs, request rows, prompt/cache
+counts, and finish reasons. It reports prefill/decode throughput and TTFT changes,
+and fails on output differences, benchmark errors, missing data, or a regression
+above the threshold. Decode throughput is omitted when there are no tokens after
+the first. For repeated measurements, add `--baseline-repeat before2.json` and
+`--candidate-repeat after2.json` (repeat either option as needed); every run must
+match outputs, and performance uses the median for each request.
+
+Individual requests also export `TokenTimesMs`: each token's delivery time from
+submission. A lower derived decode rate can result from an earlier first token
+even when every token arrives earlier. The comparator prints an explicit
+decode-rate exception only when every corresponding median token delivery and
+median `TotalMs` is no later. Every repeat must contain a complete, valid timeline;
+older results and concurrent aggregates retain the strict throughput check. Raw
+metric changes remain visible, and prefill/TTFT checks still apply.
 
 ## What it measured (2026-09-09, Apple M5 Pro, ggml_metal, chunk 1024)
 

@@ -72,6 +72,8 @@ public class SpeculatorRegistryTests
     [Theory]
     [InlineData(3, 8, false, 3)]   // the trunk prefers 3: the default window narrows to it
     [InlineData(3, 8, true, 8)]    // an explicit --spec-draft still wins
+    [InlineData(2, 8, false, 2)]  // Metal IQ4 targets prefer a three-row verify
+    [InlineData(2, 8, true, 8)]    // the IQ4 preference must not override an explicit window
     [InlineData(0, 8, false, 8)]   // no preference: the default stands
     public void NGram_TakesTheTrunksPreferredWindowLikeEveryOtherAlgorithm(
         int preferred, int requested, bool explicitRequest, int expected)
@@ -104,6 +106,46 @@ public class SpeculatorRegistryTests
         Assert.IsType<NGramSpeculator>(spec);
         Assert.False(SpeculatorRegistry.RequiresDraftHead(SpeculatorRegistry.NGram));
         Assert.True(SpeculatorRegistry.RequiresDraftHead(SpeculatorRegistry.Auto));
+    }
+
+    [Theory]
+    [InlineData(0, 8, false, 3)]
+    [InlineData(12, 8, false, 12)]
+    [InlineData(12, 2, false, 2)]
+    [InlineData(12, 16, false, 12)]
+    [InlineData(100, 8, false, 64)]
+    [InlineData(12, 1, true, 1)]
+    [InlineData(12, 3, true, 3)]
+    [InlineData(12, 8, true, 8)]
+    [InlineData(12, 12, true, 12)]
+    public void NGram_UsesItsOwnDefaultButHonorsEveryExplicitWindow(
+        int preferred, int requested, bool explicitRequest, int expected)
+    {
+        var model = new StubTarget { PreferredWindow = 3, PreferredNGramWindow = preferred };
+        var options = new SpeculationOptions
+        {
+            Enabled = true,
+            SpeculatorName = SpeculatorRegistry.NGram,
+            MaxDraftTokens = requested,
+            MaxDraftTokensExplicit = explicitRequest,
+        };
+        var spec = SpeculatorRegistry.Create(model, options, out string decline);
+        Assert.Null(decline);
+        Assert.Equal(expected, spec.MaxDraftTokens);
+    }
+
+    [Theory]
+    [InlineData(DraftHeadKind.PerToken)]
+    [InlineData(DraftHeadKind.Block)]
+    public void LearnedDrafters_KeepTheirGeneralPreferenceWhenNGramPrefersTwelve(DraftHeadKind kind)
+    {
+        var model = new StubTarget
+        {
+            Kind = kind, BlockSize = 16, PreferredWindow = 3, PreferredNGramWindow = 12,
+        };
+        var spec = SpeculatorRegistry.Create(model, Opts(SpeculatorRegistry.Auto), out string decline);
+        Assert.Null(decline);
+        Assert.Equal(3, spec.MaxDraftTokens);
     }
 
     [Fact]
@@ -248,6 +290,8 @@ public class SpeculatorRegistryTests
         public int BlockSize { get; set; }
         public int PreferredWindow { get; set; }
         public int SpecPreferredDraftWindow => PreferredWindow;
+        public int PreferredNGramWindow { get; set; }
+        public int SpecPreferredNGramDraftWindow => PreferredNGramWindow;
 
         public DraftHeadKind DraftHeadKind => Kind;
         public int DraftBlockSize => BlockSize;

@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cstdio>
@@ -613,13 +614,15 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
         bind_or_mark(lm_head_t, const_cast<void*>(lm_head_data), static_cast<std::size_t>(lm_head_bytes), true);
         bind_or_mark(final_norm_t, const_cast<void*>(final_norm_data), static_cast<std::size_t>(hidden_size) * sizeof(float), true);
 
-        // Persist: every tensor gets its own slot (stable addresses for capture),
+        // Persist: stable addresses for capture; Metal shares completed attention workspaces,
         // kept alive in the pool. Non-persist: reuse the pooled compute buffer.
         BufferHandle buffer(nullptr);
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Gemma4 batched decode: failed to allocate persist buffer.");
@@ -627,9 +630,11 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
                 return 0;
             }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Gemma4 batched decode: failed to allocate backend buffer.");
@@ -1099,12 +1104,16 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecodeBatched(
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr) { set_last_error("Gemma4 MoE batched decode: persist alloc failed."); ggml_free(ctx); return 0; }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr) { set_last_error("Gemma4 MoE batched decode: buffer alloc failed."); return 0; }
         }
 

@@ -108,6 +108,14 @@ namespace TensorSharp.Runtime.Speculative
         int SpecPreferredDraftWindow => 0;
 
         /// <summary>
+        /// Optional default specifically for weight-free n-gram drafting. A positive
+        /// value may exceed the shared default when a wider verification batch uses
+        /// a faster backend kernel. Explicit --spec-draft still wins; zero keeps
+        /// the general trunk preference. Learned drafters keep their own policy.
+        /// </summary>
+        int SpecPreferredNGramDraftWindow => 0;
+
+        /// <summary>
         /// True when a verify batch has already written reusable attention KV for
         /// EVERY token it processed (so the accepted prefix's KV is correct in the
         /// live cache), and the model has no recurrent state that a re-forward would

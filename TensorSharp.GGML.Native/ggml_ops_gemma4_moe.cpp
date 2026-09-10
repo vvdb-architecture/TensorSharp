@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cstdio>
@@ -405,9 +406,11 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
 
         // Allocate intermediates (reuse persistent compute buffer across tokens).
         BufferHandle buffer(nullptr);
-        if (!alloc_ctx_tensors_reuse(ctx))
+        if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Gemma4 MoE layer decode: failed to allocate backend buffer.");
@@ -1347,7 +1350,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
         // (shared with the MoE verify): the bump allocator's footprint is the SUM of
         // every intermediate (~870 MB on the 26B-A4B), which on top of the ~16 GB
         // resident weights/KV would OOM; gallocr packs by tensor LIFETIME (peak).
-        // Persist: stable tensor addresses (every intermediate its own slot) so the
+        // Persist: stable tensor addresses, with Metal attention workspace reuse, so the
         // built graph + KV buffers keep fixed addresses for CUDA-graph capture; the
         // ctx/graph/buffer are kept alive in g_g4moe. The N=1 padded-window decode's
         // intermediate footprint is small (a few MB), unlike the verify's. Non-
@@ -1356,7 +1359,9 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Gemma4 MoE model decode: failed to allocate persist backend buffer.");
@@ -1366,7 +1371,9 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
         }
         else if (!alloc_graph_reuse_gallocr(graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Gemma4 MoE model decode: failed to allocate backend buffer.");

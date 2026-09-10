@@ -11,6 +11,8 @@
 #   TENSORSHARP_GGML_GIT_REF   branch/tag/commit      (default: master, the ggml default branch)
 #   TENSORSHARP_GGML_NO_UPDATE if set to 1/ON/true and a checkout already exists,
 #                              skip the network fetch and use what is on disk.
+# The upstream checkout is consumed unchanged; TensorSharp-specific behavior belongs
+# in TensorSharp.GGML.Native, not in patches applied during dependency fetching.
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -39,27 +41,6 @@ try {
         throw "Timed out waiting for ggml fetch lock."
     }
 
-# Local patches under eng/ggml-patches, applied in name order after a clone, after an
-# update and on the no-update path; already-applied patches are recognised by applying
-# in reverse, and one that fits neither way is an error (see fetch-ggml.sh).
-function Invoke-LocalPatches {
-    $patchDir = Join-Path $PSScriptRoot "ggml-patches"
-    if (-not (Test-Path $patchDir)) { return }
-    foreach ($patch in (Get-ChildItem -Path $patchDir -Filter *.patch | Sort-Object Name)) {
-        git -C $GgmlDir apply --reverse --check $patch.FullName 2>$null
-        if ($LASTEXITCODE -eq 0) { continue }
-        git -C $GgmlDir apply --check $patch.FullName 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            git -C $GgmlDir apply $patch.FullName
-            if ($LASTEXITCODE -ne 0) { throw "git apply $($patch.Name) failed" }
-            Write-Host "ggml: applied $($patch.Name)"
-            continue
-        }
-        $sha = (git -C $GgmlDir rev-parse --short HEAD)
-        throw "ggml: $($patch.Name) applies to neither direction of the checkout at $sha; update the patch under $patchDir or pin TENSORSHARP_GGML_GIT_REF to a revision it fits."
-    }
-}
-
 function Test-Truthy([string] $Value) {
     return $Value -match '^(1|ON|on|On|TRUE|true|True|YES|yes|Yes)$'
 }
@@ -67,7 +48,6 @@ function Test-Truthy([string] $Value) {
 if (Test-Path (Join-Path $GgmlDir ".git")) {
     if (Test-Truthy $env:TENSORSHARP_GGML_NO_UPDATE) {
         Write-Host "ggml: TENSORSHARP_GGML_NO_UPDATE set; using existing checkout at $GgmlDir"
-        Invoke-LocalPatches
         exit 0
     }
 
@@ -89,7 +69,6 @@ if (Test-Path (Join-Path $GgmlDir ".git")) {
     else {
         Write-Warning "ggml: could not fetch $GitRef (offline?); using existing checkout"
     }
-    Invoke-LocalPatches
     exit 0
 }
 
@@ -116,7 +95,6 @@ if ($LASTEXITCODE -ne 0) {
 }
 $sha = (git -C $GgmlDir rev-parse --short HEAD).Trim()
 Write-Host "ggml: cloned at $sha"
-Invoke-LocalPatches
 }
 finally {
     if ($HasFetchMutex) {

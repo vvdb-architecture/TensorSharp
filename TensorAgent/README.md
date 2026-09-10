@@ -737,9 +737,10 @@ steps; one finished conversation stays resident, plus the shared-prefix checkpoi
 nothing is parked. (The reply length setting used to decide the reservation: at its
 top rung, 262,144 tokens, every request reserved the whole 32k window, host copy and
 Metal mirror both.) ggml-metal's residency set is off on the phone, so the weights can
-be reclaimed while a tool runs; a local patch under `eng/ggml-patches` stops every
-flash-attention node of a persistent graph reserving an F16 copy of the whole K/V
-window it never reads. The memory warning now asks the engine to release what only
+be reclaimed while a tool runs. TensorSharp shares complete flash-attention
+workspaces after their final consumers finish, reducing the persistent graph's
+allocation while building unchanged upstream ggml (see
+[allocation and benchmark details](../docs/perf/ggml-without-patches.md)). The memory warning now asks the engine to release what only
 serves the next request's speed, on the engine's own thread between steps.
 
 Measured on the Mac with the phone's settings and the research-then-slides prompt

@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cstdio>
@@ -1081,9 +1082,11 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            // STABLE addresses for CUDA-graph capture: every tensor gets its own
-            // slot (no gallocr lifetime packing, whose plan can move addresses).
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            // Stable addresses for capture/replay. Metal reuses completed
+            // attention workspaces; ordinary activations retain unique slots.
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Gemma4 model decode: failed to allocate persist backend buffer.");
@@ -1091,9 +1094,11 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecode(
                 return 0;
             }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Failed to allocate backend buffer for Gemma4 model decode.");
@@ -1246,4 +1251,3 @@ TSG_EXPORT void TSGgml_Gemma4ResetDecodeCache()
     for (auto& pool : g_g4dc_pools)
         pool.reset_all();
 }
-

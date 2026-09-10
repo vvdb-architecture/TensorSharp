@@ -1907,12 +1907,14 @@ namespace TensorSharp.Models
             // switching graph families.
             if (_fdStateResident)
                 InvalidateFullDecodeState();
-            // A non-persist prefill may leave its current state in either half of
-            // the shared ping-pong buffer. Persistent verify graphs always bind
-            // their live input to half 0, so settle that state into the host mirror
-            // before crossing graph families; the ordinary final prefill chunk
-            // (last-row logits, seqLen > 1) remains zero-copy chained.
-            if (_fvDeviceStateCurrent && (seqLen == 1 || nLogitRows <= 0))
+            // Metal's verifier tracks which shared state half is authoritative,
+            // including after prefill and snapshot commits. It selects that half
+            // when building a graph and rejects cached graphs bound to the other
+            // half. Keep this chain on-device; draining here needlessly downloaded
+            // and re-uploaded every recurrent layer before each speculative step.
+            // Other backends retain their existing graph-family transition.
+            if (_backend != BackendType.GgmlMetal && _fvDeviceStateCurrent
+                && (seqLen == 1 || nLogitRows <= 0))
                 DrainDeviceRecurrentState();
 
             int n = Config.NumLayers;
@@ -2090,10 +2092,13 @@ namespace TensorSharp.Models
                     float* convIn = convInBase + (long)_fvGdnSlot[l] * convBlock;
                     float* convOut = convOutBase + (long)_fvGdnSlot[l] * convBlock;
                     IntPtr deltaPtr = (IntPtr)GetFloatPtr(_deltaStateTensor[l]);
-                    // Resident: the device buffer persists across calls, so only seed
-                    // (convert ring -> ggml + invalidate so the cacheable bind re-uploads)
-                    // on the first call / after an invalidation. Host mode seeds every call.
-                    if (!residentThisCall || !_fvStateResident)
+                    // Seed from the host only when it is authoritative. A current
+                    // Metal verify state lives in the native shared slices, so the
+                    // host ring may be stale and its packing/upload is unnecessary.
+                    // The separate experimental resident mode still seeds on its
+                    // first call and after invalidation.
+                    if (!(_backend == BackendType.GgmlMetal && _fvDeviceStateCurrent)
+                        && (!residentThisCall || !_fvStateResident))
                     {
                         float[] ring = _convState[l];
                         int w = _convStateWriteIdx[l];

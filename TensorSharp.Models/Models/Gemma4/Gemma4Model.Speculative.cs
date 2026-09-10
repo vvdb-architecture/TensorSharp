@@ -111,9 +111,54 @@ namespace TensorSharp.Models
         /// Metal, 1.1k-token context, greedy, 160 tokens, plain 46 tok/s): window 8 ->
         /// verify 89 ms, 69 tok/s with the draft head; window 7 -> 51 ms, 92 tok/s;
         /// 5 -> 44 ms, 89 tok/s; 3 -> 38 ms, 80 tok/s. n-gram peaks at 5-7 (63-70
-        /// tok/s). An explicit --spec-draft still wins.
+        /// tok/s). Predominantly IQ4_XS dense models on Metal prefer two drafts because upstream ggml uses
+        /// independent matvecs for that format: longer windows spend more time
+        /// verifying rejected rows. Other formats retain the eight-row batch.
+        /// An explicit --spec-draft still wins.
         /// </summary>
-        public int SpecPreferredDraftWindow => IsGgmlBackend ? 7 : 0;
+        public int SpecPreferredDraftWindow
+        {
+            get
+            {
+                if (!IsGgmlBackend) return 0;
+                // Routed expert matrices use MUL_MAT_ID, which was unaffected
+                // by the missing IQ4_XS small-batch MUL_MAT optimization.
+                if (_backend == BackendType.GgmlMetal && _numExperts == 0)
+                    return SelectMetalSpecDraftWindow(_quantWeights, _weights, _hasTiedOutput);
+                return 7;
+            }
+        }
+
+        internal static int SelectMetalSpecDraftWindow(
+            IReadOnlyDictionary<string, QuantizedWeight> quantWeights,
+            IReadOnlyDictionary<string, Tensor> weights, bool hasTiedOutput)
+        {
+            var (iq4Bytes, matmulBytes) = MeasureMatmulWeightBytes(
+                quantWeights, weights, (int)GgmlTensorType.IQ4_XS, IsActiveMatrix);
+            return SelectMetalSpecDraftWindow(iq4Bytes, matmulBytes);
+
+            bool IsActiveMatrix(string name)
+            {
+                // Embedding-only tables do not run through MUL_MAT; the tied
+                // token table does when it supplies the LM head.
+                if (!name.StartsWith("blk.", StringComparison.Ordinal) && name != "output.weight" &&
+                    !(hasTiedOutput && name == "token_embd.weight"))
+                    return false;
+                const string gate = ".ffn_gate.weight", up = ".ffn_up.weight";
+                string suffix = name.EndsWith(gate, StringComparison.Ordinal) ? gate :
+                    name.EndsWith(up, StringComparison.Ordinal) ? up : null;
+                if (suffix == null)
+                    return true;
+                string fused = name[..^suffix.Length] + ".ffn_gate_up.weight";
+                return !quantWeights.ContainsKey(fused) && !weights.ContainsKey(fused);
+            }
+        }
+
+        // A small IQ4 PLE matrix in an otherwise Q8/F32 model should not change the
+        // default. Weight bytes approximate the verify's bandwidth cost; require
+        // IQ4 to account for at least half of the active matrix workload.
+        internal static int SelectMetalSpecDraftWindow(long iq4Bytes, long matmulBytes)
+            => iq4Bytes > 0 && iq4Bytes >= matmulBytes - iq4Bytes ? 2 : 7;
 
         /// <summary>Both paths run the same fused decode kernel over the same
         /// linear cache; Forward additionally folds the LM head into the graph,
@@ -327,7 +372,7 @@ namespace TensorSharp.Models
         private static readonly bool s_specProfile =
             Environment.GetEnvironmentVariable("TS_GMTP_PROFILE") == "1";
         private long _specProfCalls, _specProfRows, _specProfEmbedTicks, _specProfKernelTicks,
-            _specProfPerOpTicks, _specProfHeadTicks, _specProfTotalTicks;
+            _specProfPerOpTicks, _specProfHeadTicks, _specProfTotalTicks, _specProfPleGatherCalls;
 
         /// <summary>One line: verify calls, rows, and ms per call by phase.</summary>
         public string DescribeSpecProfile()
@@ -337,7 +382,7 @@ namespace TensorSharp.Models
             return $"spec verify calls={_specProfCalls} rows/call={(double)_specProfRows / n:0.0} " +
                    $"ms/call: total={ms(_specProfTotalTicks) / n:0.0} embed+ple={ms(_specProfEmbedTicks) / n:0.0} " +
                    $"kernel={ms(_specProfKernelTicks) / n:0.0} perOp={ms(_specProfPerOpTicks) / n:0.0} " +
-                   $"norm+head+copy={ms(_specProfHeadTicks) / n:0.0}";
+                   $"norm+head+copy={ms(_specProfHeadTicks) / n:0.0} ple-gather={_specProfPleGatherCalls}";
         }
 
         public unsafe void SpecForward(int[] tokens, float[] hAllOut, float[] logitsOut, bool allLogitsRows)
@@ -384,10 +429,19 @@ namespace TensorSharp.Models
             Tensor h = Embedding(tokens);
             ScaleEmbedding(h);
 
-            // Per-layer embeddings (PLE) for Gemma 4 E-series targets (e.g. E4B).
-            // Threaded into BOTH the fused trunk (the dense decode/verify kernels
-            // accept PLE) and the per-op fallback below.
-            Tensor perLayerInputs = _pleDim > 0 ? ComputePLE(tokens, h, seqLen) : null;
+            // The dense verify already supports the same resident PLE gather and
+            // projection used by prefill. Pass token IDs into that graph instead
+            // of dispatching each PLE operation separately and downloading its
+            // output merely to upload it again. Keep the managed PLE path for
+            // decode and unsupported forms, and materialize it lazily if the
+            // native verify declines the batch.
+            bool gatherPleInVerify = seqLen > 1 && _decodeArrays != null
+                && _canUseFusedFullModelDecode && !_kvCacheDtype.IsBlockQuantized()
+                && Environment.GetEnvironmentVariable("TS_GMTP_NO_FUSED") != "1"
+                && Environment.GetEnvironmentVariable("TS_GMTP_PLE_IN_KERNEL") != "0"
+                && CanGatherPleInKernel();
+            Tensor perLayerInputs = _pleDim > 0 && !gatherPleInVerify
+                ? ComputePLE(tokens, h, seqLen) : null;
 
             // Fused single-graph trunk: a verify batch (seqLen>1) runs through the
             // multi-token kernel (NativeGemma4ModelVerify), a plain step (seqLen==1)
@@ -448,6 +502,7 @@ namespace TensorSharp.Models
                 else
                 {
                     usedFused = NativeGemma4ModelVerify(h, startPos, seqLen, perLayerInputs,
+                        pleTokenIds: gatherPleInVerify ? tokens : null,
                         foldLogitsOut: foldHead ? logitsOut : null);
                     foldedHead = usedFused && foldHead;
                 }
@@ -471,6 +526,8 @@ namespace TensorSharp.Models
             if (profile) tProfPerOp0 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (!usedFused)
             {
+                if (gatherPleInVerify)
+                    perLayerInputs = ComputePLE(tokens, h, seqLen);
                 // Per-op fallback (past the SWA window, an unsupported model shape,
                 // or a PLE target). Processes the batch exactly like a normal
                 // prefill chunk so a verify batch is numerically a prefill of the
@@ -580,6 +637,7 @@ namespace TensorSharp.Models
             {
                 long tEnd = System.Diagnostics.Stopwatch.GetTimestamp();
                 _specProfCalls++;
+                if (gatherPleInVerify && usedFused) _specProfPleGatherCalls++;
                 _specProfRows += seqLen;
                 _specProfEmbedTicks += tProfKernel0 - tProf0;
                 _specProfKernelTicks += tProfKernel1 - tProfKernel0;

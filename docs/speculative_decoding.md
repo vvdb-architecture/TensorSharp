@@ -642,14 +642,18 @@ counters (`TS_GMTP_PROFILE=1`) on the real TensorAgent host path:
   covers Q4_0/Q5_0/Q8_0/IQ4_NL for 2..8 rows and the K-quants for 4..8, but not
   IQ4_XS, which is what 234 of the E4B catalog model's tensors use (unsloth's
   gemma-4-E4B-it-IQ4_XS); an 8-row verify on it fell to the per-row `mul_mv`
-  path and cost 4.5x a single-row decode. `eng/ggml-patches/0002` instantiates
-  the 256-element-block `q4x4` template for IQ4_XS (four `r1` variants) and adds
-  it to the dispatch condition; the trunk kernel went from 53 to 42 ms. Q8_0
-  (E2B) already had the kernel. Upstream ggml has no such kernel as of
-  2026-09-09, so the patch has to survive `eng/fetch-ggml.sh`, which resets the
-  checkout on every native build.
+  path and cost 4.5x a single-row decode. An earlier local ggml patch added
+  the missing dispatch and reduced the trunk kernel from 53 to 42 ms. That
+  patch has been removed: dependency fetching now consumes unchanged upstream
+  ggml. TensorSharp instead uses a shorter automatic draft window for Metal
+  trunks with IQ4_XS matrices and gathers PLE inside the existing fused verify
+  graph. This avoids spending matrix work on long rejected suffixes and removes
+  the separate PLE device/host round trips. Explicit draft-window settings still
+  take precedence; other quantization formats keep their existing defaults.
+  See [unpatched ggml validation](perf/ggml-without-patches.md) for the current
+  measurements and reproducible checks.
 
-What is left is measured by varying the window on the same host path (E4B
+The earlier patched implementation was measured by varying the window on the same host path (E4B
 IQ4_XS, draft head, folded head, 5k-token context; plain step 15 ms):
 
 | verify rows | verify ms | quote turn tok/s |
