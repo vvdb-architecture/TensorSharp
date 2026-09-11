@@ -1484,6 +1484,7 @@ public sealed class MainPage : ContentPage
         catch (JsonException) { return answer; }
     }
 
+#if DEBUG
     /// <summary>
     /// Device E2E hook (Debug builds only): the reported failure, driven through the
     /// real WebView. TENSORAGENT_DEMO_PROMPT sends a message the way a user does;
@@ -1582,6 +1583,7 @@ public sealed class MainPage : ContentPage
             Say("FAIL " + ex.Message);
         }
     }
+#endif
 
     /// <summary>Bring the persistent chat forward and nudge it to claim a new share.</summary>
     private void OnShareArrived()
