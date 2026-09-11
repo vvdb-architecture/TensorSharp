@@ -306,6 +306,18 @@ namespace TensorSharp.Runtime
 
             Register(new ChatProtocol
             {
+                Id = "hunyuan-dense",
+                Architectures = new[] { "hunyuan-dense" },
+                Render = r => ChatTemplate.RenderHunyuanDense(r.Messages, r.AddGenerationPrompt),
+                // Official Hy-MT2 jinja (BOS + add_generation_prompt). The
+                // renderer never emits tool declarations or role:"tool" results.
+                RendersToolDeclarations = false,
+                RendersToolResultMessages = false,
+                PreferOwnRenderer = _ => true,
+            });
+
+            Register(new ChatProtocol
+            {
                 Id = "mistral3",
                 Architectures = new[] { "mistral3" },
                 Render = r => ChatTemplate.RenderMistral3(r.Messages, r.AddGenerationPrompt),

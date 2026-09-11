@@ -1516,6 +1516,59 @@ namespace TensorSharp.Runtime
         /// Uses [SYSTEM_PROMPT]...[/SYSTEM_PROMPT] for system messages
         /// and [INST]...[/INST] for user messages.
         /// </summary>
+        /// <summary>
+        /// Hunyuan dense / Hy-MT2 chat framing, matching
+        /// <c>tencent/Hy-MT2-1.8B</c> <c>chat_template.jinja</c>.
+        /// Always opens with BOS; user turns do not carry the assistant marker —
+        /// that is appended only when <paramref name="addGenerationPrompt"/> is set.
+        /// llama.cpp's <c>LLM_CHAT_TEMPLATE_HUNYUAN_DENSE</c> (Hunyuan-4B-Instruct)
+        /// omits BOS and glues the assistant marker onto the user turn; Hy-MT2
+        /// does not.
+        /// </summary>
+        public static string RenderHunyuanDense(List<ChatMessage> messages, bool addGenerationPrompt = true)
+        {
+            var sb = new StringBuilder();
+            int startIdx = 0;
+
+            if (messages.Count > 0 && messages[0] != null && messages[0].Role == "system")
+            {
+                sb.Append("<｜hy_begin▁of▁sentence｜>");
+                sb.Append(messages[0].Content);
+                sb.Append("<｜hy_place▁holder▁no▁3｜>");
+                startIdx = 1;
+            }
+            else
+            {
+                sb.Append("<｜hy_begin▁of▁sentence｜>");
+            }
+
+            for (int i = startIdx; i < messages.Count; i++)
+            {
+                ChatMessage msg = messages[i];
+                if (msg == null)
+                    continue;
+
+                if (msg.Role == "user")
+                {
+                    sb.Append("<｜hy_User｜>");
+                    sb.Append(msg.Content);
+                }
+                else if (msg.Role == "assistant")
+                {
+                    sb.Append("<｜hy_Assistant｜>");
+                    sb.Append(msg.Content);
+                    sb.Append("<｜hy_place▁holder▁no▁2｜>");
+                }
+            }
+
+            if (addGenerationPrompt)
+                sb.Append("<｜hy_Assistant｜>");
+            else
+                sb.Append("<｜hy_place▁holder▁no▁8｜>");
+
+            return sb.ToString();
+        }
+
         public static string RenderMistral3(List<ChatMessage> messages, bool addGenerationPrompt = true)
         {
             var sb = new StringBuilder();
