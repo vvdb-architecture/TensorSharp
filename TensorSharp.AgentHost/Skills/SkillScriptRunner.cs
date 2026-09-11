@@ -196,6 +196,10 @@ namespace TensorSharp.AgentHost.Skills
             bool perCallScratch = _options.Workspace == null;
             try
             {
+                // The whole layout, not just the work directory: installs land in env/ and
+                // repair overlays in state/, and a workspace removed from underneath a live
+                // conversation takes all three. See SessionWorkspace.EnsureDirectories.
+                _options.Workspace?.EnsureDirectories();
                 workDirectory = _options.Workspace?.WorkDirectory
                     ?? Path.Combine(
                         _options.ScratchDirectory ?? Path.GetTempPath(),
@@ -208,6 +212,14 @@ namespace TensorSharp.AgentHost.Skills
             }
 
             var setupNotes = new List<string>();
+
+            // If something removed this conversation's working directory, the script is
+            // about to look for inputs that are no longer there. Say so once, wherever the
+            // model looks next — the latch means the shell tool and this one cannot both
+            // claim it, and neither repeats it.
+            if (_options.Workspace?.ConsumeRebuiltNotice() == true)
+                setupNotes.Add(SessionWorkspace.RebuiltNote);
+
             string? installLanguage = InstallLanguageFor(extension);
 
             // Dependencies the model named up front, and any requirements.txt the skill

@@ -131,6 +131,7 @@ public class ConfigFileArgsTests : IDisposable
     private static readonly HashSet<string> ServerRecognizedConfigKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "model", "mmproj", "backend", "max-tokens", "host", "port", "urls", "no-webui",
+        "no-prefix-cache",
         "temperature", "top-k", "top-p", "min-p", "seed", "stop", "sampling-precedence",
         "repeat-penalty", "repeat-last-n", "presence-penalty", "frequency-penalty",
         "continuous-batching", "no-continuous-batching", "paged-batching", "no-paged-batching",

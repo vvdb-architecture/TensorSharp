@@ -78,6 +78,12 @@ namespace TensorSharp.Runtime.Scheduling
             _scheduler.AttachFusedCacheContinuation(
                 _executor.ComputeFusedContinuationLcp,
                 _executor.TryAdoptFusedContinuation);
+            // So admission can say WHY a turn reused nothing. The mechanisms record
+            // their reasons; only the scheduler knows which one ended up serving the
+            // request, so only it can report the outcome without guessing.
+            _scheduler.AttachReuseDiagnostics(
+                () => _executor.LastLiveContinuationDeclineReason,
+                () => _executor.LastFusedContinuationDeclineReason);
             // Shared-prefix checkpoints: end a prefill chunk exactly where the chat
             // layer says the shared prompt ends, so the executor can copy the model's
             // state there and start every later new chat from that copy.

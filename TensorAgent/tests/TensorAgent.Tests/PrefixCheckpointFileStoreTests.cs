@@ -1,4 +1,5 @@
 using TensorAgent.Core.Hosting;
+using TensorSharp.Runtime.Scheduling;
 
 namespace TensorAgent.Tests;
 

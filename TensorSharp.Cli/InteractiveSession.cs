@@ -218,6 +218,7 @@ namespace TensorSharp.Cli
             try
             {
                 PrintBanner();
+                WarmSystemPrefix();
 
                 while (!_shouldExit)
                 {
@@ -527,10 +528,53 @@ namespace TensorSharp.Cli
         private void ResetSession()
         {
             _history.Clear();
+            ClearAttachments();
+            // /reset IS starting a new chat, and a new chat is exactly the case the warm
+            // prefix exists for. Clearing to nothing would make the next message pay for
+            // the whole shared prompt again -- the cold turn 1 this feature removes,
+            // reintroduced by the command a user reaches for most.
+            RestoreWarmPrefixOrClear();
+            Console.WriteLine(_warmPrefixTokens > 0
+                ? $"Conversation history cleared. The shared prompt ({_warmPrefixTokens} tokens) stays in the cache."
+                : "Conversation history and KV cache cleared.");
+        }
+
+        /// <summary>
+        /// Put the cache back to the load-time warm prefix, so the next turn is a
+        /// continuation rather than a cold prefill.
+        /// </summary>
+        /// <remarks>
+        /// Two routes, because the models split on one capability. Where the K/V can be
+        /// truncated this is exact and instant: cut both the model and the mirror back to
+        /// the boundary. Where it cannot -- Qwen 3.5 and 3.8, whose recurrent state has no
+        /// meaningful value at an earlier position -- there is nothing to cut to, so the
+        /// prefix is forwarded again. That still wins, because it happens on the /reset
+        /// command rather than while the user waits for their first token, but it is a
+        /// re-computation and the message says so.
+        /// </remarks>
+        private void RestoreWarmPrefixOrClear()
+        {
+            if (_warmPrefixTokens <= 0)
+            {
+                _kvCache.Reset();
+                _model.ResetKVCache();
+                return;
+            }
+
+            if (_model.SupportsKVCacheTruncation && _kvCache.Count >= _warmPrefixTokens)
+            {
+                _model.TruncateKVCache(_warmPrefixTokens);
+                _kvCache.TruncateTo(_warmPrefixTokens);
+                return;
+            }
+
             _kvCache.Reset();
             _model.ResetKVCache();
-            ClearAttachments();
-            Console.WriteLine("Conversation history and KV cache cleared.");
+            int previous = _warmPrefixTokens;
+            _warmPrefixTokens = 0;
+            _warmPrefixReported = false;
+            Console.WriteLine($"[re-forwarding the shared prompt ({previous} tokens); this model cannot rewind its cache]");
+            WarmSystemPrefix();
         }
 
         private void SetSystemPrompt(string text)
@@ -542,9 +586,15 @@ namespace TensorSharp.Cli
             _history.Clear();
             _kvCache.Reset();
             _model.ResetKVCache();
+            // The warmed tokens were rendered FROM the old system prompt, so they cannot
+            // be a prefix of anything rendered from the new one. Re-warm rather than
+            // leaving the next turn cold.
+            _warmPrefixTokens = 0;
+            _warmPrefixReported = false;
             Console.WriteLine(_systemPrompt == null
                 ? "System prompt cleared. Conversation reset."
                 : $"System prompt set ({_systemPrompt.Length} chars). Conversation reset.");
+            WarmSystemPrefix();
         }
 
         private void SetThinking(string arg)
@@ -1407,6 +1457,16 @@ namespace TensorSharp.Cli
         {
             _history.Clear();
             _model.ResetKVCache();
+            // The managed mirror has to go with it. ResetSession and SetSystemPrompt both
+            // reset the pair; this one reset only the model, so after a /skill toggle the
+            // mirror still claimed N cached tokens the model no longer held and the next
+            // turn planned its reuse against state that was gone. The two are separate
+            // truths kept in step only by convention -- see the invariant on KVCache.
+            _kvCache.Reset();
+            // Whatever the load-time warm prefix put there went with it, and the skill
+            // block it was rendered from has just changed, so it could not have matched
+            // the next turn anyway. Stop claiming it.
+            _warmPrefixTokens = 0;
             _specDecoder = null;
             _specDecoderModel = null;
         }
@@ -1565,6 +1625,7 @@ namespace TensorSharp.Cli
                 ? SpeculativePrefill(specDecoder, inputTokens, out planKind)
                 : PlainPrefill(inputTokens, out planKind);
             prefillSw.Stop();
+            ReportWarmPrefixOutcome(planKind, _kvCache.Count);
             double prefillMs = prefillSw.Elapsed.TotalMilliseconds;
             int promptTokenCount = inputTokens.Count;
 
@@ -1878,6 +1939,318 @@ namespace TensorSharp.Cli
         }
 
         /// <summary>Ordinary prompt prefill: plan the cache reuse and apply it.</summary>
+        /// <summary>
+        /// Whether to forward the shared part of the prompt before the first message.
+        /// Off with <c>--no-prefix-cache</c>, which is the flag for a session that wants
+        /// to start answering immediately rather than answer its first message quickly.
+        /// </summary>
+        public bool PrefixCacheEnabled { get; set; } = true;
+
+        /// <summary>How many tokens the load-time warm prefix put in the cache, or 0.</summary>
+        private int _warmPrefixTokens;
+
+        /// <summary>Whether turn 1 has reported what the warm prefix was worth.</summary>
+        private bool _warmPrefixReported;
+
+        /// <summary>
+        /// Below this a warm prefix is not worth a startup pause: the saving is a fraction
+        /// of a second and the risk of getting the prefix wrong is the same either way.
+        /// A bare CLI with no system prompt and no skills renders a handful of template
+        /// tokens and lands here; an agent configuration renders thousands and does not.
+        /// </summary>
+        private const int MinimumWarmPrefixTokens = 64;
+
+        /// <summary>
+        /// Forward the part of the prompt that does not depend on what the user types,
+        /// before they type it.
+        ///
+        /// <para>
+        /// The CLI re-renders the whole conversation every turn and reuses the K/V only
+        /// where the new token sequence still starts with the cached one. On turn 1 the
+        /// cache is empty, so the system block, the tool declarations and the skill
+        /// catalog are all forwarded while the user waits — thousands of tokens on an
+        /// agent configuration. None of that depends on the message. This forwards it at
+        /// startup so turn 1 begins as a continuation instead of a cold prefill.
+        /// </para>
+        /// <para>
+        /// <b>The hard part is proving what we forward is a token PREFIX of what turn 1
+        /// renders.</b> The system block is not one by inspection: the renderer emits a
+        /// chat template, and the tokenizer sees the whole rendered string at once, so a
+        /// BPE merge can span the boundary between the block and the user's first
+        /// character and change a token BEFORE it. Rendering the system block alone and
+        /// hoping is how this feature silently does nothing.
+        /// </para>
+        /// <para>
+        /// So it is measured rather than assumed. Several complete first turns are
+        /// rendered, with deliberately dissimilar first characters, and only the tokens
+        /// on which ALL of them agree are kept — intersected with the system-only render,
+        /// so no kept token can come from a probe's own text. Whatever survives that is a
+        /// prefix of every first turn by construction, whatever the user types.
+        /// </para>
+        /// <para>
+        /// It is also safe when it is wrong. A warm prefix that is not a prefix of the
+        /// real prompt makes <see cref="KVCache.PlanReuse"/> return
+        /// <see cref="ReusePlanKind.Reset"/> (or a shorter partial reuse), which throws the
+        /// warmed state away and prefills normally: the cost is a wasted startup, never a
+        /// wrong answer.
+        /// </para>
+        /// </summary>
+        private void WarmSystemPrefix()
+        {
+            // Only ever from an idle session at the start of Run(). Warming on top of a
+            // conversation would discard it, and every non-interactive entry point
+            // (--dump-prompt, --test, --benchmark, --input-jsonl, --multi-turn-jsonl)
+            // deliberately does not come through here.
+            if (!PrefixCacheEnabled || _history.Count != 0 || _kvCache.Count != 0)
+                return;
+
+            try
+            {
+                if (!TryComputeWarmPrefix(out List<int> warm, out string skipped))
+                {
+                    if (!string.IsNullOrEmpty(skipped))
+                        _log.LogDebug(LogEventIds.KvCacheReusePlan, "warm system prefix skipped: {Reason}", skipped);
+                    return;
+                }
+
+                var sw = Stopwatch.StartNew();
+
+                // Through whichever prefill path TURN 1 WILL USE, which is the whole point.
+                // A speculative turn does not merely prefer its own path, it REFUSES a
+                // cache the draft head did not build: SpeculativePrefill extends only when
+                // decoder.CarryPosition == cached, and a decoder that has never run carries
+                // -1. Warming through the plain path would therefore be discarded with
+                // certainty on the first message of a speculative session — the startup
+                // pause paid in full and nothing bought, which is strictly worse than not
+                // warming at all. Resolving the decoder HERE also seeds it: the session
+                // keeps the same instance, so it arrives at turn 1 carrying the warm
+                // prefix's end position.
+                //
+                // Either path lays the tokens down on an empty cache through the same
+                // reset-and-forward branch that already maintains the managed mirror and
+                // the model's own sequence length together, so this does not become a
+                // third place that can get that invariant wrong.
+                SpeculativeDecoder warmDecoder = ResolveSpeculativeDecoder(WarmProbeHistory());
+                if (warmDecoder != null)
+                    SpeculativePrefill(warmDecoder, warm, out _);
+                else
+                    PlainPrefill(warm, out _);
+                sw.Stop();
+
+                // The one invariant the whole feature can violate. If it does not hold,
+                // the cache is describing state the model does not have, and every later
+                // turn would reuse from the wrong place.
+                if (_kvCache.Count != warm.Count)
+                {
+                    _log.LogWarning(LogEventIds.KvCacheReusePlan,
+                        "warm system prefix disarmed: mirror holds {Mirror} tokens for {Warm} forwarded",
+                        _kvCache.Count, warm.Count);
+                    _model.ResetKVCache();
+                    _kvCache.Reset();
+                    _warmPrefixTokens = 0;
+                    return;
+                }
+
+                _warmPrefixTokens = warm.Count;
+                Console.WriteLine($"[warm system prefix: {warm.Count} tokens in {sw.Elapsed.TotalSeconds:0.0}s]");
+            }
+            catch (OperationCanceledException)
+            {
+                // Ctrl+C during the warm forward. The model may hold part of a prefill
+                // that the mirror does not describe, which is the one state that must
+                // never reach a turn.
+                _model.ResetKVCache();
+                _kvCache.Reset();
+                _warmPrefixTokens = 0;
+                Console.WriteLine("[warm system prefix cancelled]");
+            }
+            catch (Exception ex)
+            {
+                _model.ResetKVCache();
+                _kvCache.Reset();
+                _warmPrefixTokens = 0;
+                _log.LogWarning(LogEventIds.KvCacheReusePlan, ex, "warm system prefix failed; continuing cold");
+            }
+        }
+
+        /// <summary>
+        /// The tokens every possible first turn starts with, or false when there are too
+        /// few to be worth forwarding.
+        /// </summary>
+        /// <remarks>
+        /// The probes differ in their FIRST bytes on purpose. A merge that reaches back
+        /// across the boundary depends on what follows it, so probes that all began the
+        /// same way could agree on a token the real message would not produce. One starts
+        /// with a letter, one with a space, one with a newline, one with punctuation that
+        /// commonly merges leftwards, and one with the bracket the CLI itself prepends
+        /// when a file is attached.
+        /// </remarks>
+        private bool TryComputeWarmPrefix(out List<int> warm, out string skipped)
+        {
+            warm = null;
+            skipped = null;
+
+            string leadingSystem = ComposeSystemPrompt();
+            bool haveTools = _tools != null && _tools.Count > 0;
+            if (string.IsNullOrEmpty(leadingSystem) && !haveTools)
+            {
+                skipped = "no system prompt and no tools";
+                return false;
+            }
+
+            var probes = new[] { "Hello", " indented", "\nnewline", "```code", "[Attached file: a.txt]" };
+            var renders = new List<IReadOnlyList<int>>();
+            foreach (string probe in probes)
+            {
+                List<int> rendered = RenderFirstTurn(leadingSystem, probe);
+                if (rendered == null || rendered.Count == 0)
+                {
+                    skipped = "the renderer produced nothing";
+                    return false;
+                }
+                renders.Add(rendered);
+            }
+
+            // The structural bound: a token kept here must also appear, in the same place,
+            // in a render that contains NO user text at all. Without it a long fixed
+            // template could let the probes agree on something none of them should own.
+            List<int> systemOnly = RenderSystemOnly(leadingSystem);
+            if (systemOnly is { Count: > 0 })
+                renders.Add(systemOnly);
+
+            int keep = WarmPrefixLength(renders, MinimumWarmPrefixTokens);
+            if (keep <= 0)
+            {
+                skipped = "too few tokens are common to every first turn";
+                return false;
+            }
+
+            warm = ((List<int>)renders[0]).GetRange(0, keep);
+            return true;
+        }
+
+        /// <summary>
+        /// A stand-in first turn for decisions that must be made before the user has typed:
+        /// text only, so nothing here can make the speculative path decline for media that
+        /// a real turn may or may not carry.
+        /// </summary>
+        private List<ChatMessage> WarmProbeHistory()
+        {
+            var history = new List<ChatMessage>();
+            string leadingSystem = ComposeSystemPrompt();
+            if (!string.IsNullOrEmpty(leadingSystem))
+                history.Add(new ChatMessage { Role = "system", Content = leadingSystem });
+            history.Add(new ChatMessage { Role = "user", Content = "hi" });
+            return history;
+        }
+
+        /// <summary>One complete first turn, rendered exactly as <see cref="Stream"/> renders it.</summary>
+        private List<int> RenderFirstTurn(string leadingSystem, string userText)
+        {
+            var history = new List<ChatMessage>();
+            if (!string.IsNullOrEmpty(leadingSystem))
+                history.Add(new ChatMessage { Role = "system", Content = leadingSystem });
+            history.Add(new ChatMessage { Role = "user", Content = userText });
+            return _renderer.RenderToTokens(
+                _model.Tokenizer, _model.Config.ChatTemplate, history, _model.Config.Architecture,
+                addGenerationPrompt: true, out _, out _,
+                tools: _tools, enableThinking: _enableThinking);
+        }
+
+        /// <summary>The leading block with no user turn, as an upper bound on what may be warmed.</summary>
+        private List<int> RenderSystemOnly(string leadingSystem)
+        {
+            if (string.IsNullOrEmpty(leadingSystem))
+                return null;
+            try
+            {
+                var history = new List<ChatMessage>
+                {
+                    new ChatMessage { Role = "system", Content = leadingSystem },
+                };
+                return _renderer.RenderToTokens(
+                    _model.Tokenizer, _model.Config.ChatTemplate, history, _model.Config.Architecture,
+                    addGenerationPrompt: false, out _, out _,
+                    tools: _tools, enableThinking: _enableThinking);
+            }
+            catch (Exception)
+            {
+                // A template that refuses a system-only render costs the extra bound, not
+                // the feature: the probe intersection alone is still sound.
+                return null;
+            }
+        }
+
+        private static List<int> CommonPrefix(List<int> a, List<int> b)
+        {
+            int n = Math.Min(a.Count, b.Count);
+            int i = 0;
+            while (i < n && a[i] == b[i])
+                i++;
+            return a.GetRange(0, i);
+        }
+
+        /// <summary>
+        /// How many leading tokens every one of <paramref name="renders"/> agrees on, less
+        /// one for margin, or 0 when that is below <paramref name="minimum"/>.
+        /// </summary>
+        /// <remarks>
+        /// Separated from the rendering so the arithmetic that decides what is safe to
+        /// forward can be tested without a model. This is the whole safety argument of the
+        /// CLI warm prefix in one function: a token survives only if it is in the same
+        /// position in every render it was given.
+        /// </remarks>
+        internal static int WarmPrefixLength(IReadOnlyList<IReadOnlyList<int>> renders, int minimum)
+        {
+            if (renders == null || renders.Count == 0)
+                return 0;
+
+            int common = int.MaxValue;
+            foreach (IReadOnlyList<int> render in renders)
+            {
+                if (render == null || render.Count == 0)
+                    return 0;
+                common = Math.Min(common, render.Count);
+            }
+
+            for (int i = 0; i < common; i++)
+            {
+                int token = renders[0][i];
+                for (int r = 1; r < renders.Count; r++)
+                {
+                    if (renders[r][i] != token)
+                    {
+                        common = i;
+                        i = common;  // stop the outer scan
+                        break;
+                    }
+                }
+                if (i >= common)
+                    break;
+            }
+
+            int keep = Math.Max(0, common - 1);
+            return keep < minimum ? 0 : keep;
+        }
+
+        /// <summary>
+        /// Say, once, what the warm prefix was actually worth on the turn that could use it.
+        /// A warm prefill that is silently discarded — a template that renders the date, a
+        /// tool set rebuilt between startup and the first message — looks exactly like a
+        /// normal cold start without this line.
+        /// </summary>
+        private void ReportWarmPrefixOutcome(ReusePlanKind kind, int reused)
+        {
+            if (_warmPrefixReported || _warmPrefixTokens == 0)
+                return;
+            _warmPrefixReported = true;
+            if (kind == ReusePlanKind.Reset)
+            {
+                Console.WriteLine($"[warm system prefix missed: {_warmPrefixTokens} tokens discarded, "
+                    + "this turn prefilled in full]");
+            }
+        }
+
         private float[] PlainPrefill(List<int> inputTokens, out ReusePlanKind kind)
         {
             ReusePlan plan = _kvCache.PlanReuse(inputTokens, _model.SupportsKVCacheTruncation);

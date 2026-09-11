@@ -407,6 +407,19 @@ namespace TensorSharp.AgentHost.CodeExec
                     + "Send anything else as a separate command — or call the apply_patch tool directly.");
             }
 
+            // The workspace's directories are re-asserted here rather than trusted from
+            // construction time. They sit in a scratch root beside the binary that every
+            // host launched from that build shares, and things outside this conversation
+            // remove them — another host's startup sweep, a cleanup, a rebuild into the
+            // same output directory. When that happened every later command in the
+            // conversation failed at the point where its wrapper script is written,
+            // `echo hello` included, and nothing could recover. Repairing costs five
+            // existence checks against a call that costs tens of milliseconds.
+            //
+            // OR, not assignment: whichever entry point noticed the damage first did the
+            // repair, and the latch carries that fact to the result the model reads.
+            bool workspaceRebuilt = workspace.TryEnsureDirectories() | workspace.ConsumeRebuiltNotice();
+
             if (!TryResolveWorkDirectory(request.WorkDirectory, workspace, out string? workDirectory, out string? workError))
                 return CodeExecResult.Refused(workError!);
 
@@ -417,6 +430,13 @@ namespace TensorSharp.AgentHost.CodeExec
             // the argument vector ourselves closes both holes on every platform, while a
             // command gets general network access only from the explicit network switch.
             var notes = new List<string>();
+
+            // Said in the tool RESULT, because the files this conversation wrote are gone
+            // and nothing else will tell the model so. Without it the model reads a run of
+            // unexplained "No such file" answers about files it watched itself create.
+            if (workspaceRebuilt)
+                notes.Add(SessionWorkspace.RebuiltNote);
+
             if (ShellCommand.ContainsInstall(command))
             {
                 // The switch is about FETCHING. A request for something the host already
@@ -533,6 +553,18 @@ namespace TensorSharp.AgentHost.CodeExec
             // artifact capture, so this costs a read of the files that actually changed
             // and nothing at all for the common command that changes none.
             IngestWrittenFiles(workspace, before, typed);
+
+            // A command that never STARTED is a host fault, not a failing command, and the
+            // two are indistinguishable at Information: the 2026-09-10 incident logged
+            // eight of these as ordinary runs, and the only clue that nothing had executed
+            // was exit=-1 with ms=0. It is logged as a warning, with the reason, so that
+            // "the shell keeps failing" is one grep rather than an inference.
+            if (!result.Started)
+            {
+                _logger.LogWarning(LogEventIds.CodeExecRan,
+                    "codeexec.not-started shell={Shell} reason={Reason}",
+                    _shell!.Name, OutputPaths.Scrub(result.Error ?? "(none)", workspace, launch.WorkingDirectory));
+            }
 
             _logger.LogInformation(LogEventIds.CodeExecRan,
                 "codeexec.ran shell={Shell} sandbox={Sandbox} installs={Installs} exit={Exit} timedOut={TimedOut} ms={Ms} bytes={Bytes}",
@@ -1727,6 +1759,12 @@ namespace TensorSharp.AgentHost.CodeExec
                 return CodeExecResult.Refused(
                     "there is no working directory in this conversation to patch.");
             }
+
+            // See ShellRunner.RunIn: the layout is re-asserted, never assumed. A patch is
+            // the one tool that can rebuild what a wiped workspace lost, so it must not be
+            // the tool that fails because the workspace was wiped.
+            workspace.TryEnsureDirectories();
+
             if (!CodePatch.TryParse(patch, out IReadOnlyList<CodePatch.FileSection> sections, out string? parseError))
                 return CodeExecResult.Refused(parseError!);
 
@@ -2017,6 +2055,9 @@ namespace TensorSharp.AgentHost.CodeExec
             if (workspace == null)
                 return CodeExecResult.NoChange("there is no working directory in this conversation to read from.");
 
+            // See ShellRunner.RunIn: the layout is re-asserted, never assumed.
+            workspace.TryEnsureDirectories();
+
             if (!TryResolveForFileTool(workspace, request.Path, out string full, out string from, out string? error))
                 return CodeExecResult.NoChange(error!);
 
@@ -2135,6 +2176,9 @@ namespace TensorSharp.AgentHost.CodeExec
         {
             if (workspace == null)
                 return CodeExecResult.NoChange("there is no working directory in this conversation to edit in.");
+
+            // See ShellRunner.RunIn: the layout is re-asserted, never assumed.
+            workspace.TryEnsureDirectories();
 
             if (!TryResolveForFileTool(workspace, request.Path, out string full, out string from, out string? error))
                 return CodeExecResult.NoChange(error!);
@@ -2293,6 +2337,9 @@ namespace TensorSharp.AgentHost.CodeExec
         {
             if (workspace == null)
                 return CodeExecResult.NoChange("there is no working directory in this conversation to write to.");
+
+            // See ShellRunner.RunIn: the layout is re-asserted, never assumed.
+            workspace.TryEnsureDirectories();
 
             if (!TryResolveForFileTool(workspace, request.Path, out string full, out string from, out string? error))
                 return CodeExecResult.NoChange(error!);
@@ -3001,7 +3048,32 @@ namespace TensorSharp.AgentHost.CodeExec
             bool fileToolsAvailable = false)
         {
             if (!run.Started)
-                return CodeExecResult.Refused(run.Error ?? "the shell could not be started");
+            {
+                // Scrubbed like every other path this tool hands back. A launch failure
+                // reports an OS message about the HOST's own scratch — a file the model
+                // never wrote and cannot reach — and the absolute path in it is the part a
+                // model fixates on. The 2026-09-10 incident was six rounds of a model
+                // reasoning about "the host's state directory" from exactly this string.
+                string reason = OutputPaths.Scrub(
+                    run.Error ?? "the shell could not be started", workspace, session.CurrentDirectory);
+
+                // From the second in a row, say the thing the model cannot work out for
+                // itself: the command is not what is wrong, so rewriting it is not the way
+                // out. Named alternatives rather than advice, because a tool result that
+                // only describes a problem produces another round of the same command.
+                int inARow = session.RecordNotStarted();
+                if (inARow >= 2)
+                {
+                    reason += $"\nThis is launch {inARow} in a row that failed before running anything, so the "
+                        + "problem is this host's shell and not the command — simplifying it will not help. "
+                        + "Use read_file, write_file, edit_file and apply_patch, which do not need the shell, "
+                        + "or a skill's own script through skills_run; if the task cannot be done without a "
+                        + "shell, say so in your answer instead of trying again.";
+                }
+                return CodeExecResult.Refused(reason);
+            }
+
+            session.RecordStarted();
 
             // A command whose exit 1 IS its answer. See ShellCommand.ExitCodeIsBenign: a
             // no-match grep, a clean-tree `git diff --quiet`, a false `test`, a `diff`

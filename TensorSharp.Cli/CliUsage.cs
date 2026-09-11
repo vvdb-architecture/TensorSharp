@@ -487,6 +487,13 @@ namespace TensorSharp.Cli
             }),
             ("Scheduling", new[]
             {
+                new OptionHelp("--no-prefix-cache",
+                    "Do not forward the shared part of the prompt before the first message. By default an " +
+                    "interactive chat forwards its system block, tool declarations and skill catalog at startup, so " +
+                    "the first message continues from them instead of prefilling them (measured 18.5s -> 0.3s on an " +
+                    "agent configuration); the price is that the session takes that long to become ready. Unrelated " +
+                    "to --warmup-runs, which times whole inferences to warm the compute kernels.",
+                    "--no-prefix-cache"),
                 new OptionHelp("--continuous-batching | --no-continuous-batching",
                     "Paged-attention continuous batching across concurrent requests (aliases --paged-batching / " +
                     "--no-paged-batching). Default: on.",

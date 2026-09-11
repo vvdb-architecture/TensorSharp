@@ -77,9 +77,25 @@ namespace InferenceWeb.Tests
         /// per-class loaders so the skip decision and the load pick the same file.
         /// </summary>
         public static string FindGguf(string dir, string contains)
+            => MatchingGgufs(dir, contains).FirstOrDefault();
+
+        /// <summary>
+        /// Same match rule as <see cref="FindGguf"/>, smallest file first. For a
+        /// test that only needs SOME model of a family, the smallest quant loads
+        /// fastest and leaves the most room beside it — which matters on a Mac
+        /// where a 27B Q8_0 is 27 GB against a 40 GB Metal working set. The
+        /// predicate is deliberately shared: the gate and the loader may disagree
+        /// about WHICH match to take, never about what counts as a match.
+        /// </summary>
+        public static string FindSmallestGguf(string dir, string contains)
+            => MatchingGgufs(dir, contains)
+                .OrderBy(p => new FileInfo(p).Length)
+                .FirstOrDefault();
+
+        private static IEnumerable<string> MatchingGgufs(string dir, string contains)
         {
             string[] alternatives = contains.ToLowerInvariant().Split('|');
-            return Directory.GetFiles(dir, "*.gguf").FirstOrDefault(p =>
+            return Directory.GetFiles(dir, "*.gguf").Where(p =>
             {
                 string n = Path.GetFileName(p).ToLowerInvariant();
                 return alternatives.Any(n.Contains)

@@ -114,6 +114,16 @@ namespace TensorSharp.Server.Host.Hosting
                     "Do not serve the bundled web UI; GET / answers the plain liveness text instead. All HTTP API " +
                     "endpoints (including /uploads) stay up. Default: UI on (TS_NO_WEBUI env var overrides).",
                     "--no-webui"),
+                new OptionHelp("--no-prefix-cache",
+                    "Do not prepare the prompt every conversation shares before serving, and do not keep it between " +
+                    "launches. By default the server forwards that prompt once at startup and saves the result, so " +
+                    "the first message of a process costs the same as any other (measured 21.8s -> 0.7s on an agent " +
+                    "configuration); the price is that the first launch after a prompt, skills or model change does " +
+                    "not open its port until that finishes. Files live beside the binary in prefix-cache/ " +
+                    "(TENSORSHARP_PREFIX_CACHE_DIR env var moves them). Turn this off for a read-only disk, when " +
+                    "startup latency matters more than first-token latency, or to rule a restored state out while " +
+                    "diagnosing a wrong answer.",
+                    "--no-prefix-cache"),
             }),
             ("Compute backend", new[]
             {

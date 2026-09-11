@@ -2241,7 +2241,22 @@ namespace TensorSharp.Chat
             // answer is the model's to finish, and re-rolling it would discard work the
             // user can already see. One retry only; a second would double the cost of a
             // request that is simply too big for its budget.
-            if (turnTruncated && tokenCount == 0 && !aborted && inferenceError == null && uiThink)
+            //
+            // Gated on the thinking-budget stop specifically, NOT on truncation in
+            // general. The retry is expensive: flipping thinking off re-renders the
+            // conversation from the first system block (the shipped Qwen chat template
+            // puts its reasoning-effort paragraph there), so the whole prompt diverges
+            // at token 3 and re-prefills — 160 s on a 36k-token conversation, measured
+            // 2026-09-10. Paying that is defensible when the model really did reason
+            // past its budget. It is not defensible for a plain max_tokens stop, which
+            // is what the startup prefix warm-up looks like: it asks for ONE token with
+            // thinking on, gets `max_tokens` with no content, and used to trigger a
+            // second engine request plus a warning blaming the model for a limit the
+            // operator set. `repetition` is likewise not a reasoning overrun — the
+            // engine's guard already ends and explains those turns.
+            bool reasonedPastItsBudget = string.Equals(
+                turnFinishReason, FinishReasonMapper.PipelineThinkingBudget, StringComparison.Ordinal);
+            if (reasonedPastItsBudget && tokenCount == 0 && !aborted && inferenceError == null && uiThink)
             {
                 webUiLogger.LogWarning(LogEventIds.ChatCompleted,
                     "chat.retry-without-thinking sessionId={SessionId}: the turn spent its whole "
@@ -2298,6 +2313,15 @@ namespace TensorSharp.Chat
                         if (string.IsNullOrEmpty(update.Piece))
                             continue;
 
+                        // The retry's whole purpose is to produce the answer the first
+                        // attempt reasoned itself out of, and this is where that answer is
+                        // streamed — so it has to count as content. Without this the user
+                        // read a complete answer followed by "The model ended this turn
+                        // without writing an answer", which is the placeholder accusing the
+                        // model of the very thing the retry had just fixed. Observed
+                        // 2026-09-10 on a turn that delivered a ten-slide deck and a
+                        // download link.
+                        sawContent = true;
                         tokenCount++;
                         yield return WebUiSseEvents.Token(update.Piece);
                     }
@@ -2736,7 +2760,14 @@ namespace TensorSharp.Chat
                 if (!string.IsNullOrEmpty(finalParsed.Thinking))
                     yield return WebUiSseEvents.Thinking(finalParsed.Thinking);
                 if (!string.IsNullOrEmpty(finalParsed.Content))
+                {
+                    // The parser's final flush is answer text like any other, and the
+                    // check below is three lines away: a turn whose whole answer arrived
+                    // here would otherwise be told, immediately underneath it, that it
+                    // never wrote one.
+                    sawContent = true;
                     yield return WebUiSseEvents.Token(finalParsed.Content);
+                }
                 if (finalParsed.ToolCalls != null)
                     yield return WebUiSseEvents.ToolCalls(finalParsed.ToolCalls);
             }

@@ -204,6 +204,13 @@ namespace TensorSharp.AgentHost.Skills
         private readonly object _gate = new();
         private readonly object _executionGate = new();
         private int _activeOperations;
+
+        /// <summary>Set once the constructor's own layout pass is done, so that pass is
+        /// never mistaken for a repair.</summary>
+        private readonly bool _constructed;
+
+        /// <summary>1 when a repair has happened that no tool result has reported yet.</summary>
+        private int _rebuiltNoticePending;
         private bool _releaseRequested;
         private Action? _releaseWhenIdle;
         private bool _cleanupRegistrationClosed;
@@ -217,12 +224,96 @@ namespace TensorSharp.AgentHost.Skills
             StateDirectory = Path.Combine(root, "state");
             ShellStateDirectory = Path.Combine(StateDirectory, "shell");
             TempDirectory = Path.Combine(root, "tmp");
-            Directory.CreateDirectory(WorkDirectory);
-            Directory.CreateDirectory(EnvDirectory);
-            Directory.CreateDirectory(StateDirectory);
-            Directory.CreateDirectory(ShellStateDirectory);
-            Directory.CreateDirectory(TempDirectory);
+            EnsureDirectories();
+            _constructed = true;
         }
+
+        /// <summary>
+        /// Re-assert the directory layout, and report whether any of it was missing.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Creating these in the constructor alone was an assumption that nothing outside
+        /// the process ever removes them, and that assumption does not hold: the workspace
+        /// root lives beside the running binary, where a rebuild into that output
+        /// directory, a temp reaper, or an ordinary cleanup can take it away while a
+        /// conversation is still using it. Recorded 2026-09-10 — a rebuild landed in the
+        /// host's output directory mid-conversation and every later <c>shell</c> call for
+        /// twenty minutes answered "the command could not be prepared: Could not find a
+        /// part of the path '.../state/cmd-1.sh'", <c>echo hello</c> included. Nothing in
+        /// the workspace could recover, because the only code that ever created these
+        /// directories had already run.
+        /// </para>
+        /// <para>
+        /// So every entry point re-asserts the layout instead of assuming it. Five
+        /// existence checks against a command that costs tens of milliseconds is not a
+        /// cost worth optimising, and the alternative is a conversation that cannot run
+        /// anything until it is restarted.
+        /// </para>
+        /// <para>
+        /// The return value matters as much as the repair: the files that were in there
+        /// are gone, so a caller has to be able to TELL the model that rather than let it
+        /// discover it as a series of unexplained missing files.
+        /// </para>
+        /// </remarks>
+        public bool EnsureDirectories()
+        {
+            bool rebuilt = false;
+            rebuilt |= CreateIfMissing(WorkDirectory);
+            rebuilt |= CreateIfMissing(EnvDirectory);
+            rebuilt |= CreateIfMissing(StateDirectory);
+            rebuilt |= CreateIfMissing(ShellStateDirectory);
+            rebuilt |= CreateIfMissing(TempDirectory);
+            if (rebuilt)
+                WorkspaceOwner.Stamp(Root);
+            if (rebuilt && _constructed)
+                Volatile.Write(ref _rebuiltNoticePending, 1);
+            return rebuilt;
+
+            static bool CreateIfMissing(string path)
+            {
+                if (Directory.Exists(path))
+                    return false;
+                Directory.CreateDirectory(path);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// <see cref="EnsureDirectories"/> where a failure to repair must not become the
+        /// caller's exception — the tool it precedes has its own refusal to report, and a
+        /// raw <c>IOException</c> from a repair attempt would replace a sentence the model
+        /// can act on with one it cannot.
+        /// </summary>
+        public bool TryEnsureDirectories()
+        {
+            try { return EnsureDirectories(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return false; }
+        }
+
+        /// <summary>
+        /// Whether a rebuild has happened since this was last asked, clearing the flag.
+        /// </summary>
+        /// <remarks>
+        /// A latch rather than the return of <see cref="EnsureDirectories"/> because the
+        /// repair and the telling happen in different places: whichever entry point runs
+        /// first does the repair, and the next tool RESULT is what actually reaches the
+        /// model. Reporting it once is the point — the workspace is whole again after the
+        /// first repair, and repeating the notice on every later command would tell a
+        /// model its files had just vanished when nothing had happened at all.
+        /// </remarks>
+        public bool ConsumeRebuiltNotice() =>
+            Interlocked.Exchange(ref _rebuiltNoticePending, 0) == 1;
+
+        /// <summary>
+        /// What to tell the model when the layout had to be rebuilt: the files it wrote
+        /// earlier in this conversation are not there any more, and it will otherwise
+        /// spend rounds re-discovering that one missing file at a time.
+        /// </summary>
+        public const string RebuiltNote =
+            "note: this conversation's working directory was missing and has been recreated - "
+            + "something outside this session removed it. Files written by earlier steps are gone; "
+            + "installed packages are gone too. Recreate what you still need before using it.";
 
         /// <summary>
         /// The chat session this workspace belongs to — the key
@@ -901,9 +992,26 @@ namespace TensorSharp.AgentHost.Skills
         }
 
         /// <summary>
-        /// Delete every workspace a previous server run left behind. A restart orphans
-        /// all sessions, so anything under the root is unreachable by construction.
+        /// Delete every workspace left behind by a host that is no longer running, and
+        /// leave alone any that a live one still owns.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This used to delete everything under the root, on the reasoning that a restart
+        /// orphans every session. That reasoning holds for ONE host and the root is not
+        /// one host's: the scratch directory defaults to a folder beside the binary, so
+        /// every host launched from that build shares it. A second server started on
+        /// another port — four such launches appear in the log of the 2026-09-10 incident
+        /// — therefore deleted the working directory of a conversation that was still
+        /// running in the first, and every later command in it failed at the point where
+        /// its wrapper script is written.
+        /// </para>
+        /// <para>
+        /// So a workspace records the process that owns it and the sweep skips one whose
+        /// owner is still alive. A stamp that cannot be read is treated as an orphan,
+        /// which keeps the old behaviour for anything a previous version left behind.
+        /// </para>
+        /// </remarks>
         public void SweepOrphans()
         {
             try
@@ -911,7 +1019,15 @@ namespace TensorSharp.AgentHost.Skills
                 if (!Directory.Exists(_root))
                     return;
                 foreach (string dir in Directory.EnumerateDirectories(_root, SessionWorkspace.DirectoryPrefix + "*"))
+                {
+                    if (WorkspaceOwner.IsHeldByALiveProcess(dir))
+                    {
+                        _logger.LogInformation(LogEventIds.SkillScriptExecuted,
+                            "workspace.sweep-skipped dir={Dir} reason=owned-by-a-running-host", dir);
+                        continue;
+                    }
                     TryDelete(dir);
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -927,7 +1043,15 @@ namespace TensorSharp.AgentHost.Skills
             lock (_mapGate)
             {
                 if (_workspaces.TryGetValue(sessionId, out SessionWorkspace? existing))
+                {
+                    // The single choke point every consumer already passes through, so the
+                    // invariant it establishes — "the directories of the workspace you were
+                    // handed exist" — holds for call sites that have not been written yet.
+                    // A workspace is created once and used for a whole conversation, and
+                    // nothing kept its directories alive over that span.
+                    existing.TryEnsureDirectories();
                     return existing;
+                }
 
                 // The suffix matters when an id is reused while its previous workspace
                 // is retiring: Release removes the mapping immediately, but an active

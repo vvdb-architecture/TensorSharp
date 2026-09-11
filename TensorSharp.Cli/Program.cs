@@ -282,6 +282,7 @@ namespace TensorSharp.Cli
             long? pagedKvSsdMbOverride = null;
             int? pagedKvQuantBitsOverride = null;
             bool runInteractive = false;
+            bool noPrefixCache = false;
             // Vulkan GPU selection (multi-GPU hosts, e.g. an integrated Intel GPU
             // next to a discrete NVIDIA one). Plumbed through the env var that
             // GgmlNative reads when the ggml_vulkan backend initializes.
@@ -456,6 +457,11 @@ namespace TensorSharp.Cli
                     case "--no-paged-batching":
                         Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", "1");
                         Environment.SetEnvironmentVariable("TS_QWEN35_BATCHED", "0");
+                        break;
+                    case "--no-prefix-cache":
+                        // Spelled the same as the server's, because a config file's keys
+                        // ARE flags and the same file is expected to drive either host.
+                        noPrefixCache = true;
                         break;
                     case "--paged-kv-block-size":
                         pagedKvBlockSizeOverride = int.Parse(args[++i]);
@@ -1021,6 +1027,7 @@ namespace TensorSharp.Cli
                     codeWorkspace);
                 if (!string.IsNullOrEmpty(systemPrompt))
                     session.SetInitialSystemPrompt(systemPrompt);
+                session.PrefixCacheEnabled = !noPrefixCache;
                 session.Run();
                 return;
             }

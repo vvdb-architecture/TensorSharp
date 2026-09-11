@@ -60,6 +60,18 @@ namespace TensorSharp.Runtime.Scheduling
         private int _liveCacheLen;
         private bool _liveCacheValid;
 
+        // Why the LAST ComputeLiveContinuationLcp / ComputeFusedContinuationLcp call
+        // returned 0, or null when it returned a usable prefix. Neither method can
+        // tell whether the request ends up reusing anything - the scheduler tries the
+        // live cache, then retained model state, then the pooled blocks - so the
+        // reasons are recorded here and the SCHEDULER reports the one outcome that is
+        // true. Before this, ComputeLiveContinuationLcp announced "This turn
+        // re-prefills its full prompt (KV reuse 0)" at Information level on a path
+        // that a retained holder then served at 99% reuse, which is exactly the wrong
+        // thing to tell an operator hunting latency.
+        private string? _lastLiveDeclineReason;
+        private string? _lastFusedDeclineReason;
+
         // ---- Retained fused-cache continuation (cross-request prefix reuse) ----
         // The per-sequence fused path (concurrent N>=2 decode) keeps each request's
         // complete continuation state in its own holder and never writes the shared
@@ -2215,6 +2227,7 @@ namespace TensorSharp.Runtime.Scheduling
         /// </summary>
         public int ComputeLiveContinuationLcp(SequenceState seq)
         {
+            _lastLiveDeclineReason = null;
             if (seq == null)
                 return 0;
             if (!_liveCacheValid || _liveCacheSeq == null || _liveCacheLen <= 0)
@@ -2241,7 +2254,12 @@ namespace TensorSharp.Runtime.Scheduling
                 ? _model.MaxReusablePrefixTokens
                 : 0;
             if (cap == int.MaxValue)
-                return 0; // pooled reuse is uncapped; it already covers this
+            {
+                // Pooled reuse is uncapped for this model, so the block path already
+                // covers the whole prefix. Not a decline worth reporting as a loss.
+                _lastLiveDeclineReason = "not needed (pooled prefix reuse is uncapped for this model)";
+                return 0;
+            }
 
             int liveLen = Math.Min(_liveCacheLen, _liveCacheSeq.NumTotalTokens);
 
@@ -2357,21 +2375,37 @@ namespace TensorSharp.Runtime.Scheduling
         /// </summary>
         private const int MaxLiveContinuationRewindTokens = 16;
 
-        /// <summary>Log why live-cache continuation was refused and return 0. The
+        /// <summary>Record why live-cache continuation was refused and return 0. The
         /// path had five distinct bare `return 0`s, which is why a report of "KV
-        /// reuse is 0" carried no way to tell which one fired.</summary>
+        /// reuse is 0" carried no way to tell which one fired.
+        ///
+        /// <para>
+        /// The reason is REMEMBERED, not announced. Refusing here says nothing about
+        /// what the request ends up reusing: the scheduler tries retained model state
+        /// and the pooled blocks next, and on a fused model (Qwen 3.5/3.6, Gemma 4)
+        /// the retained holder is the NORMAL source of reuse, so this path is taken
+        /// on essentially every request while reuse runs at 95-100%. Announcing "this
+        /// turn re-prefills its full prompt (KV reuse 0)" from here was therefore
+        /// wrong on almost every line it printed. The scheduler reports the single
+        /// truthful outcome once the three mechanisms have all had their turn.
+        /// </para></summary>
         private int LiveContinuationDeclined(SequenceState seq, string reason)
         {
-            // Information, not Debug: this is the difference between ~95% and 0%
-            // KV reuse on a follow-up turn (seconds of TTFT), it fires at most
-            // once per request, and the response's kvCacheReusedTokens=0 gives
-            // the user the symptom with no cause unless this line is visible.
-            _logger.LogInformation(
-                "Live-cache continuation declined for {RequestId}: {Reason}. This turn re-prefills " +
-                "its full prompt (KV reuse 0).",
+            _lastLiveDeclineReason = reason;
+            _logger.LogDebug(
+                "Live-cache continuation declined for {RequestId}: {Reason}.",
                 seq.RequestId, reason);
             return 0;
         }
+
+        /// <summary>Why the last <see cref="ComputeLiveContinuationLcp"/> found no
+        /// usable live prefix, or null when it did. Read by the scheduler at
+        /// admission to explain a turn that reused nothing.</summary>
+        public string? LastLiveContinuationDeclineReason => _lastLiveDeclineReason;
+
+        /// <summary>Why the last <see cref="ComputeFusedContinuationLcp"/> found no
+        /// usable retained holder or shared-prefix checkpoint, or null when it did.</summary>
+        public string? LastFusedContinuationDeclineReason => _lastFusedDeclineReason;
 
         /// <summary>Render the few tokens either side of <paramref name="center"/> as
         /// "id:piece" so a prefix divergence names the actual text that differs.
@@ -2561,13 +2595,30 @@ namespace TensorSharp.Runtime.Scheduling
         /// admission (same worker thread as the executor).</summary>
         public int ComputeFusedContinuationLcp(SequenceState seq)
         {
+            _lastFusedDeclineReason = null;
             if (seq == null) return 0;
+            if (!ModelUsesRetainableFusedCache())
+            {
+                _lastFusedDeclineReason =
+                    "unavailable (this model+backend does not serve requests from retainable per-request holders)";
+                return 0;
+            }
             // A checkpoint saved by an earlier process is worth reading only for a
             // prompt that would clone it, and only once: after this it is in memory.
             TryRestorePrefixCheckpointFromStore(seq);
-            if (_retainedFused.Count == 0 && _prefixCheckpoints.Count == 0) return 0;
-            if (!ModelUsesRetainableFusedCache()) return 0;
+            if (_retainedFused.Count == 0 && _prefixCheckpoints.Count == 0)
+            {
+                _lastFusedDeclineReason =
+                    "nothing retained yet (no finished request's holder and no shared-prefix checkpoint)";
+                return 0;
+            }
             FindRetainedFusedMatch(seq, out int lcp);
+            if (lcp <= 0)
+            {
+                _lastFusedDeclineReason =
+                    $"none of the {_retainedFused.Count} retained holder(s) and " +
+                    $"{_prefixCheckpoints.Count} checkpoint(s) is a prefix of this prompt";
+            }
             return lcp;
         }
 
@@ -3107,8 +3158,13 @@ namespace TensorSharp.Runtime.Scheduling
                 // (e.g. a concurrent sequence took ownership). Drop the reused-prefix
                 // claim and re-prefill from scratch via the normal path below; the
                 // sequence keeps its reserved blocks so accounting stays consistent.
-                _logger.LogDebug(
-                    "Live-cache continuation for {RequestId} no longer valid; re-prefilling.",
+                // Information, not Debug: admission has already reported this request
+                // as reusing the live prefix, and this retracts that. A turn whose
+                // announced reuse silently became a full re-prefill is exactly the
+                // latency mystery this whole logging path exists to prevent.
+                _logger.LogInformation(
+                    "Live-cache continuation for {RequestId} was no longer valid at execution time " +
+                    "(another sequence took the cache); its prompt re-prefills after all.",
                     seq.RequestId);
                 seq.ClearLiveCacheContinuation();
             }

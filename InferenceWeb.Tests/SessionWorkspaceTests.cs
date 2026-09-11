@@ -10,6 +10,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using TensorSharp.AgentHost.CodeExec;
@@ -538,9 +539,86 @@ public class SessionWorkspaceTests : IDisposable
         SessionWorkspace orphan = before.GetOrCreate("dead-session");
         File.WriteAllText(Path.Combine(orphan.WorkDirectory, "left.txt"), "over");
 
-        // A new manager models a restarted server: every old session is unreachable.
+        // A restarted server is one whose OWNER is gone, which is not the same thing as a
+        // fresh manager: the scratch root is shared by every host launched from a build,
+        // so a live owner's workspace has to survive another host's sweep. Removing the
+        // stamp is the documented "left behind by something that is not running" case.
+        File.Delete(Path.Combine(orphan.Root, ".owner"));
+
         var after = new SessionWorkspaceManager(root);
         after.SweepOrphans();
+
+        Assert.False(Directory.Exists(orphan.Root));
+    }
+
+    /// <summary>
+    /// The scratch root defaults to a folder beside the binary, so two servers launched
+    /// from one build share it. Sweeping it wholesale deleted the working directory of a
+    /// conversation that was still running in the other host, and every command in that
+    /// conversation then failed where its wrapper script is written.
+    /// </summary>
+    [Fact]
+    public void ASweepLeavesAWorkspaceThatALiveHostStillOwns()
+    {
+        string root = Path.Combine(_base, "shared");
+        var live = new SessionWorkspaceManager(root);
+        SessionWorkspace inUse = live.GetOrCreate("still-talking");
+        File.WriteAllText(Path.Combine(inUse.WorkDirectory, "deck.md"), "work in progress");
+
+        // A second host starting up against the same root. This process owns the
+        // workspace and this process is running, so it is not an orphan.
+        new SessionWorkspaceManager(root).SweepOrphans();
+
+        Assert.True(Directory.Exists(inUse.Root));
+        Assert.Equal("work in progress", File.ReadAllText(Path.Combine(inUse.WorkDirectory, "deck.md")));
+    }
+
+    /// <summary>
+    /// Every uncertain answer has to mean "sweep it", not "keep it".
+    ///
+    /// <para>
+    /// A stamp with no usable start time proves nothing, and so does a platform that
+    /// refuses process introspection — iOS does, and iOS is also the platform whose
+    /// scratch directory the system reclaims. Answering "cannot tell, so keep it" there
+    /// would accumulate every workspace the app ever created in a cache directory on a
+    /// device that is short of space, which is a worse bug than the one stamps fix.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AStampThatProvesNothing_IsAnOrphan()
+    {
+        string root = Path.Combine(_base, "unprovable");
+        var manager = new SessionWorkspaceManager(root);
+        SessionWorkspace orphan = manager.GetOrCreate("no-proof");
+
+        // This process's own id, with no start time to check it against — the shape a
+        // platform that cannot report one leaves behind.
+        File.WriteAllText(
+            Path.Combine(orphan.Root, ".owner"),
+            Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + "\n0\n");
+
+        new SessionWorkspaceManager(root).SweepOrphans();
+
+        Assert.False(Directory.Exists(orphan.Root));
+    }
+
+    /// <summary>
+    /// Pids are reused. A workspace naming a pid that some unrelated process now holds
+    /// must still be swept, or it survives for as long as the machine stays up.
+    /// </summary>
+    [Fact]
+    public void AStampWhoseStartTimeDoesNotMatch_IsStillAnOrphan()
+    {
+        string root = Path.Combine(_base, "reused-pid");
+        var manager = new SessionWorkspaceManager(root);
+        SessionWorkspace orphan = manager.GetOrCreate("recycled");
+
+        // This process's id, with the start time of something else entirely.
+        File.WriteAllText(
+            Path.Combine(orphan.Root, ".owner"),
+            Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + "\n1\n");
+
+        new SessionWorkspaceManager(root).SweepOrphans();
 
         Assert.False(Directory.Exists(orphan.Root));
     }

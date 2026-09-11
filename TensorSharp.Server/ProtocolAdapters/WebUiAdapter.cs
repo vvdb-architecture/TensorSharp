@@ -79,6 +79,15 @@ namespace TensorSharp.Server.ProtocolAdapters
             _loggerFactory = loggerFactory;
         }
 
+        /// <summary>
+        /// The chat service behind this adapter, for a host that needs to drive a turn
+        /// without an HTTP request — the startup prefix-cache warm-up is the only caller.
+        /// Exposed rather than duplicated because the warm-up is only worth anything if it
+        /// renders the SAME prompt a real request renders, and that is guaranteed by it
+        /// being the same service, not by two code paths agreeing.
+        /// </summary>
+        public WebUiChatService Chat => _service;
+
         /// <summary>A refusal, exactly as the service shaped it: its status and its JSON body.</summary>
         private static IResult Rejected(WebUiRequestRejectedException ex) =>
             Results.Json(ex.Payload, statusCode: ex.StatusCode);

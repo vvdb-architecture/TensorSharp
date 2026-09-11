@@ -16,9 +16,8 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using TensorSharp.Runtime.Scheduling;
 
-namespace TensorAgent.Core.Hosting;
+namespace TensorSharp.Runtime.Scheduling;
 
 /// <summary>
 /// The shared-prefix checkpoints of one model, kept on the device between launches.
@@ -113,7 +112,18 @@ public sealed class PrefixCheckpointFileStore : IPrefixCheckpointStore
     public string PathFor(string modelFingerprint, ReadOnlySpan<int> prefixTokens)
         => Path.Combine(Directory, FileNameFor(Identity(modelFingerprint), prefixTokens));
 
-    public static string FileNameFor(string modelFingerprint, ReadOnlySpan<int> prefixTokens)
+    /// <summary>
+    /// The file name for an identity that ALREADY carries the weights identity.
+    ///
+    /// <para>
+    /// Internal, not public. It takes the pre-combined string <see cref="Identity"/>
+    /// builds, not a bare model fingerprint, and a caller outside this class that passed
+    /// a fingerprint would compute a name this store never writes — silently, and only
+    /// whenever <see cref="WeightsIdentity"/> is non-empty, which is always in a real
+    /// host. <see cref="PathFor"/> is the supported way to ask where a checkpoint lives.
+    /// </para>
+    /// </summary>
+    internal static string FileNameFor(string modelFingerprint, ReadOnlySpan<int> prefixTokens)
     {
         using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         sha.AppendData(Encoding.UTF8.GetBytes(modelFingerprint ?? string.Empty));

@@ -45,7 +45,7 @@ public class Qwen35BatchedPerfBench
     // Run a few text-only scenarios back-to-back inside a single model
     // load, since each Qwen3.6-27B load takes ~30s. Each scenario runs
     // legacy first, then batched, so the numbers are directly comparable.
-    [ModelFact("TS_TEST_MODEL_DIR", "27b")]
+    [ModelFact("TS_TEST_MODEL_DIR", Qwen35Gguf)]
     public Task Qwen35_BatchedVsLegacy()
         => RunScenarios(new[]
         {
@@ -57,7 +57,11 @@ public class Qwen35BatchedPerfBench
     private async Task RunScenarios((string label, int n, int maxNewTokens)[] scenarios)
     {
         var modelPath = FindQwen35();
-        if (modelPath == null) { _output.WriteLine("[qwen35-perf] no model; skipping"); return; }
+        // Gate and loader share Qwen35Gguf; a null here means they drifted apart,
+        // which previously showed up as a PASSED bench that never loaded a model.
+        Assert.True(modelPath != null,
+            $"[ModelFact] admitted this bench but no '{Qwen35Gguf}' GGUF was found under {EnvModelDir}; "
+            + "the gate and the loader have drifted apart.");
         _output.WriteLine($"[qwen35-perf] loading {Path.GetFileName(modelPath)} (this takes a while)");
 
         using var ctx = new BenchContext(modelPath);
@@ -223,21 +227,21 @@ public class Qwen35BatchedPerfBench
         return prompts;
     }
 
+    /// <summary>
+    /// The ONE pattern the [ModelFact] gate and the loader below both use, naming
+    /// the 27B dense variants in preference to 35B-A3B (whose IQ2_XXS dequant cost
+    /// swamps the attention-vs-GDN comparison this bench is for). Keeping the two
+    /// on one pattern is not cosmetic: while the gate said "27b" and the loader
+    /// said "qwen3.5/3.6-27b", a box holding Qwen3.8-27B ran this bench's body,
+    /// found nothing, and returned into a PASSED result having measured nothing.
+    /// </summary>
+    private const string Qwen35Gguf = "qwen3.5-27b|qwen3.6-27b|qwen3.8-27b";
+
     private static string FindQwen35()
     {
         string dir = Environment.GetEnvironmentVariable(EnvModelDir);
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
-        // Prefer the 27B dense variant over 35B-A3B; the latter's IQ2_XXS
-        // is much slower to dequant per layer and skews the bench heavily
-        // toward the MoE FFN rather than the attention vs GDN comparison
-        // we actually care about.
-        var candidates = Directory.GetFiles(dir, "*.gguf").Where(p =>
-        {
-            var n = Path.GetFileName(p).ToLowerInvariant();
-            return (n.Contains("qwen3.6-27b") || n.Contains("qwen3.5-27b"))
-                && !n.Contains("mmproj");
-        }).OrderBy(p => Path.GetFileName(p)).ToList();
-        return candidates.FirstOrDefault();
+        return TestGates.FindSmallestGguf(dir, Qwen35Gguf);
     }
 
     private struct RunStats

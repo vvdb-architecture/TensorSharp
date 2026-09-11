@@ -148,6 +148,71 @@ namespace TensorSharp.Runtime.Scheduling
             _fusedContinuationAdopt = adopt;
         }
 
+        // Why the executor's last live / retained lookup found nothing. Admission
+        // owns the reuse decision end to end, so it is the only place that can say
+        // truthfully what a request reused and, when it reused nothing, which of the
+        // three mechanisms could have helped and why none did.
+        private Func<string?>? _liveDeclineReason;
+        private Func<string?>? _fusedDeclineReason;
+
+        /// <summary>Wire the executor's reuse diagnostics so admission can explain a
+        /// turn that reused nothing. Optional: without it the summary still reports
+        /// what was reused, just without the per-mechanism reasons.</summary>
+        public void AttachReuseDiagnostics(Func<string?> liveReason, Func<string?> fusedReason)
+        {
+            _liveDeclineReason = liveReason;
+            _fusedDeclineReason = fusedReason;
+        }
+
+        /// <summary>
+        /// One truthful line per admitted prompt: how many tokens the request reuses,
+        /// which mechanism served them, and how many still have to be prefilled.
+        ///
+        /// <para>
+        /// This exists because the three reuse mechanisms are tried in sequence and
+        /// each used to narrate its own attempt. The live-cache attempt in particular
+        /// announced that the turn would "re-prefill its full prompt (KV reuse 0)"
+        /// before the retained-holder path — the mechanism that actually serves every
+        /// fused model — had even been asked. Operators reading the log concluded the
+        /// cache was broken on turns that were reusing 99% of their prompt.
+        /// </para>
+        /// </summary>
+        private void LogPromptReuseOutcome(
+            SequenceState seq, bool servedByLiveCache, bool servedByRetainedState, string? liveReason)
+        {
+            int prompt = seq.PromptTokens.Count;
+            if (prompt <= 0) return;
+            int reused = seq.PrefixCacheReusedTokens;
+
+            if (reused > 0)
+            {
+                _logger.LogInformation(
+                    "Prompt reuse for {RequestId}: {Reused}/{Prompt} tokens ({Percent:F1}%) continue from " +
+                    "{Source}; {Prefill} token(s) to prefill.",
+                    seq.RequestId, reused, prompt, 100.0 * reused / prompt,
+                    servedByLiveCache ? "the model's live KV cache"
+                        : servedByRetainedState ? "retained model state (a finished request's holder or a shared-prefix checkpoint)"
+                        : "pooled prefix-cache blocks",
+                    Math.Max(0, prompt - reused));
+                return;
+            }
+
+            // Nothing reused. This is the case that costs a full prefill, so name
+            // every mechanism and why it could not help - a first request in a fresh
+            // conversation lands here legitimately, and so does a genuine regression.
+            _logger.LogInformation(
+                "No prompt reuse for {RequestId}: all {Prompt} prompt token(s) re-prefill. " +
+                "Live KV cache: {LiveReason}. Retained state: {RetainedReason}. Pooled blocks: {PooledReason}.",
+                seq.RequestId, prompt,
+                liveReason ?? "not attempted",
+                (_fusedContinuationLcp == null ? "not wired" : _fusedDeclineReason?.Invoke()) ?? "no match",
+                PrefixCachingActive
+                    ? "no matching blocks in the index"
+                    : _cfg.EnablePrefixCaching
+                        ? "unavailable for this model (its K/V cannot be restored into another sequence)"
+                        : "disabled (TS_SCHED_PREFIX_CACHE)");
+        }
+
         public int WaitingCount => _waiting.Count;
         public int RunningCount => _running.Count;
         public BlockPool Pool => _pool;
@@ -376,6 +441,7 @@ namespace TensorSharp.Runtime.Scheduling
                 // freed and need a fresh re-prefill, no shortcut).
                 bool plannedLiveContinuation = false;
                 bool plannedFusedContinuation = false;
+                string? liveDeclineReason = null;
                 if (seq.BlockTable.NumBlocks == 0 && _cfg.EnablePrefixCaching)
                 {
                     // Live-cache continuation: when this is the SOLE sequence about to
@@ -393,12 +459,17 @@ namespace TensorSharp.Runtime.Scheduling
                         int lcp = _liveContinuationLcp(seq);
                         if (lcp > 0 && _liveContinuationAdopt(seq, lcp))
                             plannedLiveContinuation = true;
+                        else
+                            liveDeclineReason = _liveDeclineReason?.Invoke() ?? "no usable live prefix";
                     }
                     else if (_liveContinuationLcp != null)
                     {
                         // Not even attempted. The sole-sequence gate is the usual
                         // reason and it is invisible from the request's telemetry,
                         // which just reports 0% reuse.
+                        liveDeclineReason =
+                            $"not attempted (another sequence holds the live cache: running={_running.Count}, "
+                            + $"scheduledThisStep={output.ScheduledWork.Count})";
                         _logger.LogDebug(
                             "Live-cache continuation not attempted for {RequestId}: running={Running} scheduledThisStep={Scheduled}.",
                             seq.RequestId, _running.Count, output.ScheduledWork.Count);
@@ -426,6 +497,11 @@ namespace TensorSharp.Runtime.Scheduling
                         && !plannedFusedContinuation
                         && PrefixCachingActive)
                         AdoptPrefixBlocksCapped(seq);
+
+                    // Every mechanism has now had its turn, so the outcome is finally
+                    // knowable. Exactly one line, whatever happened.
+                    LogPromptReuseOutcome(
+                        seq, plannedLiveContinuation, plannedFusedContinuation, liveDeclineReason);
                 }
 
                 int promptUncomputed = Math.Max(0, seq.PromptTokens.Count - seq.NumComputedTokens);

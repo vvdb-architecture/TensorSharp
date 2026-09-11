@@ -1029,7 +1029,8 @@ public class RetainedFusedCacheTests
         string firstRoundMediaFingerprint = null,
         string followUpMediaFingerprint = null,
         int followUpSuffixToken = PeakToken,
-        Func<FusedStubModel> createModel = null)
+        Func<FusedStubModel> createModel = null,
+        Microsoft.Extensions.Logging.ILogger logger = null)
     {
         string previousRetention = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE");
         string previousBudget = Environment.GetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX");
@@ -1042,7 +1043,7 @@ public class RetainedFusedCacheTests
         try
         {
             var model = createModel?.Invoke() ?? new FusedStubModel();
-            using var engine = new InferenceEngine(model, Config(), NullLogger.Instance);
+            using var engine = new InferenceEngine(model, Config(), logger ?? NullLogger.Instance);
 
             // ---- Round 1: two distinct conversations, submitted in parallel. ----
             var promptA = Enumerable.Repeat(1, PromptLen).ToList();
@@ -1097,6 +1098,111 @@ public class RetainedFusedCacheTests
             Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE_MAX", previousBudget);
             Environment.SetEnvironmentVariable("TS_SCHED_DISABLE_BATCHED", previousBatched);
             Environment.SetEnvironmentVariable("TS_PER_SEQ_FUSED", previousPerSeq);
+        }
+    }
+
+    /// <summary>
+    /// The reuse a turn actually gets, and the line the log prints about it, must
+    /// agree.
+    ///
+    /// <para>
+    /// Reported 2026-09-10 against a Qwen3.8-27B server: the log carried
+    /// "Live-cache continuation declined for chat-...: no live cache resident ...
+    /// This turn re-prefills its full prompt (KV reuse 0)" on essentially every
+    /// request, and the operator reasonably concluded the KV cache was broken. It
+    /// was not - the same requests reported 73-99.9% reuse in their own completion
+    /// telemetry. The live-cache attempt is simply the FIRST of three mechanisms,
+    /// and on a fused model (Qwen 3.5/3.6, Gemma 4) the retained holder that runs
+    /// SECOND is the one that always serves. A mechanism that has not yet let the
+    /// others try cannot announce the turn's outcome.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task RetainedHolderServesTheTurn_LogSaysSo_AndNeverClaimsAFullRePrefill()
+    {
+        var log = new ReuseLogRecorder();
+        var (a, b) = await RunTwoRoundsAsync(retentionEnabled: true, logger: log);
+
+        // Precondition: this is the case the bad line used to fire on.
+        Assert.Equal(a.PromptTokenCount - SuffixLen, a.PrefixCacheReusedTokens);
+        Assert.Equal(b.PromptTokenCount - SuffixLen, b.PrefixCacheReusedTokens);
+
+        // The retracted claim must be gone from every level, not just demoted.
+        Assert.DoesNotContain(log.Entries, e => e.Message.Contains("re-prefills its full prompt"));
+        Assert.DoesNotContain(log.Entries, e => e.Message.Contains("KV reuse 0"));
+
+        // And the follow-ups must each be reported, truthfully, exactly once.
+        foreach (string requestId in new[] { "A2", "B2" })
+        {
+            var reuseLines = log.Entries
+                .Where(e => e.Level == Microsoft.Extensions.Logging.LogLevel.Information
+                            && e.Message.Contains($"Prompt reuse for {requestId}:"))
+                .ToList();
+            Assert.Single(reuseLines);
+            Assert.Contains("retained model state", reuseLines[0].Message);
+            int reused = requestId == "A2" ? a.PrefixCacheReusedTokens : b.PrefixCacheReusedTokens;
+            int prompt = requestId == "A2" ? a.PromptTokenCount : b.PromptTokenCount;
+            Assert.Contains($"{reused}/{prompt} tokens", reuseLines[0].Message);
+            Assert.Contains($"{prompt - reused} token(s) to prefill", reuseLines[0].Message);
+        }
+    }
+
+    /// <summary>
+    /// The other half of the contract: a turn that genuinely reuses nothing has to
+    /// say so, and name every mechanism that could not help. Demoting the old line
+    /// to Debug without this would have traded a false alarm for silence.
+    /// </summary>
+    [Fact]
+    public async Task NothingRetained_LogNamesEveryMechanismThatCouldNotHelp()
+    {
+        var log = new ReuseLogRecorder();
+        // Qwen-like: no cross-sequence snapshot reuse, so the pooled path is the one
+        // that can never help - exactly the model in the 2026-09-10 report.
+        var (a, b) = await RunTwoRoundsAsync(
+            retentionEnabled: false,
+            createModel: () => new FusedStubModel(
+                supportsKvCacheTruncation: false,
+                supportsCrossSequenceKvReuse: false,
+                maxReusablePrefixTokens: int.MaxValue,
+                supportsRetainedFusedCache: true),
+            logger: log);
+
+        Assert.Equal(0, a.PrefixCacheReusedTokens);
+        Assert.Equal(0, b.PrefixCacheReusedTokens);
+
+        var lines = log.Entries
+            .Where(e => e.Message.Contains("No prompt reuse for A2:"))
+            .ToList();
+        Assert.Single(lines);
+        string message = lines[0].Message;
+        Assert.Contains("Live KV cache:", message);
+        Assert.Contains("Retained state:", message);
+        Assert.Contains("Pooled blocks:", message);
+        // This stub model is Qwen-like: its snapshots are not cross-sequence
+        // reusable, so the pooled path is the one that can never help and the
+        // operator should be told that rather than left to infer it.
+        Assert.Contains("unavailable for this model", message);
+    }
+
+    private sealed class ReuseLogRecorder : Microsoft.Extensions.Logging.ILogger
+    {
+        public List<(Microsoft.Extensions.Logging.LogLevel Level, string Message)> Entries { get; } = new();
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull
+            => NullLogger.Instance.BeginScope(state);
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            Microsoft.Extensions.Logging.LogLevel logLevel,
+            Microsoft.Extensions.Logging.EventId eventId,
+            TState state,
+            Exception exception,
+            Func<TState, Exception, string> formatter)
+        {
+            string message = formatter != null ? formatter(state, exception) : state?.ToString() ?? string.Empty;
+            lock (Entries)
+                Entries.Add((logLevel, message));
         }
     }
 

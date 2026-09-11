@@ -35,6 +35,20 @@ namespace TensorSharp.Models
     {
         private string _lastArenaDeclineLogged;
         private float[] _arenaLogitsStaging;
+
+        /// <summary>
+        /// How many batched arena decode steps this model has actually served.
+        ///
+        /// <para>
+        /// A decline is loud (it prints a reason) but a fallback is not
+        /// distinguishable from success by looking at the answer: the round-robin
+        /// path produces correct tokens too. A test that widens the arena's
+        /// admission rules therefore cannot prove it changed anything without a
+        /// positive signal, so this counter is the signal.
+        /// </para>
+        /// </summary>
+        internal long ArenaBatchedDecodeSteps => _arenaBatchedDecodeSteps;
+        private long _arenaBatchedDecodeSteps;
         private static readonly bool ArenaPrefillVerifyEnabled =
             Environment.GetEnvironmentVariable("TS_QWEN35_PREFILL_VERIFY") != "0";
 
@@ -135,8 +149,21 @@ namespace TensorSharp.Models
             if (!ArenaPrefillVerifyEnabled)
                 return ArenaDecline("TS_QWEN35_PREFILL_VERIFY=0 (unhooked prefill path)");
             DType kvDt = _kvCacheDtype.ToDType();
-            if (kvDt != DType.Float32 && kvDt != DType.Float16)
-                return ArenaDecline($"KV cache dtype {_kvCacheDtype} (arena supports F32/F16)");
+            // One predicate for every fused graph, including this one. The arena used
+            // to hardcode F32/F16 here while the solo whole-model graph had already
+            // been widened to block-quantized K/V on CUDA and Metal. The arena kernel
+            // itself was never the obstacle - it builds its arenas with the caller's
+            // ggml_type and strides every copy by ggml_row_size - so the gate alone
+            // turned a q8_0 KV cache (what the agent configs pin, to halve KV on a
+            // Mac where Metal charges it twice) into a permanent decline: every
+            // concurrent decode step fell back to round-robin, one full weight sweep
+            // per sequence per token, and aggregate throughput stayed at 1x.
+            // The native side still has the last word - it checks backend_supports_op
+            // on the arena's set_rows and flash_attn shapes and aborts the build if
+            // either is missing, which lands back here as exactly today's decline.
+            if (!IsFusedGraphKvCacheDType(kvDt))
+                return ArenaDecline(
+                    $"KV cache dtype {_kvCacheDtype} is not supported by the fused graphs on {_backend}");
             if (_headKDim != _headVDim || _convKernel <= 1)
                 return ArenaDecline("unsupported GDN geometry");
 
@@ -313,6 +340,7 @@ namespace TensorSharp.Models
                 h.GdnHostDirty = true;
                 h.ArenaStateResident = true;
             }
+            _arenaBatchedDecodeSteps++;
             return true;
         }
 

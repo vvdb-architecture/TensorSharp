@@ -514,9 +514,19 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             set_last_error("Qwen3.5 arena batched decode: folded lm_head + token embedding required.");
             return 0;
         }
-        if (kv_cache_type != GGML_TYPE_F32 && kv_cache_type != GGML_TYPE_F16)
+        // F32/F16 plus the two block-quantized cache types the solo fused graphs
+        // already run. Nothing in this file is dtype-specific: the arenas are created
+        // with static_cast<ggml_type>(kv_cache_type) and every join, flush and view
+        // strides by ggml_row_size(kv_type, head_dim), so a quantized row is simply a
+        // shorter row (hd=256 at Q8_0 is 8 blocks = 272 bytes) and every offset stays
+        // a whole multiple of it. What actually decides the answer is whether the
+        // BACKEND has kernels for the arena's set_rows and 4-D flash_attn shapes at
+        // this type - and that is checked below on the built nodes, where a miss
+        // aborts the build and the caller falls back to round-robin serving.
+        if (kv_cache_type != GGML_TYPE_F32 && kv_cache_type != GGML_TYPE_F16 &&
+            kv_cache_type != GGML_TYPE_Q8_0 && kv_cache_type != GGML_TYPE_Q4_0)
         {
-            set_last_error("Qwen3.5 arena batched decode: F32/F16 KV cache only.");
+            set_last_error("Qwen3.5 arena batched decode: F32/F16/Q8_0/Q4_0 KV cache only.");
             return 0;
         }
         if (head_k_dim != head_v_dim || conv_kernel <= 1)

@@ -1129,6 +1129,30 @@ namespace TensorSharp.AgentHost.CodeExec
             }
         }
 
+        /// <summary>
+        /// Count a command that never STARTED, and report the run of them.
+        /// </summary>
+        /// <returns>
+        /// How many launches in a row have now failed before executing anything,
+        /// this one included. Reset by any launch that starts.
+        /// </returns>
+        /// <remarks>
+        /// A failing command and a shell that will not start are different facts and the
+        /// model cannot tell them apart: it reads a refusal either way, and its correct
+        /// response to the first — change the command and try again — is the worst
+        /// possible response to the second. On 2026-09-10 a model spent twenty minutes and
+        /// eight rounds on that mistake, working down to <c>echo hello</c>, because nothing
+        /// ever told it that the host, not the command, was the thing that was broken.
+        /// The counter is per session because that is the scope over which a model can act
+        /// on the answer.
+        /// </remarks>
+        public int RecordNotStarted() => Interlocked.Increment(ref _consecutiveNotStarted);
+
+        /// <summary>Forget the run of failed launches — something has started.</summary>
+        public void RecordStarted() => Interlocked.Exchange(ref _consecutiveNotStarted, 0);
+
+        private int _consecutiveNotStarted;
+
         /// <summary>Record how the attempt just made turned out.</summary>
         public void RecordOutcome(string command, bool ok)
         {

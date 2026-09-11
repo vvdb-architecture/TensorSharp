@@ -62,8 +62,12 @@ namespace TensorSharp.Server.Hosting
             int skillsMaxRounds = 8,
             IReadOnlyList<string> defaultSkills = null,
             SkillSandboxMode skillsSandbox = SkillSandboxMode.Required,
-            bool skillsAllowNetwork = false)
+            bool skillsAllowNetwork = false,
+            bool prefixCacheEnabled = true,
+            string prefixCacheDirectory = null)
         {
+            PrefixCacheEnabled = prefixCacheEnabled;
+            PrefixCacheDirectory = prefixCacheDirectory;
             WebUiEnabled = webUiEnabled;
             ListenUrls = string.IsNullOrWhiteSpace(listenUrls) ? DefaultListenUrls : listenUrls;
             StartupModelPath = startupModelPath;
@@ -387,6 +391,36 @@ namespace TensorSharp.Server.Hosting
 
         /// <summary>Resolved log directory (used by the file logger when it is enabled).</summary>
         public string LogDirectory { get; }
+
+        /// <summary>
+        /// Whether this server prepares the prompt every conversation shares before it
+        /// starts serving, and keeps the result between launches.
+        ///
+        /// <para>
+        /// The shared prefix is the system block the server itself builds — the skills
+        /// catalog and the code tools — and on an agent configuration it is thousands of
+        /// tokens: 6,459 of a first message's 6,475 on the shipped Qwen configuration.
+        /// Whoever crosses that boundary first pays for it, and on a fresh process that is
+        /// the user's first message: 21.8 s measured, against 0.65 s for every chat after
+        /// it. Preparing it at load moves that cost off the user's first message, and
+        /// keeping it on disk means the next launch restores it instead of computing it
+        /// again.
+        /// </para>
+        /// <para>
+        /// Turned off with <c>--no-prefix-cache</c>, which is the flag to reach for when
+        /// the disk is read-only, when startup latency matters more than first-token
+        /// latency, or when diagnosing whether a wrong answer came from a restored state.
+        /// </para>
+        /// </summary>
+        public bool PrefixCacheEnabled { get; }
+
+        /// <summary>
+        /// Where kept checkpoints live, or null for the default beside the binary.
+        /// Set with <c>TENSORSHARP_PREFIX_CACHE_DIR</c>, on the same precedent as
+        /// <c>TENSORSHARP_LOG_DIR</c>: a path is an operator's deployment detail rather
+        /// than a behaviour, so it stays out of the flag surface.
+        /// </summary>
+        public string PrefixCacheDirectory { get; }
 
         /// <summary>True when the file logger should be wired in.</summary>
         public bool FileLoggingEnabled { get; }

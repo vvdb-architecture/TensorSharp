@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Linq;
 using TensorSharp.AgentHost.CodeExec;
 using TensorSharp.Runtime.Scheduling;
@@ -50,7 +51,8 @@ namespace TensorSharp.Server.Hosting
                 out SamplingPrecedence? configuredPrecedence,
                 out ListenOverrides configuredListen,
                 out UploadLimitOverrides configuredUploads,
-                out bool configuredNoWebUi);
+                out bool configuredNoWebUi,
+                out bool configuredNoPrefixCache);
 
             if (!string.IsNullOrWhiteSpace(configuredMmProj) && string.IsNullOrWhiteSpace(configuredModel))
                 throw new ArgumentException("--mmproj requires --model.");
@@ -154,13 +156,76 @@ namespace TensorSharp.Server.Hosting
                 skillOptions.MaxRoundsSpecified ? skillOptions.MaxRounds : 0,
                 skillOptions.Selected,
                 skillOptions.Sandbox,
-                skillOptions.AllowNetwork);
+                skillOptions.AllowNetwork,
+                // The flag is the only way to turn it OFF, which is why the switch is the
+                // negation: a config file emits nothing for `false`, so a positive
+                // "prefix-cache": false would silently leave it on.
+                prefixCacheEnabled: !configuredNoPrefixCache,
+                prefixCacheDirectory: ResolvePrefixCacheDirectory(baseDirectory, startupModelPath));
+        }
+
+        /// <summary>
+        /// Where shared-prefix checkpoints are kept: the environment variable when the
+        /// operator set one, otherwise a directory beside the binary. A path is a
+        /// deployment detail rather than a behaviour, so it follows TENSORSHARP_LOG_DIR
+        /// rather than adding a second flag for one behaviour.
+        /// </summary>
+        internal static string ResolvePrefixCacheDirectory(string baseDirectory, string startupModelPath)
+        {
+            string root = Environment.GetEnvironmentVariable("TENSORSHARP_PREFIX_CACHE_DIR");
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                if (string.IsNullOrWhiteSpace(baseDirectory))
+                    return null;
+                root = Path.Combine(baseDirectory, "prefix-cache");
+            }
+
+            // ONE DIRECTORY PER MODEL, which is the layout PrefixCheckpointFileStore
+            // documents and the only one its retention policy makes sense in: it evicts
+            // beyond two files by last-access time across every checkpoint in the
+            // directory it was given, with no notion of which model wrote one. Pointing
+            // several models at one directory turns a two-file-per-model budget into a
+            // two-file GLOBAL budget, so alternating launches of two configs from the same
+            // install would delete each other's checkpoints — each launch destroying the
+            // several hundred megabytes the previous one had just spent twenty seconds
+            // computing, and neither ever restoring. It is also the layout SweepOrphans
+            // walks.
+            string model = ModelCacheKey(startupModelPath);
+            return string.IsNullOrEmpty(model) ? root : Path.Combine(root, model);
+        }
+
+        /// <summary>
+        /// A directory-safe name for the weights, distinct enough that two models never
+        /// share a checkpoint directory.
+        /// </summary>
+        /// <remarks>
+        /// The file name alone is not enough — two builds of one model can be called the
+        /// same thing in different directories — so a short hash of the full path is
+        /// appended. The readable half is kept in front because an operator clearing one
+        /// model's cache by hand should be able to tell which directory is which.
+        /// </remarks>
+        internal static string ModelCacheKey(string startupModelPath)
+        {
+            if (string.IsNullOrWhiteSpace(startupModelPath))
+                return null;
+
+            string name = Path.GetFileNameWithoutExtension(startupModelPath) ?? string.Empty;
+            var safe = new StringBuilder(name.Length);
+            foreach (char c in name)
+                safe.Append(char.IsAsciiLetterOrDigit(c) || c is '-' or '.' ? c : '_');
+            if (safe.Length > 48)
+                safe.Length = 48;
+
+            byte[] hash = System.Security.Cryptography.SHA256.HashData(
+                Encoding.UTF8.GetBytes(Path.GetFullPath(startupModelPath)));
+            string suffix = Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
+            return (safe.Length == 0 ? "model" : safe.ToString()) + "-" + suffix;
         }
 
         /// <summary>Backend originally requested via <c>--backend</c> / <c>BACKEND</c> (without the OS-default fallback).</summary>
         public static string ReadConfiguredBackendInput(string[] args)
         {
-            ParseArgs(args, out _, out _, out string configuredBackend, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _);
+            ParseArgs(args, out _, out _, out string configuredBackend, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _, out _);
             return configuredBackend ?? Environment.GetEnvironmentVariable("BACKEND");
         }
 
@@ -888,7 +953,8 @@ namespace TensorSharp.Server.Hosting
             out SamplingPrecedence? configuredPrecedence,
             out ListenOverrides configuredListen,
             out UploadLimitOverrides configuredUploads,
-            out bool configuredNoWebUi)
+            out bool configuredNoWebUi,
+            out bool configuredNoPrefixCache)
         {
             configuredModel = null;
             configuredMmProj = null;
@@ -905,6 +971,7 @@ namespace TensorSharp.Server.Hosting
             configuredListen = default;
             configuredUploads = default;
             configuredNoWebUi = false;
+            configuredNoPrefixCache = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -1110,6 +1177,12 @@ namespace TensorSharp.Server.Hosting
                 if (string.Equals(args[i], "--no-webui", StringComparison.OrdinalIgnoreCase))
                 {
                     configuredNoWebUi = true;
+                    continue;
+                }
+
+                if (string.Equals(args[i], "--no-prefix-cache", StringComparison.OrdinalIgnoreCase))
+                {
+                    configuredNoPrefixCache = true;
                     continue;
                 }
 
@@ -1345,7 +1418,7 @@ namespace TensorSharp.Server.Hosting
             var knownFlags = new List<string>
             {
                 "--model", "--mmproj", "--backend", "--max-tokens", "--video-frames", "--fps",
-                "--port", "--host", "--urls", "--no-webui",
+                "--port", "--host", "--urls", "--no-webui", "--no-prefix-cache",
                 "--temperature", "--top-k", "--top-p", "--min-p",
                 "--repeat-penalty", "--repeat-last-n", "--presence-penalty", "--frequency-penalty",
                 "--seed", "--stop", "--sampling-precedence",
