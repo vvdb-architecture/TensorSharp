@@ -1,0 +1,65 @@
+{
+  "planned_jobs": [
+    {
+      "model": "qwen3",
+      "versions": [
+        "baseline",
+        "final"
+      ],
+      "scenario": "json",
+      "concurrency": [
+        1,
+        4
+      ],
+      "repeats": 3,
+      "timed_cases_per_version": 15,
+      "decode512_warmups_per_version": 1,
+      "json_warmups_per_version": 5
+    },
+    {
+      "model": "qwen35",
+      "versions": [
+        "final",
+        "baseline"
+      ],
+      "scenario": "json",
+      "concurrency": [
+        1,
+        4
+      ],
+      "repeats": 3,
+      "timed_cases_per_version": 15,
+      "decode512_warmups_per_version": 1,
+      "json_warmups_per_version": 5
+    },
+    {
+      "model": "gemma4",
+      "versions": [
+        "baseline",
+        "final"
+      ],
+      "scenario": "json",
+      "concurrency": [
+        1,
+        4
+      ],
+      "repeats": 3,
+      "timed_cases_per_version": 15,
+      "decode512_warmups_per_version": 1,
+      "json_warmups_per_version": 5
+    }
+  ],
+  "timed_cases": 90,
+  "excluded_decode512_warmups": 6,
+  "excluded_json_warmups": 30,
+  "runner_source": {
+    "path": "/tmp/deepseek41-reference/run-final-json-performance.py",
+    "sha256": "5794b097b7e8c03ed1a15cf23cade12aa9553372590e49df2e0cf6408edff6dd",
+    "bytes": 33219
+  },
+  "shared_helper": {
+    "path": "/tmp/deepseek41-reference/run-final-existing-models.py",
+    "sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+    "bytes": 15858
+  }
+}

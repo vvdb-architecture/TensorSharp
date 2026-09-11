@@ -1,0 +1,555 @@
+{
+  "format_version": 2,
+  "engine": "tensorsharp",
+  "model": "qwen3",
+  "weights_id": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+  "weights": {
+    "path": "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "bytes": 639446688,
+    "mtime_ns": 1789100913000000000,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/qwen3-weights.json",
+        "sha256": "b770735d67c06ea1035158091ae9dfe91f763a4af9768b510ba8feff334859c0",
+        "bytes": 208
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "profile": "gpu7-context8192-slots4-batch256-f16",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3/TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "256"
+  ],
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "256",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4"
+  },
+  "timings_qualified_for_comparison": false,
+  "measurement_note": "Correctness rerun only. Unicode is separate new coverage, not included in historical75 comparison.",
+  "structured_tool_results": false,
+  "serial_tool_workflows": false,
+  "max_tokens_override": null,
+  "run_complete": true,
+  "execution_plan": {
+    "scenarios": [
+      "json_unicode"
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 1,
+    "expected_cases": 5
+  },
+  "status": "fail",
+  "cases": [
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "23e88c78b88cba4d02ebcd47c442ccb886e043aee866d01be04a8e46148783c7",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json_unicode-c1-r0-i0]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 98,
+            "completion_tokens": 25,
+            "ttft_ms": 672.0070727169514,
+            "prefill_tps": 145.83179847167693,
+            "decode_tps": 119.51156811223431,
+            "total_wall_ms": 878.2371412962675,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+            "t_start_abs": 4406303.147599183,
+            "t_first_abs": 4406303.819606256,
+            "t_last_abs": 4406304.020423636,
+            "t_end_abs": 4406304.025836324
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+      "total_wall_ms": 878.5395193845034,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "b6497f035d3cf206781f875717d0e3f15d1332b2e036fee217c8ddef93568777",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json_unicode-c4-r0-i0]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 98,
+            "completion_tokens": 25,
+            "ttft_ms": 2471.8174170702696,
+            "prefill_tps": 39.646941284261544,
+            "decode_tps": 21.835223717745997,
+            "total_wall_ms": 3591.5537662804127,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+            "t_start_abs": 4406304.039129839,
+            "t_first_abs": 4406306.510947256,
+            "t_last_abs": 4406307.610088731,
+            "t_end_abs": 4406307.630683606
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+      "total_wall_ms": 3591.8193189427257,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "5703cbb23c2529bed0ab35fcc736a66a0a6c409c756ace0090095b49137b346f",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json_unicode-c4-r0-i1]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 98,
+            "completion_tokens": 25,
+            "ttft_ms": 2817.5867246463895,
+            "prefill_tps": 34.78153809526453,
+            "decode_tps": 31.08665538483906,
+            "total_wall_ms": 3665.750523097813,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+            "t_start_abs": 4406304.040494667,
+            "t_first_abs": 4406306.858081392,
+            "t_last_abs": 4406307.630116843,
+            "t_end_abs": 4406307.70624519
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+      "total_wall_ms": 3665.9820415079594,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "f12b3d7c440e64cd0f0b6e58257b794d7de645a9a96d40d9963eb6a0c8603706",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json_unicode-c4-r0-i2]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 98,
+            "completion_tokens": 25,
+            "ttft_ms": 3004.04017791152,
+            "prefill_tps": 32.62273278519594,
+            "decode_tps": 36.395610605659435,
+            "total_wall_ms": 3779.6973576769233,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+            "t_start_abs": 4406304.041684662,
+            "t_first_abs": 4406307.04572484,
+            "t_last_abs": 4406307.705145017,
+            "t_end_abs": 4406307.82138202
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+      "total_wall_ms": 3779.9564534798265,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "8f0d19deddb9d39625c5cbade5ec41b090657f9bc72be6d3d4bbee2cf261fdf4",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json_unicode-c4-r0-i3]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 98,
+            "completion_tokens": 25,
+            "ttft_ms": 2815.0520203635097,
+            "prefill_tps": 34.81285578067051,
+            "decode_tps": 31.07863928620189,
+            "total_wall_ms": 3663.2941253483295,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+            "t_start_abs": 4406304.042565417,
+            "t_first_abs": 4406306.857617437,
+            "t_last_abs": 4406307.629852018,
+            "t_end_abs": 4406307.705859542
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"city\": \"北京\",\n  \"message\": \"你好，世界\",\n  \"emoji\": \"🚀\"\n}",
+      "total_wall_ms": 3663.5812651365995,
+      "concurrency": 4,
+      "repeat": 0
+    }
+  ],
+  "waves": [
+    {
+      "scenario": "json_unicode",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 879.8514744266868,
+      "generated_tokens": 25,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_unicode",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 3784.026376903057,
+      "generated_tokens": 100,
+      "all_passed": true
+    }
+  ],
+  "runner_source": {
+    "path": "/workspace/deepseek41-work/run-final-existing-models.py",
+    "sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+    "bytes": 15858
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+    "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+    "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+    "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+    "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+  },
+  "served_model_id": "Qwen3-0.6B-Q8_0",
+  "warmup": {
+    "scenario": "short",
+    "tag": "warmup",
+    "status": "fail",
+    "input_sha256": "315f1a2eb2a7a2cc67392b990f40f1cd73d2681754c1dbb23c3ff7d7c1bd5f25",
+    "turns": [
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "[validation warmup]\nWhat is 17 + 25? Reply with only the integer."
+            }
+          ],
+          "tools": null,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "max_tokens": 256,
+          "stream": true
+        },
+        "metrics": {
+          "prompt_tokens": 32,
+          "completion_tokens": 11,
+          "ttft_ms": 511.85573637485504,
+          "prefill_tps": 62.51761526916826,
+          "decode_tps": 207.04525838451946,
+          "total_wall_ms": 565.228964202106,
+          "finish_reason": "stop",
+          "tool_calls": [],
+          "tool_call_details": [],
+          "assistant_message": {
+            "role": "assistant",
+            "content": "\n\n17 + 25 = 42"
+          },
+          "usage_present": true,
+          "decode_timing_source": "stream_window",
+          "server_timings": {},
+          "reasoning_text": "",
+          "output_text": "\n\n17 + 25 = 42",
+          "t_start_abs": 4406302.574212327,
+          "t_first_abs": 4406303.086068063,
+          "t_last_abs": 4406303.134366682,
+          "t_end_abs": 4406303.139441291
+        }
+      }
+    ],
+    "validated_content": "\n\n17 + 25 = 42",
+    "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+    "total_wall_ms": 565.4673269018531
+  },
+  "summary": {
+    "json_unicode@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 672.0070727169514,
+      "ttft_ms_samples": [
+        672.0070727169514
+      ],
+      "prefill_tps_median": 145.83179847167693,
+      "prefill_tps_samples": [
+        145.83179847167693
+      ],
+      "decode_tps_median": 119.51156811223431,
+      "decode_tps_samples": [
+        119.51156811223431
+      ],
+      "conversation_wall_ms_median": 878.5395193845034
+    },
+    "json_unicode@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 2816.3193725049496,
+      "ttft_ms_samples": [
+        2471.8174170702696,
+        2817.5867246463895,
+        3004.04017791152,
+        2815.0520203635097
+      ],
+      "prefill_tps_median": 34.79719693796752,
+      "prefill_tps_samples": [
+        39.646941284261544,
+        34.78153809526453,
+        32.62273278519594,
+        34.81285578067051
+      ],
+      "decode_tps_median": 31.082647335520477,
+      "decode_tps_samples": [
+        21.835223717745997,
+        31.08665538483906,
+        36.395610605659435,
+        31.07863928620189
+      ],
+      "conversation_wall_ms_median": 3664.7816533222795
+    }
+  },
+  "deployment_changed_files": [],
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/qwen3-server.log",
+    "sha256": "888e30600c64c0c41ce16cc1d17632866e97d9b04cb5fb652838450aa702f3e6",
+    "bytes": 86510
+  },
+  "curation": {
+    "raw_source": {
+      "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/unicode/qwen3-tensorsharp.json",
+      "sha256": "682684a78a40bf74f8da551051479074eef7de3384dd7e27630bdda00ed96024",
+      "bytes": 21847
+    },
+    "omitted_fields": [
+      "before",
+      "after"
+    ],
+    "generated_output_modifications": null
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "phase": "protocol",
+  "runner_sha256": "9139670b49d5bbe0c5eb8e818fe50fecbb55ed8a33a38300e410f8470da83375",
+  "execution_plan": {
+    "labels": [
+      "thinking",
+      "blocking"
+    ],
+    "expected_runs": 2
+  },
+  "run_complete": true,
+  "all_passed": true,
+  "runs": [
+    {
+      "label": "thinking",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "short,json_schema,tool_round_trip,agentic",
+        "--concurrency",
+        "1",
+        "--repeats",
+        "1",
+        "--structured-tool-results",
+        "--thinking",
+        "--max-tokens",
+        "2048",
+        "--output",
+        "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-thinking.json"
+      ],
+      "started_epoch": 1789129509.8953214,
+      "wall_seconds": 139.2540647983551,
+      "exit_code": 0,
+      "output": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-thinking.json",
+      "log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-thinking.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+        "byte_start": 832018,
+        "byte_end": 1058969,
+        "range_sha256": "f3a2156436694941fd8783544d8a9dce9d107d91b6ff6417224abb4026a76c9b",
+        "prefill_calls": 8,
+        "prefill_tokens": 2224,
+        "prefill_forward_seconds": 6.709,
+        "decode_calls": 4004,
+        "decode_forward_seconds": 129.31,
+        "preemption_lines": []
+      },
+      "child_validation": {
+        "run_complete": true,
+        "expected_cases": 4,
+        "actual_cases": 4,
+        "failed_cases": 0,
+        "all_passed": true,
+        "qualification_status": "complete_passed",
+        "issues": [],
+        "report_sha256": "6ffdd2dcc1792c326341f1a849bd48249dabc132b1690bc9fb1d401fac08c6d9"
+      }
+    },
+    {
+      "label": "blocking",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "short,json,tool_round_trip,agentic",
+        "--concurrency",
+        "1",
+        "--repeats",
+        "1",
+        "--structured-tool-results",
+        "--blocking",
+        "--output",
+        "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-blocking.json"
+      ],
+      "started_epoch": 1789129649.166969,
+      "wall_seconds": 15.208523273468018,
+      "exit_code": 0,
+      "output": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-blocking.json",
+      "log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-blocking.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+        "byte_start": 1058969,
+        "byte_end": 1091775,
+        "range_sha256": "f538cd697c98d085c169c463e9c1e9848b68ebe3b90d38ccca48f3cf9a780e70",
+        "prefill_calls": 8,
+        "prefill_tokens": 1784,
+        "prefill_forward_seconds": 5.472,
+        "decode_calls": 231,
+        "decode_forward_seconds": 8.638,
+        "preemption_lines": []
+      },
+      "child_validation": {
+        "run_complete": true,
+        "expected_cases": 4,
+        "actual_cases": 4,
+        "failed_cases": 0,
+        "all_passed": true,
+        "qualification_status": "complete_passed",
+        "issues": [],
+        "report_sha256": "128bb4511c90f63fd4bd667740b54558bc5c1e29afd18339ace22fa9ab135a71"
+      }
+    }
+  ],
+  "children_exit_zero": true
+}

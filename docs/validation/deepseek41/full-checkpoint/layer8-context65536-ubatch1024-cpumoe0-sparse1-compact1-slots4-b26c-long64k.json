@@ -1,0 +1,134 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "harness_sha256": {
+    "validate_inference.py": "0ffc6541639616d9b8a73798fee2d5ed48d26e589474a009d4f36a497f951a82",
+    "engines.py": "4b8cc36aea1f9be5ea7a3cda9230587bed8b19413371d9f2afb519508ebaac6d",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "max_tokens_override": null,
+  "execution_plan": {
+    "scenarios": [
+      "long_64k"
+    ],
+    "concurrency": [
+      1
+    ],
+    "repeats": 1,
+    "expected_cases": 1
+  },
+  "run_complete": true,
+  "waves": [
+    {
+      "scenario": "long_64k",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 174893.14447157085,
+      "generated_tokens": 34,
+      "end_to_end_tokens_per_second": 0.19440441821049625,
+      "all_passed": true
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "long_64k@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 173689.56030532718,
+      "ttft_ms_samples": [
+        173689.56030532718
+      ],
+      "prefill_tps_median": 351.74825644443854,
+      "prefill_tps_samples": [
+        351.74825644443854
+      ],
+      "decode_tps_median": 28.429487625512905,
+      "decode_tps_samples": [
+        28.429487625512905
+      ],
+      "conversation_wall_ms_median": 174884.85638424754
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long64k.json",
+  "source_report_sha256": "5b28e92bbffee4d96fbed5a7e200b2a78af52592157339890516e67d996d7dce",
+  "native_sha256": "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+  "cases": [
+    {
+      "scenario": "long_64k",
+      "tag": "long_64k-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "53a06e2b0b1ead7f273fa83f7a4ad4e4523d2f6812a4e6084f06f3b38c88b491",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 174884.85638424754,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "a70845049d2a9bc3501ed46dc3d55f0ea349c0c9d7589e899b54c78739c32385",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 61095,
+            "completion_tokens": 34,
+            "ttft_ms": 173689.56030532718,
+            "prefill_tps": 351.74825644443854,
+            "decode_tps": 28.429487625512905,
+            "total_wall_ms": 174884.60902217776,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4388933.260875399,
+            "t_first_abs": 4389106.950435705,
+            "t_last_abs": 4389108.111202315,
+            "t_end_abs": 4389108.145484421
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

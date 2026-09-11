@@ -1,0 +1,128 @@
+{
+  "scope": "Read-only retained reference log, filenames and NumPy headers; no inference, checkpoint weights or array payloads loaded.",
+  "log": {
+    "path": "/workspace/deepseek41-work/reference/q2-smoke18.log",
+    "sha256": "10ebb42dc8940e75ccdccc8e344faa8dae52a9291e4caceec5a8571c060dc8e6",
+    "text": "layer 0: 18.11s, hidden RMS=0.2433352\nlayer 1: 16.53s, hidden RMS=2.130768\nlayer 2: 8.05s, hidden RMS=2.37043\nlayer 3: 8.61s, hidden RMS=2.591746\nlayer 4: 8.10s, hidden RMS=2.945091\nlayer 5: 11.50s, hidden RMS=3.434225\nlayer 6: 9.58s, hidden RMS=3.430195\nlayer 7: 7.09s, hidden RMS=3.422525\nlayer 8: 7.06s, hidden RMS=4.841814\nlayer 9: 6.72s, hidden RMS=4.818593\nlayer 10: 7.63s, hidden RMS=9.248989\nlayer 11: 8.15s, hidden RMS=9.25046\nlayer 12: 8.51s, hidden RMS=9.23768\nlayer 13: 10.61s, hidden RMS=9.22072\nlayer 14: 13.49s, hidden RMS=12.92959\nlayer 15: 12.22s, hidden RMS=42.81869\nlayer 16: 8.19s, hidden RMS=47.59463\nlayer 17: 7.63s, hidden RMS=51.69291\nlayer 18: 7.71s, hidden RMS=58.27596\nlayer 19: 10.06s, hidden RMS=65.42886\nlayer 20: 8.60s, hidden RMS=286.6429\nlayer 21: 8.76s, hidden RMS=558.0692\nlayer 22: 6.59s, hidden RMS=914.3895\nlayer 23: 9.28s, hidden RMS=1288.77\nlayer 24: 7.76s, hidden RMS=1529.634\nlayer 25: 8.05s, hidden RMS=1862.62\nlayer 26: 7.54s, hidden RMS=2071.956\nlayer 27: 8.69s, hidden RMS=2194.952\nlayer 28: 6.95s, hidden RMS=2664.911\nlayer 29: 8.18s, hidden RMS=3177.134\nlayer 30: 6.43s, hidden RMS=3274.471\nlayer 31: 9.10s, hidden RMS=3502.047\nlayer 32: 6.90s, hidden RMS=3501.475\nlayer 33: 10.53s, hidden RMS=3679.853\nlayer 34: 10.67s, hidden RMS=3732.53\nlayer 35: 8.98s, hidden RMS=3725.769\nlayer 36: 10.02s, hidden RMS=3783.242\nlayer 37: 8.08s, hidden RMS=3775.426\nlayer 38: 11.20s, hidden RMS=3762.431\nlayer 39: 14.79s, hidden RMS=3711.613\n{\n  \"tokens\": [\n    0,\n    128803,\n    3085,\n    344,\n    223,\n    20,\n    940,\n    223,\n    20,\n    33,\n    19414,\n    418,\n    1438,\n    270,\n    1167,\n    16,\n    128804,\n    128822\n  ],\n  \"top_tokens\": [\n    22,\n    20,\n    21,\n    24,\n    19,\n    25,\n    18,\n    23,\n    43,\n    6756\n  ],\n  \"last_logits_l2\": 1290.829833984375,\n  \"cache_type\": \"model\"\n}\n"
+  },
+  "recorded_summary": {
+    "tokens": [
+      0,
+      128803,
+      3085,
+      344,
+      223,
+      20,
+      940,
+      223,
+      20,
+      33,
+      19414,
+      418,
+      1438,
+      270,
+      1167,
+      16,
+      128804,
+      128822
+    ],
+    "top_tokens": [
+      22,
+      20,
+      21,
+      24,
+      19,
+      25,
+      18,
+      23,
+      43,
+      6756
+    ],
+    "last_logits_l2": 1290.829833984375,
+    "cache_type": "model"
+  },
+  "layer_pass_sequence": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39
+  ],
+  "trace_position_prefix_counts": {
+    "p000000": 660
+  },
+  "array_headers": {
+    "/workspace/deepseek41-work/reference/q2-smoke18/logits.npy": {
+      "descr": "<f4",
+      "fortran_order": false,
+      "shape": [
+        18,
+        129280
+      ]
+    },
+    "/workspace/deepseek41-work/reference/q2-smoke18/p000000_embedding.npy": {
+      "descr": "<f4",
+      "fortran_order": false,
+      "shape": [
+        18,
+        4,
+        5120
+      ]
+    }
+  },
+  "prompt": {
+    "path": "/workspace/deepseek41-work/smoke-tokens.json",
+    "sha256": "b7831ba96698077861c56354168402caff12466f7e8830922b0d6127b1695f29",
+    "matches_log": true
+  },
+  "confirmed": {
+    "cache_type_model": true,
+    "one_18_token_position0_prefill": true
+  },
+  "original_command": null,
+  "unrecorded_fields": [
+    "exact argv",
+    "CPU threads",
+    "matrix row-block size",
+    "reference creation-source hash"
+  ],
+  "launcher_search": {
+    "scope": "39 top-level .py/.sh/.txt files up to128KiB in work and reference",
+    "q2_smoke18_matches": 0
+  }
+}

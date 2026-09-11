@@ -1,0 +1,242 @@
+{
+  "scope": "Local synthetic scheduler diagnosis using actual unmodified Runtime and original private FusedStubModel/Config via reflection; no GPU/model weights. No production source changed.",
+  "runtime_sha256": "1542edf883c89fb5a53c93dadabff111316fd1ae49582acd74e48f862e3b0e09",
+  "summary": [
+    {
+      "mode": "unchanged",
+      "trials": 40,
+      "reuse_counts": {
+        "0": 38,
+        "16": 2
+      },
+      "old_holder_discard_count": {
+        "1": 40
+      }
+    },
+    {
+      "mode": "delay_old_partner",
+      "trials": 40,
+      "reuse_counts": {
+        "16": 40
+      },
+      "old_holder_discard_count": {
+        "0": 40
+      }
+    },
+    {
+      "mode": "delay_new_partner",
+      "trials": 40,
+      "reuse_counts": {
+        "28": 40
+      },
+      "old_holder_discard_count": {
+        "0": 40
+      }
+    },
+    {
+      "mode": "no_pooled_reuse",
+      "trials": 40,
+      "reuse_counts": {
+        "0": 40
+      },
+      "old_holder_discard_count": {
+        "1": 40
+      }
+    },
+    {
+      "mode": "gated",
+      "trials": 40,
+      "reuse_counts": {
+        "0": 40
+      },
+      "old_holder_discard_count": {
+        "1": 40
+      }
+    },
+    {
+      "mode": "gated_delay_old_partner",
+      "trials": 40,
+      "reuse_counts": {
+        "0": 40
+      },
+      "old_holder_discard_count": {
+        "1": 40
+      }
+    },
+    {
+      "mode": "gated_delay_new_partner",
+      "trials": 40,
+      "reuse_counts": {
+        "0": 40
+      },
+      "old_holder_discard_count": {
+        "1": 40
+      }
+    }
+  ],
+  "selected_traces": [
+    {
+      "mode": "unchanged",
+      "trial": 19,
+      "reused": 16,
+      "discards": [
+        "reused-request-id"
+      ],
+      "logs": [
+        "Sizing KV block pool to model context: 4096 tokens x 1 context(s) -> 512 blocks of 8 (configured default was 256). Set TS_SCHED_NUM_BLOCKS to impose an explicit hard limit.",
+        "InferenceEngine[] execution capability report:\nbatched paged attention: available (multimodal peels off to per-sequence)\nper-sequence fused concurrent decode: available (+ token-batched fused decode)\nN=1 single-sequence fused fast path: unavailable (no linear->paged KV migration)\nSpeculative decoding: off (not requested)\nKV snapshot/swap fallback: available (prefix reuse capped at 16 tokens)\nretained fused-cache continuation: on (budget=4)",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "The model declined the batched forward for this step (fused stub only serves the per-sequence fused path); serving sequences one at a time on the per-sequence path. Sustained declines mean concurrent throughput is degraded toward single-stream. Reported once.",
+        "BatchExecutor: ForwardBatch declined the batch; falling back.",
+        "BatchExecutor: the BatchedPaged path declined at runtime; executing on PerSequence instead. Reported once per transition; later occurrences log at Debug.",
+        "Live-cache continuation not attempted for old-partner: running=1 scheduledThisStep=1.",
+        "No prompt reuse for old-partner: all 24 prompt token(s) re-prefill. Live KV cache: not attempted (another sequence holds the live cache: running=1, scheduledThisStep=1). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: PerSequenceFused",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: none of the 2 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation not attempted for new-partner: running=1 scheduledThisStep=1.",
+        "No prompt reuse for new-partner: all 24 prompt token(s) re-prefill. Live KV cache: not attempted (another sequence holds the live cache: running=1, scheduledThisStep=1). Retained state: none of the 2 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation declined for old-follow-up: no live cache resident (reset, batched step, or first request).",
+        "Prompt reuse for old-follow-up: 16/32 tokens (50.0%) continue from pooled prefix-cache blocks; 16 token(s) to prefill.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence."
+      ]
+    },
+    {
+      "mode": "delay_old_partner",
+      "trial": 0,
+      "reused": 16,
+      "discards": [],
+      "logs": [
+        "Sizing KV block pool to model context: 4096 tokens x 1 context(s) -> 512 blocks of 8 (configured default was 256). Set TS_SCHED_NUM_BLOCKS to impose an explicit hard limit.",
+        "InferenceEngine[] execution capability report:\nbatched paged attention: available (multimodal peels off to per-sequence)\nper-sequence fused concurrent decode: available (+ token-batched fused decode)\nN=1 single-sequence fused fast path: unavailable (no linear->paged KV migration)\nSpeculative decoding: off (not requested)\nKV snapshot/swap fallback: available (prefix reuse capped at 16 tokens)\nretained fused-cache continuation: on (budget=4)",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "The model declined the batched forward for this step (fused stub only serves the per-sequence fused path); serving sequences one at a time on the per-sequence path. Sustained declines mean concurrent throughput is degraded toward single-stream. Reported once.",
+        "BatchExecutor: ForwardBatch declined the batch; falling back.",
+        "BatchExecutor: the BatchedPaged path declined at runtime; executing on PerSequence instead. Reported once per transition; later occurrences log at Debug.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "Live-cache continuation declined for old-partner: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*2:2 2:2 2:2 2:2] cached=[*1:1 1:1 1:1 1:1].",
+        "No prompt reuse for old-partner: all 24 prompt token(s) re-prefill. Live KV cache: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*2:2 2:2 2:2 2:2] cached=[*1:1 1:1 1:1 1:1]. Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor: ForwardBatch declined the batch; falling back.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "Live-cache continuation declined for reused-request-id: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*5:5 5:5 5:5 5:5] cached=[*2:2 2:2 2:2 2:2].",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*5:5 5:5 5:5 5:5] cached=[*2:2 2:2 2:2 2:2]. Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation not attempted for new-partner: running=1 scheduledThisStep=1.",
+        "No prompt reuse for new-partner: all 24 prompt token(s) re-prefill. Live KV cache: not attempted (another sequence holds the live cache: running=1, scheduledThisStep=1). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: PerSequenceFused",
+        "Live-cache continuation declined for old-follow-up: no live cache resident (reset, batched step, or first request).",
+        "Prompt reuse for old-follow-up: 16/32 tokens (50.0%) continue from pooled prefix-cache blocks; 16 token(s) to prefill.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence."
+      ]
+    },
+    {
+      "mode": "delay_new_partner",
+      "trial": 0,
+      "reused": 28,
+      "discards": [],
+      "logs": [
+        "Sizing KV block pool to model context: 4096 tokens x 1 context(s) -> 512 blocks of 8 (configured default was 256). Set TS_SCHED_NUM_BLOCKS to impose an explicit hard limit.",
+        "InferenceEngine[] execution capability report:\nbatched paged attention: available (multimodal peels off to per-sequence)\nper-sequence fused concurrent decode: available (+ token-batched fused decode)\nN=1 single-sequence fused fast path: unavailable (no linear->paged KV migration)\nSpeculative decoding: off (not requested)\nKV snapshot/swap fallback: available (prefix reuse capped at 16 tokens)\nretained fused-cache continuation: on (budget=4)",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation not attempted for old-partner: running=1 scheduledThisStep=1.",
+        "No prompt reuse for old-partner: all 24 prompt token(s) re-prefill. Live KV cache: not attempted (another sequence holds the live cache: running=1, scheduledThisStep=1). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: PerSequenceFused",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: none of the 2 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "The model declined the batched forward for this step (fused stub only serves the per-sequence fused path); serving sequences one at a time on the per-sequence path. Sustained declines mean concurrent throughput is degraded toward single-stream. Reported once.",
+        "BatchExecutor: ForwardBatch declined the batch; falling back.",
+        "BatchExecutor: the BatchedPaged path declined at runtime; executing on PerSequence instead. Reported once per transition; later occurrences log at Debug.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "Live-cache continuation declined for new-partner: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*6:6 6:6 6:6 6:6] cached=[*5:5 5:5 5:5 5:5].",
+        "No prompt reuse for new-partner: all 24 prompt token(s) re-prefill. Live KV cache: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*6:6 6:6 6:6 6:6] cached=[*5:5 5:5 5:5 5:5]. Retained state: none of the 2 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor: ForwardBatch declined the batch; falling back.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "Live-cache continuation declined for old-follow-up: prompt diverges from the live cache at token 0 of 28, which would need a 28-token rewind (limit 16); context prompt=[*1:1 1:1 1:1 1:1] cached=[*6:6 6:6 6:6 6:6].",
+        "Prompt reuse for old-follow-up: 28/32 tokens (87.5%) continue from retained model state (a finished request's holder or a shared-prefix checkpoint); 4 token(s) to prefill.",
+        "BatchExecutor execution plan: PerSequenceFused"
+      ]
+    },
+    {
+      "mode": "gated",
+      "trial": 0,
+      "reused": 0,
+      "discards": [
+        "reused-request-id"
+      ],
+      "logs": [
+        "Sizing KV block pool to model context: 4096 tokens x 1 context(s) -> 512 blocks of 8 (configured default was 256). Set TS_SCHED_NUM_BLOCKS to impose an explicit hard limit.",
+        "InferenceEngine[] execution capability report:\nbatched paged attention: available (multimodal peels off to per-sequence)\nper-sequence fused concurrent decode: available (+ token-batched fused decode)\nN=1 single-sequence fused fast path: unavailable (no linear->paged KV migration)\nSpeculative decoding: off (not requested)\nKV snapshot/swap fallback: available (prefix reuse capped at 16 tokens)\nretained fused-cache continuation: on (budget=4)",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation not attempted for old-partner: running=1 scheduledThisStep=1.",
+        "No prompt reuse for old-partner: all 24 prompt token(s) re-prefill. Live KV cache: not attempted (another sequence holds the live cache: running=1, scheduledThisStep=1). Retained state: nothing retained yet (no finished request's holder and no shared-prefix checkpoint). Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: PerSequenceFused",
+        "Live-cache continuation declined for reused-request-id: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for reused-request-id: all 24 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: none of the 2 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation not attempted for new-partner: running=1 scheduledThisStep=1.",
+        "No prompt reuse for new-partner: all 24 prompt token(s) re-prefill. Live KV cache: not attempted (another sequence holds the live cache: running=1, scheduledThisStep=1). Retained state: none of the 2 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "Live-cache continuation declined for old-follow-up: no live cache resident (reset, batched step, or first request).",
+        "No prompt reuse for old-follow-up: all 32 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: none of the 3 retained holder(s) and 0 checkpoint(s) is a prefix of this prompt. Pooled blocks: no matching blocks in the index.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "The model declined the batched forward for this step (fused stub only serves the per-sequence fused path); serving sequences one at a time on the per-sequence path. Sustained declines mean concurrent throughput is degraded toward single-stream. Reported once.",
+        "BatchExecutor: ForwardBatch declined the batch; falling back.",
+        "BatchExecutor: the BatchedPaged path declined at runtime; executing on PerSequence instead. Reported once per transition; later occurrences log at Debug.",
+        "BatchExecutor execution plan: BatchedPaged (fallbacks: PerSequence); rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention)",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence.",
+        "BatchExecutor: BatchedPaged declined this step; falling back to PerSequence."
+      ]
+    }
+  ],
+  "raw_artifacts": {
+    "/tmp/deepseek41-reference/retained-cache-diagnostic/results-before.json": "17bf7d51e4e6502744008e4c3c7d1308a49dd25399db661cb452e36387a9bd63",
+    "/tmp/deepseek41-reference/retained-cache-diagnostic/results-gated.json": "fefa970ffcce4f2dc49fc3bd89de2a6d762d4f6163b566f42fac76bc347bbf29",
+    "/tmp/deepseek41-reference/retained-cache-diagnostic/Program-before.cs.txt": "42940095e25e12477c5fd43edf0e8106bda3883a74d9a98b8d1a106cc2ee0d3f",
+    "/tmp/deepseek41-reference/retained-cache-diagnostic/Program.cs": "20d1ea76dd7fd1ac6dfc3647266d591b02d6da653f454073628d5ae658de2b61",
+    "/tmp/deepseek41-reference/retained-cache-diagnostic/Probe.csproj": "c2587ea31c6ba38e12cbc50cec82e977e89e61cfec175d51156ddac12c045bda"
+  },
+  "command": "dotnet run --project /tmp/deepseek41-reference/retained-cache-diagnostic/Probe.csproj -c Release",
+  "finding": "The test does not guarantee concurrent admission. A lone first step can populate legitimate pooled prefix blocks; later admission switches to fused execution. The observed reuse16 is explicitly logged as pooled blocks while the old same-ID retained holder is discarded once. If replacement finishes alone, no new retained holder replaces the old one, so old retained reuse28 is also legitimate. Paired admission through the existing ComputeGate, waiting for StepsHeldByGate before reopening, passes all120 original assertion checks without disabling pooled reuse.",
+  "test_assembly_sha256": "159edf06fd5b008572b4e4be5bcb33393f7eda91282abd6a836624d01317306a",
+  "original_retained_test_source_sha256": "d12df7c4f4ec16bfab0c33800ea607f831507f80381090b92ce2a3b0cd65fe33",
+  "geometry": {
+    "prompt_tokens": 24,
+    "completion_tokens": 4,
+    "suffix_tokens": 4,
+    "block_size": 8,
+    "pooled_reuse_cap": 16
+  },
+  "test_only_fix": "SequentialRequestIdReuse_DiscardsOldRetainedMetadataAndHolder now parks its worker via existing ComputeGate before opening either paired round. Existing zero-reuse and exactly-one-discard assertions are unchanged."
+}

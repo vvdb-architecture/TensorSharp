@@ -1,0 +1,141 @@
+{
+  "scenario": "agentic",
+  "tag": "agentic-c4-r0-i2",
+  "status": "fail",
+  "input_sha256": "d6cc93c41de1c4b88e8b9de8ec92a616155cfbe75f86bdfd39901398f1a42951",
+  "turns": [
+    {
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "[validation agentic-c4-r0-i2]\nRead invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results."
+          }
+        ],
+        "tools": [
+          {
+            "type": "function",
+            "function": {
+              "name": "read_invoice",
+              "description": "Read an invoice by its identifier.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "invoice_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "invoice_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "calculate_total",
+              "description": "Calculate the total for an invoice.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "unit_price": {
+                    "type": "number"
+                  },
+                  "quantity": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "unit_price",
+                  "quantity"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        ],
+        "response_format": null,
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "metrics": {
+        "prompt_tokens": 394,
+        "completion_tokens": 105,
+        "ttft_ms": 4858.354579657316,
+        "prefill_tps": 81.09741550148256,
+        "decode_tps": 3.892166404261568,
+        "total_wall_ms": 31786.474160850048,
+        "finish_reason": "tool_calls",
+        "tool_calls": [
+          "read_invoice",
+          "calculate_total"
+        ],
+        "tool_call_details": [
+          {
+            "id": "call_6c9548cc4c82437f940",
+            "type": "function",
+            "function": {
+              "name": "read_invoice",
+              "arguments": "{\"invoice_id\":\"INV-472\"}"
+            }
+          },
+          {
+            "id": "call_ca64717f6ce143d08bb",
+            "type": "function",
+            "function": {
+              "name": "calculate_total",
+              "arguments": "{\"unit_price\":0,\"quantity\":0}"
+            }
+          }
+        ],
+        "assistant_message": {
+          "role": "assistant",
+          "content": "I'll follow the steps: read the invoice, then calculate the total using its returned values.\n\n",
+          "tool_calls": [
+            {
+              "id": "call_6c9548cc4c82437f940",
+              "type": "function",
+              "function": {
+                "name": "read_invoice",
+                "arguments": "{\"invoice_id\":\"INV-472\"}"
+              }
+            },
+            {
+              "id": "call_ca64717f6ce143d08bb",
+              "type": "function",
+              "function": {
+                "name": "calculate_total",
+                "arguments": "{\"unit_price\":0,\"quantity\":0}"
+              }
+            }
+          ]
+        },
+        "usage_present": true,
+        "decode_timing_source": "stream_window",
+        "server_timings": {},
+        "reasoning_text": "",
+        "output_text": "I'll follow the steps: read the invoice, then calculate the total using its returned values.\n\n",
+        "t_start_abs": 4401646.005952035,
+        "t_first_abs": 4401650.864306615,
+        "t_last_abs": 4401677.584644133,
+        "t_end_abs": 4401677.792426196
+      }
+    }
+  ],
+  "detail": "ValueError: expected exactly one structured tool call and finish_reason=tool_calls",
+  "total_wall_ms": 31786.75393294543,
+  "concurrency": 4,
+  "repeat": 0
+}

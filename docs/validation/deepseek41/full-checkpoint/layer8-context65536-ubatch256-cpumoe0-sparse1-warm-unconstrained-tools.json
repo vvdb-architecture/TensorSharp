@@ -1,0 +1,1432 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch256-cpumoe0-sparse1-warm",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "max_tokens_override": null,
+  "waves": [
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 5847.481831908226,
+      "generated_tokens": 68,
+      "end_to_end_tokens_per_second": 11.628937370774072,
+      "all_passed": true
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 24120.829145424068,
+      "generated_tokens": 271,
+      "end_to_end_tokens_per_second": 11.235103004384534,
+      "all_passed": true
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 11763.397495262325,
+      "generated_tokens": 139,
+      "end_to_end_tokens_per_second": 11.816314126593262,
+      "all_passed": true
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 50108.16098656505,
+      "generated_tokens": 586,
+      "end_to_end_tokens_per_second": 11.694701790335465,
+      "all_passed": false
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "tool_round_trip@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 1845.2284708619118,
+      "ttft_ms_samples": [
+        1845.2284708619118
+      ],
+      "prefill_tps_median": 177.2138275360868,
+      "prefill_tps_samples": [
+        177.2138275360868
+      ],
+      "decode_tps_median": 34.290455148540936,
+      "decode_tps_samples": [
+        34.290455148540936
+      ],
+      "conversation_wall_ms_median": 5846.1389522999525
+    },
+    "tool_round_trip@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 7484.661070164293,
+      "ttft_ms_samples": [
+        5634.9827237427235,
+        7486.205510795116,
+        7485.448805615306,
+        7483.87333471328
+      ],
+      "prefill_tps_median": 43.689353540086756,
+      "prefill_tps_samples": [
+        58.0303465034953,
+        43.680339729982784,
+        43.684755382295414,
+        43.693951697878106
+      ],
+      "decode_tps_median": 5.481108395902867,
+      "decode_tps_samples": [
+        5.342688216811611,
+        5.619528574994123,
+        8.326989509233636,
+        4.702704037116046
+      ],
+      "conversation_wall_ms_median": 23664.52068928629
+    },
+    "agentic@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 2248.593262396753,
+      "ttft_ms_samples": [
+        2248.593262396753
+      ],
+      "prefill_tps_median": 170.7734370735854,
+      "prefill_tps_samples": [
+        170.7734370735854
+      ],
+      "decode_tps_median": 34.19846768564876,
+      "decode_tps_samples": [
+        34.19846768564876
+      ],
+      "conversation_wall_ms_median": 11761.99254207313
+    },
+    "agentic@c4": {
+      "passed": 1,
+      "total": 4,
+      "ttft_ms_median": 9142.963899299502,
+      "ttft_ms_samples": [
+        9142.963899299502
+      ],
+      "prefill_tps_median": 41.99950959331914,
+      "prefill_tps_samples": [
+        41.99950959331914
+      ],
+      "decode_tps_median": 8.042502775830304,
+      "decode_tps_samples": [
+        8.042502775830304
+      ],
+      "conversation_wall_ms_median": 49717.85643417388
+    }
+  },
+  "source_report": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch256-cpumoe0-sparse1-warm-unconstrained-tools.json",
+  "source_report_sha256": "acd1ba1d6b8ef1fcbb2e03656f99ce7fc51eba429cb8f08ee8a63fd31deccd28",
+  "native_sha256": "b31a553ccbeb252248b40d63191652c462ce5c276686040fe10e61ca6a037664",
+  "cases": [
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "fe24af23d4d1e74a8d5c68716a27d92b7df05a88f94e47e0653fbc6d368aae67",
+      "total_wall_ms": 5846.1389522999525,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "0fa0d4ad45ea44445506539e8904ec368111a418528e182a6cb27624b229529b",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 55,
+            "ttft_ms": 1845.2284708619118,
+            "prefill_tps": 177.2138275360868,
+            "decode_tps": 34.290455148540936,
+            "total_wall_ms": 3448.538680560887,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_0303a3bf08cb4495b7a",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4380398.795722926,
+            "t_first_abs": 4380400.640951397,
+            "t_last_abs": 4380402.215733644,
+            "t_end_abs": 4380402.244261607
+          }
+        },
+        {
+          "request_sha256": "76428bc648a0cd06c5c1498ee2ea5a491cb6f41ec281aca982c7045350f5ebc2",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 406,
+            "completion_tokens": 13,
+            "ttft_ms": 2026.9557815045118,
+            "prefill_tps": 200.30037344901808,
+            "decode_tps": 35.114059913997394,
+            "total_wall_ms": 2397.2067795693874,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4380402.244416541,
+            "t_first_abs": 4380404.271372323,
+            "t_last_abs": 4380404.613115774,
+            "t_end_abs": 4380404.641623321
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "45b75d8c5c96f5996cb7ae9429344b491f52e97d7781e2b4fe662bf03240ebd6",
+      "total_wall_ms": 23538.63816987723,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "520de74037edd36345c500f57aa2e539d870abaac0eefb70cb11100747cf346f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 54,
+            "ttft_ms": 5634.9827237427235,
+            "prefill_tps": 58.0303465034953,
+            "decode_tps": 5.342688216811611,
+            "total_wall_ms": 15684.715672396123,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_1605d63dd0864ff1b57",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4380404.657992085,
+            "t_first_abs": 4380410.292974809,
+            "t_last_abs": 4380420.213074551,
+            "t_end_abs": 4380420.342707758
+          }
+        },
+        {
+          "request_sha256": "66ca888dff999bbd919b84fd434fe54be139b3722516346f0d6b78aaa9dfcef9",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 406,
+            "completion_tokens": 13,
+            "ttft_ms": 2360.1676542311907,
+            "prefill_tps": 172.02167789739153,
+            "decode_tps": 2.2317621206180367,
+            "total_wall_ms": 7853.50875928998,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4380420.342884842,
+            "t_first_abs": 4380422.703052497,
+            "t_last_abs": 4380428.079969637,
+            "t_end_abs": 4380428.196393602
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "683d03e088f612c279c5a4177930637fef4139b5fbf56da44bcdb8c022ad1e62",
+      "total_wall_ms": 23790.403208695352,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "d98d0162b0f20ed6ab82dfebabbe4a550c2e83ef1666f3f4947b35b391c4e1ef",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 55,
+            "ttft_ms": 7486.205510795116,
+            "prefill_tps": 43.680339729982784,
+            "decode_tps": 5.619528574994123,
+            "total_wall_ms": 17934.791625477374,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_479f720d1c8d456bbb6",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4380404.659366109,
+            "t_first_abs": 4380412.14557162,
+            "t_last_abs": 4380421.754918611,
+            "t_end_abs": 4380422.594157735
+          }
+        },
+        {
+          "request_sha256": "5bd9b5101b359faf66c19f1a6e7ae19ced3e924513f2ee75627db867c345f501",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 406,
+            "completion_tokens": 13,
+            "ttft_ms": 2504.0496541187167,
+            "prefill_tps": 162.13735990905857,
+            "decode_tps": 3.670554058478147,
+            "total_wall_ms": 5855.184366926551,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4380422.594361801,
+            "t_first_abs": 4380425.098411455,
+            "t_last_abs": 4380428.367672664,
+            "t_end_abs": 4380428.449546168
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "8e858a493cb1626f0094ac928fb06c97b47fa0e73b07d0c1fa0390fc814d77c4",
+      "total_wall_ms": 20894.85447201878,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "b5d9dc30709fe90b15463c12ccdeb2a15a660e45406c2f649fd3f28f5acf5dbd",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 45,
+            "ttft_ms": 7485.448805615306,
+            "prefill_tps": 43.684755382295414,
+            "decode_tps": 8.326989509233636,
+            "total_wall_ms": 12887.51163892448,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_5c455d6a8e304e2ea6b",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4380404.660977657,
+            "t_first_abs": 4380412.146426463,
+            "t_last_abs": 4380417.430448972,
+            "t_end_abs": 4380417.548489296
+          }
+        },
+        {
+          "request_sha256": "feacd84b3dead7803a2d1b2fe5d4a6760ef4441ad0f05ecc014e5cb5b1dc288a",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 406,
+            "completion_tokens": 13,
+            "ttft_ms": 2401.993659324944,
+            "prefill_tps": 169.02625801023228,
+            "decode_tps": 2.1984129331618343,
+            "total_wall_ms": 8006.848279386759,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4380417.548717452,
+            "t_first_abs": 4380419.950711112,
+            "t_last_abs": 4380425.409194283,
+            "t_end_abs": 4380425.555565732
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "57a3c44864ace173cca348d38ef1f3b0e334860e825ca5c3e83bdd4ff6377406",
+      "total_wall_ms": 24115.005342289805,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "a2b050ab58ddf35f4f8807de5979a40d6846772a9d33cad571e67d51e9a606bb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 65,
+            "ttft_ms": 7483.87333471328,
+            "prefill_tps": 43.693951697878106,
+            "decode_tps": 4.702704037116046,
+            "total_wall_ms": 21189.244462177157,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_340ba826d3ac4fdba34",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll look up the weather for Paris in Celsius.\n\n",
+            "t_start_abs": 4380404.6621149,
+            "t_first_abs": 4380412.145988234,
+            "t_last_abs": 4380425.755179775,
+            "t_end_abs": 4380425.851359362
+          }
+        },
+        {
+          "request_sha256": "40bf27ff078749fdc78a7a1b21de29c6cb96c3ffcb5f271d46ff628f0268cd58",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 416,
+            "completion_tokens": 13,
+            "ttft_ms": 2344.518542289734,
+            "prefill_tps": 177.4351503288691,
+            "decode_tps": 21.84459376577944,
+            "total_wall_ms": 2925.2218641340733,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4380425.851620964,
+            "t_first_abs": 4380428.196139506,
+            "t_last_abs": 4380428.74547451,
+            "t_end_abs": 4380428.776842828
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "899fe612823f73774b6f909bac2345f6dec7e4d76e47d82a137c8215a2ab5326",
+      "total_wall_ms": 11761.99254207313,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "c4414cefa64d88fd33d9189b7b99444e10323891a8f154f5e0d52d42d519dc82",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 52,
+            "ttft_ms": 2248.593262396753,
+            "prefill_tps": 170.7734370735854,
+            "decode_tps": 34.19846768564876,
+            "total_wall_ms": 3767.4906235188246,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_1699c925c2424d708c4",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its unit price and quantity.\n\n",
+            "t_start_abs": 4380428.804320537,
+            "t_first_abs": 4380431.052913799,
+            "t_last_abs": 4380432.544208686,
+            "t_end_abs": 4380432.57181116
+          }
+        },
+        {
+          "request_sha256": "2971a5925273647cf23a5f54d9c84d6ac50dab690314e6bff110fe486f73c258",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 478,
+            "completion_tokens": 69,
+            "ttft_ms": 2398.4851222485304,
+            "prefill_tps": 199.29245988062868,
+            "decode_tps": 33.01082075681563,
+            "total_wall_ms": 4487.734427675605,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_42ab14177ce047dd933",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll pass the returned unit_price and quantity to calculate_total.\n\n",
+            "t_start_abs": 4380432.572103898,
+            "t_first_abs": 4380434.97058902,
+            "t_last_abs": 4380437.030519626,
+            "t_end_abs": 4380437.059838326
+          }
+        },
+        {
+          "request_sha256": "c5a240ecf2bf2a38806a334fd4076f889032d8c093aadbd79121317dc0017abc",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 566,
+            "completion_tokens": 18,
+            "ttft_ms": 2958.4916988387704,
+            "prefill_tps": 191.31370225651102,
+            "decode_tps": 32.869063448555316,
+            "total_wall_ms": 3505.9078773483634,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4380437.060157965,
+            "t_first_abs": 4380440.018649664,
+            "t_last_abs": 4380440.535853326,
+            "t_end_abs": 4380440.566065842
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "2070b8edd805dd777483862eeeba208b80e5d14bc91a8b79a418fefe392da929",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 50106.13870155066,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "2f48b55b304907201bd50f212127da10f1d9bfb44d9bf378b415c8ffb02bc5ca",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 55,
+            "ttft_ms": 9149.436539970338,
+            "prefill_tps": 41.969797628788726,
+            "decode_tps": 8.041340679618244,
+            "total_wall_ms": 15991.444387473166,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_2ebe367719eb45cd8fa",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its details.\n\n",
+            "t_start_abs": 4380440.588772922,
+            "t_first_abs": 4380449.738209462,
+            "t_last_abs": 4380456.453507588,
+            "t_end_abs": 4380456.580217309
+          }
+        },
+        {
+          "request_sha256": "59aad9786485bab0d15ddc0ee622b9454ef477135fb78f2b69a045a7bf6b1c93",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 475,
+            "completion_tokens": 69,
+            "ttft_ms": 8554.595889523625,
+            "prefill_tps": 55.52570876921353,
+            "decode_tps": 6.645053939184501,
+            "total_wall_ms": 18919.296910986304,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_991f0e84ca9446eeb82",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll pass the returned unit_price and quantity to calculate_total.\n\n",
+            "t_start_abs": 4380456.580612867,
+            "t_first_abs": 4380465.135208757,
+            "t_last_abs": 4380475.36838378,
+            "t_end_abs": 4380475.499909778
+          }
+        },
+        {
+          "request_sha256": "d7551af7b5881f5ab0d1f912f0d3a581ff884b3d61e8618c456d88427e5e0876",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 563,
+            "completion_tokens": 22,
+            "ttft_ms": 12291.545451618731,
+            "prefill_tps": 45.80384152798751,
+            "decode_tps": 7.482694269729819,
+            "total_wall_ms": 15194.418454542756,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "```json\n{\"invoice_id\": \"INV-472\", \"total\": 68.75}\n```",
+            "t_start_abs": 4380475.500224467,
+            "t_first_abs": 4380487.791769919,
+            "t_last_abs": 4380490.598245667,
+            "t_end_abs": 4380490.694642922
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "f7b8c7a22b5a24cc9d1eea82ffdd1a5e9972c9fb79703a45a3133bd31183ca44",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 50104.231640696526,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "2e00fc9b8833f05fc68332d17a45bab80e9d519bee1890d8cd84d09ec3eb6f20",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 58,
+            "ttft_ms": 5953.642304055393,
+            "prefill_tps": 64.49833234664332,
+            "decode_tps": 5.68045004441991,
+            "total_wall_ms": 19801.925796084106,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_15591e51c00b4e7a972",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading the invoice, then use its values to calculate the total.\n\n",
+            "t_start_abs": 4380440.59142124,
+            "t_first_abs": 4380446.545063544,
+            "t_last_abs": 4380456.579479753,
+            "t_end_abs": 4380460.393347036
+          }
+        },
+        {
+          "request_sha256": "20598e5598dc8c86eaf4384f71e620ba50779b7b508f07c8a90ff968a1a28804",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 478,
+            "completion_tokens": 70,
+            "ttft_ms": 6192.919080145657,
+            "prefill_tps": 77.18492585063092,
+            "decode_tps": 5.967497689269155,
+            "total_wall_ms": 21717.396290041506,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_8253be3001564e8daae",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+            "t_start_abs": 4380460.393672368,
+            "t_first_abs": 4380466.586591448,
+            "t_last_abs": 4380478.149226842,
+            "t_end_abs": 4380482.111068658
+          }
+        },
+        {
+          "request_sha256": "3cbba4ef2d7c9675f20f0fa427b2c2b6159e580e9a3d27e76b3b297abb4506a9",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 567,
+            "completion_tokens": 22,
+            "ttft_ms": 5682.09726177156,
+            "prefill_tps": 99.78709865012434,
+            "decode_tps": 7.486181837847225,
+            "total_wall_ms": 8583.94948579371,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "```json\n{\"invoice_id\": \"INV-472\", \"total\": 68.75}\n```",
+            "t_start_abs": 4380482.111373954,
+            "t_first_abs": 4380487.793471216,
+            "t_last_abs": 4380490.598639519,
+            "t_end_abs": 4380490.69532344
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "b67f25fdf08123bd5fb2714c988a16a6c3b4330a9d4b6e8bb291c8da295e04f6",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 50101.293317973614,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "8f680ab9056e7f8740b27071c4532cf8fa1ab1f06fcc05da35c2375fb3de3959",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 55,
+            "ttft_ms": 9145.774828270078,
+            "prefill_tps": 41.986601158497315,
+            "decode_tps": 8.042629997328072,
+            "total_wall_ms": 15993.342681787908,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_774e030163464fb4b6e",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its details.\n\n",
+            "t_start_abs": 4380440.593224547,
+            "t_first_abs": 4380449.738999375,
+            "t_last_abs": 4380456.453220969,
+            "t_end_abs": 4380456.586567229
+          }
+        },
+        {
+          "request_sha256": "8db790e9ebe16cb185c27c5983ff02b8deb63ae0c89a04e01d88254d620d2fd0",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 475,
+            "completion_tokens": 70,
+            "ttft_ms": 8549.55483879894,
+            "prefill_tps": 55.55844824158459,
+            "decode_tps": 6.658539796034278,
+            "total_wall_ms": 19014.9644901976,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_0a86f97dd42f4298ac8",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+            "t_start_abs": 4380456.586848215,
+            "t_first_abs": 4380465.136403054,
+            "t_last_abs": 4380475.49903542,
+            "t_end_abs": 4380475.601812705
+          }
+        },
+        {
+          "request_sha256": "40672aa4d22e29349bb4c63f781c4b640245a5aa1c219038e806dbdbf5a35771",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 564,
+            "completion_tokens": 22,
+            "ttft_ms": 12188.666426576674,
+            "prefill_tps": 46.2724944847314,
+            "decode_tps": 7.4793225177198,
+            "total_wall_ms": 15092.059535905719,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "```json\n{\"invoice_id\": \"INV-472\", \"total\": 68.75}\n```",
+            "t_start_abs": 4380475.602084307,
+            "t_first_abs": 4380487.790750734,
+            "t_last_abs": 4380490.598491669,
+            "t_end_abs": 4380490.694143843
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "e2d3f756965c01a310a272186931ddc79796a14ef6ca89f9e737f4b99edce704",
+      "total_wall_ms": 49717.85643417388,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "fa70deb5793ab73571836b77e37a48e9e5a54b1cbf4501a8700af3bee7e594d0",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 55,
+            "ttft_ms": 9142.963899299502,
+            "prefill_tps": 41.99950959331914,
+            "decode_tps": 8.042502775830304,
+            "total_wall_ms": 15987.689333036542,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_85b3f99a1f0b44ebb47",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its details.\n\n",
+            "t_start_abs": 4380440.595677192,
+            "t_first_abs": 4380449.738641092,
+            "t_last_abs": 4380456.452968895,
+            "t_end_abs": 4380456.583366525
+          }
+        },
+        {
+          "request_sha256": "71787d183567578b62c36622abac32eaba7500f22f6f65d9ad6b9a39521a24ab",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 475,
+            "completion_tokens": 70,
+            "ttft_ms": 8553.723682649434,
+            "prefill_tps": 55.531370619733806,
+            "decode_tps": 6.658755429564524,
+            "total_wall_ms": 19018.718662671745,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_1c03cf31e2e14036a23",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+            "t_start_abs": 4380456.583666297,
+            "t_first_abs": 4380465.137389979,
+            "t_last_abs": 4380475.499686767,
+            "t_end_abs": 4380475.602384959
+          }
+        },
+        {
+          "request_sha256": "43b849abb23677b266f27cf6b3fae21323f90534ec0ce578f89ccc9298aa6f27",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 564,
+            "completion_tokens": 18,
+            "ttft_ms": 12189.92645200342,
+            "prefill_tps": 46.2677114764139,
+            "decode_tps": 7.093098916539586,
+            "total_wall_ms": 14710.656120441854,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4380475.602646106,
+            "t_first_abs": 4380487.792572558,
+            "t_last_abs": 4380490.189268304,
+            "t_end_abs": 4380490.313302226
+          }
+        }
+      ]
+    }
+  ],
+  "remote_source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch256-cpumoe0-sparse1-warm-unconstrained-tools.json",
+  "performance_qualification": {
+    "qualified": false,
+    "reason": "Diagnostic quality run; vision download and metadata preparation overlapped part of this window.",
+    "llama_cpp_parity": false
+  }
+}

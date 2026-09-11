@@ -1,0 +1,3516 @@
+{
+  "label": "final3651-native6b3-json-performance-r2",
+  "run_complete": true,
+  "all_cases_passed": false,
+  "all_groups_comparable": false,
+  "planned_jobs": [
+    {
+      "model": "qwen3",
+      "versions": [
+        "baseline",
+        "final"
+      ],
+      "scenario": "json",
+      "concurrency": [
+        1,
+        4
+      ],
+      "repeats": 3,
+      "timed_cases_per_version": 15,
+      "decode512_warmups_per_version": 1,
+      "json_warmups_per_version": 5
+    },
+    {
+      "model": "qwen35",
+      "versions": [
+        "final",
+        "baseline"
+      ],
+      "scenario": "json",
+      "concurrency": [
+        1,
+        4
+      ],
+      "repeats": 3,
+      "timed_cases_per_version": 15,
+      "decode512_warmups_per_version": 1,
+      "json_warmups_per_version": 5
+    },
+    {
+      "model": "gemma4",
+      "versions": [
+        "baseline",
+        "final"
+      ],
+      "scenario": "json",
+      "concurrency": [
+        1,
+        4
+      ],
+      "repeats": 3,
+      "timed_cases_per_version": 15,
+      "decode512_warmups_per_version": 1,
+      "json_warmups_per_version": 5
+    }
+  ],
+  "expected_timed_cases": 90,
+  "excluded_decode512_warmups": 6,
+  "excluded_json_warmups": 30,
+  "runner_source": {
+    "path": "/workspace/deepseek41-work/run-final-json-performance.py",
+    "sha256": "10ab194bb0c1397f353a3eda7e2eaa990a6d4f950d4e366f8d64940bf41553c5",
+    "bytes": 33558
+  },
+  "shared_helper": {
+    "path": "/workspace/deepseek41-work/run-final-existing-models.py",
+    "sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+    "bytes": 15858
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "preceding_quality_run": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/run.json",
+    "sha256": "6ee60000fa5761f68964a389834431643f28698cf450ce4ba048fda6209e272f",
+    "bytes": 12012
+  },
+  "deployments": {
+    "baseline": {
+      "source_host": "/workspace/TensorSharp-baseline/TensorSharp.Server.Host/bin",
+      "target": "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/baseline/bin",
+      "files_sha256": {
+        "AdvUtils.dll": "38da75684546ca52df97538a68674761604e2dca71188488fce690856d3c2975",
+        "AdvUtils.pdb": "0ec35e4aeadc177aafc2c502ce1e9487b3862934151e39e7c9dcd1907e449250",
+        "Magick.NET-Q8-AnyCPU.dll": "de4dff7053a433f493797a08904f1f5db418f2a5233ef362767e1cfd56199b03",
+        "Magick.NET.Core.dll": "126233abe368695a3b7fd9381cba9cbb7b02f0b107e5183bc2a4b45aefcfd0e3",
+        "NLayer.dll": "70f17ddfb089f1bab75ec8991328fc73ed050ee1e82b1b7a87bf894a248d61d7",
+        "NVorbis.dll": "d4fd7a6a7b8672b30f77de08c0256dbcbd0d3eee07b78554ebce97741aa7a819",
+        "OpenCvSharp.dll": "915b9793615443bc8ba10852ee781ba683ff480e9e7dee9a3c2505874e656506",
+        "Pipelines.Sockets.Unofficial.dll": "fa2cdb1d5ffbb2b06512c92ce8bd18918a1a996171d0a72dfc73035bc586a711",
+        "StackExchange.Redis.dll": "b9bafbdde3189e8a9462d24e7e03bfa115cb7aef796454786fdfc2d2ee6162ed",
+        "StbImageSharp.dll": "5cd5e5b038998360d597bd2a5e3c57f932d507c038a186bb5675e9ac9fcdf661",
+        "System.Numerics.Tensors.dll": "3435f35393b22f69411589bf265c46796280f93db0fd987acbfd1349fb0c1299",
+        "TensorSharp.AgentHost.dll": "06116d2300b9dada7ed06064a9be19a48892fff1044091137717fda1f85a043f",
+        "TensorSharp.AgentHost.pdb": "99225e4282ffd4d366ad40a62bbfc2770e2c6b4afca7b891cd60cfa8616584aa",
+        "TensorSharp.Backends.Cuda.dll": "240a512a456e0f57beed866d51487058710716b165a8031cf58bca4b25cc061b",
+        "TensorSharp.Backends.Cuda.pdb": "0b82654c8d8ac18a85e9d65fed3b9fb9cf9628fb2d56e131923f574f36aa05f0",
+        "TensorSharp.Backends.GGML.dll": "e5321013721bb49089b802b16c60a9dde6c3d8895eafe33f5413c7df1ff54276",
+        "TensorSharp.Backends.GGML.pdb": "7c8aee77d5f16af597c44f2581487a2cc28d3a479a0a31a2262e83b8b924a2db",
+        "TensorSharp.Backends.MLX.dll": "7dda99fe6f44e905d4b18034e3416351355147bb94a710b8d9a2ee7c07f37c05",
+        "TensorSharp.Backends.MLX.pdb": "5e4caf501d8342e2d9d0887f8f09e2da2c1ea05794dcf48e9acf78d0fddc9b1f",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Chat.pdb": "6c03c8bd30d937d19b0422f6dd6b4aebeeecd4a67a2bb7be59928ecc9a449e90",
+        "TensorSharp.Core.dll": "86b4a7e09cca90772af24c57a21ce840c8e21909c48612e864febfd839d011ab",
+        "TensorSharp.Core.pdb": "48337884d06e92567be8b5d42ebf40e3c591cc47cb7011e090d9d7570c6d9c22",
+        "TensorSharp.Distributed.dll": "92069d1cb1ad52dbb3e31590beb76d5ecc3d0f6d05e010f2d60d952434ea2860",
+        "TensorSharp.Distributed.pdb": "165dc9a6ec403b177f8fe6ae84a9957689e649c1955eb65221e5b5a235e46ac5",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Models.pdb": "35f719a959881e450d18b81da780a2e8b0c17f698fd06e079a5e6765731a8bf0",
+        "TensorSharp.Runtime.Logging.dll": "7144a5eb9c1a976f4781dce9f28b7e1fc6b92c9d586cb08725f9043d79f0d9ce",
+        "TensorSharp.Runtime.Logging.pdb": "fe85593268ec426f9773551077eb8f799f54c805680f248c1ecbad1ce7344d21",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Runtime.pdb": "2abd622e23e2d71c3e339584ba6e14324a906fa4ab9c3239d1a7cbc2f9da14a9",
+        "TensorSharp.Server.Host": "729b4e237564815806320a229d7901ba4dd102fafd315565cdde1a5b45773650",
+        "TensorSharp.Server.Host.deps.json": "52e28929d1a40910d3d72f6b2e73fac2b9815643e5b1ac4e023fa0a1af65da28",
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Server.Host.pdb": "6afb9adc534194842945db5e7ab4f6a0e153dcb35213c070b952e40fe6faabda",
+        "TensorSharp.Server.Host.runtimeconfig.json": "f71b4c67b5233a19be9131b5fe4b45fe7829997cf2b42e762d6baa037da93863",
+        "TensorSharp.Server.Host.staticwebassets.endpoints.json": "26d9f434e9575c071a650d45d2972e72d193dfb15905fe110871329898a79b36",
+        "TensorSharp.Server.Host.staticwebassets.runtime.json": "11dcbcf893c61969ae3a5afb67aa955cf183eb12c2c528cf48617f9a99412bbe",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "TensorSharp.Server.pdb": "10ea2497b63e5f8015f8f8174dbd4826f15303efbecbaa4f3bc096815a53363b",
+        "UglyToad.PdfPig.Core.dll": "bf94d9066752e24a2370e2efeb8501b45b10b11c7fe015085abd615937d0cd6a",
+        "UglyToad.PdfPig.DocumentLayoutAnalysis.dll": "0fbcc443e5aa1ad8170137ad0f4ab0e100113359ff9748b79e1fae61eb786dca",
+        "UglyToad.PdfPig.Fonts.dll": "b18380040ca049217793c04534c7fd37a6c7627eddfee77d58f2a1d401668094",
+        "UglyToad.PdfPig.Package.dll": "f67679ddc3d773f3389709777777bc97e4912af95794c0678d8f99b775ebc99a",
+        "UglyToad.PdfPig.Tokenization.dll": "5ad8243c8941b839824650d3b4ce37a0eba2089ede7db87a165497cd5de1f8c7",
+        "UglyToad.PdfPig.Tokens.dll": "fc334aab7d7c5b87da028ee58c525d819f04b116e72cc28d453c951156a32ff2",
+        "UglyToad.PdfPig.dll": "1321ed40c853a85c1322ec110cb7fae904d02e7c43d4d60534be632f1c6096fa",
+        "cuda_kernels/tensorsharp_dsv4_kernels.ptx": "2de8be01198151cc66b8ad544f39780788b243028c692d33a9ec2c51b5c3ba92",
+        "cuda_kernels/tensorsharp_kernels.ptx": "2e893534df157a4e2f76b143f1808e5cdcf17954d68ee5c3d48fd18563bf2874",
+        "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093",
+        "logs/tensorsharp-server-20260911.jsonl": "350df096e330c71cfddef7b00dc10f7344e3ffda22265d0f83e07a535b923587",
+        "runtimes/linux-arm64/native/Magick.Native-Q8-arm64.dll.so": "83f65259cf5a161eaa1f1404bc3a7ebe0fd15ae0859fb89d0b99d7d95e34b2e8",
+        "runtimes/linux-musl-x64/native/Magick.Native-Q8-x64.dll.so": "2a6d77ca0a29fe9619f5f0b3230511b7488587ce59d29d2e9ea32a05b1577411",
+        "runtimes/linux-x64/native/Magick.Native-Q8-x64.dll.so": "38b88bd5cb27e606807edfadd1ac86a8b50b92fe3f3d4008dc8bc2d68a11bc27",
+        "runtimes/linux-x64/native/libOpenCvSharpExtern.so": "8669f17fe5ecc4c0d1cdff8a5433e87d76688c824a9561d849a6fd23bdc6c07f",
+        "runtimes/linux-x64/native/libx264.so.164": "e8d6174800d71680cdd48a4d4cd21eadc57bddf67115beccf583a47b5470162f",
+        "runtimes/osx-arm64/native/Magick.Native-Q8-arm64.dll.dylib": "15b3e2ae1558701e3e30bcfe40d7e19851641d2b3a7def3a70cab5d0ac801db7",
+        "runtimes/osx-arm64/native/libOpenCvSharpExtern.dylib": "1732107c5e4da35f58f58883af5d3e0fe7ceac046c37e996214fb66fbdddc87e",
+        "runtimes/osx-x64/native/Magick.Native-Q8-x64.dll.dylib": "b621ae432c9a6c8c4817bdcf16a54b0f953a3e1d96d5156ddfca4bfe8a3c473e",
+        "runtimes/osx-x64/native/libOpenCvSharpExtern.dylib": "fdfee3c8cbd8586319a77c7bd34ee754495d1ca884dde9d1d8fb86286c3ab512",
+        "runtimes/win-arm64/native/Magick.Native-Q8-arm64.dll": "9448cca52765b0a9d2b9f8b51b31ffb81c6a79d5b5d652558e0d99f0e48d46ab",
+        "runtimes/win-x64/native/Magick.Native-Q8-x64.dll": "56539d5f601fcb487190e1c030e3e6de97591d5524d892e634d247152c63eba0",
+        "runtimes/win-x64/native/OpenCvSharpExtern.dll": "051f2ecb645b0846552b0ce99a922d79a2e8dd2586ae1e91987c804611e4da6c",
+        "runtimes/win-x64/native/opencv_videoio_ffmpeg.dll": "ba75417eeaf2c5767ed9fad80fe3ede55a3fe67493218d6074d21c7732e03d78",
+        "runtimes/win-x64/native/opencv_videoio_ffmpeg4110_64.dll": "f0460320ac08c074bdf6d5a19f5c13d204e585e85030fdd40e20a3c0b3adeb67",
+        "runtimes/win-x64/native/opencv_videoio_ffmpeg_64.dll": "f0460320ac08c074bdf6d5a19f5c13d204e585e85030fdd40e20a3c0b3adeb67",
+        "runtimes/win-x86/native/Magick.Native-Q8-x86.dll": "6bf7b244aaecc561cbe5cd2e9f4af6187b760a8ca2cc0a0ab228cf52c2ec5e67",
+        "wwwroot/images/assistant_logo.png": "2b0eec02f20060e56e63800330e890115eb2736035a6679be772aeca2c137fb7",
+        "wwwroot/images/banner_1.png": "58648b42741765af5455aed13e07fd85aecafdb572e72e07e29cce3a2f65d38b",
+        "wwwroot/index.html": "72989c413ec943e239c226b9b0ec9c671003c3c7d5f157d6ffb7e46484ac29f7",
+        "wwwroot/index.html.gz": "a3f1a719b5df43775e6d16c816b24a62a1b472c57064ae8f6a220a8810911a3c"
+      },
+      "expected_core_binaries": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+      }
+    },
+    "final": {
+      "source_host": "/workspace/deepseek41-work/regression-final3651-native6b3/TensorSharp.Server.Host/bin",
+      "target": "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/final/bin",
+      "files_sha256": {
+        "AdvUtils.deps.json": "8efefd559a128fbd02df3c36971c347a6315a94b97604c55c2c35a55d121b65e",
+        "AdvUtils.dll": "2a29299b911f287447d6749463d698875aa08f40ccef06f4ab79a62d2f710fde",
+        "AdvUtils.pdb": "90da578c1f9a60991a4eeb7f67c0dc6d72074ddb5538be648d367e00ff958aa8",
+        "Magick.NET-Q8-AnyCPU.dll": "de4dff7053a433f493797a08904f1f5db418f2a5233ef362767e1cfd56199b03",
+        "Magick.NET.Core.dll": "126233abe368695a3b7fd9381cba9cbb7b02f0b107e5183bc2a4b45aefcfd0e3",
+        "NLayer.dll": "70f17ddfb089f1bab75ec8991328fc73ed050ee1e82b1b7a87bf894a248d61d7",
+        "NVorbis.dll": "d4fd7a6a7b8672b30f77de08c0256dbcbd0d3eee07b78554ebce97741aa7a819",
+        "OpenCvSharp.dll": "915b9793615443bc8ba10852ee781ba683ff480e9e7dee9a3c2505874e656506",
+        "Pipelines.Sockets.Unofficial.dll": "fa2cdb1d5ffbb2b06512c92ce8bd18918a1a996171d0a72dfc73035bc586a711",
+        "StackExchange.Redis.dll": "b9bafbdde3189e8a9462d24e7e03bfa115cb7aef796454786fdfc2d2ee6162ed",
+        "StbImageSharp.dll": "5cd5e5b038998360d597bd2a5e3c57f932d507c038a186bb5675e9ac9fcdf661",
+        "System.Numerics.Tensors.dll": "3435f35393b22f69411589bf265c46796280f93db0fd987acbfd1349fb0c1299",
+        "TensorSharp.AgentHost.deps.json": "c185cea04cae596e00a0ffc87270ddc64e78cf3cbd093ef3340d8190b4d6fe61",
+        "TensorSharp.AgentHost.dll": "c67bda0ec30d582e9059ca09fe898b0dd92a261010ab8d25a94b4dd7b396931e",
+        "TensorSharp.AgentHost.pdb": "90c9da2de15c0d499ff186291c84cab1700066edde4c99128f842978f1240be7",
+        "TensorSharp.Backends.Cuda.deps.json": "0ed4548e00aa28ea08a6910e1ae65953704b4d5f1647f33d8d37df0efca00636",
+        "TensorSharp.Backends.Cuda.dll": "12f8c8be89873d958515d9764ac0f975a206ebda9eaf997eb67e204fd7f8d42d",
+        "TensorSharp.Backends.Cuda.pdb": "ced9189da604190b86d243d5cc44777c621b74eb8209d7316e6435276ee3198c",
+        "TensorSharp.Backends.GGML.deps.json": "f44a2f4c3c40d804980e3c05787cf996cde529391ba879e8f13d133d9cd52c03",
+        "TensorSharp.Backends.GGML.dll": "97f2c3a1c248ceb5f83d7d682d602a3a400571b72acc68b6f2931935eaab808b",
+        "TensorSharp.Backends.GGML.pdb": "060cafeadeb7399694f37bbe4f522e32f848735e61f2ed88e550c16da97ff35e",
+        "TensorSharp.Backends.MLX.deps.json": "7c68620052dd3946e55a53b9593c922f1870ca2ada9932a80b9c61fbf1708977",
+        "TensorSharp.Backends.MLX.dll": "b9a0076c48e31131306369bc07a8b2002aeaba9d8045d473cbd037ccd20bdd5a",
+        "TensorSharp.Backends.MLX.pdb": "1d102ff9dd86d8db432536e69f122bba6587a582c0b665dab24e86516355f2ec",
+        "TensorSharp.Chat.deps.json": "7a87baf18f2a871760c439e846110b01dc5182a112f510f1fead636f81055d83",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Chat.pdb": "5ae7a4bf4e933cb95996ab0ff0c4f4576205a5f787932db234755526e245b610",
+        "TensorSharp.Core.deps.json": "5bf04ad03cba2698d1d2ad0f379dc32cc0ad038f6f4158324f2ba8514d70800b",
+        "TensorSharp.Core.dll": "bcae6a9153d3ed1e22dc135bda4e2b66775bab44e372c91ec6c43194842201d5",
+        "TensorSharp.Core.pdb": "869068bd8e8313ea8775515b49ee5e560ed839f1667e5d0d58251ac49d57b0b2",
+        "TensorSharp.Distributed.deps.json": "2e5c1830f5ab84bed857c32f29a37677ccc3465e2760a012f01df572ff719de2",
+        "TensorSharp.Distributed.dll": "567291ce51f9c336c1d1d538b81679a4ff404a00fb43b254564b592912fa440d",
+        "TensorSharp.Distributed.pdb": "d47b78afa8d50dc115b831ae7fbb94992a9018159ba2aa51cab07097179cfe78",
+        "TensorSharp.Models.deps.json": "f9a64e3e474698eebf1940037be07c22e6c4ccefad69d1b2a236e4f2fa8d88f5",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Models.pdb": "63b3b0a62c9cdc5f8f4d6ad1d223827497bed5e8834fb28da54b8fb5e66fde8e",
+        "TensorSharp.Runtime.Logging.deps.json": "0c6b3ba8076e5ab7640c5af838dc794899c839295e955ad61ed346440cb7bf1c",
+        "TensorSharp.Runtime.Logging.dll": "aa643ae09faa7f274c9ac563f4d2216ce76ebfc28029bd636c2efa39844cdb30",
+        "TensorSharp.Runtime.Logging.pdb": "e60273226d102f68873d84894bdf99c2acf9d7d674b5984fa1fe35c0132c1f3a",
+        "TensorSharp.Runtime.deps.json": "a365c43f5e02723b31b186b22657925d3f7d91f6628512848f6bcf707ef8edeb",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Runtime.pdb": "f442452c0a1368b45ccd8c0e2b01a3080c59d7f360052697eadc0cd960e4e2bd",
+        "TensorSharp.Server.Host": "729b4e237564815806320a229d7901ba4dd102fafd315565cdde1a5b45773650",
+        "TensorSharp.Server.Host.deps.json": "52e28929d1a40910d3d72f6b2e73fac2b9815643e5b1ac4e023fa0a1af65da28",
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Server.Host.pdb": "3ba116a75b36e9629edc3f7bb406a6c7d896b9c377370338b55d3b90a11d875c",
+        "TensorSharp.Server.Host.runtimeconfig.json": "f71b4c67b5233a19be9131b5fe4b45fe7829997cf2b42e762d6baa037da93863",
+        "TensorSharp.Server.Host.staticwebassets.endpoints.json": "7066f676c4d96facff32ead4646c4ae1ec7717e4adb96e341d31212e4bb3bbdc",
+        "TensorSharp.Server.Host.staticwebassets.runtime.json": "67bc230ee58052915ba9b7afb1236784e57ac3ddf32f8b36c81d7d987fcf07ec",
+        "TensorSharp.Server.deps.json": "e5c6d789b5f9834335f51f50598f343453e59de27e2f2175c1144107bc499cf1",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "TensorSharp.Server.pdb": "0f3a487456ac455bcebb8581d7214310b85228ec2dbe4e0fce4638a8d80a27bc",
+        "UglyToad.PdfPig.Core.dll": "bf94d9066752e24a2370e2efeb8501b45b10b11c7fe015085abd615937d0cd6a",
+        "UglyToad.PdfPig.DocumentLayoutAnalysis.dll": "0fbcc443e5aa1ad8170137ad0f4ab0e100113359ff9748b79e1fae61eb786dca",
+        "UglyToad.PdfPig.Fonts.dll": "b18380040ca049217793c04534c7fd37a6c7627eddfee77d58f2a1d401668094",
+        "UglyToad.PdfPig.Package.dll": "f67679ddc3d773f3389709777777bc97e4912af95794c0678d8f99b775ebc99a",
+        "UglyToad.PdfPig.Tokenization.dll": "5ad8243c8941b839824650d3b4ce37a0eba2089ede7db87a165497cd5de1f8c7",
+        "UglyToad.PdfPig.Tokens.dll": "fc334aab7d7c5b87da028ee58c525d819f04b116e72cc28d453c951156a32ff2",
+        "UglyToad.PdfPig.dll": "1321ed40c853a85c1322ec110cb7fae904d02e7c43d4d60534be632f1c6096fa",
+        "cuda_kernels/tensorsharp_dsv4_kernels.ptx": "7a56c961905fccaee78546c21ecddd052dcb45ab809f51cc396d1e8b9fd19e2a",
+        "cuda_kernels/tensorsharp_kernels.ptx": "9f2e735750edc89ae67a8334146d2973b90327b10a6ff3eaae1c1aaaa0245307",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+        "logs/tensorsharp-server-20260911.jsonl": "0e8895f7c54e651b6db85a73afc29b0249b6300ed2bbe736505d4276f786d7a0",
+        "runtimes/linux-arm64/native/Magick.Native-Q8-arm64.dll.so": "83f65259cf5a161eaa1f1404bc3a7ebe0fd15ae0859fb89d0b99d7d95e34b2e8",
+        "runtimes/linux-musl-x64/native/Magick.Native-Q8-x64.dll.so": "2a6d77ca0a29fe9619f5f0b3230511b7488587ce59d29d2e9ea32a05b1577411",
+        "runtimes/linux-x64/native/Magick.Native-Q8-x64.dll.so": "38b88bd5cb27e606807edfadd1ac86a8b50b92fe3f3d4008dc8bc2d68a11bc27",
+        "runtimes/linux-x64/native/libOpenCvSharpExtern.so": "8669f17fe5ecc4c0d1cdff8a5433e87d76688c824a9561d849a6fd23bdc6c07f",
+        "runtimes/linux-x64/native/libx264.so.164": "e8d6174800d71680cdd48a4d4cd21eadc57bddf67115beccf583a47b5470162f",
+        "runtimes/osx-arm64/native/Magick.Native-Q8-arm64.dll.dylib": "15b3e2ae1558701e3e30bcfe40d7e19851641d2b3a7def3a70cab5d0ac801db7",
+        "runtimes/osx-arm64/native/libOpenCvSharpExtern.dylib": "1732107c5e4da35f58f58883af5d3e0fe7ceac046c37e996214fb66fbdddc87e",
+        "runtimes/osx-x64/native/Magick.Native-Q8-x64.dll.dylib": "b621ae432c9a6c8c4817bdcf16a54b0f953a3e1d96d5156ddfca4bfe8a3c473e",
+        "runtimes/osx-x64/native/libOpenCvSharpExtern.dylib": "fdfee3c8cbd8586319a77c7bd34ee754495d1ca884dde9d1d8fb86286c3ab512",
+        "runtimes/win-arm64/native/Magick.Native-Q8-arm64.dll": "9448cca52765b0a9d2b9f8b51b31ffb81c6a79d5b5d652558e0d99f0e48d46ab",
+        "runtimes/win-x64/native/Magick.Native-Q8-x64.dll": "56539d5f601fcb487190e1c030e3e6de97591d5524d892e634d247152c63eba0",
+        "runtimes/win-x64/native/OpenCvSharpExtern.dll": "051f2ecb645b0846552b0ce99a922d79a2e8dd2586ae1e91987c804611e4da6c",
+        "runtimes/win-x64/native/opencv_videoio_ffmpeg.dll": "ba75417eeaf2c5767ed9fad80fe3ede55a3fe67493218d6074d21c7732e03d78",
+        "runtimes/win-x64/native/opencv_videoio_ffmpeg4110_64.dll": "f0460320ac08c074bdf6d5a19f5c13d204e585e85030fdd40e20a3c0b3adeb67",
+        "runtimes/win-x64/native/opencv_videoio_ffmpeg_64.dll": "f0460320ac08c074bdf6d5a19f5c13d204e585e85030fdd40e20a3c0b3adeb67",
+        "runtimes/win-x86/native/Magick.Native-Q8-x86.dll": "6bf7b244aaecc561cbe5cd2e9f4af6187b760a8ca2cc0a0ab228cf52c2ec5e67",
+        "wwwroot/images/assistant_logo.png": "2b0eec02f20060e56e63800330e890115eb2736035a6679be772aeca2c137fb7",
+        "wwwroot/images/banner_1.png": "58648b42741765af5455aed13e07fd85aecafdb572e72e07e29cce3a2f65d38b",
+        "wwwroot/index.html": "72989c413ec943e239c226b9b0ec9c671003c3c7d5f157d6ffb7e46484ac29f7",
+        "wwwroot/index.html.gz": "a3f1a719b5df43775e6d16c816b24a62a1b472c57064ae8f6a220a8810911a3c"
+      },
+      "expected_core_binaries": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      }
+    }
+  },
+  "runs": [
+    {
+      "model": "qwen3",
+      "version": "baseline",
+      "report": {
+        "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/qwen3-baseline.json",
+        "sha256": "a9a07f572005ad835d7e9de0b666facd568dafd608babd93fbae2efec74ff077",
+        "bytes": 63800
+      },
+      "run_complete": true,
+      "status": "fail",
+      "cases": 15
+    },
+    {
+      "model": "qwen3",
+      "version": "final",
+      "report": {
+        "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/qwen3-final.json",
+        "sha256": "18ffacfa2eeb9a862838cec38178c2e989808a8afbab72962558c70f4e15219a",
+        "bytes": 63819
+      },
+      "run_complete": true,
+      "status": "fail",
+      "cases": 15
+    },
+    {
+      "model": "qwen35",
+      "version": "final",
+      "report": {
+        "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/qwen35-final.json",
+        "sha256": "0b9ae6dd54c382b2b7b610e835d3cfb5efa8d5b998b366a42d05d1b58f430320",
+        "bytes": 62702
+      },
+      "run_complete": true,
+      "status": "ok",
+      "cases": 15
+    },
+    {
+      "model": "qwen35",
+      "version": "baseline",
+      "report": {
+        "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/qwen35-baseline.json",
+        "sha256": "bc4f51d149d9b3767f182b10b69ab7ba62b20fe63c32ce8bee531e514a41fe2e",
+        "bytes": 62692
+      },
+      "run_complete": true,
+      "status": "ok",
+      "cases": 15
+    },
+    {
+      "model": "gemma4",
+      "version": "baseline",
+      "report": {
+        "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/gemma4-baseline.json",
+        "sha256": "4cef26d2838074581112a264ed0b9a678aebad30700a628446449f5f652d3f16",
+        "bytes": 60174
+      },
+      "run_complete": true,
+      "status": "fail",
+      "cases": 15
+    },
+    {
+      "model": "gemma4",
+      "version": "final",
+      "report": {
+        "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/gemma4-final.json",
+        "sha256": "488cd3fcc6fab34f7470ff882c546c74aa874fb9b5304355232daae8b1451fc9",
+        "bytes": 64043
+      },
+      "run_complete": true,
+      "status": "ok",
+      "cases": 15
+    }
+  ],
+  "comparisons": {
+    "qwen3": {
+      "global_issues": [],
+      "case_pairs": [
+        {
+          "key": [
+            "json",
+            "json-c1-r0-i0",
+            1,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c1-r1-i0",
+            1,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c1-r2-i0",
+            1,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910",
+          "final_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i0",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "ok",
+          "final_status": "fail",
+          "baseline_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i1",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i2",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i3",
+            4,
+            0
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910",
+          "final_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i0",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i1",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i2",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i3",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i0",
+            4,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910",
+          "final_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i1",
+            4,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "ed431bcc5f244e1eccc07fbfe927224e88f1257b7afa18ae8b1c7899358a7a26",
+          "final_output_sha256": "ed431bcc5f244e1eccc07fbfe927224e88f1257b7afa18ae8b1c7899358a7a26"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i2",
+            4,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator"
+          ],
+          "baseline_status": "fail",
+          "final_status": "fail",
+          "baseline_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0",
+          "final_output_sha256": "6783773c6ef4111307f15fd7744153b2d81e5909f17e2b72c3bb3d657f4368d0"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i3",
+            4,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910",
+          "final_output_sha256": "f232e6acca2c2b14c2f1aa95f47316837d2dc1784b5745d3afe46e82495b0910"
+        }
+      ],
+      "concurrency_groups": {
+        "1": {
+          "comparable": false,
+          "issues": [
+            "['json', 'json-c1-r0-i0', 1, 0]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c1-r1-i0', 1, 1]: A response failed the unchanged semantic/structural validator"
+          ],
+          "expected_cases_per_build": 3,
+          "scope": "Every response and prompt/completion count in this concurrency group must match; no selected successful subset."
+        },
+        "4": {
+          "comparable": false,
+          "issues": [
+            "['json', 'json-c4-r0-i0', 4, 0]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r0-i1', 4, 0]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r0-i2', 4, 0]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r1-i0', 4, 1]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r1-i1', 4, 1]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r1-i2', 4, 1]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r1-i3', 4, 1]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r2-i1', 4, 2]: A response failed the unchanged semantic/structural validator",
+            "['json', 'json-c4-r2-i2', 4, 2]: A response failed the unchanged semantic/structural validator"
+          ],
+          "expected_cases_per_build": 12,
+          "scope": "Every response and prompt/completion count in this concurrency group must match; no selected successful subset."
+        }
+      },
+      "all_groups_comparable": false,
+      "failed_cases": {
+        "baseline": [
+          {
+            "scenario": "json",
+            "tag": "json-c1-r0-i0",
+            "status": "fail",
+            "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 465.0848638266325,
+                  "prefill_tps": 193.5130704093369,
+                  "decode_tps": 102.79629215857331,
+                  "total_wall_ms": 704.9868227913976,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407121.993559804,
+                  "t_first_abs": 4407122.458644668,
+                  "t_last_abs": 4407122.692116124,
+                  "t_end_abs": 4407122.698546627
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 705.2300190553069,
+            "concurrency": 1,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c1-r1-i0",
+            "status": "fail",
+            "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 310.9890781342983,
+                  "prefill_tps": 289.3992308023569,
+                  "decode_tps": 149.24737298733217,
+                  "total_wall_ms": 477.4602735415101,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407122.708614972,
+                  "t_first_abs": 4407123.019604051,
+                  "t_last_abs": 4407123.180410901,
+                  "t_end_abs": 4407123.186075246
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 477.6656376197934,
+            "concurrency": 1,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i1",
+            "status": "fail",
+            "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2953.976023942232,
+                  "prefill_tps": 30.467410456463487,
+                  "decode_tps": 27.821971147683673,
+                  "total_wall_ms": 3827.86369509995,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407123.689130746,
+                  "t_first_abs": 4407126.64310677,
+                  "t_last_abs": 4407127.505734363,
+                  "t_end_abs": 4407127.516994441
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3828.141746111214,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i2",
+            "status": "fail",
+            "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2952.97309756279,
+                  "prefill_tps": 30.477758186920397,
+                  "decode_tps": 27.842052675663243,
+                  "total_wall_ms": 3825.871233828366,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407123.690513643,
+                  "t_first_abs": 4407126.643486741,
+                  "t_last_abs": 4407127.50549215,
+                  "t_end_abs": 4407127.516384877
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3826.110905967653,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i0",
+            "status": "fail",
+            "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2967.1187875792384,
+                  "prefill_tps": 30.33245597606412,
+                  "decode_tps": 37.8666587474738,
+                  "total_wall_ms": 3620.68123370409,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407127.529798597,
+                  "t_first_abs": 4407130.496917385,
+                  "t_last_abs": 4407131.130720334,
+                  "t_end_abs": 4407131.150479831
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3620.939233340323,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i1",
+            "status": "fail",
+            "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2966.8511115014553,
+                  "prefill_tps": 30.335192639462473,
+                  "decode_tps": 37.9288265316767,
+                  "total_wall_ms": 3620.420658029616,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407127.53126127,
+                  "t_first_abs": 4407130.498112381,
+                  "t_last_abs": 4407131.130876487,
+                  "t_end_abs": 4407131.151681928
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3620.6528823822737,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i2",
+            "status": "fail",
+            "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2964.664281345904,
+                  "prefill_tps": 30.357568837150637,
+                  "decode_tps": 37.92708353611489,
+                  "total_wall_ms": 3619.477465748787,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407127.532914511,
+                  "t_first_abs": 4407130.497578792,
+                  "t_last_abs": 4407131.130371978,
+                  "t_end_abs": 4407131.152391977
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3619.7040788829327,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i3",
+            "status": "fail",
+            "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2963.7294840067625,
+                  "prefill_tps": 30.367143993967378,
+                  "decode_tps": 37.94009790642693,
+                  "total_wall_ms": 3616.3363587111235,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407127.534782756,
+                  "t_first_abs": 4407130.49851224,
+                  "t_last_abs": 4407131.131088362,
+                  "t_end_abs": 4407131.151119115
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3616.46290961653,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i1",
+            "status": "fail",
+            "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 22,
+                  "ttft_ms": 2982.0340666919947,
+                  "prefill_tps": 30.180741731042012,
+                  "decode_tps": 40.7208983571278,
+                  "total_wall_ms": 3592.673821374774,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}",
+                  "t_start_abs": 4407131.170424927,
+                  "t_first_abs": 4407134.152458994,
+                  "t_last_abs": 4407134.668164709,
+                  "t_end_abs": 4407134.763098748
+                }
+              }
+            ],
+            "validated_content": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3592.9142478853464,
+            "concurrency": 4,
+            "repeat": 2
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i2",
+            "status": "fail",
+            "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2980.692778714001,
+                  "prefill_tps": 30.19432282411536,
+                  "decode_tps": 36.17918545603753,
+                  "total_wall_ms": 3649.540999904275,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407131.173108492,
+                  "t_first_abs": 4407134.153801271,
+                  "t_last_abs": 4407134.817166123,
+                  "t_end_abs": 4407134.822649492
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3649.7698528692126,
+            "concurrency": 4,
+            "repeat": 2
+          }
+        ],
+        "final": [
+          {
+            "scenario": "json",
+            "tag": "json-c1-r0-i0",
+            "status": "fail",
+            "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 472.9742407798767,
+                  "prefill_tps": 190.28520422507788,
+                  "decode_tps": 128.2433001248503,
+                  "total_wall_ms": 666.378010995686,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407153.108463118,
+                  "t_first_abs": 4407153.581437359,
+                  "t_last_abs": 4407153.768581638,
+                  "t_end_abs": 4407153.774841129
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 666.6315030306578,
+            "concurrency": 1,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c1-r1-i0",
+            "status": "fail",
+            "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 402.8933122754097,
+                  "prefill_tps": 223.38419938447086,
+                  "decode_tps": 176.950593020061,
+                  "total_wall_ms": 543.9966814592481,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407153.793753493,
+                  "t_first_abs": 4407154.196646805,
+                  "t_last_abs": 4407154.332277885,
+                  "t_end_abs": 4407154.337750174
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 544.1031577065587,
+            "concurrency": 1,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i0",
+            "status": "fail",
+            "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 3326.5195162966847,
+                  "prefill_tps": 27.055304969379623,
+                  "decode_tps": 36.19133172243464,
+                  "total_wall_ms": 4039.66130502522,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407154.99285075,
+                  "t_first_abs": 4407158.319370266,
+                  "t_last_abs": 4407158.982512484,
+                  "t_end_abs": 4407159.032512055
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 4039.9358896538615,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i1",
+            "status": "fail",
+            "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2826.528150588274,
+                  "prefill_tps": 31.841182965493783,
+                  "decode_tps": 22.025504110875833,
+                  "total_wall_ms": 3932.1073638275266,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407154.994431942,
+                  "t_first_abs": 4407157.820960092,
+                  "t_last_abs": 4407158.910605981,
+                  "t_end_abs": 4407158.926539306
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3932.3421139270067,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i2",
+            "status": "fail",
+            "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 3201.4596024528146,
+                  "prefill_tps": 28.112177311575646,
+                  "decode_tps": 32.94814562179661,
+                  "total_wall_ms": 3986.072731204331,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407154.996053721,
+                  "t_first_abs": 4407158.197513323,
+                  "t_last_abs": 4407158.925930645,
+                  "t_end_abs": 4407158.982126452
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3986.310511827469,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i0",
+            "status": "fail",
+            "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2969.791579991579,
+                  "prefill_tps": 30.305156970057542,
+                  "decode_tps": 42.144847901528344,
+                  "total_wall_ms": 3560.5701562017202,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407159.047621168,
+                  "t_first_abs": 4407162.017412748,
+                  "t_last_abs": 4407162.586877373,
+                  "t_end_abs": 4407162.608191324
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3560.8027754351497,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i1",
+            "status": "fail",
+            "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2968.3521166443825,
+                  "prefill_tps": 30.31985305764258,
+                  "decode_tps": 42.219825659365036,
+                  "total_wall_ms": 3557.8793808817863,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407159.049924654,
+                  "t_first_abs": 4407162.018276771,
+                  "t_last_abs": 4407162.586730089,
+                  "t_end_abs": 4407162.607804035
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3558.1589806824923,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i2",
+            "status": "fail",
+            "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2966.3031473755836,
+                  "prefill_tps": 30.34079644881437,
+                  "decode_tps": 42.15491082882711,
+                  "total_wall_ms": 3557.206411845982,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407159.051606366,
+                  "t_first_abs": 4407162.017909514,
+                  "t_last_abs": 4407162.5872382,
+                  "t_end_abs": 4407162.608812778
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3557.4432853609324,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i3",
+            "status": "fail",
+            "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2963.5405661538243,
+                  "prefill_tps": 30.369079818875168,
+                  "decode_tps": 42.094169716431814,
+                  "total_wall_ms": 3553.94493881613,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407159.05340653,
+                  "t_first_abs": 4407162.016947096,
+                  "t_last_abs": 4407162.587097313,
+                  "t_end_abs": 4407162.607351469
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3554.272391833365,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i1",
+            "status": "fail",
+            "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 22,
+                  "ttft_ms": 2946.068810299039,
+                  "prefill_tps": 30.549184623717125,
+                  "decode_tps": 40.37885074939098,
+                  "total_wall_ms": 3547.1802009269595,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}",
+                  "t_start_abs": 4407162.626484687,
+                  "t_first_abs": 4407165.572553498,
+                  "t_last_abs": 4407166.092627735,
+                  "t_end_abs": 4407166.173664888
+                }
+              }
+            ],
+            "validated_content": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3547.450996004045,
+            "concurrency": 4,
+            "repeat": 2
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i2",
+            "status": "fail",
+            "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 90,
+                  "completion_tokens": 25,
+                  "ttft_ms": 2944.838050752878,
+                  "prefill_tps": 30.561952286982496,
+                  "decode_tps": 36.994383667152405,
+                  "total_wall_ms": 3598.859628662467,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+                  "t_start_abs": 4407162.628191289,
+                  "t_first_abs": 4407165.573029339,
+                  "t_last_abs": 4407166.221776463,
+                  "t_end_abs": 4407166.227050917
+                }
+              }
+            ],
+            "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 3599.0825155749917,
+            "concurrency": 4,
+            "repeat": 2
+          }
+        ]
+      },
+      "scope": "Whole-build regression comparison, not isolated Unicode-only causal attribution; native and other managed files differ. JSON responses are short, not a sustained 512-token decode workload."
+    },
+    "qwen35": {
+      "global_issues": [],
+      "case_pairs": [
+        {
+          "key": [
+            "json",
+            "json-c1-r0-i0",
+            1,
+            0
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c1-r1-i0",
+            1,
+            1
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c1-r2-i0",
+            1,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i0",
+            4,
+            0
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i1",
+            4,
+            0
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i2",
+            4,
+            0
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i3",
+            4,
+            0
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i0",
+            4,
+            1
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i1",
+            4,
+            1
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i2",
+            4,
+            1
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i3",
+            4,
+            1
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i0",
+            4,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i1",
+            4,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i2",
+            4,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i3",
+            4,
+            2
+          ],
+          "comparable": true,
+          "reasons": [],
+          "baseline_status": "ok",
+          "final_status": "ok",
+          "baseline_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf",
+          "final_output_sha256": "c2fbd6524c8bd19f10b9209b04f2181767650509382a9286e8f1e57d7638e2bf"
+        }
+      ],
+      "concurrency_groups": {
+        "1": {
+          "comparable": true,
+          "issues": [],
+          "expected_cases_per_build": 3,
+          "scope": "Every response and prompt/completion count in this concurrency group must match; no selected successful subset.",
+          "summaries": {
+            "baseline": {
+              "completion_tokens": [
+                16,
+                16,
+                16
+              ],
+              "ttft_ms_median": 65.0391411036253,
+              "json_decode_tps_median": 271.1332818622982,
+              "request_wall_ms_median": 123.97597264498472,
+              "whole_wave_wall_ms_median": 125.04464760422707,
+              "whole_wave_end_to_end_tps_median": 127.95429717744375
+            },
+            "final": {
+              "completion_tokens": [
+                16,
+                16,
+                16
+              ],
+              "ttft_ms_median": 72.03342206776142,
+              "json_decode_tps_median": 288.29344998201,
+              "request_wall_ms_median": 132.8215952962637,
+              "whole_wave_wall_ms_median": 133.81670974195004,
+              "whole_wave_end_to_end_tps_median": 119.56653269127705
+            }
+          },
+          "metric_issues": {
+            "ttft": [],
+            "json_decode": [],
+            "request_wall": [],
+            "whole_wave_wall": [],
+            "whole_wave_end_to_end_tps": []
+          },
+          "speedup_final_over_baseline": {
+            "ttft": 0.9029022811444853,
+            "json_decode": 1.0632905263486871,
+            "request_wall": 0.9334022255074675,
+            "whole_wave_wall": 0.934447184102502,
+            "whole_wave_end_to_end_tps": 0.9344471841025022
+          }
+        },
+        "4": {
+          "comparable": true,
+          "issues": [],
+          "expected_cases_per_build": 12,
+          "scope": "Every response and prompt/completion count in this concurrency group must match; no selected successful subset.",
+          "summaries": {
+            "baseline": {
+              "completion_tokens": [
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16
+              ],
+              "ttft_ms_median": 258.40008817613125,
+              "json_decode_tps_median": 97.96644779413158,
+              "request_wall_ms_median": 437.57935147732496,
+              "whole_wave_wall_ms_median": 506.2810955569148,
+              "whole_wave_end_to_end_tps_median": 126.41198844211098
+            },
+            "final": {
+              "completion_tokens": [
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16,
+                16
+              ],
+              "ttft_ms_median": 276.21353045105934,
+              "json_decode_tps_median": 129.1873014706473,
+              "request_wall_ms_median": 416.3406784646213,
+              "whole_wave_wall_ms_median": 447.47911859303713,
+              "whole_wave_end_to_end_tps_median": 143.0234335877586
+            }
+          },
+          "metric_issues": {
+            "ttft": [],
+            "json_decode": [],
+            "request_wall": [],
+            "whole_wave_wall": [],
+            "whole_wave_end_to_end_tps": []
+          },
+          "speedup_final_over_baseline": {
+            "ttft": 0.9355084370927138,
+            "json_decode": 1.318689249018437,
+            "request_wall": 1.0510127261429931,
+            "whole_wave_wall": 1.1314071976112823,
+            "whole_wave_end_to_end_tps": 1.1314071976112823
+          }
+        }
+      },
+      "all_groups_comparable": true,
+      "failed_cases": {
+        "baseline": [],
+        "final": []
+      },
+      "scope": "Whole-build regression comparison, not isolated Unicode-only causal attribution; native and other managed files differ. JSON responses are short, not a sustained 512-token decode workload."
+    },
+    "gemma4": {
+      "global_issues": [
+        "baseline JSON warmup failed or is incomplete"
+      ],
+      "case_pairs": [
+        {
+          "key": [
+            "json",
+            "json-c1-r0-i0",
+            1,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c1-r1-i0",
+            1,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c1-r2-i0",
+            1,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i0",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "254f8ebdf86b784ac5782ebeeb7851373c66923d5720dc8aec55f32fbbf29a25",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i1",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i2",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r0-i3",
+            4,
+            0
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i0",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i1",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i2",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r1-i3",
+            4,
+            1
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i0",
+            4,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i1",
+            4,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i2",
+            4,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        },
+        {
+          "key": [
+            "json",
+            "json-c4-r2-i3",
+            4,
+            2
+          ],
+          "comparable": false,
+          "reasons": [
+            "A response failed the unchanged semantic/structural validator",
+            "Exact response or token-count mismatch"
+          ],
+          "baseline_status": "fail",
+          "final_status": "ok",
+          "baseline_output_sha256": "87ca7eeb3740446dc59372b1df7b96204251d58ca4457e7a5c3c670ed860e603",
+          "final_output_sha256": "45d3223b68be1078f9ae64bab734c1ed546f8f4e49b17e89e9c7afb8850f8694"
+        }
+      ],
+      "concurrency_groups": {
+        "1": {
+          "comparable": false,
+          "issues": [
+            "baseline JSON warmup failed or is incomplete",
+            "['json', 'json-c1-r0-i0', 1, 0]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c1-r1-i0', 1, 1]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c1-r2-i0', 1, 2]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch"
+          ],
+          "expected_cases_per_build": 3,
+          "scope": "Every response and prompt/completion count in this concurrency group must match; no selected successful subset."
+        },
+        "4": {
+          "comparable": false,
+          "issues": [
+            "baseline JSON warmup failed or is incomplete",
+            "['json', 'json-c4-r0-i0', 4, 0]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r0-i1', 4, 0]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r0-i2', 4, 0]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r0-i3', 4, 0]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r1-i0', 4, 1]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r1-i1', 4, 1]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r1-i2', 4, 1]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r1-i3', 4, 1]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r2-i0', 4, 2]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r2-i1', 4, 2]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r2-i2', 4, 2]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch",
+            "['json', 'json-c4-r2-i3', 4, 2]: A response failed the unchanged semantic/structural validator, Exact response or token-count mismatch"
+          ],
+          "expected_cases_per_build": 12,
+          "scope": "Every response and prompt/completion count in this concurrency group must match; no selected successful subset."
+        }
+      },
+      "all_groups_comparable": false,
+      "failed_cases": {
+        "baseline": [
+          {
+            "scenario": "json",
+            "tag": "json-c1-r0-i0",
+            "status": "fail",
+            "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 65.77545683830976,
+                  "prefill_tps": 1429.1044793664032,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 81.37827832251787,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407208.886254515,
+                  "t_first_abs": 4407208.952029971,
+                  "t_last_abs": 4407208.952029971,
+                  "t_end_abs": 4407208.967632793
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 81.49154204875231,
+            "concurrency": 1,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c1-r1-i0",
+            "status": "fail",
+            "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 69.76906303316355,
+                  "prefill_tps": 1347.3020263339165,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 83.95605068653822,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407208.985980038,
+                  "t_first_abs": 4407209.055749101,
+                  "t_last_abs": 4407209.055749101,
+                  "t_end_abs": 4407209.069936088
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 84.07095912843943,
+            "concurrency": 1,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c1-r2-i0",
+            "status": "fail",
+            "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 59.1217465698719,
+                  "prefill_tps": 1589.9394969481814,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 73.84385075420141,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.088075919,
+                  "t_first_abs": 4407209.147197666,
+                  "t_last_abs": 4407209.147197666,
+                  "t_end_abs": 4407209.16191977
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 74.05811548233032,
+            "concurrency": 1,
+            "repeat": 2
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i0",
+            "status": "fail",
+            "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 20,
+                  "ttft_ms": 325.4171898588538,
+                  "prefill_tps": 288.85997092154685,
+                  "decode_tps": 78.82076010886433,
+                  "total_wall_ms": 580.2560467272997,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }",
+                  "t_start_abs": 4407209.176049276,
+                  "t_first_abs": 4407209.501466466,
+                  "t_last_abs": 4407209.742519711,
+                  "t_end_abs": 4407209.756305323
+                }
+              }
+            ],
+            "validated_content": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 580.477369017899,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i1",
+            "status": "fail",
+            "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 371.76806200295687,
+                  "prefill_tps": 252.84581869018209,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 455.5317675694823,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.177563826,
+                  "t_first_abs": 4407209.549331888,
+                  "t_last_abs": 4407209.549331888,
+                  "t_end_abs": 4407209.633095593
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 455.7006126269698,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i2",
+            "status": "fail",
+            "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 407.5252739712596,
+                  "prefill_tps": 230.66054059417496,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 471.1658162996173,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.179051892,
+                  "t_first_abs": 4407209.586577166,
+                  "t_last_abs": 4407209.586577166,
+                  "t_end_abs": 4407209.650217708
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 471.26030176877975,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r0-i3",
+            "status": "fail",
+            "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r0-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 367.8672667592764,
+                  "prefill_tps": 255.52694815195767,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 451.9938649609685,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.180771302,
+                  "t_first_abs": 4407209.548638569,
+                  "t_last_abs": 4407209.548638569,
+                  "t_end_abs": 4407209.632765167
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 452.22996827214956,
+            "concurrency": 4,
+            "repeat": 0
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i0",
+            "status": "fail",
+            "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 340.68956039845943,
+                  "prefill_tps": 275.91100792774705,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 433.66661481559277,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.77179657,
+                  "t_first_abs": 4407210.112486131,
+                  "t_last_abs": 4407210.112486131,
+                  "t_end_abs": 4407210.205463185
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 433.80404729396105,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i1",
+            "status": "fail",
+            "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 389.343885704875,
+                  "prefill_tps": 241.43181247040968,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 476.81170608848333,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.773220651,
+                  "t_first_abs": 4407210.162564537,
+                  "t_last_abs": 4407210.162564537,
+                  "t_end_abs": 4407210.250032357
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 476.95039957761765,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i2",
+            "status": "fail",
+            "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 388.7693537399173,
+                  "prefill_tps": 241.7886057523069,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 475.75242817401886,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.774553864,
+                  "t_first_abs": 4407210.163323218,
+                  "t_last_abs": 4407210.163323218,
+                  "t_end_abs": 4407210.250306292
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 475.9171586483717,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r1-i3",
+            "status": "fail",
+            "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r1-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 428.41219529509544,
+                  "prefill_tps": 219.4148556748056,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 484.2438595369458,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407209.776769593,
+                  "t_first_abs": 4407210.205181789,
+                  "t_last_abs": 4407210.205181789,
+                  "t_end_abs": 4407210.261013453
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 484.35279354453087,
+            "concurrency": 4,
+            "repeat": 1
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i0",
+            "status": "fail",
+            "input_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 242.1017149463296,
+                  "prefill_tps": 388.26655986653554,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 342.600729316473,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407210.277331464,
+                  "t_first_abs": 4407210.519433179,
+                  "t_last_abs": 4407210.519433179,
+                  "t_end_abs": 4407210.619932193
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 342.8478706628084,
+            "concurrency": 4,
+            "repeat": 2
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i1",
+            "status": "fail",
+            "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 339.4588092342019,
+                  "prefill_tps": 276.9113584415682,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 383.3808181807399,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407210.278727138,
+                  "t_first_abs": 4407210.618185948,
+                  "t_last_abs": 4407210.618185948,
+                  "t_end_abs": 4407210.662107957
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 383.5116261616349,
+            "concurrency": 4,
+            "repeat": 2
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i2",
+            "status": "fail",
+            "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 292.3410749062896,
+                  "prefill_tps": 321.54222608003977,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 370.48264965415,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407210.280742889,
+                  "t_first_abs": 4407210.573083964,
+                  "t_last_abs": 4407210.573083964,
+                  "t_end_abs": 4407210.651225539
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 370.61762623488903,
+            "concurrency": 4,
+            "repeat": 2
+          },
+          {
+            "scenario": "json",
+            "tag": "json-c4-r2-i3",
+            "status": "fail",
+            "input_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+            "turns": [
+              {
+                "request": {
+                  "messages": [
+                    {
+                      "role": "user",
+                      "content": "[validation json-c4-r2-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+                    }
+                  ],
+                  "tools": null,
+                  "response_format": {
+                    "type": "json_object"
+                  },
+                  "extra_body": {
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 0,
+                    "seed": 42,
+                    "repeat_penalty": 1,
+                    "presence_penalty": 0,
+                    "frequency_penalty": 0,
+                    "think": false
+                  },
+                  "max_tokens": 256,
+                  "stream": true
+                },
+                "metrics": {
+                  "prompt_tokens": 94,
+                  "completion_tokens": 2,
+                  "ttft_ms": 290.4682643711567,
+                  "prefill_tps": 323.615387737808,
+                  "decode_tps": 0.0,
+                  "total_wall_ms": 368.5884075239301,
+                  "finish_reason": "stop",
+                  "tool_calls": [],
+                  "tool_call_details": [],
+                  "assistant_message": {
+                    "role": "assistant",
+                    "content": "{}"
+                  },
+                  "usage_present": true,
+                  "decode_timing_source": "stream_window",
+                  "server_timings": {},
+                  "reasoning_text": "",
+                  "output_text": "{}",
+                  "t_start_abs": 4407210.282174869,
+                  "t_first_abs": 4407210.572643134,
+                  "t_last_abs": 4407210.572643134,
+                  "t_end_abs": 4407210.650763277
+                }
+              }
+            ],
+            "validated_content": "{}",
+            "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+            "total_wall_ms": 368.7040079385042,
+            "concurrency": 4,
+            "repeat": 2
+          }
+        ],
+        "final": []
+      },
+      "scope": "Whole-build regression comparison, not isolated Unicode-only causal attribution; native and other managed files differ. JSON responses are short, not a sustained 512-token decode workload."
+    }
+  },
+  "finished_utc": "2026-09-11T13:47:03Z"
+}

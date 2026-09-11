@@ -1,0 +1,589 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88",
+  "scope": "Historical CPU-MoE4 placement baseline before explicit V4.1 shared-projection device pins. Original quality failure is retained; serial-tools is a separate client-policy follow-up. No isolated placement performance or numerical-fix claim. Qualification remains the root measurement-window declaration.",
+  "shared_projection_limitation": "Later same-binary five-layer CUDA fixture observer found old shared gate/up projections placed on CPU in CPU-MoE/TP branches. The exact number of affected full-checkpoint layers was inferred, not directly observed on this historical host. The final pinned candidate is a different native binary.",
+  "serial_followup": {
+    "run_complete": true,
+    "all_passed": true,
+    "metadata": {
+      "serial_tool_workflows": true,
+      "structured_tool_results": true,
+      "execution_plan": {
+        "scenarios": [
+          "tool_round_trip",
+          "agentic"
+        ],
+        "concurrency": [
+          1,
+          4
+        ],
+        "repeats": 1,
+        "expected_cases": 10
+      },
+      "harness_sha256": {
+        "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+        "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+        "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+      }
+    },
+    "policy_pairs": [
+      {
+        "tag": "tool_round_trip-c1-r0-i0",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "9905147837a0a004dfdec08bfbc542987e37600ae863db8f0c254195c8deab7a",
+        "serial_input_sha256": "7c5ef2e69dc7e6a26f850da9ab812ed6203bef59d1ec0ed02c87845c4039dbd3",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "tool_round_trip-c4-r0-i0",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "7dc1bd8a516221e253f96da492f3248750fb7d153bd32ed8068b116bd6743bf0",
+        "serial_input_sha256": "e8190fab59857b245ce5fb7f14c284bd4f490ab5da5bb74e0aa08236580c7ea9",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "tool_round_trip-c4-r0-i1",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "effb0550d780f727c07543d872671191b7a85faa2baa86832dfc9323cb6724e4",
+        "serial_input_sha256": "6f92c547950d54fb52d0a7160d85fc43de4a23cbf28d29363dace14c8a1c5f41",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "tool_round_trip-c4-r0-i2",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "183343bef56425b7af72097195854ca75d48c76d49b2c876942703d0d144b14f",
+        "serial_input_sha256": "7733ebde685cc504f0c5d1a633b32944e4899fa9b1886e65b3576872063f833a",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "tool_round_trip-c4-r0-i3",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "bda862485a07bcc40363b08494233f8cc5881d39828814c7fbe019a73161ecdf",
+        "serial_input_sha256": "d68cac22ab5b00da6884ec36ac6a0e24ea069d91c2774083973bb44020575f08",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "agentic-c1-r0-i0",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "7dae62159b31952b8102e58c6a66c559b350ac82d145c69d404528893ef3105b",
+        "serial_input_sha256": "4c2316a6207a64b717c4173d9bd55446b1ff8b9499413dac456b4ead680c517f",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "agentic-c4-r0-i0",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "d58d8e9c4967b5b2d6185f000d3118535525bc87db5147e22180250d15d79feb",
+        "serial_input_sha256": "352a650e17a69c586b26d627f56f36f50ebf2c391d582116864995471203323f",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "agentic-c4-r0-i1",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "1b952a8e63b67ab65eaf213bc9aa34cb7dad2035cdfebbf79a2747a7a58a1dac",
+        "serial_input_sha256": "7f85f12481a488faf77fefb22243c0692322b76a60a50320728380455e27f701",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "agentic-c4-r0-i2",
+        "prior_status": "fail",
+        "serial_status": "ok",
+        "prior_input_sha256": "d6cc93c41de1c4b88e8b9de8ec92a616155cfbe75f86bdfd39901398f1a42951",
+        "serial_input_sha256": "2740ecdf82047c2e07bd38b0df80abdd7b5b036de15e5c8627407d0f706c6f31",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      },
+      {
+        "tag": "agentic-c4-r0-i3",
+        "prior_status": "ok",
+        "serial_status": "ok",
+        "prior_input_sha256": "5be7b93c99665bece39463eb155624fa2ae68a87e21ee4878e1f391bcb28232d",
+        "serial_input_sha256": "aaf677b31c5088a43ed559d4263fda7e75f1cdf00c4d3e3da4a41ee013973668",
+        "only_initial_request_change_is_parallel_false": true,
+        "all_tool_turns_serial": true,
+        "input_hash_changed": true
+      }
+    ],
+    "scope": "Explicit parallel_tool_calls=false constrains dependent fixture calls. Preserve the original 29/30 failure; this is not a numerical inference correction or same-request quality comparison."
+  },
+  "all_integrity_checks_passed": true,
+  "original_plan_complete": true,
+  "original_plan_all_passed": false,
+  "native_sha256": "3b885898475da3f6b6a629c0e9486f97d7351f6bcb67daa684dfef0e6ca74d2c",
+  "managed_runtime_sha256": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+  "launch_command": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/server-v41-final3597-native3b88/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--tp",
+    "8",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5000",
+    "--max-tokens",
+    "2048",
+    "--n-cpu-moe",
+    "4",
+    "--cpu-moe-threads",
+    "48",
+    "--mmproj",
+    "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf"
+  ],
+  "launch_environment": {
+    "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
+    "MAX_CONTEXT": "65536",
+    "TS_DSV4_UBATCH": "1024",
+    "TS_DSV4_NGPU": "8",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_DSV41_TP": "0",
+    "TS_DSV41_SPARSE_FA": "1",
+    "TS_DSV41_COMPACT_RAW_GATHER": "1",
+    "TS_DSV41_ENGRAM_WARM": "1",
+    "TS_DSV41_ENGRAM_THREADS": "16",
+    "TS_DSV4_PERF": "1",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "1024",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "1024",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "4096",
+    "TS_CPU_MOE_THREADS": "48"
+  },
+  "rows": [
+    {
+      "label": "quality",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-quality.json",
+        "sha256": "0402cfee703e79179f3a8ef2cefe1eb9091e21a3ad605cbc49c6d297a96e684a"
+      },
+      "checks": {
+        "run_complete": true,
+        "count_matches": true,
+        "exit_matches_failures": true,
+        "child_validation_matches": true,
+        "child_sha_matches": true,
+        "range_sha_matches": true,
+        "counters_match": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true,
+        "warmup_passed": true,
+        "no_preemptions": true
+      },
+      "all_integrity_checks_passed": true,
+      "passed": 29,
+      "total": 30,
+      "failures": [
+        {
+          "scenario": "agentic",
+          "tag": "agentic-c4-r0-i2",
+          "status": "fail",
+          "input_sha256": "d6cc93c41de1c4b88e8b9de8ec92a616155cfbe75f86bdfd39901398f1a42951",
+          "turns": [
+            {
+              "request": {
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": "[validation agentic-c4-r0-i2]\nRead invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results."
+                  }
+                ],
+                "tools": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "read_invoice",
+                      "description": "Read an invoice by its identifier.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "invoice_id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "invoice_id"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "calculate_total",
+                      "description": "Calculate the total for an invoice.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "unit_price": {
+                            "type": "number"
+                          },
+                          "quantity": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "unit_price",
+                          "quantity"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  }
+                ],
+                "response_format": null,
+                "extra_body": {
+                  "temperature": 0,
+                  "top_p": 1,
+                  "top_k": 0,
+                  "seed": 42,
+                  "repeat_penalty": 1,
+                  "presence_penalty": 0,
+                  "frequency_penalty": 0,
+                  "think": false
+                },
+                "max_tokens": 256,
+                "stream": true
+              },
+              "metrics": {
+                "prompt_tokens": 394,
+                "completion_tokens": 105,
+                "ttft_ms": 8703.33123859018,
+                "prefill_tps": 45.270022385569064,
+                "decode_tps": 4.209715503929611,
+                "total_wall_ms": 33562.156634405255,
+                "finish_reason": "tool_calls",
+                "tool_calls": [
+                  "read_invoice",
+                  "calculate_total"
+                ],
+                "tool_call_details": [
+                  {
+                    "id": "call_765453640c89482caa5",
+                    "type": "function",
+                    "function": {
+                      "name": "read_invoice",
+                      "arguments": "{\"invoice_id\":\"INV-472\"}"
+                    }
+                  },
+                  {
+                    "id": "call_a165c8e3a41b484e810",
+                    "type": "function",
+                    "function": {
+                      "name": "calculate_total",
+                      "arguments": "{\"unit_price\":0,\"quantity\":0}"
+                    }
+                  }
+                ],
+                "assistant_message": {
+                  "role": "assistant",
+                  "content": "I'll follow the steps: read the invoice, then calculate the total using its returned values.\n\n",
+                  "tool_calls": [
+                    {
+                      "id": "call_765453640c89482caa5",
+                      "type": "function",
+                      "function": {
+                        "name": "read_invoice",
+                        "arguments": "{\"invoice_id\":\"INV-472\"}"
+                      }
+                    },
+                    {
+                      "id": "call_a165c8e3a41b484e810",
+                      "type": "function",
+                      "function": {
+                        "name": "calculate_total",
+                        "arguments": "{\"unit_price\":0,\"quantity\":0}"
+                      }
+                    }
+                  ]
+                },
+                "usage_present": true,
+                "decode_timing_source": "stream_window",
+                "server_timings": {},
+                "reasoning_text": "",
+                "output_text": "I'll follow the steps: read the invoice, then calculate the total using its returned values.\n\n",
+                "t_start_abs": 4395566.503560442,
+                "t_first_abs": 4395575.20689168,
+                "t_last_abs": 4395599.911649021,
+                "t_end_abs": 4395600.065717076
+              }
+            }
+          ],
+          "detail": "ValueError: expected exactly one structured tool call and finish_reason=tool_calls",
+          "total_wall_ms": 33562.38465197384,
+          "concurrency": 4,
+          "repeat": 0
+        }
+      ],
+      "summary": {
+        "1": {
+          "passed": 6,
+          "total": 6
+        },
+        "4": {
+          "passed": 23,
+          "total": 24
+        }
+      },
+      "long_cases": [],
+      "native": {
+        "prefill_calls": 49,
+        "prefill_tokens": 9555,
+        "prefill_forward_seconds": 55.73200000000001,
+        "decode_calls": 1285,
+        "decode_forward_seconds": 54.0359999999998
+      },
+      "range": {
+        "byte_start": 12732,
+        "byte_end": 199951,
+        "range_sha256": "9fc69c6c68cc20c9795706d03215b5de5391d06952af59cb7188a7c47c732c5a"
+      },
+      "chat_complete_count": 49,
+      "generated_tokens_with_warmup": 1236,
+      "eos_count": 49,
+      "logged_prompt_tokens": 9591,
+      "reused_tokens": 36,
+      "log_errors": []
+    },
+    {
+      "label": "steady",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-steady.json",
+        "sha256": "a70309d2b6e07fcd4b222e7e2e53e35eefc51b26401054b15ce8f9e50d8a73ec"
+      },
+      "checks": {
+        "run_complete": true,
+        "count_matches": true,
+        "exit_matches_failures": true,
+        "child_validation_matches": true,
+        "child_sha_matches": true,
+        "range_sha_matches": true,
+        "counters_match": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true,
+        "warmup_passed": true,
+        "no_preemptions": true
+      },
+      "all_integrity_checks_passed": true,
+      "passed": 15,
+      "total": 15,
+      "failures": [],
+      "summary": {
+        "1": {
+          "passed": 3,
+          "total": 3,
+          "decode_tps_median": 23.982461386431037,
+          "ttft_ms_median": 421.454899944365,
+          "total_wall_ms_median": 21719.997693784535,
+          "all_completions_512": true,
+          "wave_wall_ms_median": 21721.23875375837,
+          "aggregate_whole_wave_tps": 23.571399670353053
+        },
+        "4": {
+          "passed": 12,
+          "total": 12,
+          "decode_tps_median": 6.734296544116493,
+          "ttft_ms_median": 1687.9346095956862,
+          "total_wall_ms_median": 77561.37098930776,
+          "all_completions_512": true,
+          "wave_wall_ms_median": 77567.2508617863,
+          "aggregate_whole_wave_tps": 26.402895258583314
+        }
+      },
+      "long_cases": [],
+      "native": {
+        "prefill_calls": 16,
+        "prefill_tokens": 683,
+        "prefill_forward_seconds": 5.776,
+        "decode_calls": 7682,
+        "decode_forward_seconds": 287.8960000000005
+      },
+      "range": {
+        "byte_start": 199951,
+        "byte_end": 630385,
+        "range_sha256": "5065ea3f9ac032c872e6955f6beeccfd005b1aa26d5907a07657f2c0656af243"
+      },
+      "chat_complete_count": 16,
+      "generated_tokens_with_warmup": 7681,
+      "eos_count": 1,
+      "logged_prompt_tokens": 683,
+      "reused_tokens": 0,
+      "log_errors": []
+    },
+    {
+      "label": "long",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-long.json",
+        "sha256": "71d4e13962a6bebfc6cdc54ded4256e4b98acbc08560de3808d670ba78a953f6"
+      },
+      "checks": {
+        "run_complete": true,
+        "count_matches": true,
+        "exit_matches_failures": true,
+        "child_validation_matches": true,
+        "child_sha_matches": true,
+        "range_sha_matches": true,
+        "counters_match": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true,
+        "warmup_passed": true,
+        "no_preemptions": true
+      },
+      "all_integrity_checks_passed": true,
+      "passed": 2,
+      "total": 2,
+      "failures": [],
+      "summary": {
+        "1": {
+          "passed": 2,
+          "total": 2
+        }
+      },
+      "long_cases": [
+        {
+          "tag": "long_8k-c1-r0-i0",
+          "status": "ok",
+          "metrics": {
+            "prompt_tokens": 7706,
+            "completion_tokens": 34,
+            "ttft_ms": 28533.275303430855,
+            "total_wall_ms": 30008.814504370093
+          }
+        },
+        {
+          "tag": "long_32k-c1-r0-i0",
+          "status": "ok",
+          "metrics": {
+            "prompt_tokens": 30585,
+            "completion_tokens": 34,
+            "ttft_ms": 110333.88167060912,
+            "total_wall_ms": 111742.0413615182
+          }
+        }
+      ],
+      "native": {
+        "prefill_calls": 39,
+        "prefill_tokens": 38314,
+        "prefill_forward_seconds": 138.78300000000002,
+        "decode_calls": 72,
+        "decode_forward_seconds": 3.052000000000002
+      },
+      "range": {
+        "byte_start": 630385,
+        "byte_end": 644935,
+        "range_sha256": "04fe7b0f06dc5756d61337cce3230af0969417d3387d2d656a7e375614495ed8"
+      },
+      "chat_complete_count": 3,
+      "generated_tokens_with_warmup": 69,
+      "eos_count": 3,
+      "logged_prompt_tokens": 38314,
+      "reused_tokens": 0,
+      "log_errors": []
+    },
+    {
+      "label": "serial-tools",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-serial-tools.json",
+        "sha256": "585a045e4bcfc611fcd7385e035e4c64ca52cfaf6c2f8e31f88a2b4a8e8de8a8"
+      },
+      "checks": {
+        "run_complete": true,
+        "count_matches": true,
+        "exit_matches_failures": true,
+        "child_validation_matches": true,
+        "child_sha_matches": true,
+        "range_sha_matches": true,
+        "counters_match": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true,
+        "warmup_passed": true,
+        "no_preemptions": true
+      },
+      "all_integrity_checks_passed": true,
+      "passed": 10,
+      "total": 10,
+      "failures": [],
+      "summary": {
+        "1": {
+          "passed": 2,
+          "total": 2
+        },
+        "4": {
+          "passed": 8,
+          "total": 8
+        }
+      },
+      "long_cases": [],
+      "native": {
+        "prefill_calls": 26,
+        "prefill_tokens": 8280,
+        "prefill_forward_seconds": 41.74699999999999,
+        "decode_calls": 1078,
+        "decode_forward_seconds": 43.500999999999806
+      },
+      "range": {
+        "byte_start": 644935,
+        "byte_end": 770064,
+        "range_sha256": "deedbaa2e91fc445c4d7a47ddd58df196ae7f89797b872c59d5e783799006da2"
+      },
+      "chat_complete_count": 26,
+      "generated_tokens_with_warmup": 1052,
+      "eos_count": 26,
+      "logged_prompt_tokens": 8280,
+      "reused_tokens": 0,
+      "log_errors": []
+    }
+  ],
+  "sources": [
+    {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/scripts/audit-cpu4-placement.py",
+      "sha256": "6301d46ee43c0bb97d261fe50f7b61cd7cd2de678d1043597caa45ab32e9729b"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-launch.json",
+      "sha256": "9d8c6f605b2df5f59ad2a17230655b1035c1c7f5e5852108f79bbddcf1abb3b7"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-placement-runs.json",
+      "sha256": "97fffb8a56bd5f47a959ced25d43c9955224168e8a22fbb39b40a1970e493ccc"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-serial-tools-runs.json",
+      "sha256": "934705bf33df8981cc18de8086eafaaf8cbf0bca5bc4653fc8d0a0cc72f23bc1"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-profile-runs.json",
+      "sha256": "cabd8b1042b898d05c0b3cf36c824d640285aa82fc43a9e072d78bfc92dfa4ac"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-server.log",
+      "sha256": "610b430d4f837e3d40e11a1dab2606b8df7d6a08cc32febd3251f1fb54da72d8"
+    }
+  ]
+}

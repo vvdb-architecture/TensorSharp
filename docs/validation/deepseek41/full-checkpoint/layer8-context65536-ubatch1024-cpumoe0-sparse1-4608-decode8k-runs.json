@@ -1,0 +1,67 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "native_sha256": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573",
+  "performance_qualified": true,
+  "runs": [
+    {
+      "label": "decode8k-c1",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+        "--scenarios",
+        "decode_8k",
+        "--timeout",
+        "2400",
+        "--concurrency",
+        "1",
+        "--repeats",
+        "3",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-decode8k-c1.json"
+      ],
+      "started_epoch": 1789113205.5554614,
+      "wall_seconds": 119.15171360969543,
+      "exit_code": 0
+    },
+    {
+      "label": "decode8k-c4",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+        "--scenarios",
+        "decode_8k",
+        "--timeout",
+        "2400",
+        "--concurrency",
+        "4",
+        "--repeats",
+        "1",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-decode8k-c4.json"
+      ],
+      "started_epoch": 1789113324.7128062,
+      "wall_seconds": 188.20275807380676,
+      "exit_code": 0
+    }
+  ]
+}

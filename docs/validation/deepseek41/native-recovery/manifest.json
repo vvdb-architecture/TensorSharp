@@ -1,0 +1,82 @@
+{
+  "scope": "Native TP failure-state/cache recovery and existing CLI CPU-thread override delivery.",
+  "local_native_sha256": "ef7473574eedc9ee50906de7d4204864c65afb6bc2a58a330be42f14525dd115",
+  "remote_native_sha256": "3b885898475da3f6b6a629c0e9486f97d7351f6bcb67daa684dfef0e6ca74d2c",
+  "source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp": "2ca3861b22200f8272b7db223f3e8c4432122661a615955bdefd544343df0a6b",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.h": "6dea693f15350714998edd1a87f1f9445db867a23a6dd96c11f53d06b007dcc0",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "e312d009ee6fa0d71f34bd59e62111e8d9893b97e381c74bed0aa7b6332e87be",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_vision_text.inc": "a5446cf0c8efbe23d17566bf176526c1f9d13b67549b0f934eabc797b1c33cf9",
+    "TensorSharp.GGML.Native/ggml_ops_moe.cpp": "6ca0afe478d6b3bcc6642f9a2ca7db24fbd9471de33b543a427183c798399fc9",
+    "TensorSharp.GGML.Native/ggml_ops_internal.h": "8fc6a0769e2c6024f36e6d1eeea60a168cc3835c0a2284313a75a0f217d935ed",
+    "TensorSharp.GGML.Native/CMakeLists.txt": "558de50d53e91152d3ea2d71dca6240cbafe093edfb976de7ad66883c2b79acb",
+    "TensorSharp.GGML.Native/tests/dsv41_tp_test.cpp": "196970a5c847ddd04e50944fa76b989c0fc48cd53e12ba1f4cb427a0df452394",
+    "eng/tests/dsv41-failure-state.py": "a5d24142df113f4f2abe59cdd20829f22117aa5eb8b63d9b381e1add300a5680",
+    "eng/tests/dsv41-thread-count.py": "d20d13243d4cb580652c4a1c3290bf23b422b60c1a9a5f7f06a9b195ae53d1b7"
+  },
+  "local_results": {
+    "standalone_tp_failure_checks": 18,
+    "standalone_tp_numerical_comparisons": 96,
+    "full_fixture_slot_checks": 158,
+    "actual_loader_thread_count_checks": 18
+  },
+  "remote_results_observed": {
+    "ctests": {
+      "passed": 13,
+      "failed": 0,
+      "seconds": 50.75
+    },
+    "standalone_cuda2_tp_failure_checks": 18,
+    "full_fixture_cuda2_tp_slot_checks": 230,
+    "actual_loader_thread_count_checks": 18,
+    "b26_threads1_cuda2_oracle_checks": 41
+  },
+  "artifact_sha256": {
+    "local-build.log": "a77e19bad991a01efbd1455daeb908ccdcd4569023aace955dcc7d238adbda7e",
+    "local-tp-recovery.log": "da5daf47ae6fc06ceec20c95765bb88dfe3904677f2f72bad0a070c923453d28",
+    "local-tp-numerical.log": "d2b0510f993cbf044a7d6314d1f26db965a45f2d19c15fb3785eb2ad5e1001bc",
+    "local-slot-recovery.json": "0d2a1b89bf21877abbbd806eb980a5247f2e2cf648aac1c22956c459d5c16fad",
+    "local-slot-recovery.log": "74ba57ca512d276b8c1255eb2fe8a6d6fdaf5801d2bd1d986c12c86b11b48498",
+    "local-thread-count.json": "2561d96cd7a1c8c24f4db3e4634a966ff5e725dc00738c2b5d93f0709157ea0e",
+    "local-thread-count.log": "747e8c5ecd97ff0e6f13bf89c311913d4d61f927f014f1d0208dd243af18261a",
+    "control-stale-error.log": "265a708752a680d92c65c6607cf13ee30bf6b37726b0d253a28811bd13c41bf8",
+    "control-premature-graph.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pre-fix-behavior-controls.json": "a0cb44ecf184dc1f5c54abb784e13ac9807a275657ad1cf8be055bf8923d2767",
+    "native-tp-recovery-manifest.json": "2fe5f57c0dcab7ff6b6ecdcea76989355ca7d020f8cd2afe543e1b35c8168006",
+    "native-tp-recovery-build.log": "36a541c011dba8263c4b3ad04e8db42d6417f4413b8fe9a7d05784405aea0e5b",
+    "native-tp-recovery-ctest.log": "32f10ba2f0009dc4ddfe71133aced50bfcbcaff4cafc735eeaaa082d15bc153c",
+    "native-tp-recovery-cuda2.log": "12dd0591f0bd4b5f9ab92b2f0d4830ce36c126933d76a67b6038ddb27288a9d5",
+    "native-tp-slot-recovery-cuda2.json": "0df71f1fc82e7164c3473b9bfee225c4a8e378c63b53adc95239397fe5809607",
+    "native-tp-slot-recovery-cuda2.log": "699e6cbd4a70c23522a8e2c8226e2df16da52397f3e973c294e3eaf76e5a4b08",
+    "native-thread-count-vm.json": "263337bbaf3009ce182322c039fee0f521f06a3d6398323e2b50b5a033702e24",
+    "native-thread-count-vm.log": "4517daefc02ee3d264e732299f5d62d24595ccb172a4c763e03342688c4377ee",
+    "native-b26-tp2-threads1-oracle.json": "776630f4b96e0fe6c667d16dbf699e6d5ffe2e4f2adf932868310e3258c51d8e",
+    "native-b26-tp2-threads1-oracle.log": "6ef6204b1f3b7cc861dfd1a11f69954484a429a57d878460f9fbe1f9b3b0f4df"
+  },
+  "commands": {
+    "local_build": "cmake --build /tmp/tensorsharp-scheduler-capacity-build --target GgmlOps GgmlOpsDsv41TpTest -j 6",
+    "local_tp_failure": "/tmp/tensorsharp-scheduler-capacity-build/GgmlOpsDsv41TpTest --failure-only",
+    "local_tp_numerical": "/tmp/tensorsharp-scheduler-capacity-build/GgmlOpsDsv41TpTest",
+    "local_slots": "PYTHONPATH=/Users/zhongkaifu/work/llama.cpp/gguf-py /tmp/deepseek41-reference/venv/bin/python eng/tests/dsv41-failure-state.py /tmp/deepseek41-reference/fixture-f32 --vision-fixture /tmp/deepseek41-reference/vision-fixture-f32 --library /tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib --report /tmp/dsv41-fault-recovery-final-cpu.json",
+    "local_threads": "/tmp/deepseek41-reference/venv/bin/python eng/tests/dsv41-thread-count.py /tmp/deepseek41-reference/fixture-f32 --library /tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib --report /tmp/dsv41-thread-count-local.json",
+    "remote_build": "cmake --build /workspace/TensorSharp/TensorSharp.GGML.Native/build --target GgmlOps GgmlOpsDsv41TpTest -j 12",
+    "remote_tp_failure": "CUDA_VISIBLE_DEVICES=2,3 /workspace/TensorSharp/TensorSharp.GGML.Native/build/GgmlOpsDsv41TpTest --cuda 2 --failure-only",
+    "remote_tp_slots": "CUDA_VISIBLE_DEVICES=2,3 TS_CPU_MOE_THREADS=1 /workspace/deepseek41-work/reference-venv/bin/python /workspace/deepseek41-work/reference/tests/dsv41-failure-state.py /workspace/deepseek41-work/fixture-cuda-index --vision-fixture /workspace/deepseek41-work/vision-fixture-f32 --library /workspace/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.so --backend CUDA --gpus 2 --tp 2 --report /workspace/deepseek41-work/native-tp-slot-recovery-cuda2.json",
+    "remote_threads": "/workspace/deepseek41-work/reference-venv/bin/python /workspace/deepseek41-work/reference/tests/dsv41-thread-count.py /workspace/deepseek41-work/fixture-cuda-index --library /workspace/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.so --report /workspace/deepseek41-work/native-thread-count-vm.json",
+    "remote_ctest": "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 ctest --test-dir /workspace/TensorSharp/TensorSharp.GGML.Native/build --output-on-failure",
+    "b26_threads1_control": "CUDA_VISIBLE_DEVICES=2,3 TS_CPU_MOE_THREADS=1 TS_DSV4_FA=0 TS_DSV4_GATHER=0 TS_DSV41_TP=2 /workspace/deepseek41-work/reference-venv/bin/python /workspace/deepseek41-work/reference/tests/dsv41-inference.py /workspace/deepseek41-work/fixture-cuda-index --library /workspace/deepseek41-work/native-v41-b26c.so --backend CUDA --gpus 2 --report /workspace/deepseek41-work/native-b26-tp2-threads1-oracle.json"
+  },
+  "independent_review": "Validation agent reviewed forward boundaries, queue-drain ordering and transactional cache publication; no introduced lifecycle issue found.",
+  "remote_artifacts": [
+    "native-tp-recovery-manifest.json",
+    "native-tp-recovery-build.log",
+    "native-tp-recovery-ctest.log",
+    "native-tp-recovery-cuda2.log",
+    "native-tp-slot-recovery-cuda2.json",
+    "native-tp-slot-recovery-cuda2.log",
+    "native-thread-count-vm.json",
+    "native-thread-count-vm.log",
+    "native-b26-tp2-threads1-oracle.json",
+    "native-b26-tp2-threads1-oracle.log"
+  ]
+}

@@ -1,0 +1,11 @@
+# Incomplete first JSON performance attempt
+
+This attempt completed **30 of 90 timed cases**: both Qwen3 jobs ran; neither Qwen3.5 nor Gemma4 job started. It is not a completed regression/performance suite. [Original run](run.json), six original child reports and the [independent summary](summary.json) preserve the failure and all measured outputs.
+
+The runner froze an inherited `logs/tensorsharp-server-20260911.jsonl` inside each copied host. Normal server logging appended to that file. The unmodified deployment checks correctly detected it after Qwen3 and prevented the four later jobs from starting. This was a harness deployment error, not an observed binary/configuration mutation. The original runner SHA is `5794b097b7e8c03ed1a15cf23cade12aa9553372590e49df2e0cf6408edff6dd`.
+
+Qwen3 baseline passes **6/15** and final passes **4/15**. All 15 initial and full requests match. The final build newly fails `json-c4-r0-i0` and `json-c4-r0-i1`: baseline emits the correct flat object in 21 tokens; final emits the valid but semantically wrong `{"Mars":{"moons":2,"habitable":false}}` in 25. Nine other cases already have this error on baseline. These failures are retained; they are not malformed JSON/UTF-8, and this observation does not identify their implementation cause. No complete-group timing ratio is credited because deployment integrity and response equality/quality checks failed.
+
+The [r2 runner](../../scripts/run-final-json-performance-r2.py) uses the supported `TENSORSHARP_LOG_DIR` to place each job's mutable logs outside the frozen deployment. Every existing frozen-file check remains unchanged, including DLLs, configuration and inherited logs. It uses a new `final3651-native6b3-json-performance-r2` label and repeats all 90 cases, with unchanged model settings, prompts, validators, ordering and warmups. It does not resume from or overwrite this failed attempt. [27 local guards](../../scripts/final-json-performance-r2-checks.json) cover six successive simulated jobs with real temporary-file log writes and deliberate DLL/configuration/inherited-log tampering.
+
+The old run and original child reports are copied byte for byte. The summary hashes the original telemetry and stdout logs without copying unrelated process arguments. The local analysis source is [curate-json-incomplete-r1.py](../../scripts/curate-json-incomplete-r1.py).

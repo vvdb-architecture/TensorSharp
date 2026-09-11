@@ -1,0 +1,1672 @@
+{
+  "scope": "Read-only retained-log correlation; no inference or native/GC profiling was run.",
+  "matched_cases": 60,
+  "all_zero_kv_reuse": true,
+  "all_prompt_tokens": 92,
+  "all_completion_tokens": 16,
+  "finding": "The repeated solo latency gap is also present in the server pipeline timer after SubmitRequest, while awaiting the first sampled token. Prompt rendering/tokenization and adapter grammar construction precede that timer. Native graph work, scheduling, active grammar masking/sampling, and token delivery remain inside the unresolved interval; these logs cannot isolate them.",
+  "limits": "No retained phase, allocation, or GC trace. The integer pipeline timer and client timer have different boundaries. Concurrent-case native work is shared and must not be assigned by naive log order. Four diagnostic fresh-host crossings are prepared separately.",
+  "runs": [
+    {
+      "pair": 1,
+      "version": "baseline",
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair1/qwen35-baseline.json",
+        "bytes": 62735,
+        "sha256": "c500b8a1ceebb9f3dab694bf5514f5a11072deb344df8d75dc4c40551d8b2167"
+      },
+      "file_log_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair1/qwen35-baseline-file-logs/tensorsharp-server-20260911.jsonl",
+        "bytes": 172023,
+        "sha256": "5f250ffe6749850e6ade4950611e5d342c665457a45ad39fd5d9f67198130580"
+      },
+      "stdout_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair1/qwen35-baseline-server.log",
+        "bytes": 51863,
+        "sha256": "97ec3ead4bbee9a0c020fd4cbb5a9a6b708580e9a1c2a9ed8b419498e0f3e809"
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+      },
+      "cases": [
+        {
+          "tag": "json-c1-r0-i0",
+          "concurrency": 1,
+          "request_id": "9451175f34ab",
+          "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+          "status": "ok",
+          "start_line": 67,
+          "complete_line": 69,
+          "start_ts": "2026-09-11T14:05:11.1917549+00:00",
+          "complete_ts": "2026-09-11T14:05:11.3266362+00:00",
+          "pipeline_ttft_ms": 68,
+          "pipeline_elapsed_ms": 130.7594,
+          "client_ttft_ms": 77.2922895848751,
+          "client_elapsed_ms": 138.77694308757782,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "concurrency": 1,
+          "request_id": "0de6c30358ae",
+          "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+          "status": "ok",
+          "start_line": 73,
+          "complete_line": 74,
+          "start_ts": "2026-09-11T14:05:11.3457285+00:00",
+          "complete_ts": "2026-09-11T14:05:11.4783013+00:00",
+          "pipeline_ttft_ms": 71,
+          "pipeline_elapsed_ms": 128.4424,
+          "client_ttft_ms": 79.934973269701,
+          "client_elapsed_ms": 136.28008402884007,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "concurrency": 1,
+          "request_id": "2d78c3e6d131",
+          "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+          "status": "ok",
+          "start_line": 78,
+          "complete_line": 79,
+          "start_ts": "2026-09-11T14:05:11.4967469+00:00",
+          "complete_ts": "2026-09-11T14:05:11.6114906+00:00",
+          "pipeline_ttft_ms": 54,
+          "pipeline_elapsed_ms": 110.8107,
+          "client_ttft_ms": 62.045030295848846,
+          "client_elapsed_ms": 118.4496683999896,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i0",
+          "concurrency": 4,
+          "request_id": "e32c0745aa36",
+          "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+          "status": "ok",
+          "start_line": 83,
+          "complete_line": 94,
+          "start_ts": "2026-09-11T14:05:11.6422324+00:00",
+          "complete_ts": "2026-09-11T14:05:12.1174683+00:00",
+          "pipeline_ttft_ms": 237,
+          "pipeline_elapsed_ms": 464.7117,
+          "client_ttft_ms": 253.9615510031581,
+          "client_elapsed_ms": 480.82971666008234,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i1",
+          "concurrency": 4,
+          "request_id": "16a876773033",
+          "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+          "status": "ok",
+          "start_line": 88,
+          "complete_line": 96,
+          "start_ts": "2026-09-11T14:05:11.6441338+00:00",
+          "complete_ts": "2026-09-11T14:05:12.1243783+00:00",
+          "pipeline_ttft_ms": 294,
+          "pipeline_elapsed_ms": 471.3233,
+          "client_ttft_ms": 309.7393363714218,
+          "client_elapsed_ms": 486.38840299099684,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i2",
+          "concurrency": 4,
+          "request_id": "5f7422c7f82e",
+          "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+          "status": "ok",
+          "start_line": 89,
+          "complete_line": 97,
+          "start_ts": "2026-09-11T14:05:11.6443422+00:00",
+          "complete_ts": "2026-09-11T14:05:12.1244328+00:00",
+          "pipeline_ttft_ms": 294,
+          "pipeline_elapsed_ms": 471.197,
+          "client_ttft_ms": 307.61957075446844,
+          "client_elapsed_ms": 484.77327451109886,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i3",
+          "concurrency": 4,
+          "request_id": "abb642abdec0",
+          "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+          "status": "ok",
+          "start_line": 92,
+          "complete_line": 100,
+          "start_ts": "2026-09-11T14:05:11.6456287+00:00",
+          "complete_ts": "2026-09-11T14:05:12.1584889+00:00",
+          "pipeline_ttft_ms": 355,
+          "pipeline_elapsed_ms": 505.1869,
+          "client_ttft_ms": 365.8586097881198,
+          "client_elapsed_ms": 515.5481602996588,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i0",
+          "concurrency": 4,
+          "request_id": "cd79fe1cc4b2",
+          "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+          "status": "ok",
+          "start_line": 108,
+          "complete_line": 116,
+          "start_ts": "2026-09-11T14:05:12.1867880+00:00",
+          "complete_ts": "2026-09-11T14:05:12.7891823+00:00",
+          "pipeline_ttft_ms": 394,
+          "pipeline_elapsed_ms": 589.6189,
+          "client_ttft_ms": 415.83895590156317,
+          "client_elapsed_ms": 611.0370066016912,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i1",
+          "concurrency": 4,
+          "request_id": "0fd88683d6b0",
+          "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+          "status": "ok",
+          "start_line": 111,
+          "complete_line": 118,
+          "start_ts": "2026-09-11T14:05:12.1870535+00:00",
+          "complete_ts": "2026-09-11T14:05:12.7958141+00:00",
+          "pipeline_ttft_ms": 467,
+          "pipeline_elapsed_ms": 595.316,
+          "client_ttft_ms": 490.0794867426157,
+          "client_elapsed_ms": 616.6127026081085,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i2",
+          "concurrency": 4,
+          "request_id": "f735218cfef5",
+          "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+          "status": "ok",
+          "start_line": 113,
+          "complete_line": 122,
+          "start_ts": "2026-09-11T14:05:12.1876150+00:00",
+          "complete_ts": "2026-09-11T14:05:12.8230383+00:00",
+          "pipeline_ttft_ms": 493,
+          "pipeline_elapsed_ms": 621.4453,
+          "client_ttft_ms": 513.6872949078679,
+          "client_elapsed_ms": 641.5943559259176,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i3",
+          "concurrency": 4,
+          "request_id": "149dfd1c1e2e",
+          "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+          "status": "ok",
+          "start_line": 107,
+          "complete_line": 119,
+          "start_ts": "2026-09-11T14:05:12.1867861+00:00",
+          "complete_ts": "2026-09-11T14:05:12.7958165+00:00",
+          "pipeline_ttft_ms": 468,
+          "pipeline_elapsed_ms": 595.7421,
+          "client_ttft_ms": 485.7290340587497,
+          "client_elapsed_ms": 613.0906902253628,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i0",
+          "concurrency": 4,
+          "request_id": "a13b27b4b6c2",
+          "input_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+          "status": "ok",
+          "start_line": 133,
+          "complete_line": 142,
+          "start_ts": "2026-09-11T14:05:12.8412950+00:00",
+          "complete_ts": "2026-09-11T14:05:13.2625055+00:00",
+          "pipeline_ttft_ms": 254,
+          "pipeline_elapsed_ms": 418.7485,
+          "client_ttft_ms": 263.1648574024439,
+          "client_elapsed_ms": 427.4651873856783,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i1",
+          "concurrency": 4,
+          "request_id": "79aabb4a7811",
+          "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+          "status": "ok",
+          "start_line": 136,
+          "complete_line": 144,
+          "start_ts": "2026-09-11T14:05:12.8457348+00:00",
+          "complete_ts": "2026-09-11T14:05:13.2894671+00:00",
+          "pipeline_ttft_ms": 304,
+          "pipeline_elapsed_ms": 443.0483,
+          "client_ttft_ms": 315.59559516608715,
+          "client_elapsed_ms": 453.5625893622637,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i2",
+          "concurrency": 4,
+          "request_id": "f7e331fdbca6",
+          "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+          "status": "ok",
+          "start_line": 131,
+          "complete_line": 140,
+          "start_ts": "2026-09-11T14:05:12.8410498+00:00",
+          "complete_ts": "2026-09-11T14:05:13.2623740+00:00",
+          "pipeline_ttft_ms": 255,
+          "pipeline_elapsed_ms": 420.1186,
+          "client_ttft_ms": 261.4679466933012,
+          "client_elapsed_ms": 424.91769697517157,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i3",
+          "concurrency": 4,
+          "request_id": "708203e7421e",
+          "input_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+          "status": "ok",
+          "start_line": 132,
+          "complete_line": 138,
+          "start_ts": "2026-09-11T14:05:12.8410659+00:00",
+          "complete_ts": "2026-09-11T14:05:13.2559391+00:00",
+          "pipeline_ttft_ms": 205,
+          "pipeline_elapsed_ms": 413.8048,
+          "client_ttft_ms": 208.60063657164574,
+          "client_elapsed_ms": 417.42208506911993,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        }
+      ],
+      "medians": {
+        "1": {
+          "pipeline_ttft_ms": 68,
+          "pipeline_elapsed_ms": 128.4424,
+          "client_ttft_ms": 77.2922895848751,
+          "client_elapsed_ms": 136.28008402884007
+        },
+        "4": {
+          "pipeline_ttft_ms": 299.0,
+          "pipeline_elapsed_ms": 471.26015,
+          "client_ttft_ms": 312.6674657687545,
+          "client_elapsed_ms": 485.58083875104785
+        }
+      },
+      "native_phase_line_count": 0
+    },
+    {
+      "pair": 1,
+      "version": "final",
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair1/qwen35-final.json",
+        "bytes": 62751,
+        "sha256": "61287016e5651768b4df75ffd77f9585dd060cd6f348fd91c8d27d1362dc564c"
+      },
+      "file_log_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair1/qwen35-final-file-logs/tensorsharp-server-20260911.jsonl",
+        "bytes": 171983,
+        "sha256": "44375522f57e8a3683644e354b2041331e92e7ea20aa2c44d76fa57ee07b0b1b"
+      },
+      "stdout_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair1/qwen35-final-server.log",
+        "bytes": 51846,
+        "sha256": "683b7bdb211a22603413510e204a6cf66617af6d17726778c30e72e5df7be53b"
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "cases": [
+        {
+          "tag": "json-c1-r0-i0",
+          "concurrency": 1,
+          "request_id": "3d7a348e7b84",
+          "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+          "status": "ok",
+          "start_line": 67,
+          "complete_line": 69,
+          "start_ts": "2026-09-11T14:05:24.8389085+00:00",
+          "complete_ts": "2026-09-11T14:05:24.9607783+00:00",
+          "pipeline_ttft_ms": 59,
+          "pipeline_elapsed_ms": 118.5782,
+          "client_ttft_ms": 66.94184243679047,
+          "client_elapsed_ms": 125.47993939369917,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "concurrency": 1,
+          "request_id": "58bf9d04d84e",
+          "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+          "status": "ok",
+          "start_line": 73,
+          "complete_line": 74,
+          "start_ts": "2026-09-11T14:05:24.9773840+00:00",
+          "complete_ts": "2026-09-11T14:05:25.1312335+00:00",
+          "pipeline_ttft_ms": 85,
+          "pipeline_elapsed_ms": 151.3521,
+          "client_ttft_ms": 92.72364061325788,
+          "client_elapsed_ms": 157.89986494928598,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "concurrency": 1,
+          "request_id": "aeb835c9aea3",
+          "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+          "status": "ok",
+          "start_line": 78,
+          "complete_line": 79,
+          "start_ts": "2026-09-11T14:05:25.1490573+00:00",
+          "complete_ts": "2026-09-11T14:05:25.3103513+00:00",
+          "pipeline_ttft_ms": 98,
+          "pipeline_elapsed_ms": 158.8977,
+          "client_ttft_ms": 104.40937429666519,
+          "client_elapsed_ms": 164.5524427294731,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i0",
+          "concurrency": 4,
+          "request_id": "c4b3e2ff5611",
+          "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+          "status": "ok",
+          "start_line": 84,
+          "complete_line": 94,
+          "start_ts": "2026-09-11T14:05:25.3268554+00:00",
+          "complete_ts": "2026-09-11T14:05:25.7196152+00:00",
+          "pipeline_ttft_ms": 180,
+          "pipeline_elapsed_ms": 390.8559,
+          "client_ttft_ms": 186.35309394448996,
+          "client_elapsed_ms": 397.20171596854925,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i1",
+          "concurrency": 4,
+          "request_id": "6ce598e2d488",
+          "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+          "status": "ok",
+          "start_line": 86,
+          "complete_line": 96,
+          "start_ts": "2026-09-11T14:05:25.3274621+00:00",
+          "complete_ts": "2026-09-11T14:05:25.7262871+00:00",
+          "pipeline_ttft_ms": 232,
+          "pipeline_elapsed_ms": 396.714,
+          "client_ttft_ms": 238.17501962184906,
+          "client_elapsed_ms": 402.012781240046,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i2",
+          "concurrency": 4,
+          "request_id": "3b6e9f6f9407",
+          "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+          "status": "ok",
+          "start_line": 90,
+          "complete_line": 97,
+          "start_ts": "2026-09-11T14:05:25.3294373+00:00",
+          "complete_ts": "2026-09-11T14:05:25.7263050+00:00",
+          "pipeline_ttft_ms": 230,
+          "pipeline_elapsed_ms": 395.1291,
+          "client_ttft_ms": 236.58251110464334,
+          "client_elapsed_ms": 401.1326441541314,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i3",
+          "concurrency": 4,
+          "request_id": "6b35a0af815c",
+          "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+          "status": "ok",
+          "start_line": 92,
+          "complete_line": 100,
+          "start_ts": "2026-09-11T14:05:25.3296525+00:00",
+          "complete_ts": "2026-09-11T14:05:25.8074968+00:00",
+          "pipeline_ttft_ms": 284,
+          "pipeline_elapsed_ms": 475.8805,
+          "client_ttft_ms": 290.15208687633276,
+          "client_elapsed_ms": 480.5306848138571,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i0",
+          "concurrency": 4,
+          "request_id": "ac9445e98b44",
+          "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+          "status": "ok",
+          "start_line": 114,
+          "complete_line": 122,
+          "start_ts": "2026-09-11T14:05:25.8398384+00:00",
+          "complete_ts": "2026-09-11T14:05:26.2603148+00:00",
+          "pipeline_ttft_ms": 284,
+          "pipeline_elapsed_ms": 418.574,
+          "client_ttft_ms": 305.37501629441977,
+          "client_elapsed_ms": 439.64030034840107,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i1",
+          "concurrency": 4,
+          "request_id": "f00433eb0c56",
+          "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+          "status": "ok",
+          "start_line": 107,
+          "complete_line": 116,
+          "start_ts": "2026-09-11T14:05:25.8276253+00:00",
+          "complete_ts": "2026-09-11T14:05:26.2222942+00:00",
+          "pipeline_ttft_ms": 215,
+          "pipeline_elapsed_ms": 392.7817,
+          "client_ttft_ms": 222.84195758402348,
+          "client_elapsed_ms": 400.11641569435596,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i2",
+          "concurrency": 4,
+          "request_id": "4e1a2b1a48ab",
+          "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+          "status": "ok",
+          "start_line": 111,
+          "complete_line": 119,
+          "start_ts": "2026-09-11T14:05:25.8280663+00:00",
+          "complete_ts": "2026-09-11T14:05:26.2289026+00:00",
+          "pipeline_ttft_ms": 271,
+          "pipeline_elapsed_ms": 398.8463,
+          "client_ttft_ms": 279.22837249934673,
+          "client_elapsed_ms": 405.6157311424613,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i3",
+          "concurrency": 4,
+          "request_id": "4776545901a8",
+          "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+          "status": "ok",
+          "start_line": 110,
+          "complete_line": 118,
+          "start_ts": "2026-09-11T14:05:25.8280471+00:00",
+          "complete_ts": "2026-09-11T14:05:26.2288818+00:00",
+          "pipeline_ttft_ms": 271,
+          "pipeline_elapsed_ms": 398.9034,
+          "client_ttft_ms": 277.53598522394896,
+          "client_elapsed_ms": 404.0483711287379,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i0",
+          "concurrency": 4,
+          "request_id": "711886a2cddf",
+          "input_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+          "status": "ok",
+          "start_line": 128,
+          "complete_line": 138,
+          "start_ts": "2026-09-11T14:05:26.2826274+00:00",
+          "complete_ts": "2026-09-11T14:05:26.8029279+00:00",
+          "pipeline_ttft_ms": 306,
+          "pipeline_elapsed_ms": 518.1667,
+          "client_ttft_ms": 314.3990505486727,
+          "client_elapsed_ms": 525.7895523682237,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i1",
+          "concurrency": 4,
+          "request_id": "fb094d7d842e",
+          "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+          "status": "ok",
+          "start_line": 132,
+          "complete_line": 144,
+          "start_ts": "2026-09-11T14:05:26.2832639+00:00",
+          "complete_ts": "2026-09-11T14:05:26.8365505+00:00",
+          "pipeline_ttft_ms": 412,
+          "pipeline_elapsed_ms": 550.4945,
+          "client_ttft_ms": 420.45920342206955,
+          "client_elapsed_ms": 557.9223157837987,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i2",
+          "concurrency": 4,
+          "request_id": "4981790154b7",
+          "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+          "status": "ok",
+          "start_line": 131,
+          "complete_line": 141,
+          "start_ts": "2026-09-11T14:05:26.2831240+00:00",
+          "complete_ts": "2026-09-11T14:05:26.8094898+00:00",
+          "pipeline_ttft_ms": 361,
+          "pipeline_elapsed_ms": 524.4137,
+          "client_ttft_ms": 367.5676938146353,
+          "client_elapsed_ms": 529.6737970784307,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i3",
+          "concurrency": 4,
+          "request_id": "927f81505c09",
+          "input_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+          "status": "ok",
+          "start_line": 135,
+          "complete_line": 140,
+          "start_ts": "2026-09-11T14:05:26.2840851+00:00",
+          "complete_ts": "2026-09-11T14:05:26.8094870+00:00",
+          "pipeline_ttft_ms": 360,
+          "pipeline_elapsed_ms": 523.808,
+          "client_ttft_ms": 365.04041589796543,
+          "client_elapsed_ms": 528.4233437851071,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        }
+      ],
+      "medians": {
+        "1": {
+          "pipeline_ttft_ms": 85,
+          "pipeline_elapsed_ms": 151.3521,
+          "client_ttft_ms": 92.72364061325788,
+          "client_elapsed_ms": 157.89986494928598
+        },
+        "4": {
+          "pipeline_ttft_ms": 277.5,
+          "pipeline_elapsed_ms": 408.7387,
+          "client_ttft_ms": 284.69022968783975,
+          "client_elapsed_ms": 422.6280157454312
+        }
+      },
+      "native_phase_line_count": 0
+    },
+    {
+      "pair": 2,
+      "version": "baseline",
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair2/qwen35-baseline.json",
+        "bytes": 62737,
+        "sha256": "bc1cefcbfeef724309145ed9252bfd13f3e0ba08e6516b7016ba7a625e26229f"
+      },
+      "file_log_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair2/qwen35-baseline-file-logs/tensorsharp-server-20260911.jsonl",
+        "bytes": 172029,
+        "sha256": "7f2f1915d468010e5bb70ac2073903de2dd59d496d6d469bf4c9c890dda9c0cb"
+      },
+      "stdout_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair2/qwen35-baseline-server.log",
+        "bytes": 51870,
+        "sha256": "b0e85d7069b81b14c2d2994bea323dc6ae3ccdbd7dc2730eab62aa9a563c86ef"
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+      },
+      "cases": [
+        {
+          "tag": "json-c1-r0-i0",
+          "concurrency": 1,
+          "request_id": "028c90cc267f",
+          "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+          "status": "ok",
+          "start_line": 67,
+          "complete_line": 69,
+          "start_ts": "2026-09-11T14:05:55.6884494+00:00",
+          "complete_ts": "2026-09-11T14:05:55.8157534+00:00",
+          "pipeline_ttft_ms": 62,
+          "pipeline_elapsed_ms": 122.8925,
+          "client_ttft_ms": 71.53947092592716,
+          "client_elapsed_ms": 131.16092700511217,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "concurrency": 1,
+          "request_id": "82573bbb3c3c",
+          "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+          "status": "ok",
+          "start_line": 73,
+          "complete_line": 74,
+          "start_ts": "2026-09-11T14:05:55.8325180+00:00",
+          "complete_ts": "2026-09-11T14:05:55.9587955+00:00",
+          "pipeline_ttft_ms": 63,
+          "pipeline_elapsed_ms": 121.9087,
+          "client_ttft_ms": 71.73062115907669,
+          "client_elapsed_ms": 130.01338951289654,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "concurrency": 1,
+          "request_id": "02cb97a349e3",
+          "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+          "status": "ok",
+          "start_line": 78,
+          "complete_line": 79,
+          "start_ts": "2026-09-11T14:05:55.9759350+00:00",
+          "complete_ts": "2026-09-11T14:05:56.0982172+00:00",
+          "pipeline_ttft_ms": 59,
+          "pipeline_elapsed_ms": 117.9425,
+          "client_ttft_ms": 67.53396615386009,
+          "client_elapsed_ms": 125.88260788470507,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i0",
+          "concurrency": 4,
+          "request_id": "8d6c3e10833c",
+          "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+          "status": "ok",
+          "start_line": 91,
+          "complete_line": 97,
+          "start_ts": "2026-09-11T14:05:56.1325413+00:00",
+          "complete_ts": "2026-09-11T14:05:56.5968458+00:00",
+          "pipeline_ttft_ms": 295,
+          "pipeline_elapsed_ms": 460.0196,
+          "client_ttft_ms": 316.2487866356969,
+          "client_elapsed_ms": 479.5891894027591,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i1",
+          "concurrency": 4,
+          "request_id": "64877cc85246",
+          "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+          "status": "ok",
+          "start_line": 85,
+          "complete_line": 96,
+          "start_ts": "2026-09-11T14:05:56.1232115+00:00",
+          "complete_ts": "2026-09-11T14:05:56.5968410+00:00",
+          "pipeline_ttft_ms": 304,
+          "pipeline_elapsed_ms": 469.264,
+          "client_ttft_ms": 314.1582040116191,
+          "client_elapsed_ms": 478.3221436664462,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i2",
+          "concurrency": 4,
+          "request_id": "8a0712b4073c",
+          "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+          "status": "ok",
+          "start_line": 92,
+          "complete_line": 100,
+          "start_ts": "2026-09-11T14:05:56.1325547+00:00",
+          "complete_ts": "2026-09-11T14:05:56.6247505+00:00",
+          "pipeline_ttft_ms": 348,
+          "pipeline_elapsed_ms": 487.6461,
+          "client_ttft_ms": 365.6082283705473,
+          "client_elapsed_ms": 504.7357017174363,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i3",
+          "concurrency": 4,
+          "request_id": "5267afa92aa2",
+          "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+          "status": "ok",
+          "start_line": 88,
+          "complete_line": 94,
+          "start_ts": "2026-09-11T14:05:56.1246781+00:00",
+          "complete_ts": "2026-09-11T14:05:56.5901320+00:00",
+          "pipeline_ttft_ms": 252,
+          "pipeline_elapsed_ms": 462.7764,
+          "client_ttft_ms": 258.4191430360079,
+          "client_elapsed_ms": 468.06589141488075,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i0",
+          "concurrency": 4,
+          "request_id": "83e795f15a40",
+          "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+          "status": "ok",
+          "start_line": 105,
+          "complete_line": 116,
+          "start_ts": "2026-09-11T14:05:56.6467855+00:00",
+          "complete_ts": "2026-09-11T14:05:57.1316773+00:00",
+          "pipeline_ttft_ms": 264,
+          "pipeline_elapsed_ms": 476.3023,
+          "client_ttft_ms": 279.4843129813671,
+          "client_elapsed_ms": 491.1369848996401,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i1",
+          "concurrency": 4,
+          "request_id": "322ee5d95f92",
+          "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+          "status": "ok",
+          "start_line": 110,
+          "complete_line": 119,
+          "start_ts": "2026-09-11T14:05:56.6473538+00:00",
+          "complete_ts": "2026-09-11T14:05:57.1387217+00:00",
+          "pipeline_ttft_ms": 324,
+          "pipeline_elapsed_ms": 483.0141,
+          "client_ttft_ms": 337.81737461686134,
+          "client_elapsed_ms": 496.73704244196415,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i2",
+          "concurrency": 4,
+          "request_id": "2ba9ac85f06e",
+          "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+          "status": "ok",
+          "start_line": 109,
+          "complete_line": 118,
+          "start_ts": "2026-09-11T14:05:56.6472892+00:00",
+          "complete_ts": "2026-09-11T14:05:57.1386869+00:00",
+          "pipeline_ttft_ms": 324,
+          "pipeline_elapsed_ms": 483.1854,
+          "client_ttft_ms": 335.79149190336466,
+          "client_elapsed_ms": 494.6505846455693,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i3",
+          "concurrency": 4,
+          "request_id": "6704ec89d4b0",
+          "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+          "status": "ok",
+          "start_line": 113,
+          "complete_line": 122,
+          "start_ts": "2026-09-11T14:05:56.6483135+00:00",
+          "complete_ts": "2026-09-11T14:05:57.1665727+00:00",
+          "pipeline_ttft_ms": 376,
+          "pipeline_elapsed_ms": 510.6244,
+          "client_ttft_ms": 386.886821128428,
+          "client_elapsed_ms": 520.9585940465331,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i0",
+          "concurrency": 4,
+          "request_id": "59d50ee435d1",
+          "input_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+          "status": "ok",
+          "start_line": 126,
+          "complete_line": 138,
+          "start_ts": "2026-09-11T14:05:57.1887668+00:00",
+          "complete_ts": "2026-09-11T14:05:57.6206942+00:00",
+          "pipeline_ttft_ms": 203,
+          "pipeline_elapsed_ms": 416.982,
+          "client_ttft_ms": 222.9148168116808,
+          "client_elapsed_ms": 436.23213190585375,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i1",
+          "concurrency": 4,
+          "request_id": "a16d6c1d7d18",
+          "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+          "status": "ok",
+          "start_line": 131,
+          "complete_line": 141,
+          "start_ts": "2026-09-11T14:05:57.1969932+00:00",
+          "complete_ts": "2026-09-11T14:05:57.6272609+00:00",
+          "pipeline_ttft_ms": 256,
+          "pipeline_elapsed_ms": 423.1925,
+          "client_ttft_ms": 275.95625445246696,
+          "client_elapsed_ms": 441.34071934968233,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i2",
+          "concurrency": 4,
+          "request_id": "a0733e1a3521",
+          "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+          "status": "ok",
+          "start_line": 134,
+          "complete_line": 140,
+          "start_ts": "2026-09-11T14:05:57.1974139+00:00",
+          "complete_ts": "2026-09-11T14:05:57.6272609+00:00",
+          "pipeline_ttft_ms": 256,
+          "pipeline_elapsed_ms": 422.8538,
+          "client_ttft_ms": 274.1634417325258,
+          "client_elapsed_ms": 440.5948696658015,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i3",
+          "concurrency": 4,
+          "request_id": "d90943ae5c7e",
+          "input_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+          "status": "ok",
+          "start_line": 135,
+          "complete_line": 144,
+          "start_ts": "2026-09-11T14:05:57.1974524+00:00",
+          "complete_ts": "2026-09-11T14:05:57.6538537+00:00",
+          "pipeline_ttft_ms": 308,
+          "pipeline_elapsed_ms": 448.835,
+          "client_ttft_ms": 324.61676839739084,
+          "client_elapsed_ms": 464.54929653555155,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        }
+      ],
+      "medians": {
+        "1": {
+          "pipeline_ttft_ms": 62,
+          "pipeline_elapsed_ms": 121.9087,
+          "client_ttft_ms": 71.53947092592716,
+          "client_elapsed_ms": 130.01338951289654
+        },
+        "4": {
+          "pipeline_ttft_ms": 299.5,
+          "pipeline_elapsed_ms": 466.02020000000005,
+          "client_ttft_ms": 315.203495323658,
+          "client_elapsed_ms": 478.95566653460264
+        }
+      },
+      "native_phase_line_count": 0
+    },
+    {
+      "pair": 2,
+      "version": "final",
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair2/qwen35-final.json",
+        "bytes": 62723,
+        "sha256": "a3fa4232c8cd6fc4d6f259fc480c43c878d41868efd29c96ae9eb79aabe395fb"
+      },
+      "file_log_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair2/qwen35-final-file-logs/tensorsharp-server-20260911.jsonl",
+        "bytes": 171998,
+        "sha256": "6f7308a883799ddb6906afd803b4ea6c80cfa1cb50f246b0d676b428a39a3862"
+      },
+      "stdout_source": {
+        "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/pair2/qwen35-final-server.log",
+        "bytes": 51847,
+        "sha256": "dd4b6c27368f7e44f11587841382ad774f27fb46577a4292eea123bb24788a01"
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "cases": [
+        {
+          "tag": "json-c1-r0-i0",
+          "concurrency": 1,
+          "request_id": "88a6d01eb2da",
+          "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+          "status": "ok",
+          "start_line": 67,
+          "complete_line": 69,
+          "start_ts": "2026-09-11T14:05:39.8323821+00:00",
+          "complete_ts": "2026-09-11T14:05:39.9796849+00:00",
+          "pipeline_ttft_ms": 76,
+          "pipeline_elapsed_ms": 142.7646,
+          "client_ttft_ms": 85.70638578385115,
+          "client_elapsed_ms": 151.66146494448185,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "concurrency": 1,
+          "request_id": "39fc610c9b6f",
+          "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+          "status": "ok",
+          "start_line": 73,
+          "complete_line": 74,
+          "start_ts": "2026-09-11T14:05:39.9990858+00:00",
+          "complete_ts": "2026-09-11T14:05:40.3037757+00:00",
+          "pipeline_ttft_ms": 234,
+          "pipeline_elapsed_ms": 300.2823,
+          "client_ttft_ms": 244.0011091530323,
+          "client_elapsed_ms": 309.26842149347067,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "concurrency": 1,
+          "request_id": "644ce557e52c",
+          "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+          "status": "ok",
+          "start_line": 78,
+          "complete_line": 79,
+          "start_ts": "2026-09-11T14:05:40.3231377+00:00",
+          "complete_ts": "2026-09-11T14:05:40.4692266+00:00",
+          "pipeline_ttft_ms": 77,
+          "pipeline_elapsed_ms": 142.0557,
+          "client_ttft_ms": 86.70236356556416,
+          "client_elapsed_ms": 150.91052185744047,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i0",
+          "concurrency": 4,
+          "request_id": "376ecdc4b624",
+          "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+          "status": "ok",
+          "start_line": 83,
+          "complete_line": 94,
+          "start_ts": "2026-09-11T14:05:40.4936061+00:00",
+          "complete_ts": "2026-09-11T14:05:41.0181924+00:00",
+          "pipeline_ttft_ms": 230,
+          "pipeline_elapsed_ms": 522.1997,
+          "client_ttft_ms": 240.62970746308565,
+          "client_elapsed_ms": 532.6577750965953,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i1",
+          "concurrency": 4,
+          "request_id": "4c5795f4850b",
+          "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+          "status": "ok",
+          "start_line": 91,
+          "complete_line": 96,
+          "start_ts": "2026-09-11T14:05:40.4961542+00:00",
+          "complete_ts": "2026-09-11T14:05:41.0265556+00:00",
+          "pipeline_ttft_ms": 306,
+          "pipeline_elapsed_ms": 526.9542,
+          "client_ttft_ms": 318.76635178923607,
+          "client_elapsed_ms": 539.5521707832813,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i2",
+          "concurrency": 4,
+          "request_id": "a824827e4876",
+          "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+          "status": "ok",
+          "start_line": 90,
+          "complete_line": 100,
+          "start_ts": "2026-09-11T14:05:40.4961119+00:00",
+          "complete_ts": "2026-09-11T14:05:41.0687937+00:00",
+          "pipeline_ttft_ms": 383,
+          "pipeline_elapsed_ms": 568.4854,
+          "client_ttft_ms": 395.14921605587006,
+          "client_elapsed_ms": 579.8858879134059,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r0-i3",
+          "concurrency": 4,
+          "request_id": "20a5ee3d2fbb",
+          "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+          "status": "ok",
+          "start_line": 92,
+          "complete_line": 97,
+          "start_ts": "2026-09-11T14:05:40.4961728+00:00",
+          "complete_ts": "2026-09-11T14:05:41.0266862+00:00",
+          "pipeline_ttft_ms": 305,
+          "pipeline_elapsed_ms": 526.4151,
+          "client_ttft_ms": 315.39338175207376,
+          "client_elapsed_ms": 535.9643409028649,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i0",
+          "concurrency": 4,
+          "request_id": "d1cb9bd846ad",
+          "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+          "status": "ok",
+          "start_line": 104,
+          "complete_line": 116,
+          "start_ts": "2026-09-11T14:05:41.0957818+00:00",
+          "complete_ts": "2026-09-11T14:05:41.6974220+00:00",
+          "pipeline_ttft_ms": 362,
+          "pipeline_elapsed_ms": 599.5713,
+          "client_ttft_ms": 370.4730523750186,
+          "client_elapsed_ms": 608.4954431280494,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i1",
+          "concurrency": 4,
+          "request_id": "d3c84fa284f4",
+          "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+          "status": "ok",
+          "start_line": 108,
+          "complete_line": 118,
+          "start_ts": "2026-09-11T14:05:41.0977578+00:00",
+          "complete_ts": "2026-09-11T14:05:41.7058309+00:00",
+          "pipeline_ttft_ms": 434,
+          "pipeline_elapsed_ms": 600.7555,
+          "client_ttft_ms": 449.07456170767546,
+          "client_elapsed_ms": 614.1222966834903,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i2",
+          "concurrency": 4,
+          "request_id": "718fdf09d47e",
+          "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+          "status": "ok",
+          "start_line": 112,
+          "complete_line": 119,
+          "start_ts": "2026-09-11T14:05:41.0986779+00:00",
+          "complete_ts": "2026-09-11T14:05:41.7059423+00:00",
+          "pipeline_ttft_ms": 433,
+          "pipeline_elapsed_ms": 600.4205,
+          "client_ttft_ms": 445.5415131524205,
+          "client_elapsed_ms": 612.8136962652206,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r1-i3",
+          "concurrency": 4,
+          "request_id": "d13d959a67c3",
+          "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+          "status": "ok",
+          "start_line": 114,
+          "complete_line": 122,
+          "start_ts": "2026-09-11T14:05:41.0989827+00:00",
+          "complete_ts": "2026-09-11T14:05:41.7476811+00:00",
+          "pipeline_ttft_ms": 466,
+          "pipeline_elapsed_ms": 641.4626,
+          "client_ttft_ms": 477.6528012007475,
+          "client_elapsed_ms": 652.0742466673255,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i0",
+          "concurrency": 4,
+          "request_id": "e96cd244f0cf",
+          "input_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+          "status": "ok",
+          "start_line": 126,
+          "complete_line": 138,
+          "start_ts": "2026-09-11T14:05:41.7715097+00:00",
+          "complete_ts": "2026-09-11T14:05:42.3127807+00:00",
+          "pipeline_ttft_ms": 248,
+          "pipeline_elapsed_ms": 532.5716,
+          "client_ttft_ms": 262.207068502903,
+          "client_elapsed_ms": 545.9632854908705,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i1",
+          "concurrency": 4,
+          "request_id": "85744b4faded",
+          "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+          "status": "ok",
+          "start_line": 129,
+          "complete_line": 140,
+          "start_ts": "2026-09-11T14:05:41.7728325+00:00",
+          "complete_ts": "2026-09-11T14:05:42.3211080+00:00",
+          "pipeline_ttft_ms": 326,
+          "pipeline_elapsed_ms": 540.3856,
+          "client_ttft_ms": 339.4956262782216,
+          "client_elapsed_ms": 552.6928557083011,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i2",
+          "concurrency": 4,
+          "request_id": "76ca2045c08a",
+          "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+          "status": "ok",
+          "start_line": 134,
+          "complete_line": 142,
+          "start_ts": "2026-09-11T14:05:41.7740303+00:00",
+          "complete_ts": "2026-09-11T14:05:42.3213448+00:00",
+          "pipeline_ttft_ms": 325,
+          "pipeline_elapsed_ms": 539.9511,
+          "client_ttft_ms": 337.6401988789439,
+          "client_elapsed_ms": 552.0341414958239,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        },
+        {
+          "tag": "json-c4-r2-i3",
+          "concurrency": 4,
+          "request_id": "830e2501338b",
+          "input_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+          "status": "ok",
+          "start_line": 135,
+          "complete_line": 144,
+          "start_ts": "2026-09-11T14:05:41.7740995+00:00",
+          "complete_ts": "2026-09-11T14:05:42.3637862+00:00",
+          "pipeline_ttft_ms": 400,
+          "pipeline_elapsed_ms": 581.6336,
+          "client_ttft_ms": 411.48144751787186,
+          "client_elapsed_ms": 592.5210835412145,
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "assistant_content_sha256": "44fba0859ae5fe47e27eaa2fbb1f9af95ca86e542f2498d65c0351d3725ccd62"
+        }
+      ],
+      "medians": {
+        "1": {
+          "pipeline_ttft_ms": 77,
+          "pipeline_elapsed_ms": 142.7646,
+          "client_ttft_ms": 86.70236356556416,
+          "client_elapsed_ms": 151.66146494448185
+        },
+        "4": {
+          "pipeline_ttft_ms": 344.0,
+          "pipeline_elapsed_ms": 554.4355,
+          "client_ttft_ms": 354.9843393266201,
+          "client_elapsed_ms": 566.2893718108535
+        }
+      },
+      "native_phase_line_count": 0
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "TensorSharp.Chat/ChatGenerationPipeline.cs",
+      "current": {
+        "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Chat/ChatGenerationPipeline.cs",
+        "bytes": 94581,
+        "sha256": "6ae1939bc196cdbc5c4e2223e204027e85c0660731d133744e78c989f7699b8a"
+      },
+      "head_sha256": "0677c93380b796d7eb523dd71c362de93e2a6e30d061967a802a6a86afbef293",
+      "byte_identical_to_head": false,
+      "current_lines": [
+        {
+          "line": 343,
+          "text": "            var promptSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 347,
+          "text": "            List<int> inputTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 369,
+          "text": "                _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 384,
+          "text": "                inputTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 475,
+          "text": "                            unexpandedTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 514,
+          "text": "                                    unexpandedTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 590,
+          "text": "            promptSw.Stop();"
+        },
+        {
+          "line": 593,
+          "text": "            var evalSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 594,
+          "text": "            var handle = engine.SubmitRequest(seq, cancellationToken);"
+        },
+        {
+          "line": 626,
+          "text": "            long timeToFirstTokenMs = 0;"
+        },
+        {
+          "line": 628,
+          "text": "            var totalSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 648,
+          "text": "            await foreach (var nextToken in handle.Tokens.ReadAllAsync().ConfigureAwait(false))"
+        },
+        {
+          "line": 678,
+          "text": "                    timeToFirstTokenMs = (long)totalSw.Elapsed.TotalMilliseconds;"
+        },
+        {
+          "line": 856,
+          "text": "            var promptSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 857,
+          "text": "            List<int> inputTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 865,
+          "text": "            promptSw.Stop();"
+        },
+        {
+          "line": 882,
+          "text": "            var totalSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 1021,
+          "text": "                    prefixTokens = _kvCacheRenderer.RenderToTokens("
+        }
+      ],
+      "head_lines": [
+        {
+          "line": 337,
+          "text": "            var promptSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 341,
+          "text": "            List<int> inputTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 363,
+          "text": "                _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 378,
+          "text": "                inputTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 469,
+          "text": "                            unexpandedTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 508,
+          "text": "                                    unexpandedTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 582,
+          "text": "            promptSw.Stop();"
+        },
+        {
+          "line": 585,
+          "text": "            var evalSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 586,
+          "text": "            var handle = engine.SubmitRequest(seq, cancellationToken);"
+        },
+        {
+          "line": 618,
+          "text": "            long timeToFirstTokenMs = 0;"
+        },
+        {
+          "line": 620,
+          "text": "            var totalSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 640,
+          "text": "            await foreach (var nextToken in handle.Tokens.ReadAllAsync().ConfigureAwait(false))"
+        },
+        {
+          "line": 670,
+          "text": "                    timeToFirstTokenMs = (long)totalSw.Elapsed.TotalMilliseconds;"
+        },
+        {
+          "line": 848,
+          "text": "            var promptSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 849,
+          "text": "            List<int> inputTokens = _kvCacheRenderer.RenderToTokens("
+        },
+        {
+          "line": 857,
+          "text": "            promptSw.Stop();"
+        },
+        {
+          "line": 874,
+          "text": "            var totalSw = Stopwatch.StartNew();"
+        },
+        {
+          "line": 1013,
+          "text": "                    prefixTokens = _kvCacheRenderer.RenderToTokens("
+        }
+      ]
+    },
+    {
+      "path": "TensorSharp.Server/ProtocolAdapters/OpenAIChatAdapter.cs",
+      "current": {
+        "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Server/ProtocolAdapters/OpenAIChatAdapter.cs",
+        "bytes": 42145,
+        "sha256": "129c2ca56c9916a3838e868780c5cb490fe7fef27176987b877d5be7e4859777"
+      },
+      "head_sha256": "8f77f238e18d0c1d208e04362ab883ed22ecbcb17b2e2369494d321ee974d3a3",
+      "byte_identical_to_head": false,
+      "current_lines": [
+        {
+          "line": 503,
+          "text": "            samplingConfig = WithStructuredOutputConstraint(samplingConfig, responseFormat, openaiThink);"
+        },
+        {
+          "line": 504,
+          "text": "            samplingConfig = WithDeepSeek41ToolGrammar(samplingConfig, toolGrammar, openaiThink);"
+        },
+        {
+          "line": 766,
+          "text": "            samplingConfig = WithStructuredOutputConstraint(samplingConfig, responseFormat, openaiThink);"
+        },
+        {
+          "line": 767,
+          "text": "            samplingConfig = WithDeepSeek41ToolGrammar(samplingConfig, toolGrammar, openaiThink);"
+        }
+      ],
+      "head_lines": [
+        {
+          "line": 461,
+          "text": "            samplingConfig = WithStructuredOutputConstraint(samplingConfig, responseFormat);"
+        },
+        {
+          "line": 722,
+          "text": "            samplingConfig = WithStructuredOutputConstraint(samplingConfig, responseFormat);"
+        }
+      ]
+    },
+    {
+      "path": "TensorSharp.GGML.Native/ggml_ops_qwen35_verify.cpp",
+      "current": {
+        "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_verify.cpp",
+        "bytes": 159093,
+        "sha256": "976f0b6d241f44eab95fdf78f6aa2332b0a9efeb70ddfb83c178e0f7bc56866f"
+      },
+      "head_sha256": "976f0b6d241f44eab95fdf78f6aa2332b0a9efeb70ddfb83c178e0f7bc56866f",
+      "byte_identical_to_head": true,
+      "current_lines": [
+        {
+          "line": 467,
+          "text": "        const int n_logits = (n_logit_rows > 0 && n_logit_rows < N) ? n_logit_rows : N;"
+        },
+        {
+          "line": 468,
+          "text": "        tsg::PhaseTimer phase_timer(\"Qwen3.5 model verify\");"
+        },
+        {
+          "line": 528,
+          "text": "        const bool fv_persist = fv_persist_cfg && (n_logits >= N) && !use_mrope"
+        },
+        {
+          "line": 1682,
+          "text": "        phase_timer.mark(\"build\");"
+        },
+        {
+          "line": 1790,
+          "text": "        phase_timer.mark(\"bind\");"
+        },
+        {
+          "line": 1798,
+          "text": "        phase_timer.mark(\"optimize\");"
+        },
+        {
+          "line": 1913,
+          "text": "        phase_timer.mark(\"alloc\");"
+        },
+        {
+          "line": 1952,
+          "text": "        phase_timer.mark(\"upload\");"
+        },
+        {
+          "line": 2039,
+          "text": "        phase_timer.mark(\"submit\");"
+        },
+        {
+          "line": 2103,
+          "text": "        phase_timer.mark(\"compute+download\");"
+        }
+      ],
+      "head_lines": [
+        {
+          "line": 467,
+          "text": "        const int n_logits = (n_logit_rows > 0 && n_logit_rows < N) ? n_logit_rows : N;"
+        },
+        {
+          "line": 468,
+          "text": "        tsg::PhaseTimer phase_timer(\"Qwen3.5 model verify\");"
+        },
+        {
+          "line": 528,
+          "text": "        const bool fv_persist = fv_persist_cfg && (n_logits >= N) && !use_mrope"
+        },
+        {
+          "line": 1682,
+          "text": "        phase_timer.mark(\"build\");"
+        },
+        {
+          "line": 1790,
+          "text": "        phase_timer.mark(\"bind\");"
+        },
+        {
+          "line": 1798,
+          "text": "        phase_timer.mark(\"optimize\");"
+        },
+        {
+          "line": 1913,
+          "text": "        phase_timer.mark(\"alloc\");"
+        },
+        {
+          "line": 1952,
+          "text": "        phase_timer.mark(\"upload\");"
+        },
+        {
+          "line": 2039,
+          "text": "        phase_timer.mark(\"submit\");"
+        },
+        {
+          "line": 2103,
+          "text": "        phase_timer.mark(\"compute+download\");"
+        }
+      ]
+    },
+    {
+      "path": "TensorSharp.GGML.Native/ggml_ops_moe.cpp",
+      "current": {
+        "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_moe.cpp",
+        "bytes": 98310,
+        "sha256": "6ca0afe478d6b3bcc6642f9a2ca7db24fbd9471de33b543a427183c798399fc9"
+      },
+      "head_sha256": "3d32dc5714b2b277ed2b87f9b1699dd54df5a8ffeef8fdd999e256a508fabc60",
+      "byte_identical_to_head": false,
+      "current_lines": [
+        {
+          "line": 161,
+          "text": "            const int forced = g_moe_cpu_threads_override.load(std::memory_order_relaxed);"
+        },
+        {
+          "line": 1749,
+          "text": "    int host_moe_explicit_thread_count()"
+        },
+        {
+          "line": 1751,
+          "text": "        return g_moe_cpu_threads_override.load(std::memory_order_relaxed);"
+        }
+      ],
+      "head_lines": [
+        {
+          "line": 161,
+          "text": "            const int forced = g_moe_cpu_threads_override.load(std::memory_order_relaxed);"
+        }
+      ]
+    },
+    {
+      "path": "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp",
+      "current": {
+        "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp",
+        "bytes": 254011,
+        "sha256": "386a0d64d70afc2c65b500f96f6d88d44125d23c1a77cf9637738039e74c5869"
+      },
+      "head_sha256": "ba55a3accb9c35d7610a9577536a6b4db25e54fb077cf6be86d42265844fb92a",
+      "byte_identical_to_head": false,
+      "current_lines": [
+        {
+          "line": 1334,
+          "text": "        const int explicit_threads = tsg::host_moe_explicit_thread_count();"
+        }
+      ],
+      "head_lines": []
+    }
+  ],
+  "head_commit": "04a5faa9e641fc0b06de661be1191afbc6edaf50",
+  "extractor_source": {
+    "path": "/tmp/deepseek41-reference/extract-qwen35-stage-timing.py",
+    "bytes": 7184,
+    "sha256": "6fc740284fb6eccac50fde730b34251e19cf73039c7bf7fa85543f2fe8d7a912"
+  }
+}

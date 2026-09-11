@@ -1,0 +1,68 @@
+{
+  "passed": 42,
+  "checks": [
+    "reducer: window excludes before",
+    "reducer: window excludes after",
+    "reducer: window includes boundaries",
+    "reducer: UTC mapped from monotonic delta",
+    "reducer: clip overlapping pause",
+    "reducer: nonoverlap has zero duration",
+    "reducer: pause spanning window retained",
+    "reducer: unmatched restart reported",
+    "reducer: duplicate suspend reported",
+    "reducer: negative pause reported",
+    "reducer: GC collection is not pause interval",
+    "reducer: stack samples counted without duration weights",
+    "reducer: concurrent GC and sampler suspensions pair independently",
+    "reducer: suspension reasons retained without relabeling profiler as GC",
+    "unbound capture rejected",
+    "incomplete request coverage rejected",
+    "capture build mismatch rejected",
+    "report capture interval mismatch rejected",
+    "request interval outside collector rejected",
+    "unordered anchors rejected",
+    "invalid UTC unix anchor rejected",
+    "negative uncertainty rejected",
+    "raw trace hash mismatch rejected",
+    "missing case rejected",
+    "duplicate case rejected",
+    "out of window request rejected",
+    "wrong target PID cannot pass integrity",
+    "wrong PID preserves parse result and explicit failure",
+    "collector failure remains failed offline",
+    "collector failure preserves valid raw event results",
+    "truncated raw trace cannot pass integrity",
+    "truncated failure retains explicit analyzer result",
+    "baseline real trace parse succeeds",
+    "baseline zero loss, inversion, missing and depth limit",
+    "baseline all15 cases and engine samples retained",
+    "baseline profiler and GC reasons kept separate",
+    "baseline existing analysis refuses overwrite",
+    "final real trace parse succeeds",
+    "final zero loss, inversion, missing and depth limit",
+    "final all15 cases and engine samples retained",
+    "final profiler and GC reasons kept separate",
+    "final existing analysis refuses overwrite"
+  ],
+  "source": {
+    "path": "/private/tmp/deepseek41-reference/trace-analysis/Program.cs",
+    "bytes": 24394,
+    "sha256": "b89ebf81fca994b8e793bc275e928cf415238403b95486c30223f4e208f712f9"
+  },
+  "project": {
+    "path": "/private/tmp/deepseek41-reference/trace-analysis/trace-analysis.csproj",
+    "bytes": 796,
+    "sha256": "0052e794759503886bd3b554e5e7a0a913abc15dba16632bbddd270f598b18b8"
+  },
+  "guard": {
+    "path": "/tmp/deepseek41-reference/trace-analysis/check.py",
+    "bytes": 5682,
+    "sha256": "0973a8b9bdf71d04d94dec8a08a5f9d9552b0c83f93346a1758722e5a509ed7b"
+  },
+  "binary": {
+    "path": "/private/tmp/deepseek41-reference/trace-analysis/bin/Release/net10.0/trace-analysis.dll",
+    "bytes": 70144,
+    "sha256": "fe90db55466abd0770c049017c68a7ed4312e0fdb859deaef540fc37e92d526f"
+  },
+  "scope": "Local real retained trace decoding and isolated negative controls. No new collection, model inference, or VM jobs."
+}

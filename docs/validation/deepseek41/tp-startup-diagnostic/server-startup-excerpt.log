@@ -1,0 +1,160 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+info: TensorSharp.Server.Host.Startup[1030]
+      Logging initialized: minimumLevel=Information fileLogging=True logDir=/workspace/deepseek41-work/server-v41-final3651-tp8-native6b3/logs
+info: TensorSharp.Server.Host.Startup[1010]
+      Tensor parallelism configured via CLI: degree=8 nodeId=(single-node) peers=(none)
+info: TensorSharp.Server.Host.Startup[1010]
+      MoE CPU offload active: routed experts of no layers stay in system RAM and run on the host (32 threads)
+info: TensorSharp.Server.Host.Startup[1010]
+      Prefix cache: keeping shared-prefix checkpoints in /workspace/deepseek41-work/server-v41-final3651-tp8-native6b3/prefix-cache/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007-eea9e0a6 (0 bytes already there). Turn it off with --no-prefix-cache; move it with TENSORSHARP_PREFIX_CACHE_DIR.
+info: TensorSharp.Server.ModelService[1400]
+      Loading model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf (mmproj=deepseek41.vision.gguf, backend=ggml_cuda, fullPath=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf, mmprojPath=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf)
+  Multi-GPU: DeepSeek V4.1 routed-MoE tensor parallelism across 8 GPUs: gate/up/down expert dimensions are sharded, with host-staged F32 reduction. Attention and shared experts retain layer placement; CPU-offloaded layers retain whole CPU experts. Full attention tensor parallelism and distributed groups are not supported.
+ggml_cuda_init: found 8 CUDA devices (Total VRAM: 363904 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 1: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 2: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 3: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 4: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 5: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 6: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 7: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Context length: using MAX_CONTEXT=65536; model declares deepseek41.context_length=1048576.
+Model: deepseek41 (native whole-model executor), Layers=40, Hidden=5120, Heads=64, HeadDim=512, Vocab=129280
+[dsv4] CPU fallback/host-expert pool: threads=32, persistent=yes
+[dsv41] routed-MoE tensor parallelism: 8 ranks, sharded gate/up/down weights; attention and shared experts use layer placement; host-staged F32 reduction
+[dsv41] Engram sparse prefill reads: 16 persistent I/O threads
+[dsv4] host weights are served from the GGUF mapping (60.1 GiB, no private copy)
+[dsv4] prefaulted 0.0 GiB of mmapped host experts in 0.0s
+[dsv4] loaded 186.3 GiB across 8 GPU(s) in 559.5s (0.33 GiB/s, 16 load threads; host weights mmapped; n_ctx=65536, ring=1280, csa_rows=33024, hca_rows=65792)
+[dsv41]   rank 0: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 0: layers 0..2 (3), 20.8 GiB free after load
+[dsv41]   rank 1: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 1: layers 3..10 (8), 20.7 GiB free after load
+[dsv41]   rank 2: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 2: layers 11..17 (7), 20.7 GiB free after load
+[dsv41]   rank 3: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 3: layers 18..24 (7), 20.8 GiB free after load
+[dsv41]   rank 4: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 4: layers 25..32 (8), 20.7 GiB free after load
+[dsv41]   rank 5: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 5: layers 33..39 (7), 20.3 GiB free after load
+[dsv41]   rank 6: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 6: no layers, 21.2 GiB free after load
+[dsv41]   rank 7: 22.906 GiB of routed-expert tensor shards
+[dsv4]   device 7: no layers, 21.2 GiB free after load
+[dsv41] warming 60.08 GiB of Engram pages with 16 I/O threads...
+[dsv41] warmed 60.08 GiB of Engram pages in 151.56s (16 I/O threads)
+[dsv4] fused ops: on
+[dsv4] hyper-connection ops: native
+[dsv4] flash attention: on
+info: TensorSharp.Server.ModelService[1401]
+      Loaded model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf (architecture=deepseek41, backend=ggml_cuda, modelBytes=43072470848, mmproj=deepseek41.vision.gguf, mmprojBytes=970619072) in 714236.3 ms
+info: TensorSharp.Server.Host.Startup[1401]
+      Startup model loaded: DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf architecture=deepseek41 backend=ggml_cuda mmproj=deepseek41.vision.gguf
+[dsv4] forward 1 tokens in 0.429s (2.3 tok/s)
+info: TensorSharp.Server.Host.Startup[1010]
+      Kernel warmup completed in 435.6 ms
+info: TensorSharp.Server.SessionManager[1300]
+      Created chat session 49e242def4aa41a58ef6d0c5bd614368 (total sessions=2)
+info: TensorSharp.Server.Host.Startup[1010]
+      Preparing the shared prompt before opening the port. The first launch after a prompt, skills or model change pays for it here instead of on the first message.
+info: TensorSharp.Server.ModelService[0]
+      Sizing KV block pool to model context: 65536 tokens x 4 context(s) -> 1024 blocks of 256 (configured default was 256). Set TS_SCHED_NUM_BLOCKS to impose an explicit hard limit.
+info: TensorSharp.Server.ModelService[0]
+      InferenceEngine[deepseek41] execution capability report:
+      batched paged attention: unavailable (model opt-out or unsupported layer/KV format)
+      per-sequence fused concurrent decode: available (+ token-batched fused decode)
+      N=1 single-sequence fused fast path: unavailable (no linear->paged KV migration)
+      Speculative decoding: off (not requested)
+      KV snapshot/swap fallback: unavailable (no block snapshot; per-seq swaps force re-prefill)
+      retained fused-cache continuation: unavailable (model does not support retained holders)
+info: TensorSharp.Server.ModelService[0]
+      InferenceEngine constructed for fingerprint  (blocks=1024, blockSize=256, kvCapacityTokens=262144, maxBatched=4096, config=environment)
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=deepseek41 maxTokens=1 thinking=False tools=0 messages(user=1,assistant=0,system=0) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0.8,topK=40,topP=0.9,minP=0,repeatPenalty=1.1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=-1,stop=(none)) userInput="hi" fullInput=[{"role":"user","content":"hi","contentChars":2}]
+info: TensorSharp.Server.ModelService[0]
+      No prompt reuse for chat-449d59b936ba421f8e88727fc450c483: all 5 prompt token(s) re-prefill. Live KV cache: no live cache resident (reset, batched step, or first request). Retained state: unavailable (this model+backend does not serve requests from retainable per-request holders). Pooled blocks: unavailable for this model (its K/V cannot be restored into another sequence).
+info: TensorSharp.Server.ModelService[0]
+      BatchExecutor execution plan: PerSequence; rejected: SingleSequenceFused: model cannot migrate linear KV to paged storage (a second request would corrupt attention); BatchedPaged: model declares its batched path unavailable (per-model opt-out or unsupported layer/KV format)
+[dsv4] forward 5 tokens in 0.157s (31.8 tok/s)
+[dsv4] forward 1 tokens in 0.084s (11.9 tok/s)
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=1 promptTokens=5 kvReused=0 kvReusePercent=0.0 ttftMs=286 elapsedMs=291.0 tokensPerSec=3.40 finishReason=max_tokens assistantOutput="Hello"
+info: TensorSharp.Server.Host.Startup[1010]
+      Prefix cache (thinking off): warmed in 0.5 s: the prompt every chat starts with is in the cache
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=deepseek41 maxTokens=1 thinking=True tools=0 messages(user=1,assistant=0,system=0) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0.8,topK=40,topP=0.9,minP=0,repeatPenalty=1.1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=-1,stop=(none)) userInput="hi" fullInput=[{"role":"user","content":"hi","contentChars":2}]
+info: TensorSharp.Server.ModelService[0]
+      No prompt reuse for chat-e0bd7b72de214b6a885e3da7d1d3a7fd: all 31 prompt token(s) re-prefill. Live KV cache: prompt diverges from the live cache at token 1 of 6 and this model cannot rewind its KV state (recurrent layers have no reverse). Retained state: unavailable (this model+backend does not serve requests from retainable per-request holders). Pooled blocks: unavailable for this model (its K/V cannot be restored into another sequence).
+[dsv4] forward 31 tokens in 0.527s (58.8 tok/s)
+[dsv4] forward 1 tokens in 0.092s (10.9 tok/s)
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=1 promptTokens=31 kvReused=0 kvReusePercent=0.0 ttftMs=623 elapsedMs=624.6 tokensPerSec=1.60 finishReason=max_tokens assistantOutput="The"
+info: TensorSharp.Server.Host.Startup[1010]
+      Prefix cache (thinking on): warmed in 0.6 s: the prompt every chat starts with is in the cache
+info: TensorSharp.Server.SessionManager[1301]
+      Removed chat session 49e242def4aa41a58ef6d0c5bd614368 (remaining sessions=1)
+info: TensorSharp.Server.Host.Startup[1020]
+      Supported backends: cuda, ggml_cuda, ggml_cpu, cpu
+info: TensorSharp.Server.Host.Startup[1010]
+      Server configuration: hostedModel=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf hostedMmProj=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf defaultMaxTokens=2048 (server cap) videoFrames=model-default videoFps=model-default videoSize=model-default videoSteps=model-default videoMode=auto videoSampleFps=1 videoMaxFrames=0 listen=http://127.0.0.1:5000
+info: TensorSharp.Server.Host.Startup[1010]
+      Default sampling: temperature=0.8 topK=40 topP=0.9 minP=0 repeatPenalty=1.1 repeatLastN=64 presencePenalty=0 frequencyPenalty=0 seed=-1 stopSequences=(none)
+info: TensorSharp.Server.Host.Startup[1010]
+      Sampling precedence: config (nothing pinned — every request keeps full control)
+info: TensorSharp.Server.Host.Startup[1000]
+      Starting TensorSharp.Server on http://127.0.0.1:5000
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /                          - Web UI (index.html)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /health                    - Health check
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /api/tags                  - List hosted models (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/show                  - Show model details (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/generate              - Generate text (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/chat/ollama           - Chat completion (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /v1/chat/completions       - Chat completion (OpenAI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /v1/models                 - List hosted models (OpenAI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/chat                  - Chat (Web UI SSE)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/models/load           - Reload hosted model (Web UI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /api/models                - Show hosted model state (Web UI)
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /workspace/TensorSharp
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP GET /health from 127.0.0.1 (content-type=, content-length=(none))
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP GET /health -> 200 in 19.4 ms (response content-type=application/json; charset=utf-8)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP GET /health from 127.0.0.1 (content-type=, content-length=(none))
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP GET /health -> 200 in 1.2 ms (response content-type=application/json; charset=utf-8)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP GET /v1/models from 127.0.0.1 (content-type=, content-length=(none))
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP GET /v1/models -> 200 in 16.3 ms (response content-type=application/json; charset=utf-8)

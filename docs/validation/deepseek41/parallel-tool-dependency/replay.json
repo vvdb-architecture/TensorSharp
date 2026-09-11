@@ -1,0 +1,124 @@
+{
+  "scope": "Local grammar/parser/reference-prompt diagnosis; no model inference or logits attribution.",
+  "runtime_sha256": "1542edf883c89fb5a53c93dadabff111316fd1ae49582acd74e48f862e3b0e09",
+  "reference_prompt_equal": true,
+  "prompt_tokens": 394,
+  "prompt_sha256": "c121231a856ff4ce9b1bda8e3d4b764e5b25f5c00adb8429718d3929e1f5d0d0",
+  "request_state_independent": true,
+  "checks": [
+    {
+      "name": "actual-two-calls-zero-values",
+      "pass": true,
+      "token_count": 105,
+      "rejected": -1,
+      "is_complete": true,
+      "is_dead": false,
+      "eos_id": 1,
+      "eos_allowed": true,
+      "calls": [
+        {
+          "Name": "read_invoice",
+          "Arguments": {
+            "invoice_id": "INV-472"
+          }
+        },
+        {
+          "Name": "calculate_total",
+          "Arguments": {
+            "unit_price": 0,
+            "quantity": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "valid-stop-after-read-only",
+      "pass": true,
+      "token_count": 60,
+      "rejected": -1,
+      "is_complete": true,
+      "is_dead": false,
+      "eos_id": 1,
+      "eos_allowed": true,
+      "calls": [
+        {
+          "Name": "read_invoice",
+          "Arguments": {
+            "invoice_id": "INV-472"
+          }
+        }
+      ]
+    },
+    {
+      "name": "typed-nonzero-values-remain-available",
+      "pass": true,
+      "token_count": 107,
+      "rejected": -1,
+      "is_complete": true,
+      "is_dead": false,
+      "eos_id": 1,
+      "eos_allowed": true,
+      "calls": [
+        {
+          "Name": "read_invoice",
+          "Arguments": {
+            "invoice_id": "INV-472"
+          }
+        },
+        {
+          "Name": "calculate_total",
+          "Arguments": {
+            "unit_price": 13.75,
+            "quantity": 5
+          }
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "model_profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+    "quality_report": "../full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-quality.json",
+    "quality_report_sha256": "f5742934d85cd32d82bbeafd2f6c74c993a82813e541d5cb2f1a3409d97d5800",
+    "case_tag": "agentic-c4-r0-i2",
+    "initial_input_sha256": "d6cc93c41de1c4b88e8b9de8ec92a616155cfbe75f86bdfd39901398f1a42951",
+    "reconstructed_initial_hash_matches_retained_case": true,
+    "native_log_path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+    "native_log_sha256": "ee46466cda112da68f7dc5675f9290aaedb5763d40bd91b42e30077b81173e2c",
+    "native_log_line": 1997,
+    "native_line_sha256": "5564f196b9875cd6ca708160f83f6bf3a97ddf59e1ba3ce49c939722721ce7e1",
+    "source_sha256": {
+      "TensorSharp.Runtime/Grammar/DeepSeek41ToolGrammar.cs": "665b5db5d14ac6efe935031030e896b44116bfa98b4de49fb55988d383647f24",
+      "TensorSharp.Runtime/Grammar/GrammarConstraint.cs": "c8f759921442f5a335aaa58aaa900a7572a102d45c9db555b8a79d0c8da94992",
+      "TensorSharp.Runtime/DeepSeek41OutputParser.cs": "210b5696240f7b1321d9e38a5c400721157e66946ce299b0f7ec0a4165f87664",
+      "TensorSharp.Runtime/ChatTemplate.DeepSeek41.cs": "6e4fcf32490e18a454f360603f12bca089ac8b98315a300183cf8337f69e71b4",
+      "TensorSharp.Server/ProtocolAdapters/OpenAIChatAdapter.DeepSeek41Tools.cs": "158bc13dd22a83bc208b065dc039f9ce84829a860c0fea8fa99660498126f094",
+      "TensorSharp.Chat/RequestParsers/ToolFunctionParser.cs": "c0badd543f713b0127b55421449bffd99e8385c2069b0e77d1bb64610c087492",
+      "benchmarks/engine_comparison/validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077"
+    },
+    "reference_encoder_path": "/Users/zhongkaifu/work/vllm/vllm/tokenizers/deepseek_v41_encoding.py",
+    "reference_encoder_sha256": "081382cb953a1c8041fdfc82a6001cf0c932553171436625c89fe5b9fbcda464",
+    "reference_prompt_sha256": "c121231a856ff4ce9b1bda8e3d4b764e5b25f5c00adb8429718d3929e1f5d0d0",
+    "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+    "vm_runtime_sha256": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "local_replay_note": "Uses the local managed3651 build with the same frozen Runtime source; its OS/build-specific DLL SHA differs from the VM assembly. No model inference occurs in this probe.",
+    "command": [
+      "dotnet",
+      "run",
+      "--project",
+      "/tmp/deepseek41-reference/parallel-agent-diagnosis/Probe.csproj",
+      "-c",
+      "Release",
+      "-p:EngineBin=/Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/bin/Release/net10.0",
+      "--",
+      "/tmp/deepseek41-reference/q2-header-1.json",
+      "/tmp/deepseek41-reference/parallel-agent-diagnosis/case.json",
+      "/tmp/deepseek41-reference/parallel-agent-diagnosis/report.json"
+    ],
+    "vocabulary_header": {
+      "path": "/tmp/deepseek41-reference/q2-header-1.json",
+      "sha256": "7b8a16f9c6438e2488957c4fa3c191010e0a154b1f3ff40acc5674306b56b09d"
+    },
+    "probe_source_sha256": "98b1ff3934fddcd3f80e270b5135f961d515465ce1253c64bb6da95e353075c5",
+    "probe_project_sha256": "07c0ba8e83722f6f1004ec74bd995eee6772c8a42782707440c3363cd2263456"
+  }
+}

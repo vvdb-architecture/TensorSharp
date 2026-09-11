@@ -1,0 +1,190 @@
+{
+  "reference_revision": "dba1be0a40aa45a94ad051997016db3960a90277",
+  "companion_sha256": "e7b0debed15706dd2f065879fa62a54f49e5c0472a54fa33d5ff40957f167e0c",
+  "native_library_sha256": "1fef35e95a30a2d61d8083963b62c3980f24cff25756ecfbb2ceb33b94784b69",
+  "image": "media-fixtures/card-0.png",
+  "patch_grid": [
+    35,
+    46
+  ],
+  "image_span_tokens": 206,
+  "atol": 0.004,
+  "rtol": 0.005,
+  "comparisons": [
+    {
+      "name": "native_flash",
+      "reference": "official_bf16_auto",
+      "elementwise_bound_passed": false,
+      "max_absolute_error": 0.0380859375,
+      "relative_l2": 0.03985812060663173,
+      "feature_relative_l2": 0.04024368352447354,
+      "cosine_similarity": 0.9992054420915073,
+      "sentinel_max_absolute_error": 0.0
+    },
+    {
+      "name": "native_dense",
+      "reference": "official_bf16_auto",
+      "elementwise_bound_passed": false,
+      "max_absolute_error": 0.01318359375,
+      "relative_l2": 0.018669949916586447,
+      "feature_relative_l2": 0.01885055151686867,
+      "cosine_similarity": 0.9998258132985732,
+      "sentinel_max_absolute_error": 0.0
+    },
+    {
+      "name": "official_sdpa_math",
+      "reference": "official_bf16_auto",
+      "elementwise_bound_passed": true,
+      "max_absolute_error": 0.0,
+      "relative_l2": 0.0,
+      "feature_relative_l2": 0.0,
+      "cosine_similarity": 0.9999999999999998,
+      "sentinel_max_absolute_error": 0.0
+    },
+    {
+      "name": "official_f32_linear_bf16_output",
+      "reference": "official_bf16_auto",
+      "elementwise_bound_passed": false,
+      "max_absolute_error": 0.01416015625,
+      "relative_l2": 0.017933832690859356,
+      "feature_relative_l2": 0.018107313546332108,
+      "cosine_similarity": 0.9998391797713705,
+      "sentinel_max_absolute_error": 0.0
+    }
+  ],
+  "official_flash_status": "Unavailable: official source supplies 3D Q/K/V; PyTorch fused kernels require 4D. AUTO and MATH output are bitwise equal.",
+  "diagnostics_after_rope_source_order_correction": [
+    {
+      "mode": "dense",
+      "report": {
+        "backend": "CUDA",
+        "gpus": 1,
+        "cpu_moe": 0,
+        "ubatch": 32,
+        "fixture_dtype": "torch.bfloat16",
+        "environment": {
+          "TS_DSV4_FA": null,
+          "TS_DSV4_GATHER": null,
+          "TS_DSV41_TP": null,
+          "TS_DSV41_VISION_FA": "0",
+          "TS_DSV41_VISION_BF16_GEMM": null
+        },
+        "checks": [
+          {
+            "name": "vision_info",
+            "passed": true
+          },
+          {
+            "name": "vision_metadata",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_0_1",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_1_0",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_-1_1",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_1073741824_1073741824",
+            "passed": true
+          },
+          {
+            "name": "card-0_span_rows",
+            "passed": true
+          },
+          {
+            "name": "card-0_complete_span",
+            "max_absolute_error": 0.0126953125,
+            "relative_l2": 0.017793206498026848,
+            "argmax": 541898,
+            "reference_argmax": 541898,
+            "atol": 0.004,
+            "rtol": 0.005,
+            "passed": false,
+            "feature_relative_l2": 0.01796533353626728,
+            "feature_max_absolute_error": 0.0126953125,
+            "sentinel_max_absolute_error": 0.0
+          },
+          {
+            "name": "card-0_reject_small_output",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "mode": "dense_bf16_gemm",
+      "report": {
+        "backend": "CUDA",
+        "gpus": 1,
+        "cpu_moe": 0,
+        "ubatch": 32,
+        "fixture_dtype": "torch.bfloat16",
+        "environment": {
+          "TS_DSV4_FA": null,
+          "TS_DSV4_GATHER": null,
+          "TS_DSV41_TP": null,
+          "TS_DSV41_VISION_FA": "0",
+          "TS_DSV41_VISION_BF16_GEMM": "1"
+        },
+        "checks": [
+          {
+            "name": "vision_info",
+            "passed": true
+          },
+          {
+            "name": "vision_metadata",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_0_1",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_1_0",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_-1_1",
+            "passed": true
+          },
+          {
+            "name": "reject_grid_1073741824_1073741824",
+            "passed": true
+          },
+          {
+            "name": "card-0_span_rows",
+            "passed": true
+          },
+          {
+            "name": "card-0_complete_span",
+            "max_absolute_error": 0.013671875,
+            "relative_l2": 0.016424914821982384,
+            "argmax": 541898,
+            "reference_argmax": 541898,
+            "atol": 0.004,
+            "rtol": 0.005,
+            "passed": false,
+            "feature_relative_l2": 0.01658380590379238,
+            "feature_max_absolute_error": 0.013671875,
+            "sentinel_max_absolute_error": 0.0
+          },
+          {
+            "name": "card-0_reject_small_output",
+            "passed": true
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostic_native_library_sha256": "8172400fceca5a8c2bdfe951049a2fea361a1ecdc62108b3e23434fdcaea8b9d",
+  "stage_trace_native_library_sha256": "985e1808005e5919a910d9e70aa26c6eb721ca8925659d8e49bfd931ed4f086a",
+  "final_native_library_sha256": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88",
+  "final_default_policy": "Dense vision attention; native BF16 GEMM on NVIDIA CUDA with F32 accumulation and F32 output before bias and BF16 rounding. Final tiny CPU F32 mixed158/158, CUDA F32 mixed158/158, CUDA BF16vision18/18; actual-card diagnostic comparison above uses the preceding separately identified binary."
+}

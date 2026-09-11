@@ -1,0 +1,6195 @@
+{
+  "backend": "CUDA",
+  "gpus": 2,
+  "library_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "test_hooks_required": true,
+  "runs": [
+    {
+      "name": "tp0_cpumoe0_legacy",
+      "tp": 0,
+      "cpu_moe": 0,
+      "legacy": true,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.1457672119140625e-06,
+          "relative_l2": 7.270791684277356e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.7418136596679688e-06,
+          "relative_l2": 8.894230631995015e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.562999725341797e-06,
+          "relative_l2": 9.062792969416478e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp0_cpumoe0_pinned",
+      "tp": 0,
+      "cpu_moe": 0,
+      "legacy": false,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.1457672119140625e-06,
+          "relative_l2": 7.270791684277356e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.7418136596679688e-06,
+          "relative_l2": 8.894230631995015e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.562999725341797e-06,
+          "relative_l2": 9.062792969416478e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp0_cpumoe1_legacy",
+      "tp": 0,
+      "cpu_moe": 1,
+      "legacy": true,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.3096799850463867e-06,
+          "relative_l2": 7.739424177088949e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.384185791015625e-06,
+          "relative_l2": 8.485192779517092e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.86102294921875e-06,
+          "relative_l2": 8.974342335932306e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp0_cpumoe1_pinned",
+      "tp": 0,
+      "cpu_moe": 1,
+      "legacy": false,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 3.039836883544922e-06,
+          "relative_l2": 8.143163654494856e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.771615982055664e-06,
+          "relative_l2": 8.534059361409163e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.9802322387695312e-06,
+          "relative_l2": 8.247614573519968e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp2_cpumoe0_legacy",
+      "tp": 2,
+      "cpu_moe": 0,
+      "legacy": true,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.86102294921875e-06,
+          "relative_l2": 7.91748618667043e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.4437904357910156e-06,
+          "relative_l2": 9.028062208926713e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.6226043701171875e-06,
+          "relative_l2": 8.81302582911303e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp2_cpumoe0_pinned",
+      "tp": 2,
+      "cpu_moe": 0,
+      "legacy": false,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.294778823852539e-06,
+          "relative_l2": 7.771861305627681e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.9206275939941406e-06,
+          "relative_l2": 8.99024314549024e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.8312206268310547e-06,
+          "relative_l2": 8.69521215918212e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp2_cpumoe1_legacy",
+      "tp": 2,
+      "cpu_moe": 1,
+      "legacy": true,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": false,
+          "backend": "CPU -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.562999725341797e-06,
+          "relative_l2": 8.156301305461966e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 2.5033950805664062e-06,
+          "relative_l2": 8.494495773447852e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.5033950805664062e-06,
+          "relative_l2": 8.178100188160897e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    },
+    {
+      "name": "tp2_cpumoe1_pinned",
+      "tp": 2,
+      "cpu_moe": 1,
+      "legacy": false,
+      "placement": [
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 3,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 4,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 0,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 1,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 2,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA0 -> CUDA0"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 3,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "gate",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "up",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        },
+        {
+          "position": 8,
+          "layer": 4,
+          "projection": "down",
+          "matches_layer_backend": true,
+          "backend": "CUDA1 -> CUDA1"
+        }
+      ],
+      "logits": [
+        {
+          "position": 3,
+          "max_absolute_error": 2.7418136596679688e-06,
+          "relative_l2": 7.970799629219982e-07,
+          "argmax": 211,
+          "reference_argmax": 211
+        },
+        {
+          "position": 4,
+          "max_absolute_error": 3.159046173095703e-06,
+          "relative_l2": 8.879389383764646e-07,
+          "argmax": 60,
+          "reference_argmax": 60
+        },
+        {
+          "position": 8,
+          "max_absolute_error": 2.9802322387695312e-06,
+          "relative_l2": 8.248525773524307e-07,
+          "argmax": 46,
+          "reference_argmax": 46
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "tp0_cpumoe0_legacy_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.1457672119140625e-06,
+      "relative_l2": 7.270791684277356e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.7418136596679688e-06,
+      "relative_l2": 8.894230631995015e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.562999725341797e-06,
+      "relative_l2": 9.062792969416478e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_legacy_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.1457672119140625e-06,
+      "relative_l2": 7.270791684277356e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_0_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_0_up",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_0_down",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_1_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_1_up",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_1_down",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_2_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_2_up",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_2_down",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_3_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_3_up",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_3_down",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_4_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_4_up",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_3_4_down",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.7418136596679688e-06,
+      "relative_l2": 8.894230631995015e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_0_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_0_up",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_0_down",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_1_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_1_up",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_1_down",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_2_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_2_up",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_2_down",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_3_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_3_up",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_3_down",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_4_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_4_up",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_4_4_down",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.562999725341797e-06,
+      "relative_l2": 9.062792969416478e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_0_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_0_up",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_0_down",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_1_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_1_up",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_1_down",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_2_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_2_up",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_2_down",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_3_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_3_up",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_3_down",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_4_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_4_up",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe0_pinned_placement_8_4_down",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.3096799850463867e-06,
+      "relative_l2": 7.739424177088949e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_reproduced_old_misplacement_3",
+      "passed": true,
+      "misplaced_projections": 2
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.384185791015625e-06,
+      "relative_l2": 8.485192779517092e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_reproduced_old_misplacement_4",
+      "passed": true,
+      "misplaced_projections": 2
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.86102294921875e-06,
+      "relative_l2": 8.974342335932306e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_legacy_reproduced_old_misplacement_8",
+      "passed": true,
+      "misplaced_projections": 2
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 3.039836883544922e-06,
+      "relative_l2": 8.143163654494856e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_0_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_0_up",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_0_down",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_1_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_1_up",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_1_down",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_2_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_2_up",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_2_down",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_3_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_3_up",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_3_down",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_4_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_4_up",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_3_4_down",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.771615982055664e-06,
+      "relative_l2": 8.534059361409163e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_0_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_0_up",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_0_down",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_1_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_1_up",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_1_down",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_2_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_2_up",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_2_down",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_3_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_3_up",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_3_down",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_4_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_4_up",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_4_4_down",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.9802322387695312e-06,
+      "relative_l2": 8.247614573519968e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_0_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_0_up",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_0_down",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_1_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_1_up",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_1_down",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_2_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_2_up",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_2_down",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_3_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_3_up",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_3_down",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_4_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_4_up",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp0_cpumoe1_pinned_placement_8_4_down",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.86102294921875e-06,
+      "relative_l2": 7.91748618667043e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_reproduced_old_misplacement_3",
+      "passed": true,
+      "misplaced_projections": 10
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.4437904357910156e-06,
+      "relative_l2": 9.028062208926713e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_reproduced_old_misplacement_4",
+      "passed": true,
+      "misplaced_projections": 10
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.6226043701171875e-06,
+      "relative_l2": 8.81302582911303e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_legacy_reproduced_old_misplacement_8",
+      "passed": true,
+      "misplaced_projections": 10
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.294778823852539e-06,
+      "relative_l2": 7.771861305627681e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_0_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_0_up",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_0_down",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_1_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_1_up",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_1_down",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_2_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_2_up",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_2_down",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_3_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_3_up",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_3_down",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_4_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_4_up",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_3_4_down",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.9206275939941406e-06,
+      "relative_l2": 8.99024314549024e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_0_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_0_up",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_0_down",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_1_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_1_up",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_1_down",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_2_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_2_up",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_2_down",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_3_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_3_up",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_3_down",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_4_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_4_up",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_4_4_down",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.8312206268310547e-06,
+      "relative_l2": 8.69521215918212e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_0_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_0_up",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_0_down",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_1_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_1_up",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_1_down",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_2_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_2_up",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_2_down",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_3_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_3_up",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_3_down",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_4_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_4_up",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe0_pinned_placement_8_4_down",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.562999725341797e-06,
+      "relative_l2": 8.156301305461966e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_reproduced_old_misplacement_3",
+      "passed": true,
+      "misplaced_projections": 10
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 2.5033950805664062e-06,
+      "relative_l2": 8.494495773447852e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_reproduced_old_misplacement_4",
+      "passed": true,
+      "misplaced_projections": 10
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.5033950805664062e-06,
+      "relative_l2": 8.178100188160897e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_legacy_reproduced_old_misplacement_8",
+      "passed": true,
+      "misplaced_projections": 10
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_forward_3",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_oracle_3",
+      "passed": true,
+      "position": 3,
+      "max_absolute_error": 2.7418136596679688e-06,
+      "relative_l2": 7.970799629219982e-07,
+      "argmax": 211,
+      "reference_argmax": 211
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_0_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_0_up",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_0_down",
+      "passed": true,
+      "position": 3,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_1_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_1_up",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_1_down",
+      "passed": true,
+      "position": 3,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_2_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_2_up",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_2_down",
+      "passed": true,
+      "position": 3,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_3_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_3_up",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_3_down",
+      "passed": true,
+      "position": 3,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_4_gate",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_4_up",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_3_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_3_4_down",
+      "passed": true,
+      "position": 3,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_forward_4",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_oracle_4",
+      "passed": true,
+      "position": 4,
+      "max_absolute_error": 3.159046173095703e-06,
+      "relative_l2": 8.879389383764646e-07,
+      "argmax": 60,
+      "reference_argmax": 60
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_0_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_0_up",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_0_down",
+      "passed": true,
+      "position": 4,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_1_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_1_up",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_1_down",
+      "passed": true,
+      "position": 4,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_2_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_2_up",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_2_down",
+      "passed": true,
+      "position": 4,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_3_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_3_up",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_3_down",
+      "passed": true,
+      "position": 4,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_4_gate",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_4_up",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_4_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_4_4_down",
+      "passed": true,
+      "position": 4,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_forward_8",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_oracle_8",
+      "passed": true,
+      "position": 8,
+      "max_absolute_error": 2.9802322387695312e-06,
+      "relative_l2": 8.248525773524307e-07,
+      "argmax": 46,
+      "reference_argmax": 46
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_0_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_0_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_0_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_0_up",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_0_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_0_down",
+      "passed": true,
+      "position": 8,
+      "layer": 0,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_1_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_1_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_1_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_1_up",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_1_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_1_down",
+      "passed": true,
+      "position": 8,
+      "layer": 1,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_2_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_2_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_2_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_2_up",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_2_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_2_down",
+      "passed": true,
+      "position": 8,
+      "layer": 2,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA0 -> CUDA0"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_3_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_3_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_3_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_3_up",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_3_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_3_down",
+      "passed": true,
+      "position": 8,
+      "layer": 3,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_4_gate",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_4_gate",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "gate",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_4_up",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_4_up",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "up",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_found_8_4_down",
+      "passed": true
+    },
+    {
+      "name": "tp2_cpumoe1_pinned_placement_8_4_down",
+      "passed": true,
+      "position": 8,
+      "layer": 4,
+      "projection": "down",
+      "matches_layer_backend": true,
+      "backend": "CUDA1 -> CUDA1"
+    }
+  ]
+}

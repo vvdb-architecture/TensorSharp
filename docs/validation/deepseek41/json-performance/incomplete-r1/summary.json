@@ -1,0 +1,680 @@
+{
+  "scope": "Incomplete first90-case JSON A/B attempt. No timing comparison is credited; preserve harness failure and real semantic mismatches. Not replaced by the planned all90 r2 rerun.",
+  "analysis_source": {
+    "path": "/tmp/deepseek41-reference/curate-json-incomplete-r1.py",
+    "sha256": "0311fa40b33f556ea78deb6bbe336b72d0d6ecc155470ee085f682386376ce17",
+    "bytes": 4540
+  },
+  "run_source": {
+    "path": "/tmp/deepseek41-reference/final-json-performance/run.json",
+    "sha256": "bd517d45c430f74ce9e26578400cca42ebcd6498b0b7ea195e0841cbae542de9",
+    "bytes": 107438
+  },
+  "expected_timed_cases": 90,
+  "completed_timed_cases": 30,
+  "run_complete": false,
+  "failure_cause": "The immutable deployment snapshot included inherited logs/tensorsharp-server-20260911.jsonl; normal server file logging appended to this file. All frozen-file verification was enforced, so Qwen3 jobs recorded deployment change and later four jobs refused launch.",
+  "completed_jobs": 2,
+  "unstarted_jobs": 4,
+  "qwen3_baseline_passed": 6,
+  "qwen3_final_passed": 4,
+  "qwen3_case_pairs": [
+    {
+      "key": [
+        "json",
+        "json-c1-r0-i0",
+        1,
+        0
+      ],
+      "initial_request_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c1-r1-i0",
+        1,
+        1
+      ],
+      "initial_request_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c1-r2-i0",
+        1,
+        2
+      ],
+      "initial_request_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "ok",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r0-i0",
+        4,
+        0
+      ],
+      "initial_request_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "fail",
+      "outputs_tokens_equal": false,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r0-i1",
+        4,
+        0
+      ],
+      "initial_request_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "fail",
+      "outputs_tokens_equal": false,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r0-i2",
+        4,
+        0
+      ],
+      "initial_request_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r0-i3",
+        4,
+        0
+      ],
+      "initial_request_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "ok",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r1-i0",
+        4,
+        1
+      ],
+      "initial_request_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r1-i1",
+        4,
+        1
+      ],
+      "initial_request_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r1-i2",
+        4,
+        1
+      ],
+      "initial_request_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r1-i3",
+        4,
+        1
+      ],
+      "initial_request_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r2-i0",
+        4,
+        2
+      ],
+      "initial_request_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "ok",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r2-i1",
+        4,
+        2
+      ],
+      "initial_request_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 22
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n}\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 22
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r2-i2",
+        4,
+        2
+      ],
+      "initial_request_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+      "full_requests_equal": true,
+      "baseline_status": "fail",
+      "final_status": "fail",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r2-i3",
+        4,
+        2
+      ],
+      "initial_request_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "ok",
+      "outputs_tokens_equal": true,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ]
+    }
+  ],
+  "introduced_failed_cases": [
+    {
+      "key": [
+        "json",
+        "json-c4-r0-i0",
+        4,
+        0
+      ],
+      "initial_request_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "fail",
+      "outputs_tokens_equal": false,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    },
+    {
+      "key": [
+        "json",
+        "json-c4-r0-i1",
+        4,
+        0
+      ],
+      "initial_request_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+      "full_requests_equal": true,
+      "baseline_status": "ok",
+      "final_status": "fail",
+      "outputs_tokens_equal": false,
+      "baseline_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 21
+        }
+      ],
+      "final_output": [
+        {
+          "assistant_message": {
+            "role": "assistant",
+            "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+          },
+          "finish_reason": "stop",
+          "prompt_tokens": 90,
+          "completion_tokens": 25
+        }
+      ]
+    }
+  ],
+  "semantic_interpretation": "The two new final failures are syntactically valid JSON and well-formed Unicode but have a nested Mars root key instead of the three requested top-level fields. The same nested error also occurs in nine baseline cases. This attempt does not identify a causal Unicode, native, concurrency or sampling change. Requests and validators will remain unchanged for r2.",
+  "timing_qualification": "Withheld: deployment-integrity failures plus failed/unequal planned responses prevent whole-group ratios. Raw timings and sampled telemetry remain in the original child reports.",
+  "rerun_policy": "New final3651-native6b3-json-performance-r2 label and fresh immutable deployments; all90 planned cases, same prompts/settings/order/warmups; per-job TENSORSHARP_LOG_DIR redirects mutable logs outside deployment. No binary/configuration hash exclusions.",
+  "sources": [
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/gemma4-baseline.json",
+      "sha256": "bc924128a2d6ed8ef06770db2ca5e4d813132f6770e1091fb85fbac27575964a",
+      "bytes": 5027
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/gemma4-final.json",
+      "sha256": "bcf4a47e984196270521402e7a96612e4f999b5e05a48623038a8341deeed311",
+      "bytes": 5021
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen3-baseline-server.log",
+      "sha256": "3c440e9321b7ae552aaa310d2115eb63dda33f43c57d4500457e5e9ff790066a",
+      "bytes": 51752
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen3-baseline-telemetry.jsonl",
+      "sha256": "7dd000290ca82314a4a988eda4787215bd066ab40a7f3b2b39d3649db9cdcb30",
+      "bytes": 32484
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen3-baseline.json",
+      "sha256": "95d4df1e563c5326afc88b84dd030c2b2a6b5d291dfea087f1d872cf86441166",
+      "bytes": 63619
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen3-final-server.log",
+      "sha256": "34a6da33c8a5638b38379390b23c61e6da893d0be95256e53c00a93e559e6000",
+      "bytes": 51751
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen3-final-telemetry.jsonl",
+      "sha256": "2ba82d6f150ace1290d41bf62e829ad5a76cf80f0b3077ec611e5307837f4cff",
+      "bytes": 32472
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen3-final.json",
+      "sha256": "365aac0f7ce6d28452f314ee7813f4703975d21f335162766984c02c55b89108",
+      "bytes": 63688
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen35-baseline.json",
+      "sha256": "08933d498a7242b5422d333eac2b8e48db06f76976f01865370a0d38da925cc3",
+      "bytes": 5014
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/qwen35-final.json",
+      "sha256": "bc1ea0e214530150dedda2311ed8c09998245f2ae41dccdd8803f4656957c28c",
+      "bytes": 5008
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance/run.json",
+      "sha256": "bd517d45c430f74ce9e26578400cca42ebcd6498b0b7ea195e0841cbae542de9",
+      "bytes": 107438
+    }
+  ]
+}

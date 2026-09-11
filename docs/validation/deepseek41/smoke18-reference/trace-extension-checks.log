@@ -1,0 +1,42 @@
+test_allocation_exception_keeps_primary (__main__.TraceChecks) ... ok
+test_allocation_failure_keeps_primary (__main__.TraceChecks) ... ok
+test_conflicting_modes_rejected_before_loading (__main__.TraceChecks) ... ok
+test_default_keeps_original_generation_and_no_slot_calls (__main__.TraceChecks) ... ok
+test_empty_inherited_trace_rejected_because_native_checks_presence (__main__.TraceChecks) ... ok
+test_existing_trace_directory_rejected (__main__.TraceChecks) ... ok
+test_fresh_slot_must_start_empty (__main__.TraceChecks) ... ok
+test_fresh_slot_selection_failure_cleans_inactive_slot (__main__.TraceChecks) ... ok
+test_inherited_trace_rejected_before_loading (__main__.TraceChecks) ... ok
+test_original_primary_trace_mode_still_works_and_restores_environment (__main__.TraceChecks) ... ok
+test_primary_failure_does_not_attempt_diagnostic (__main__.TraceChecks) ... ok
+test_primary_restore_failure_defers_active_slot_cleanup_to_model_free (__main__.TraceChecks) ... ok
+test_slot_free_failure_retains_primary_and_destroys_model (__main__.TraceChecks) ... ok
+test_success_replays_fresh_slot_and_restores_before_free (__main__.TraceChecks) ... ok
+test_trace_forward_exception_keeps_primary (__main__.TraceChecks) ... ok
+test_trace_forward_status_failure_keeps_primary (__main__.TraceChecks) ... ok
+test_trace_missing_files_rejected (__main__.TraceChecks) ... ok
+test_trace_nonfinite_logits_rejected (__main__.TraceChecks) ... ok
+test_trace_numerical_difference_is_reported_not_reclassified_as_execution_failure (__main__.TraceChecks) ... ok
+test_trace_wrong_consumed_position_rejected (__main__.TraceChecks) ... ok
+test_all_forty_layers_and_terminal_logits_required (__main__.CoverageChecks) ... ok
+test_nonempty_but_truncated_stage_rejected (__main__.CoverageChecks) ... ok
+test_one_nonempty_stage_missing_is_incomplete (__main__.CoverageChecks) ... ok
+test_runner_trace_flags_exclusive_before_any_inspection (__main__.CoverageChecks) ... ok
+test_terminal_logit_size_rejected (__main__.CoverageChecks) ... ok
+
+----------------------------------------------------------------------
+Ran 25 tests in 0.069s
+
+OK
+{
+  "scope": "Local fake-ABI lifecycle checks; no model, native library or GPU is executed.",
+  "checks_run": 25,
+  "passed": true,
+  "failures": 0,
+  "errors": 0,
+  "source_sha256": {
+    "eng/dsv41-smoke.py": "e30c05c722cf0d0488f67f3b457b4e5547ab12fe9f31ec5e092ee5964d22cdb7",
+    "eng/tests/dsv41-final-smoke18.py": "d3c57482d19ed59a4ba0bf06632ee2dec70c725c0b16f8cb94df38a712f3f100",
+    "eng/tests/dsv41-smoke-trace-checks.py": "0c1988562d5d626b3bea13cd36d39d48ba78586113635940fb5aec4f408c7f80"
+  }
+}

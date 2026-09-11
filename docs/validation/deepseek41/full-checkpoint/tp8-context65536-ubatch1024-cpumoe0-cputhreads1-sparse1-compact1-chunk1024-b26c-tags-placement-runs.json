@@ -1,0 +1,102 @@
+{
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags",
+  "phase": "placement",
+  "runner_sha256": "7d83d1008d690a175a6076499be24d5115c68918bc2fb20cb2e44ed40a514f8f",
+  "execution_plan": {
+    "labels": [
+      "quality",
+      "steady",
+      "long"
+    ],
+    "expected_runs": 3
+  },
+  "run_complete": false,
+  "all_passed": false,
+  "runs": [
+    {
+      "label": "quality",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "short,json,json_schema,multi_turn,tool_round_trip,agentic",
+        "--concurrency",
+        "1,4",
+        "--repeats",
+        "1",
+        "--structured-tool-results",
+        "--output",
+        "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-quality.json"
+      ],
+      "started_epoch": 1789121127.9687572,
+      "wall_seconds": 472.31113266944885,
+      "exit_code": 0,
+      "output": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-quality.json",
+      "log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-quality.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-server.log",
+        "byte_start": 13588,
+        "byte_end": 209098,
+        "range_sha256": "f8d259162f69deac333d319ce57083b0dc04f38bbbd5ae8dfd1e267209d1ddf9",
+        "prefill_calls": 51,
+        "prefill_tokens": 10330,
+        "prefill_forward_seconds": 317.516,
+        "decode_calls": 1318,
+        "decode_forward_seconds": 150.246,
+        "preemption_lines": []
+      },
+      "child_validation": {
+        "run_complete": true,
+        "expected_cases": 30,
+        "actual_cases": 30,
+        "failed_cases": 0,
+        "all_passed": true,
+        "qualification_status": "complete_passed",
+        "issues": [],
+        "report_sha256": "ce3e9e3771689c2749468d62377c8cad133f5d27ffa2e2613fc842f53095b704"
+      }
+    }
+  ],
+  "intentional_termination": {
+    "profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags",
+    "terminated_epoch": 1789121669.953184,
+    "reason": "Stopped inferior one-native-CPU-thread tuning experiment after the complete 30-case quality suite. Any partially started sustained-decode report and all unrun planned phases remain incomplete; they are not passing or qualified performance evidence. A separate planned three-repeat single-request control follows.",
+    "complete_quality_report": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-quality.json",
+    "quality_cases": 30,
+    "quality_passed": 30,
+    "terminated_processes": [
+      {
+        "pid": 124110,
+        "ppid": 124099,
+        "command": "python3 /workspace/deepseek41-work/run-profile.py tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags --phases placement,tools,protocol,media"
+      },
+      {
+        "pid": 124111,
+        "ppid": 124110,
+        "command": "python3 /workspace/deepseek41-work/run-final-suite.py tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags --phase placement"
+      },
+      {
+        "pid": 124112,
+        "ppid": 124111,
+        "command": "nvidia-smi --query-gpu=timestamp,index,utilization.gpu,utilization.memory,memory.used,clocks.current.sm,clocks.current.memory,temperature.gpu,power.draw --format=csv -l 2"
+      },
+      {
+        "pid": 124347,
+        "ppid": 124111,
+        "command": "/workspace/deepseek41-work/venv/bin/python /workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py --url http://127.0.0.1:5000 --engine tensorsharp --model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007 --weights-id 8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K --profile tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags --timeout 2400 --scenarios decode --concurrency 1,4 --repeats 3 --output /workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-steady.json"
+      }
+    ]
+  }
+}

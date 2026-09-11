@@ -1,0 +1,125 @@
+{
+  "scope": "Local exact presampling-mask equivalence at visited actual-Q2-tokenizer fixture states; no model inference or performance claim.",
+  "stages": [
+    "local3566 strict scalar decoder",
+    "local3582 exact partial character class viability"
+  ],
+  "metadata_sha256": "7b8a16f9c6438e2488957c4fa3c191010e0a154b1f3ff40acc5674306b56b09d",
+  "vocabulary_size": 129280,
+  "old_runtime_sha256": "a0dd4212d7f399241ffa0fc78204206cbc3da3df6ed888c12997bae118d5e86e",
+  "new_runtime_sha256": "edd573c1a1a4f3fec7ebe3a5c107d0652ddccab8b87f64c968304a4c8bc1ced6",
+  "old_source_sha256": "9a0908382166f58aebf389498c4dcbff5e262317bf02eed6f69001497006d3e9",
+  "new_source_sha256": "67df3cf9ce025013906ad1336778a97c8618c946b3d10fd21ef0fc1426f4e0db",
+  "source_provenance": [
+    "../managed-correctness/local-tool-utf8-correctness.json",
+    "../managed-correctness/local-partial-class-correctness.json"
+  ],
+  "probe_source_sha256": "9e685408c2ef043987eabcbaf04a921d51fe20dd7a434c53de36da8252642265",
+  "reports_sha256": {
+    "local3566.json": "e1a1c679441e1300a78ec71906cc64e28c7a8111e79ae098a1ccf6298df3837c",
+    "local3582.json": "088106b626550622f02b554a68e8124de8e54272d73b3135783051b1ae6764f1"
+  },
+  "cases": [
+    {
+      "name": "json-literal-unicode",
+      "visited_masks": 20,
+      "mask_sha256": "e208992534f8b7d88b6f9c582f9c0da655f0e9f4f909942fdab879b2794d756b",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "json-nested-unicode",
+      "visited_masks": 21,
+      "mask_sha256": "1e0679ef547786659e796fd3e28268d17697349302badaa3d83cdeab5e26b96c",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "open-map-default",
+      "visited_masks": 190,
+      "mask_sha256": "04c286b97f52d21975e92e77ac3f0833c67e4dbdc7d0bfce2f00fc2880a40879",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "open-map-explicit-true",
+      "visited_masks": 190,
+      "mask_sha256": "04c286b97f52d21975e92e77ac3f0833c67e4dbdc7d0bfce2f00fc2880a40879",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "open-map-false-rejects-extra",
+      "visited_masks": 21,
+      "mask_sha256": "668030a2a9481309e1065a0bbc00ca6d7493bc03b7989b919402f7f97b0b74b3",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "nested-json-escaped-delimiters",
+      "visited_masks": 133,
+      "mask_sha256": "696919efc76699cbcf64d0e47fede1344e7bfa618e87fa6b6763e1ee18d318c0",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "nested-json-reject-literal-delimiters",
+      "visited_masks": 22,
+      "mask_sha256": "377f566dc5291d6f52d97b88a89a82f4b280a422efbb15f8986e8be2ab662ab3",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "required-ascii",
+      "visited_masks": 31,
+      "mask_sha256": "5bd39207128bed1d91afcf11a954da0dccfb7ea1048fdd03a272e78d569008bb",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "required-unicode",
+      "visited_masks": 49,
+      "mask_sha256": "2c10fbfabf713834f82dde2a8b0d70ae6c9f90906ae057c51f1457d00d97f82d",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "auto-think-quoted-marker",
+      "visited_masks": 42,
+      "mask_sha256": "7e434b8b4e6988f13a0036f4d79eb118c32ce05f4bce7c201aa5456145d0ca81",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "auto-plain-answer",
+      "visited_masks": 6,
+      "mask_sha256": "aa9b02e5e6aa1f6635a63c3b37b24d40eaad529375e9dae3c61fb6b8b35aa578",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "required-reject-plain-close",
+      "visited_masks": 26,
+      "mask_sha256": "a40e70001eb790b677a93afe486f87a69642825a3300328d94c1b56f50c24b25",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "required-reject-unknown-tool",
+      "visited_masks": 9,
+      "mask_sha256": "634addc4cfef78ef7862ae2c5905fb77768d5967266dc53e973e493da31f9ac1",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    },
+    {
+      "name": "required-reject-nested-close",
+      "visited_masks": 25,
+      "mask_sha256": "c0838316a942a9fa57b7443bcaa4d8866feca5c4b9e9a3442f6f338fd678901d",
+      "same_token_ids": true,
+      "same_rejection_index": true
+    }
+  ],
+  "all_14_cases_pass_both_stages": true,
+  "all_visited_masks_identical": true,
+  "total_visited_masks": 785
+}

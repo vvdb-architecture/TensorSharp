@@ -1,0 +1,185 @@
+{
+  "purpose": "First full-Q2 TP8 baseline, not final patched TP or CPU-MoE4. Comparisons to prior layer hosts are descriptive: managed runtime/grammar and scheduler chunk differ.",
+  "reference": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+  "comparison_pairs": [
+    [
+      "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+      "tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools"
+    ],
+    [
+      "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+      "tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools"
+    ]
+  ],
+  "profiles": [
+    {
+      "id": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+      "launch": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-launch.json",
+      "expected": {
+        "cpu_moe": 0,
+        "tp": 0,
+        "gpus": 8,
+        "cli_gpu_count": 8,
+        "visible_devices": "0,1,2,3,4,5,6,7",
+        "visible_count": 8,
+        "ubatch": 1024,
+        "context": 65536,
+        "backend": "ggml_cuda",
+        "model_path": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+        "companion_path": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf",
+        "cpu_moe_threads": 48,
+        "TS_SCHED_MAX_RUNNING_SEQS": "4",
+        "TS_SCHED_PREFILL_CHUNK": "256",
+        "TS_SCHED_SOLO_PREFILL_CHUNK": "8192",
+        "TS_SCHED_MAX_BATCHED_TOKENS": "4096",
+        "KV_CACHE_DTYPE": "f16",
+        "TS_DSV41_SPARSE_FA": "1",
+        "TS_DSV41_COMPACT_RAW_GATHER": "1",
+        "TS_DSV41_ENGRAM_WARM": "1",
+        "TS_DSV41_ENGRAM_THREADS": "16",
+        "sha256.libGgmlOps.so": "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+        "sha256.TensorSharp.Server.Host.dll": "14d2b0678b80dc1e530c1548ddf6a4c82c767b5945aaddbbf2fc72a9d7fd99c1",
+        "sha256.TensorSharp.Runtime.dll": "12ce3bc3f780853aab91eafee2dec49d53eba34493cb6881d3c07b54130e67ff",
+        "sha256.TensorSharp.Server.dll": "5cd666d122c2c9cb74d521affe1adc84e1b18ad6922444cd68b7acbe61f5f6d2",
+        "sha256.TensorSharp.Chat.dll": "4e19639e1aa75baf830ffc690a0aec3c98b79ef25787b14acff4262246b7d8d4",
+        "sha256.TensorSharp.Models.dll": "037cdc93d1873c95806640d51b0409924ce02e958d67bf5583193de65c8fb0df"
+      },
+      "reports": [
+        {
+          "role": "quality",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-quality.json",
+          "expected_cases": 30
+        },
+        {
+          "role": "thinking",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-thinking.json",
+          "expected_cases": 4
+        },
+        {
+          "role": "blocking",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-blocking.json",
+          "expected_cases": 4
+        },
+        {
+          "role": "multilingual",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-multilingual.json",
+          "expected_cases": 10
+        }
+      ]
+    },
+    {
+      "id": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+      "launch": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-launch.json",
+      "expected": {
+        "cpu_moe": 0,
+        "tp": 0,
+        "gpus": 8,
+        "cli_gpu_count": 8,
+        "visible_devices": "0,1,2,3,4,5,6,7",
+        "visible_count": 8,
+        "ubatch": 1024,
+        "context": 65536,
+        "backend": "ggml_cuda",
+        "model_path": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+        "companion_path": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf",
+        "cpu_moe_threads": 48,
+        "KV_CACHE_DTYPE": "f16",
+        "TS_DSV41_SPARSE_FA": "1",
+        "TS_DSV41_ENGRAM_WARM": "1",
+        "TS_DSV41_ENGRAM_THREADS": "16",
+        "sha256.libGgmlOps.so": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573",
+        "sha256.TensorSharp.Server.Host.dll": "941bd976d494c94a773aef9701a529e1d83ab73a86ff3cc4aac4350a438f44cd",
+        "sha256.TensorSharp.Runtime.dll": "bdca2ce3041a6b7d2baa7512f2e0fbdbe4b1561afde337e379f22eab415ebbb4",
+        "sha256.TensorSharp.Server.dll": "098205e19de79d6d138e613d51d4396993eded31db930bd131b3fb1a6cb65de3",
+        "sha256.TensorSharp.Chat.dll": "19ec3d2325480ccb9a193053baa12102b665b0c84613701da8c84eb68a7d9aa8",
+        "sha256.TensorSharp.Models.dll": "4f2e5b43853c3d4e10e8dde3012da06c3f3c5fd18470f95865ef4db581f682ff"
+      },
+      "reports": [
+        {
+          "role": "steady",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-steady.json",
+          "expected_cases": 30
+        },
+        {
+          "role": "long",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-long.json",
+          "expected_cases": 6
+        }
+      ]
+    },
+    {
+      "id": "tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools",
+      "launch": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-launch.json",
+      "expected": {
+        "cpu_moe": 0,
+        "tp": 8,
+        "gpus": 8,
+        "cli_gpu_count": 8,
+        "visible_devices": "0,1,2,3,4,5,6,7",
+        "visible_count": 8,
+        "ubatch": 1024,
+        "context": 65536,
+        "backend": "ggml_cuda",
+        "model_path": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+        "companion_path": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf",
+        "cpu_moe_threads": 48,
+        "TS_SCHED_MAX_RUNNING_SEQS": "4",
+        "TS_SCHED_PREFILL_CHUNK": "1024",
+        "TS_SCHED_SOLO_PREFILL_CHUNK": "1024",
+        "TS_SCHED_MAX_BATCHED_TOKENS": "4096",
+        "KV_CACHE_DTYPE": "f16",
+        "TS_DSV41_SPARSE_FA": "1",
+        "TS_DSV41_COMPACT_RAW_GATHER": "1",
+        "TS_DSV41_ENGRAM_WARM": "1",
+        "TS_DSV41_ENGRAM_THREADS": "16",
+        "sha256.libGgmlOps.so": "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+        "sha256.TensorSharp.Server.Host.dll": "c0d72b2a65d72101bdb281ed547c4b48437936802069e5d7ff62f2b882db1823",
+        "sha256.TensorSharp.Runtime.dll": "b80a2475c484c314db5e9f86673b806961893d14c3e4d3456b0ba63f83a75d44",
+        "sha256.TensorSharp.Server.dll": "c2f5498c2684dfe11e862a9bee66c4434a3aae751b9a791986bf3a35c898583a",
+        "sha256.TensorSharp.Chat.dll": "eec1ed8166f60ef4bf339006184943cdf00cc661e9a9cd11f34e220180c5a0b7",
+        "sha256.TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510"
+      },
+      "reports": [
+        {
+          "role": "multilingual",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-multilingual.json",
+          "expected_cases": 10
+        },
+        {
+          "role": "tool-policies",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-tool-policies.json",
+          "expected_cases": 30
+        },
+        {
+          "role": "thinking",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-thinking.json",
+          "expected_cases": 4
+        },
+        {
+          "role": "blocking",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-blocking.json",
+          "expected_cases": 4
+        },
+        {
+          "role": "quality",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-quality.json",
+          "expected_cases": 30
+        },
+        {
+          "role": "steady",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-steady.json",
+          "expected_cases": 15
+        },
+        {
+          "role": "long",
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-long.json",
+          "expected_cases": 2
+        }
+      ]
+    }
+  ],
+  "permitted_differences": [
+    "cpu_moe",
+    "tp"
+  ]
+}

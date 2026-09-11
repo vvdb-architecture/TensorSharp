@@ -1,0 +1,582 @@
+{
+  "scope": "Byte-for-byte current local VM-specific measurement and analysis snapshots. Not all snapshots are historical versions used for the first TP run; run-final-suite.py is the later failure-propagation fix.",
+  "snapshot_utc": "2026-09-11T10:12:00.962756+00:00",
+  "files": [
+    {
+      "file": "analyze-placements.py",
+      "source_path": "/tmp/deepseek41-reference/analyze-placements.py",
+      "sha256": "deab1dc4bf4ed6adc069ed6f0b1b1e010a6ca267a7d23a29db7736a2bf071ddb",
+      "bytes": 16246
+    },
+    {
+      "file": "audit-first-tp.py",
+      "source_path": "/tmp/deepseek41-reference/audit-first-tp.py",
+      "sha256": "798216625450667f81bf4c1580cd9115302b6f1e75db38157c40ff9ca27408ac",
+      "bytes": 3482
+    },
+    {
+      "file": "run-final-suite.py",
+      "source_path": "/tmp/deepseek41-reference/run-final-suite.py",
+      "sha256": "7d83d1008d690a175a6076499be24d5115c68918bc2fb20cb2e44ed40a514f8f",
+      "bytes": 7628
+    },
+    {
+      "file": "launch-final.py",
+      "source_path": "/tmp/deepseek41-reference/launch-final.py",
+      "sha256": "5baeb51d18e4bfeb361a2a5c33132194a86ea703f0dc4f1c409cb04023fc1e85",
+      "bytes": 3168
+    },
+    {
+      "file": "run-profile.py",
+      "source_path": "/tmp/deepseek41-reference/run-profile.py",
+      "sha256": "56901487cf1ae8b69353df4b54061dca097bcc741c6215f2e87fa2e4a3f71400",
+      "bytes": 1123
+    },
+    {
+      "file": "collect-final.py",
+      "source_path": "/tmp/deepseek41-reference/collect-final.py",
+      "sha256": "11f259ede4f7782ec6b8d38432844c6f1aed605f5132b5b04769f12b7491f434",
+      "bytes": 2439
+    },
+    {
+      "file": "summarize-final-telemetry.py",
+      "source_path": "/tmp/deepseek41-reference/summarize-final-telemetry.py",
+      "sha256": "7930afa5331b5c389b22bc3848ffea68c91fe17c3501a5c4454cbc001229aa21",
+      "bytes": 1291
+    },
+    {
+      "file": "placement-first-tp-manifest.json",
+      "source_path": "/tmp/deepseek41-reference/placement-first-tp-manifest.json",
+      "sha256": "7f020ab29797b0c38885762a11d9ca5401f1d059c39722a680204d20a08642b4",
+      "bytes": 9433
+    },
+    {
+      "file": "run-final-suite-thread-control.py",
+      "source_path": "/tmp/deepseek41-reference/run-final-suite.py",
+      "sha256": "763663d9fbdcd05fcad711bbee3c6f7f41f29aa746bbf5b07ca64326cebcab89",
+      "bytes": 7752,
+      "snapshot_utc": "2026-09-11T10:17:12.319006+00:00",
+      "version_scope": "Later 2026-09-11 thread-control-only phase addition; original 7d83 snapshot remains separate."
+    },
+    {
+      "file": "stop-thread-experiment.py",
+      "source_path": "/tmp/deepseek41-reference/stop-thread-experiment.py",
+      "sha256": "40d9d31bf7dd615f43e888152ff0c117e6393446719371ad6eae12fb4c8dab85",
+      "bytes": 2064,
+      "snapshot_utc": "2026-09-11T10:17:12.319006+00:00",
+      "version_scope": "2026-09-11 intentional stop after completed quality; collects only matched experiment process descendants."
+    },
+    {
+      "file": "analyze-thread-experiment.py",
+      "source_path": "/tmp/deepseek41-reference/analyze-thread-experiment.py",
+      "sha256": "e8c39e96f6fb9dd7110fd7da51998b2af3551069695019eb24f2b3b1d60f934b",
+      "bytes": 13682,
+      "snapshot_utc": "2026-09-11T10:25:33.800535+00:00",
+      "version_scope": "Completed one-native-thread quality/control and explicitly aborted remainder; read-only local audit."
+    },
+    {
+      "file": "run-final-suite-serial-tools.py",
+      "source_path": "/tmp/deepseek41-reference/run-final-suite.py",
+      "sha256": "9139670b49d5bbe0c5eb8e818fe50fecbb55ed8a33a38300e410f8470da83375",
+      "bytes": 7943,
+      "snapshot_utc": "2026-09-11T10:37:54.344069+00:00",
+      "version_scope": "Local follow-up adding separate ten-case serial-tools phase; not yet executed when snapshotted."
+    },
+    {
+      "file": "audit-cpu4-placement.py",
+      "source_path": "/tmp/deepseek41-reference/audit-cpu4-placement.py",
+      "sha256": "6301d46ee43c0bb97d261fe50f7b61cd7cd2de678d1043597caa45ab32e9729b",
+      "bytes": 7440,
+      "snapshot_utc": "2026-09-11T10:58:51.265423+00:00",
+      "version_scope": "Historical3b88CPU-MoE4 placement and separate serial-tools follow-up; before explicit shared projection pins."
+    },
+    {
+      "file": "prepare-final-profile.py",
+      "source_path": "/tmp/deepseek41-reference/prepare-final-profile.py",
+      "sha256": "81158b05578443dbc21946b46090e25764978cbfeb20d559ac3bd3dc75f51bde",
+      "bytes": 4955,
+      "snapshot_utc": "2026-09-11T11:31:56.396375+00:00",
+      "version_scope": "Sequential final profile preparation; immutable host clones and diagnostic warming. First executed for final3651 TP8."
+    },
+    {
+      "file": "collect-final-http-rejections.py",
+      "source_path": "/tmp/deepseek41-reference/collect-final.py",
+      "sha256": "021a26e341dc672598b925a713b83a266e6aac4be4ed03ab4dff97fab91b4604",
+      "bytes": 2478,
+      "snapshot_utc": "2026-09-11T11:31:56.396375+00:00",
+      "version_scope": "Collector follow-up distinguishing numeric HTTP status reports from inference cases; used for final6b3 CPU4 evidence."
+    },
+    {
+      "file": "audit-final-placement.py",
+      "source_path": "/tmp/deepseek41-reference/audit-final-placement.py",
+      "sha256": "3a31c30d9f645164475915daa76a8ceb66a407a09c1685c27fffc9b2263a7b6a",
+      "bytes": 21467,
+      "snapshot_utc": "2026-09-11T11:31:56.396375+00:00",
+      "version_scope": "Final placement/serial native and case audit; extra outer phases explicitly excluded from its numerical scope. Used for final6b3 CPU4."
+    },
+    {
+      "file": "run-final-existing-models.py",
+      "source_path": "/tmp/deepseek41-reference/run-final-existing-models.py",
+      "sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+      "bytes": 15858,
+      "snapshot_utc": "2026-09-11T11:31:56.396375+00:00",
+      "version_scope": "Prepared exact75 plus separate15 Unicode regression runner; not yet executed when snapshotted."
+    },
+    {
+      "file": "check-final-placement-audit.py",
+      "source_path": "/tmp/deepseek41-reference/check-final-placement-audit.py",
+      "sha256": "175637744b95ea6b9bb3d0f0c7631a4ef9b3f4cb36647a23f33a0b20d6a18675",
+      "bytes": 5324,
+      "snapshot_utc": "2026-09-11T11:32:12.718474+00:00",
+      "version_scope": "Local helper integrity/orchestration checks, not model inference."
+    },
+    {
+      "file": "final-placement-audit-checks.json",
+      "source_path": "/tmp/deepseek41-reference/final-placement-audit-checks.json",
+      "sha256": "b7d5006c8ef04a8817902af62b54912fc4e9ed602e73f9a9ed589fcd0d0f24ed",
+      "bytes": 4491,
+      "snapshot_utc": "2026-09-11T11:32:12.718474+00:00",
+      "version_scope": "Local helper integrity/orchestration checks, not model inference."
+    },
+    {
+      "file": "check-final-existing-models.py",
+      "source_path": "/tmp/deepseek41-reference/check-final-existing-models.py",
+      "sha256": "a5d84de4ff4211d89846a6bf9b42e9639f739d5c796e3de323c3faf400075ebd",
+      "bytes": 7031,
+      "snapshot_utc": "2026-09-11T11:32:12.718474+00:00",
+      "version_scope": "Local helper integrity/orchestration checks, not model inference."
+    },
+    {
+      "file": "final-existing-models-checks.json",
+      "source_path": "/tmp/deepseek41-reference/final-existing-models-checks.json",
+      "sha256": "f6c4ceba43f0aa4f80eceb4d87bbdc1b0fa278aced36a29ba43fe03e3ca75aba",
+      "bytes": 1863,
+      "snapshot_utc": "2026-09-11T11:32:12.718474+00:00",
+      "version_scope": "Local helper integrity/orchestration checks, not model inference."
+    },
+    {
+      "file": "prepare-final-profile-warming-report.py",
+      "source_path": "/tmp/deepseek41-reference/prepare-final-profile.py",
+      "sha256": "ae1bd5bdea38790fc151ee2838a3c37a9c22d82f5505af29c5e4c99044056ee6",
+      "bytes": 5040,
+      "snapshot_utc": "2026-09-11T12:14:27.234848+00:00",
+      "version_scope": "Follow-up supplying the required expert-warming report argument and separating stdout/stderr into a log. Original TP preparation failed after successful native readiness; this corrected version has not executed yet."
+    },
+    {
+      "file": "collect-final-startup-errors.py",
+      "source_path": "/tmp/deepseek41-reference/collect-final.py",
+      "sha256": "71aa421931adc329acd1ed79e4d4dd1f5c4b987a26b35913087c8dc7804a0be6",
+      "bytes": 2704,
+      "snapshot_utc": "2026-09-11T12:14:27.234848+00:00",
+      "version_scope": "Preserves malformed JSON startup-helper output as an explicitly invalid raw text artifact; never credits it as a complete report."
+    },
+    {
+      "file": "run-final-existing-models.md",
+      "source_path": "/tmp/deepseek41-reference/run-final-existing-models.md",
+      "sha256": "6e81a39b13ac8d198b53a3c79b51509440bb85dc72ceab561444dbb1e79b579a",
+      "bytes": 4593,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "Usage and safeguards for the prepared75+15 correctness runner."
+    },
+    {
+      "file": "run-final-json-performance.py",
+      "source_path": "/tmp/deepseek41-reference/run-final-json-performance.py",
+      "sha256": "5794b097b7e8c03ed1a15cf23cade12aa9553372590e49df2e0cf6408edff6dd",
+      "bytes": 33219,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "Prepared baseline HEAD/native versus final3651/native6b3 JSON-only A/B,90 timed cases and36 separately retained warmups; staged but not executed."
+    },
+    {
+      "file": "run-final-json-performance.md",
+      "source_path": "/tmp/deepseek41-reference/run-final-json-performance.md",
+      "sha256": "675a5435fa8e4332726540c1fbcb8e4197e7d50f3c51e02a1e1631928cb62781",
+      "bytes": 5917,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "JSON-only A/B controls, immutable deployments, metric eligibility, limits, and VM command."
+    },
+    {
+      "file": "check-final-json-performance.py",
+      "source_path": "/tmp/deepseek41-reference/check-final-json-performance.py",
+      "sha256": "077267acd9cbf9ab24003e916332028d93b34b12d31262e942ab4dccb73c25a0",
+      "bytes": 12088,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "Local simulated HTTP/process/telemetry guard tests for the JSON A/B runner; no real inference."
+    },
+    {
+      "file": "final-json-performance-checks.json",
+      "source_path": "/tmp/deepseek41-reference/final-json-performance-checks.json",
+      "sha256": "bba1480f530a5152362258355208c04c5a70521b23a67c2ec99019293aa2ba1d",
+      "bytes": 2476,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "23 passing local checks, including nonfinite clocks and unconditional owned-server cleanup on telemetry failure."
+    },
+    {
+      "file": "final-json-performance-plan.json",
+      "source_path": "/tmp/deepseek41-reference/final-json-performance-plan.json",
+      "sha256": "4e9da77f8fceb95c4831a35bc5b1cb4a6256c5dc410d5416d37b5ee5acbfed81",
+      "bytes": 1459,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "Prepared six-job alternating-order JSON A/B plan;90 timed cases and36 excluded warmups."
+    },
+    {
+      "file": "final-json-performance-sources.json",
+      "source_path": "/tmp/deepseek41-reference/final-json-performance-sources.json",
+      "sha256": "7a55b0ea93d48e5c5fcbe3c0815f8031b5982d6f46a4853bff41b1b8da13b617",
+      "bytes": 867,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "SHA256 and size manifest of the prepared JSON runner/docs/check sources and pinned shared helper."
+    },
+    {
+      "file": "final-layer8-audit-manifest.json",
+      "source_path": "/tmp/deepseek41-reference/final-layer8-audit-manifest.json",
+      "sha256": "005acb87baa684216ee784fa181e8c48be5f48d7edb8a15504c1d33315ae6daf",
+      "bytes": 2768,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "Reviewed intended final3651/native6b3 layer8 manifest; qualification windows are root-declared and this snapshot makes no completed inference claim."
+    },
+    {
+      "file": "final-layer8-plan-review.json",
+      "source_path": "/tmp/deepseek41-reference/final-layer8-plan-review.json",
+      "sha256": "5041d643a5812ead027796e28591c30166b168305e6645be3eba2add70ef16eb",
+      "bytes": 3907,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "17 passing local static checks of the concrete layer manifest, binary/source hashes and suite/auditor coverage; no VM or inference execution."
+    },
+    {
+      "file": "audit-final-placement.md",
+      "source_path": "/tmp/deepseek41-reference/audit-final-placement.md",
+      "sha256": "a545f4a033dae760ffd73458e0e940052e977486a273ff1c9af9b2853f7beb74",
+      "bytes": 4870,
+      "snapshot_utc": "2026-09-11T13:00:28.826587+00:00",
+      "version_scope": "Auditor usage with separate outer envelope and placement/serial numerical scopes; older templates remain explicitly3635."
+    },
+    {
+      "file": "compare-final-layer.py",
+      "source_path": "/tmp/deepseek41-reference/compare-final-layer.py",
+      "sha256": "628536b2e599eac539efc1e80225499c2bf5ffe3c23cfeae4e44fcada2b982aa",
+      "bytes": 12579,
+      "scope": "Local final-layer audit/control/timing analysis snapshot, September 11 2026; no inference execution."
+    },
+    {
+      "file": "analyze-layer-timing.py",
+      "source_path": "/tmp/deepseek41-reference/analyze-layer-timing.py",
+      "sha256": "bfc0d6de61089a57d6217990ead5c956769e647c05f065bce83a305228991bdb",
+      "bytes": 5876,
+      "scope": "Local final-layer audit/control/timing analysis snapshot, September 11 2026; no inference execution."
+    },
+    {
+      "file": "identify-final-layer-controls.py",
+      "source_path": "/tmp/deepseek41-reference/identify-final-layer-controls.py",
+      "sha256": "0ffdafc12697c113c50abc7c3dae7b4df3abafa6a8ce5590510d95c3e7e333f8",
+      "bytes": 9711,
+      "scope": "Local final-layer audit/control/timing analysis snapshot, September 11 2026; no inference execution."
+    },
+    {
+      "file": "final-layer-controls.json",
+      "source_path": "/tmp/deepseek41-reference/final-layer-controls.json",
+      "sha256": "43f27996c7dc65bb353f67a5b8cd8dcbc75a0037e8a21737750e43e4f2923304",
+      "bytes": 129172,
+      "scope": "Local final-layer audit/control/timing analysis snapshot, September 11 2026; no inference execution."
+    },
+    {
+      "file": "final-layer-controls.md",
+      "source_path": "/tmp/deepseek41-reference/final-layer-controls.md",
+      "sha256": "bd661c999217cf259c612c44e0b13b4a8b93ba0285ec967efc2161e80f9052b0",
+      "bytes": 6072,
+      "scope": "Local final-layer audit/control/timing analysis snapshot, September 11 2026; no inference execution."
+    },
+    {
+      "file": "write-layer-comparison.py",
+      "source_path": "/tmp/deepseek41-reference/write-layer-comparison.py",
+      "sha256": "2387ab6fcf05eba6294751a45be807e38b8fdd4c74279fdf92013ba11449401e",
+      "bytes": 10603,
+      "scope": "Local final-layer audit/control/timing analysis snapshot, September 11 2026; no inference execution."
+    },
+    {
+      "file": "run-final-json-performance-r2.py",
+      "source_path": "/tmp/deepseek41-reference/run-final-json-performance.py",
+      "sha256": "10ab194bb0c1397f353a3eda7e2eaa990a6d4f950d4e366f8d64940bf41553c5",
+      "bytes": 33558,
+      "scope": "R2 logging-only orchestration fix or local regression guard; original5794snapshot retained separately."
+    },
+    {
+      "file": "check-final-json-performance-r2.py",
+      "source_path": "/tmp/deepseek41-reference/check-final-json-performance.py",
+      "sha256": "0a6ae45e6960d5457c4a651d2b2016365decd744c29564437de7ff8700999622",
+      "bytes": 13637,
+      "scope": "R2 logging-only orchestration fix or local regression guard; original5794snapshot retained separately."
+    },
+    {
+      "file": "final-json-performance-r2-checks.json",
+      "source_path": "/tmp/deepseek41-reference/final-json-performance-r2-checks.json",
+      "sha256": "d819d4900e240c2469e14b3619959195397be4e41a8d71503e36a35c65bcd575",
+      "bytes": 2899,
+      "scope": "R2 logging-only orchestration fix or local regression guard; original5794snapshot retained separately."
+    },
+    {
+      "file": "curate-json-incomplete-r1.py",
+      "source_path": "/tmp/deepseek41-reference/curate-json-incomplete-r1.py",
+      "sha256": "0311fa40b33f556ea78deb6bbe336b72d0d6ecc155470ee085f682386376ce17",
+      "bytes": 4540,
+      "scope": "R2 logging-only orchestration fix or local regression guard; original5794snapshot retained separately."
+    },
+    {
+      "file": "run-final-json-performance-r2.md",
+      "source_path": "/tmp/deepseek41-reference/run-final-json-performance-r2.md",
+      "sha256": "50ecc44ed8b4ff2d2b8a2644c72547025eeac6dd6a31a527aecb6cc99c7cb30d",
+      "bytes": 2078,
+      "scope": "Reviewed/staged r2 logging fix; original failed attempt and protocol snapshot retained."
+    },
+    {
+      "file": "audit-json-performance-r2.py",
+      "source_path": "/tmp/deepseek41-reference/audit-json-performance-r2.py",
+      "sha256": "68162d53df23706f7acd468953105654eb8176d30b01edf233b93973e181ab9f",
+      "bytes": 13169,
+      "scope": "Read-only full90JSON r2 audit; no model execution."
+    },
+    {
+      "file": "run-qwen35-json-control.py",
+      "source_path": "/tmp/deepseek41-reference/run-qwen35-json-control.py",
+      "sha256": "d3cc10180fd03b14b7dc7a4d940203804e1b0d64230e15a9b2a5aceaf9dbf4a5",
+      "bytes": 9680,
+      "scope": "Reviewed local60-case Qwen35alternating control preparation; no VM inference yet."
+    },
+    {
+      "file": "check-qwen35-json-control.py",
+      "source_path": "/tmp/deepseek41-reference/check-qwen35-json-control.py",
+      "sha256": "a2149c1b793a7c30e3a17eb36f09ea446fdd2be541cd598b9463b8b419e2750d",
+      "bytes": 7079,
+      "scope": "Reviewed local60-case Qwen35alternating control preparation; no VM inference yet."
+    },
+    {
+      "file": "qwen35-json-control-checks.json",
+      "source_path": "/tmp/deepseek41-reference/qwen35-json-control-checks.json",
+      "sha256": "5cc320b0688679147bedc908320260d183ed4cd0db448cf742568db47996cd58",
+      "bytes": 1731,
+      "scope": "Reviewed local60-case Qwen35alternating control preparation; no VM inference yet."
+    },
+    {
+      "file": "qwen35-json-control-plan.json",
+      "source_path": "/tmp/deepseek41-reference/qwen35-json-control-plan.json",
+      "sha256": "3cc34fadae06e73ac65aff399f792ba4535e36c2e5f862291d32ec7ae425e1c4",
+      "bytes": 673,
+      "scope": "Reviewed local60-case Qwen35alternating control preparation; no VM inference yet."
+    },
+    {
+      "file": "qwen35-json-control.md",
+      "source_path": "/tmp/deepseek41-reference/qwen35-json-control.md",
+      "sha256": "65b7b500d8bbec50814711f2992946e8aaa4fd0feae25a3fcebc1115ae150bd7",
+      "bytes": 2541,
+      "scope": "Reviewed local60-case Qwen35alternating control preparation; no VM inference yet."
+    },
+    {
+      "file": "audit-qwen35-json-control.py",
+      "source_path": "/tmp/deepseek41-reference/audit-qwen35-json-control.py",
+      "sha256": "c9225f62275a67714e6c515846e32d5e5b974f3d5eb4ecd8f6ff92afd78f2874",
+      "bytes": 7413,
+      "scope": "Read-only independent complete60-case Qwen35alternating audit; no inference."
+    },
+    {
+      "file": "extract-qwen35-stage-timing.py",
+      "source_path": "/tmp/deepseek41-reference/extract-qwen35-stage-timing.py",
+      "sha256": "6fc740284fb6eccac50fde730b34251e19cf73039c7bf7fa85543f2fe8d7a912",
+      "bytes": 7184,
+      "scope": "Read-only request-ID correlation of all60 alternating cases and retained timing/source snippets."
+    },
+    {
+      "file": "run-qwen35-cross-phase.py",
+      "source_path": "/tmp/deepseek41-reference/run-qwen35-cross-phase.py",
+      "sha256": "32219050b755a6b28a08de3c0255d929d53813e5378b022b00d435c4484104b2",
+      "bytes": 14679,
+      "scope": "Reviewed four-job diagnostic crossing; exact source used on the VM."
+    },
+    {
+      "file": "check-qwen35-cross-phase.py",
+      "source_path": "/tmp/deepseek41-reference/check-qwen35-cross-phase.py",
+      "sha256": "fb93c65a38f08fd3ccbf63d209c92b544a633bf2a6db43c9a033dae5a64835e3",
+      "bytes": 11977,
+      "scope": "Simulated diagnostic-runner source and cleanup guards; no inference."
+    },
+    {
+      "file": "qwen35-cross-phase-checks.json",
+      "source_path": "/tmp/deepseek41-reference/qwen35-cross-phase-checks.json",
+      "sha256": "d6bf4ca352f9c26fe09eb075bbe51c37bb23eea1d8db8590f62c27327b35a349",
+      "bytes": 2671,
+      "scope": "40 local diagnostic-runner guard results before execution."
+    },
+    {
+      "file": "run-qwen35-cross-phase.md",
+      "source_path": "/tmp/deepseek41-reference/run-qwen35-cross-phase.md",
+      "sha256": "9dea5165955aec126736ef0e1ac88dff758fc546c21f7b81649743cdb42b4803",
+      "bytes": 2816,
+      "scope": "Reviewed diagnostic protocol snapshot before execution."
+    },
+    {
+      "file": "observe-qwen35-cross-libraries.py",
+      "source_path": "/tmp/deepseek41-reference/observe-qwen35-cross-libraries.py",
+      "sha256": "ee30d16c13064f244723682c7ae5730fe022034fa2f0543efb26db4b1a69c9ac",
+      "bytes": 2128,
+      "scope": "Read-only actual owned-process native library mapping observer used during the crossing."
+    },
+    {
+      "file": "audit-qwen35-cross-phase.py",
+      "source_path": "/tmp/deepseek41-reference/audit-qwen35-cross-phase.py",
+      "sha256": "85e4984b7b024ab892dd3d2130db0ca764b38484f9016918bda3f5d32a6c384e",
+      "bytes": 9028,
+      "scope": "Independent local audit of all 60 diagnostic cases, frozen-file manifests and four observed native mappings."
+    },
+    {
+      "file": "analyze-qwen35-cross-phase.py",
+      "source_path": "/tmp/deepseek41-reference/analyze-qwen35-cross-phase.py",
+      "sha256": "3937411fe4cba9ea8b69575e47bfdc6d1bd8e29fad3ea2db186bda0bc4728cc6",
+      "bytes": 7138,
+      "scope": "Offline correlation of 12 solo native phase rows and managed/client timings; concurrent rows remain aggregate."
+    },
+    {
+      "file": "run-qwen35-eventpipe.py",
+      "source_path": "/tmp/deepseek41-reference/run-qwen35-eventpipe.py",
+      "sha256": "d4cf63ed593fde16596b433c488470704ccaa9d2180a949b12625e07eff5492f",
+      "bytes": 15738,
+      "scope": "Reviewed two-job EventPipe runner used for diagnostic collection."
+    },
+    {
+      "file": "check-qwen35-eventpipe.py",
+      "source_path": "/tmp/deepseek41-reference/check-qwen35-eventpipe.py",
+      "sha256": "78c45f047aaef2380e3d114612dcb553d619423d60c6433a73dd8aed7beb03e4",
+      "bytes": 11262,
+      "scope": "Simulated EventPipe collector/request/host lifecycle guards."
+    },
+    {
+      "file": "qwen35-eventpipe-checks.json",
+      "source_path": "/tmp/deepseek41-reference/qwen35-eventpipe-checks.json",
+      "sha256": "0e18b413ed87d9fe21b0bd4927d24e705dc60c9b84d389d1625be69051344e71",
+      "bytes": 2514,
+      "scope": "32 local EventPipe runner guards; no inference."
+    },
+    {
+      "file": "audit-qwen35-eventpipe.py",
+      "source_path": "/tmp/deepseek41-reference/audit-qwen35-eventpipe.py",
+      "sha256": "e5c6ff68735e735cca717ce9071042a209f248d747f9e01b774f58f1719e35bb",
+      "bytes": 14451,
+      "scope": "Independent offline audit of 30 requests, 12 warmups and collection provenance/anchors."
+    },
+    {
+      "file": "analyze-qwen35-eventpipe-phases.py",
+      "source_path": "/tmp/deepseek41-reference/qwen35-eventpipe-phase-analysis/analyze-qwen35-eventpipe-phases.py",
+      "sha256": "2267d56f3f2c6ededf842cf37ace4470d2c6c8802dcdcb30e4e9a3756821c8ac",
+      "bytes": 8132,
+      "scope": "Offline correlation of six solo native phases under EventPipe; diagnostic only."
+    },
+    {
+      "file": "eventpipe-trace-analysis/Program.cs",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/Program.cs",
+      "bytes": 24394,
+      "sha256": "b89ebf81fca994b8e793bc275e928cf415238403b95486c30223f4e208f712f9",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/trace-analysis.csproj",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/trace-analysis.csproj",
+      "bytes": 796,
+      "sha256": "0052e794759503886bd3b554e5e7a0a913abc15dba16632bbddd270f598b18b8",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/compare.py",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/compare.py",
+      "bytes": 4501,
+      "sha256": "f2d530cb49cc27ce1c524b0f4c61a1d9242e56adb9da34166f207e5e926499d1",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/check.py",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/check.py",
+      "bytes": 5682,
+      "sha256": "0973a8b9bdf71d04d94dec8a08a5f9d9552b0c83f93346a1758722e5a509ed7b",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/check-compare.py",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/check-compare.py",
+      "bytes": 2062,
+      "sha256": "ebe29a0dec5a60ca68eba97d51722bb92fff986a6de3479f9e0fa353b0d85881",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/checks.json",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/checks.json",
+      "bytes": 2965,
+      "sha256": "f8b8473f9c9761020bf8b402fb927b3cf6bf7f26b54d055235da73605ad03027",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/comparison-checks.json",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/comparison-checks.json",
+      "bytes": 701,
+      "sha256": "14c4c34bc4e8e9f620fbb88a6410940e12a9b82f46c0ce0cdb98b312f957a112",
+      "scope": "Final r3 offline EventPipe parser/comparison sources and guards. Raw traces and full exports remain outside the repository."
+    },
+    {
+      "file": "eventpipe-trace-analysis/README.md",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/README.md",
+      "sha256": "b4e8b3c103c4923295d4fecd19e7866d855f9f0951155a8bd278e9387500f464",
+      "bytes": 6951,
+      "scope": "Final offline r3 trace interpretation and provenance; raw traces/full exports remain external."
+    },
+    {
+      "file": "eventpipe-trace-analysis/manifest.json",
+      "source_path": "/tmp/deepseek41-reference/trace-analysis/manifest.json",
+      "sha256": "ed4d79d6258b90a1167481e861082c9fb05b6475060f913d452550c0f90f7336",
+      "bytes": 9000,
+      "scope": "Final offline r3 trace interpretation and provenance; raw traces/full exports remain external."
+    },
+    {
+      "file": "run-qwen35-solo72.py",
+      "source_path": "/tmp/deepseek41-reference/run-qwen35-solo72.py",
+      "sha256": "344382bbf8b4eb1170886c3cafbad5c0774544e18ade9a0485a06e85950432f4",
+      "bytes": 21840,
+      "snapshot_utc": "2026-09-11T15:19:18.828812+00:00",
+      "version_scope": "Completed four-process, 72-case uninstrumented Qwen3.5 solo control; final native fixed. Local runner guards and offline audits remain distinct from actual inference."
+    },
+    {
+      "file": "check-qwen35-solo72.py",
+      "source_path": "/tmp/deepseek41-reference/check-qwen35-solo72.py",
+      "sha256": "0ab696dcfedf4b1840d9408fa252e592bb81d70c23686cb03e4bb9e33987e292",
+      "bytes": 13308,
+      "snapshot_utc": "2026-09-11T15:19:18.829388+00:00",
+      "version_scope": "Completed four-process, 72-case uninstrumented Qwen3.5 solo control; final native fixed. Local runner guards and offline audits remain distinct from actual inference."
+    },
+    {
+      "file": "qwen35-solo72-checks.json",
+      "source_path": "/tmp/deepseek41-reference/qwen35-solo72-checks.json",
+      "sha256": "c0797a45e1c7ac06c3f15e7e702d296f7cb3fab2db343abf9b4cb32fa8fdf0a9",
+      "bytes": 2796,
+      "snapshot_utc": "2026-09-11T15:19:18.829578+00:00",
+      "version_scope": "Completed four-process, 72-case uninstrumented Qwen3.5 solo control; final native fixed. Local runner guards and offline audits remain distinct from actual inference."
+    },
+    {
+      "file": "run-qwen35-solo72.md",
+      "source_path": "/tmp/deepseek41-reference/run-qwen35-solo72.md",
+      "sha256": "a9ef69fcf68ad5e7073408e41a5b9e5aa6a0cfcc81fdda26ce692cdfe82f780f",
+      "bytes": 2583,
+      "snapshot_utc": "2026-09-11T15:19:18.829744+00:00",
+      "version_scope": "Completed four-process, 72-case uninstrumented Qwen3.5 solo control; final native fixed. Local runner guards and offline audits remain distinct from actual inference."
+    },
+    {
+      "file": "audit-qwen35-solo72.py",
+      "source_path": "/tmp/deepseek41-reference/audit-qwen35-solo72.py",
+      "sha256": "f60e23462538ad60aa34c7cbc3028a80a2e0e67dff441e124161ce497824a161",
+      "bytes": 21782,
+      "snapshot_utc": "2026-09-11T15:19:18.829915+00:00",
+      "version_scope": "Completed four-process, 72-case uninstrumented Qwen3.5 solo control; final native fixed. Local runner guards and offline audits remain distinct from actual inference."
+    },
+    {
+      "file": "analyze-qwen35-solo72.py",
+      "source_path": "/tmp/deepseek41-reference/analyze-qwen35-solo72.py",
+      "sha256": "5223b7fa1f024e942e21a9bd162da420991aa817059ea14477bb2b35e00ce4fa",
+      "bytes": 8328,
+      "snapshot_utc": "2026-09-11T15:19:18.830110+00:00",
+      "version_scope": "Completed four-process, 72-case uninstrumented Qwen3.5 solo control; final native fixed. Local runner guards and offline audits remain distinct from actual inference."
+    }
+  ]
+}

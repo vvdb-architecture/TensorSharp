@@ -1,0 +1,67 @@
+{
+  "stage": "LOCAL3635 V4.1 image URL and base64 validation",
+  "scope": "Chat completions image_url and Responses input_image reject remote/malformed URLs and invalid/empty base64 as JSON400 before SSE, planning or uploads. Valid data-URI headers, base64 whitespace and historical/multiple images retain the existing upload pipeline. Other model families unchanged. No image-byte double decode and no network fetch. URL/parser tests do not establish full-model vision accuracy.",
+  "focused_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release -p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true -p:TensorSharpSkipCudaNative=true --filter 'FullyQualifiedName~DeepSeek41ImageRequestTests|FullyQualifiedName~DeepSeek41VideoRequestTests|FullyQualifiedName~DeepSeek41AudioInputTests|FullyQualifiedName~ProtocolAdapterRequestWorkspaceTests|FullyQualifiedName~TensorAgentMauiProjectTests' --logger 'trx;LogFileName=deepseek41-image-url-focused-final.trx' --results-directory /tmp/dsv41-grammar-tests --verbosity quiet",
+  "focused": {
+    "trx_path": "/tmp/dsv41-grammar-tests/deepseek41-image-url-focused-final.trx",
+    "trx_sha256": "edd0d88758af914b60f21440d911f73b126c32d1998b4512c2a4b4b838e00143",
+    "counters": {
+      "total": "91",
+      "executed": "91",
+      "passed": "91",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "full_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release --no-build --no-restore --filter 'Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video' --logger 'trx;LogFileName=deepseek41-image-url-managed-final.trx' --results-directory /tmp/dsv41-grammar-tests --verbosity quiet",
+  "full": {
+    "trx_path": "/tmp/dsv41-grammar-tests/deepseek41-image-url-managed-final.trx",
+    "trx_sha256": "86dc09bae5b92fe37c56469e18e138631fe88e5a497d0f36be8c85afc5ac37b2",
+    "counters": {
+      "total": "3635",
+      "executed": "3635",
+      "passed": "3635",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "source_and_binary_sha256": {
+    "TensorSharp.Chat/RequestParsers/ChatMessageParser.cs": "8a52e1413f26ac86fa186e2d87ff6e1fabda48a2edadf724f533005bde13eade",
+    "TensorSharp.Server/ProtocolAdapters/OpenAIResponsesAdapter.cs": "a11e27f27477b6ab3d9c085908f60ac6e3fce9ab512561be3932ad4c99ac0dae",
+    "InferenceWeb.Tests/DeepSeek41ImageRequestTests.cs": "5af383b7490750b8f0be4dd8daa9c7dac820fcbaf838e708ad0c9dbdde0d26aa",
+    "InferenceWeb.Tests/ProtocolAdapterRequestWorkspaceTests.cs": "b4daddb9fec905b30eb3ff476a6caa5e30df628a424f53b8fd9be133b6405c9b",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "1e12349598de4256da82030761b577f50d0e56f4ce0c1a8058a813b28b77991b",
+    "TensorSharp.Models/MoeCpuOffloadConfig.cs": "006b6a468019a1fb7441b553c7ca4fe9c902c7aef4ee76b6fc5bb2c22e2ab0bf",
+    "TensorSharp.Backends.GGML/GgmlBasicOps.cs": "17cfb0469a90d95da6cc1953f2941d0ee176e2810e2cc6d4a814232200a78566",
+    "InferenceWeb.Tests/bin/Release/net10.0/TensorSharp.Runtime.dll": "1542edf883c89fb5a53c93dadabff111316fd1ae49582acd74e48f862e3b0e09",
+    "InferenceWeb.Tests/bin/Release/net10.0/TensorSharp.Chat.dll": "fa4b19cc24894e571fcb8a52fb651a2ce524c9859f01af81a3d9f08e31480fc3",
+    "InferenceWeb.Tests/bin/Release/net10.0/TensorSharp.Server.dll": "0a11915db0ec5c249ced381adf8d9f7aa8c43ea1e71a21818bb18955fb60b45d",
+    "InferenceWeb.Tests/bin/Release/net10.0/InferenceWeb.Tests.dll": "159edf06fd5b008572b4e4be5bcb33393f7eda91282abd6a836624d01317306a"
+  },
+  "runtime_unchanged_from_local3597": true,
+  "first_attempt": "local-image-url-first-attempt.json",
+  "first_attempt_correction": "The test-only CPU-pool observer now uses TSG_TEST_EXPORT within its existing TEST_HOOKS guard. This preserves its test ABI and excludes it from the production TSG_EXPORT source scan; the iOS retained-symbol manifest is unchanged. The affected whole Maui project class and full lane passed afterward.",
+  "vm_status": "separate isolated stage running; not counted here"
+}

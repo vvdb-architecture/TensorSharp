@@ -1,0 +1,538 @@
+{
+  "scope": "Independent local audit of all 30 exact requests/responses, 12 warmups, recorded frozen deployments, tool/source hashes and collection anchors. No VM rehash, raw trace parse or performance qualification.",
+  "integrity_valid": true,
+  "run_complete": true,
+  "all_30_cases_passed": true,
+  "performance_qualified": false,
+  "analysis_source": {
+    "path": "/tmp/deepseek41-reference/audit-qwen35-eventpipe.py",
+    "sha256": "e5c6ff68735e735cca717ce9071042a209f248d747f9e01b774f58f1719e35bb",
+    "bytes": 14451
+  },
+  "case_auditor_source": {
+    "path": "/tmp/deepseek41-reference/audit-json-performance-r2.py",
+    "sha256": "68162d53df23706f7acd468953105654eb8176d30b01edf233b93973e181ab9f",
+    "bytes": 13169
+  },
+  "run_source": {
+    "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/run.json",
+    "sha256": "13602b9c3fae625a7a66eb89de0fc00e46ee465dab3e63ca81b6931f37b52128",
+    "bytes": 58589
+  },
+  "tool_evidence_source": {
+    "path": "/tmp/deepseek41-reference/qwen35-eventpipe-tool-evidence.json",
+    "sha256": "4b48f777a1b4714a4b1e08386ddc5a157c300cb71299766f1582e7a3cc3d604e",
+    "bytes": 16684
+  },
+  "rows": [
+    {
+      "label": "baseline-managed_final-native",
+      "source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.json",
+        "sha256": "1c57a36d05ee302c0c843bc2e4911cf8b5bbf42c188d2bb15b05f8113ef6b3d8",
+        "bytes": 64836
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "all_15_cases_and_six_warmups_match_reference": true,
+      "groups": {
+        "1": {
+          "ttft_ms": {
+            "values": [
+              70.30102144926786,
+              73.54435417801142,
+              144.34181433171034
+            ],
+            "median": 73.54435417801142
+          },
+          "total_wall_ms": {
+            "values": [
+              131.96743093430996,
+              133.525051176548,
+              203.5392327234149
+            ],
+            "median": 133.525051176548
+          },
+          "decode_tps": {
+            "values": [
+              262.155746659677,
+              269.5183673239894,
+              274.4594942500969
+            ],
+            "median": 269.5183673239894
+          },
+          "whole_wave_wall_ms": [
+            133.03374778479338,
+            134.44951735436916,
+            204.53151315450668
+          ]
+        },
+        "4": {
+          "ttft_ms": {
+            "values": [
+              206.5803613513708,
+              310.70314440876245,
+              256.12927228212357,
+              254.6236366033554,
+              294.93202548474073,
+              344.95177026838064,
+              343.3037055656314,
+              363.9082945883274,
+              322.1625620499253,
+              262.10636645555496,
+              320.0438283383846,
+              373.56160301715136
+            ],
+            "median": 315.37348637357354
+          },
+          "total_wall_ms": {
+            "values": [
+              421.29411827772856,
+              536.7814777418971,
+              424.58866629749537,
+              422.322703525424,
+              467.99956262111664,
+              474.0224704146385,
+              472.145170904696,
+              497.29383643716574,
+              491.91469326615334,
+              483.46455208957195,
+              488.9526041224599,
+              514.5243788138032
+            ],
+            "median": 478.74351125210524
+          },
+          "decode_tps": {
+            "values": [
+              72.84436591864396,
+              131.1813605026847,
+              93.3222569702182,
+              93.47199152725405,
+              90.99604456779944,
+              123.26590753244253,
+              123.7012668596174,
+              141.99463825926495,
+              92.51980669912551,
+              70.1494421741392,
+              92.76721290491048,
+              133.2127631440964
+            ],
+            "median": 93.39712424873613
+          },
+          "whole_wave_wall_ms": [
+            539.5885901525617,
+            503.31187434494495,
+            520.7576556131244
+          ]
+        }
+      },
+      "collection_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-eventpipe.json",
+        "sha256": "27576deca9f979e19304b578f512802ab7a71b9b1e51d222ba35968a25870d53",
+        "bytes": 2727
+      },
+      "raw_trace_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.nettrace",
+        "sha256": "dfe410e0171637f1affd6cce9da17e99a69fd3c034c1f376d43259d82f03f9e1",
+        "bytes": 6477626
+      },
+      "collection_anchors": {
+        "attach_requested": {
+          "utc": "2026-09-11T14:42:12.568831+00:00",
+          "unix_seconds": 1789137732.568831,
+          "monotonic": 4410541.84756053,
+          "anchor_uncertainty_seconds": 1.066364347934723e-06
+        },
+        "collection_ready": {
+          "utc": "2026-09-11T14:42:13.020059+00:00",
+          "unix_seconds": 1789137733.0200593,
+          "monotonic": 4410542.298789064,
+          "anchor_uncertainty_seconds": 1.0542571544647217e-06
+        },
+        "stop_requested": {
+          "utc": "2026-09-11T14:42:15.158281+00:00",
+          "unix_seconds": 1789137735.1582806,
+          "monotonic": 4410544.437010732,
+          "anchor_uncertainty_seconds": 4.032626748085022e-07
+        },
+        "finalized": {
+          "utc": "2026-09-11T14:42:15.422372+00:00",
+          "unix_seconds": 1789137735.4223723,
+          "monotonic": 4410544.701102213,
+          "anchor_uncertainty_seconds": 7.497146725654602e-07
+        }
+      },
+      "actual_case_monotonic_interval": [
+        4410542.306929582,
+        4410544.436955359
+      ],
+      "last_warmup_end_monotonic": 4410541.831809266,
+      "shutdown_unix_seconds": 1789137735.587956,
+      "owned_host_and_collector_absent_after": true,
+      "request_interval_seconds": 2.1300257770344615,
+      "collector_stop_to_finalize_ms": 264.09148145467043,
+      "telemetry_qualification": {
+        "qualified": false,
+        "issues": [
+          "Externally exclusive window was not declared",
+          "Fewer than two telemetry samples in the timed interval",
+          "Native phase instrumentation; diagnostic timing only"
+        ],
+        "samples_in_timed_interval": 1,
+        "gpu7": {
+          "clocks.sm": {
+            "min": 1740.0,
+            "median": 1740.0,
+            "max": 1740.0
+          },
+          "clocks.mem": {
+            "min": 7251.0,
+            "median": 7251.0,
+            "max": 7251.0
+          },
+          "power.draw": {
+            "min": 122.04,
+            "median": 122.04,
+            "max": 122.04
+          },
+          "power.limit": {
+            "min": 300.0,
+            "median": 300.0,
+            "max": 300.0
+          },
+          "temperature.gpu": {
+            "min": 40.0,
+            "median": 40.0,
+            "max": 40.0
+          },
+          "utilization.gpu": {
+            "min": 44.0,
+            "median": 44.0,
+            "max": 44.0
+          },
+          "memory.used": {
+            "min": 1803.0,
+            "median": 1803.0,
+            "max": 1803.0
+          }
+        },
+        "foreign_gpu_clients": [],
+        "foreign_cpu_processes": [],
+        "policy": {
+          "external_exclusive_declaration": false,
+          "sample_period_seconds": 1,
+          "maximum_sm_clock_spread_fraction": 0.03,
+          "maximum_memory_clock_spread_fraction": 0.005,
+          "foreign_cpu_limit_percent_of_one_core": 10
+        },
+        "limitation": "Sampling cannot prove every in-flight clock or exclude sub-second contention. No clocks/power limits are changed."
+      },
+      "raw_trace_parser_integrity_scope": "Pending offline raw-nettrace parse, event-loss and time-range checks"
+    },
+    {
+      "label": "final-managed_final-native",
+      "source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.json",
+        "sha256": "b95d90b7b0f31c69a387d125ecc005cc8a1d9d9797e021bec333840b0ad07c16",
+        "bytes": 64816
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "all_15_cases_and_six_warmups_match_reference": true,
+      "groups": {
+        "1": {
+          "ttft_ms": {
+            "values": [
+              71.84295821934938,
+              105.6735860183835,
+              69.13073547184467
+            ],
+            "median": 71.84295821934938
+          },
+          "total_wall_ms": {
+            "values": [
+              137.46459037065506,
+              164.608514867723,
+              128.37710697203875
+            ],
+            "median": 137.46459037065506
+          },
+          "decode_tps": {
+            "values": [
+              244.10938238798835,
+              272.73135669179516,
+              271.7259164565655
+            ],
+            "median": 271.7259164565655
+          },
+          "whole_wave_wall_ms": [
+            138.531394302845,
+            165.6839195638895,
+            129.45536151528358
+          ]
+        },
+        "4": {
+          "ttft_ms": {
+            "values": [
+              256.0662589967251,
+              200.4794655367732,
+              253.96229978650808,
+              366.8773379176855,
+              321.00843731313944,
+              372.95904848724604,
+              371.27480562776327,
+              392.2799099236727,
+              241.58252961933613,
+              239.6953236311674,
+              202.744135633111,
+              200.60871541500092
+            ],
+            "median": 255.01427939161658
+          },
+          "total_wall_ms": {
+            "values": [
+              482.75761771947145,
+              474.0941608324647,
+              479.73386850208044,
+              547.7844662964344,
+              492.22627095878124,
+              497.97253496944904,
+              496.32496293634176,
+              522.6300526410341,
+              429.65071834623814,
+              427.7303908020258,
+              349.0143986418843,
+              347.5511288270354
+            ],
+            "median": 481.24574311077595
+          },
+          "decode_tps": {
+            "values": [
+              68.48271078430933,
+              56.37792815055668,
+              68.65891012979948,
+              135.25753608872796,
+              91.67090190169799,
+              127.76773484995117,
+              127.28184135238155,
+              147.14791713158226,
+              135.84656568031252,
+              136.25783595858834,
+              108.34762295058974,
+              107.87061302908373
+            ],
+            "median": 117.81473215148564
+          },
+          "whole_wave_wall_ms": [
+            553.3012868836522,
+            528.2589215785265,
+            431.35459814220667
+          ]
+        }
+      },
+      "collection_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-eventpipe.json",
+        "sha256": "8b20b29955afb40e817877f11aa09376f61e1537738df04726b01e995c2ea403",
+        "bytes": 2715
+      },
+      "raw_trace_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.nettrace",
+        "sha256": "b008b29a225983fe7df6a8fafcd5cb9a030885585d9c087481c0a364b0262f58",
+        "bytes": 6487146
+      },
+      "collection_anchors": {
+        "attach_requested": {
+          "utc": "2026-09-11T14:42:26.856218+00:00",
+          "unix_seconds": 1789137746.856218,
+          "monotonic": 4410556.134947756,
+          "anchor_uncertainty_seconds": 9.401701390743256e-07
+        },
+        "collection_ready": {
+          "utc": "2026-09-11T14:42:27.194377+00:00",
+          "unix_seconds": 1789137747.1943774,
+          "monotonic": 4410556.473107235,
+          "anchor_uncertainty_seconds": 8.642673492431641e-07
+        },
+        "stop_requested": {
+          "utc": "2026-09-11T14:42:29.251528+00:00",
+          "unix_seconds": 1789137749.2515283,
+          "monotonic": 4410558.530258005,
+          "anchor_uncertainty_seconds": 9.387731552124023e-07
+        },
+        "finalized": {
+          "utc": "2026-09-11T14:42:29.515853+00:00",
+          "unix_seconds": 1789137749.5158534,
+          "monotonic": 4410558.794583041,
+          "anchor_uncertainty_seconds": 8.833594620227814e-07
+        }
+      },
+      "actual_case_monotonic_interval": [
+        4410556.487387525,
+        4410558.530105198
+      ],
+      "last_warmup_end_monotonic": 4410556.119451114,
+      "shutdown_unix_seconds": 1789137749.649286,
+      "owned_host_and_collector_absent_after": true,
+      "request_interval_seconds": 2.0427176728844643,
+      "collector_stop_to_finalize_ms": 264.32503666728735,
+      "telemetry_qualification": {
+        "qualified": false,
+        "issues": [
+          "Externally exclusive window was not declared",
+          "Fewer than two telemetry samples in the timed interval",
+          "Native phase instrumentation; diagnostic timing only"
+        ],
+        "samples_in_timed_interval": 1,
+        "gpu7": {
+          "clocks.sm": {
+            "min": 1740.0,
+            "median": 1740.0,
+            "max": 1740.0
+          },
+          "clocks.mem": {
+            "min": 7251.0,
+            "median": 7251.0,
+            "max": 7251.0
+          },
+          "power.draw": {
+            "min": 116.56,
+            "median": 116.56,
+            "max": 116.56
+          },
+          "power.limit": {
+            "min": 300.0,
+            "median": 300.0,
+            "max": 300.0
+          },
+          "temperature.gpu": {
+            "min": 43.0,
+            "median": 43.0,
+            "max": 43.0
+          },
+          "utilization.gpu": {
+            "min": 25.0,
+            "median": 25.0,
+            "max": 25.0
+          },
+          "memory.used": {
+            "min": 2047.0,
+            "median": 2047.0,
+            "max": 2047.0
+          }
+        },
+        "foreign_gpu_clients": [],
+        "foreign_cpu_processes": [],
+        "policy": {
+          "external_exclusive_declaration": false,
+          "sample_period_seconds": 1,
+          "maximum_sm_clock_spread_fraction": 0.03,
+          "maximum_memory_clock_spread_fraction": 0.005,
+          "foreign_cpu_limit_percent_of_one_core": 10
+        },
+        "limitation": "Sampling cannot prove every in-flight clock or exclude sub-second contention. No clocks/power limits are changed."
+      },
+      "raw_trace_parser_integrity_scope": "Pending offline raw-nettrace parse, event-loss and time-range checks"
+    }
+  ],
+  "sources": [
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-collector.log",
+      "sha256": "840951e9d6822088db67d07ebe488381b564fecc4fbad5f30a7a2302d8eb075d",
+      "bytes": 589
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-eventpipe.json",
+      "sha256": "27576deca9f979e19304b578f512802ab7a71b9b1e51d222ba35968a25870d53",
+      "bytes": 2727
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "4504f988d53573586148bf24be47891949716799c977d8aa99f3de859a8a70d3",
+      "bytes": 172040
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-server-phases.json",
+      "sha256": "9d8c696d570a892ebaee2d6a6b83e1c75e570e2a8b16f7d8e57532ab92611cd0",
+      "bytes": 11321
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-server.log",
+      "sha256": "e2112b7d58672439f3ad695a64bc2e6df2d97be4cd9dc5aeb905e7e6f8642815",
+      "bytes": 55407
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-telemetry.jsonl",
+      "sha256": "da5b1a6d103f1afcaa1ed12eaffbf5f0dd8bb5853dd6d477a7cf7cb584b350be",
+      "bytes": 9028
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.json",
+      "sha256": "1c57a36d05ee302c0c843bc2e4911cf8b5bbf42c188d2bb15b05f8113ef6b3d8",
+      "bytes": 64836
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.nettrace",
+      "sha256": "dfe410e0171637f1affd6cce9da17e99a69fd3c034c1f376d43259d82f03f9e1",
+      "bytes": 6477626
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-collector.log",
+      "sha256": "0ff8c1a3e0487f805b19682eee04a0b0038bf09971a558187970d0d21e11ea75",
+      "bytes": 586
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-eventpipe.json",
+      "sha256": "8b20b29955afb40e817877f11aa09376f61e1537738df04726b01e995c2ea403",
+      "bytes": 2715
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "178c0659be243b00d5add1b363947f7e0962f70c86034fc619e14139bd0ab3b0",
+      "bytes": 171500
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-server-phases.json",
+      "sha256": "d9830b949c4ae5ebc12d5d824cca9d74b3aa06a5b125d503fd1c1f095a19a7f4",
+      "bytes": 10895
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-server.log",
+      "sha256": "465e6e0680c0e1acc9e0fd7e5d16f87eb8ba2ccae52aaac49c3ae8e7d42bb285",
+      "bytes": 55075
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-telemetry.jsonl",
+      "sha256": "46b3a4e7807349f3acd87858c11af3272e0cac1b93c2fa3eb80becb8db5f45ab",
+      "bytes": 9029
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.json",
+      "sha256": "b95d90b7b0f31c69a387d125ecc005cc8a1d9d9797e021bec333840b0ad07c16",
+      "bytes": 64816
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.nettrace",
+      "sha256": "b008b29a225983fe7df6a8fafcd5cb9a030885585d9c087481c0a364b0262f58",
+      "bytes": 6487146
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/run.json",
+      "sha256": "13602b9c3fae625a7a66eb89de0fc00e46ee465dab3e63ca81b6931f37b52128",
+      "bytes": 58589
+    }
+  ],
+  "identity_scope": "Producer verified every frozen host/tool file. This audit hashes local pulled evidence and raw nettrace files, checks manifests and CLI output, and does not reread VM binaries. Model hash reuse is explicitly recorded in the producer manifest.",
+  "trace_scope": "Warmups end before attach; all measured client intervals lie after readiness and before stop; collector finalization precedes host shutdown. Raw parser/event loss/stack integrity and EventPipe-to-wall-clock coverage are a separate audit."
+}

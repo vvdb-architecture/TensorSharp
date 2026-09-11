@@ -1,0 +1,53 @@
+{
+  "commands": [
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "build",
+      "TensorSharp.Server.Host/TensorSharp.Server.Host.csproj",
+      "-c",
+      "Release",
+      "-p:TensorSharpSkipGgmlNative=true",
+      "-p:TensorSharpSkipMlxNative=true",
+      "-p:TensorSharpSkipCudaNative=true",
+      "-p:CudaArch=compute_86",
+      "--verbosity",
+      "quiet",
+      "--output",
+      "/workspace/deepseek41-work/server-v41-thinking"
+    ],
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "build",
+      "InferenceWeb.Tests/InferenceWeb.Tests.csproj",
+      "-c",
+      "Release",
+      "-p:TensorSharpSkipGgmlNative=true",
+      "-p:TensorSharpSkipMlxNative=true",
+      "-p:TensorSharpSkipCudaNative=true",
+      "-p:CudaArch=compute_86",
+      "--verbosity",
+      "quiet",
+      "--output",
+      "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-thinking"
+    ],
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "vstest",
+      "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-thinking/InferenceWeb.Tests.dll",
+      "--TestCaseFilter:Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video",
+      "--Logger:trx;LogFileName=managed-thinking-correctness.trx",
+      "--ResultsDirectory:/workspace/deepseek41-work/test-results"
+    ]
+  ],
+  "exit_code": 0,
+  "elapsed_seconds": 242.0171082019806,
+  "previous_hosts_unchanged": true,
+  "previous_hosts_before": {
+    "/workspace/deepseek41-work/server-v41-vision/TensorSharp.Server.dll": "4010464ed2d4dd5eb714d0b98f5e1a66b8138aa69825e711f4769cca83e2b8f8",
+    "/workspace/deepseek41-work/server-v41-vision-final/TensorSharp.Server.dll": "4010464ed2d4dd5eb714d0b98f5e1a66b8138aa69825e711f4769cca83e2b8f8"
+  },
+  "previous_hosts_after": {
+    "/workspace/deepseek41-work/server-v41-vision/TensorSharp.Server.dll": "4010464ed2d4dd5eb714d0b98f5e1a66b8138aa69825e711f4769cca83e2b8f8",
+    "/workspace/deepseek41-work/server-v41-vision-final/TensorSharp.Server.dll": "4010464ed2d4dd5eb714d0b98f5e1a66b8138aa69825e711f4769cca83e2b8f8"
+  }
+}

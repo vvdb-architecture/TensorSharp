@@ -1,0 +1,54 @@
+{
+  "source": "/tmp/deepseek41-reference/q2-header-1.json",
+  "source_sha256": "7b8a16f9c6438e2488957c4fa3c191010e0a154b1f3ff40acc5674306b56b09d",
+  "source_bytes": 7426185,
+  "selected_tensors": [
+    {
+      "name": "blk.0.attn_kv.weight",
+      "dims": [
+        5120,
+        512
+      ],
+      "type": 10,
+      "offset": 760186880,
+      "ggml_type_name": "Q2_K"
+    },
+    {
+      "name": "blk.0.attn_q_a.weight",
+      "dims": [
+        5120,
+        1280
+      ],
+      "type": 10,
+      "offset": 785842176,
+      "ggml_type_name": "Q2_K"
+    },
+    {
+      "name": "blk.0.attn_q_b.weight",
+      "dims": [
+        1280,
+        32768
+      ],
+      "type": 10,
+      "offset": 787997696,
+      "ggml_type_name": "Q2_K"
+    }
+  ],
+  "scope": "Previously retained first-shard header metadata only; no new checkpoint weight reads. All three first-layer projections use Q2_K storage.",
+  "reference_matmul_source": {
+    "path": "eng/dsv41-reference.py",
+    "sha256": "edceac05fe13735abb7f473f3d7747352996e95381d6185f1afcd6f28193b432",
+    "implementation": "GgufWeights.mm calls F.linear(x.float(), dequantized_rows). Current source snapshot describes the method; original oracle creation-source hash remains unrecorded."
+  },
+  "cuda_quantized_path_sources": [
+    {
+      "path": "ExternalProjects/ggml/src/ggml-cuda/mmq.cu",
+      "sha256": "8acdffe7ccf49698083dfc3e32ae3ef015fb99d6a790adc860344aed401fee08"
+    },
+    {
+      "path": "ExternalProjects/ggml/src/ggml-cuda/mmvq.cu",
+      "sha256": "d4c70f68ab79d463fd6fd52cac66a62e915858397ba4b2b7f658a7fbf13121f3"
+    }
+  ],
+  "distinction": "CUDA quantized matmul paths construct Q8_1 activations for Q2_K/Q3_K dot products. This is a semantic distinction from F32-input matrix evaluation; actual per-operation kernel selection was not profiled and the whole-model difference is not completely attributed."
+}

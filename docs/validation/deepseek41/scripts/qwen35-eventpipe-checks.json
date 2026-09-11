@@ -1,0 +1,49 @@
+{
+  "passed": 32,
+  "checks": [
+    "exact two complete15-case jobs",
+    "exact30 measured plus12 warmups",
+    "two fresh processes reuse only final-native hosts",
+    "every host explicit1ms sampling and existing phase mode",
+    "profile and CLR union are exactly preserved",
+    "collector uses explicit DOTNET_ROOT",
+    "all old files unchanged including every unselected host",
+    "no performance qualification",
+    "attach after exact six warmups: baseline-managed_final-native",
+    "all15 requests before trace finalization and host stop: baseline-managed_final-native",
+    "readiness and stop anchors enclose measured interval: baseline-managed_final-native",
+    "rawtrace complete collection but parser integrity pending: baseline-managed_final-native",
+    "attach after exact six warmups: final-managed_final-native",
+    "all15 requests before trace finalization and host stop: final-managed_final-native",
+    "readiness and stop anchors enclose measured interval: final-managed_final-native",
+    "rawtrace complete collection but parser integrity pending: final-managed_final-native",
+    "existing output refused",
+    "CLI implementation/help mismatch refused: fake-dotnet-trace",
+    "CLI implementation/help mismatch refused: fake-profiler.dll",
+    "CLI implementation/help mismatch refused: collect-help.txt",
+    "all failures retained: semantic",
+    "both collector and host cleanup complete: semantic",
+    "semantic failures do not discard full coverage",
+    "all failures retained: early-exit",
+    "both collector and host cleanup complete: early-exit",
+    "no measured requests before collector ready",
+    "all failures retained: timeout",
+    "both collector and host cleanup complete: timeout",
+    "bad collection cannot complete diagnostic: timeout",
+    "all failures retained: broken",
+    "both collector and host cleanup complete: broken",
+    "bad collection cannot complete diagnostic: broken"
+  ],
+  "runner_source": {
+    "path": "/private/tmp/deepseek41-reference/run-qwen35-eventpipe.py",
+    "sha256": "d4cf63ed593fde16596b433c488470704ccaa9d2180a949b12625e07eff5492f",
+    "bytes": 15738
+  },
+  "guard_source": {
+    "path": "/tmp/deepseek41-reference/check-qwen35-eventpipe.py",
+    "sha256": "78c45f047aaef2380e3d114612dcb553d619423d60c6433a73dd8aed7beb03e4",
+    "bytes": 11262
+  },
+  "prerequisite_cross_guards": 40,
+  "scope": "Local simulated collector/HTTP/host lifecycle, real pinned R2 request builder; no EventPipe capture, VM or GPU execution."
+}

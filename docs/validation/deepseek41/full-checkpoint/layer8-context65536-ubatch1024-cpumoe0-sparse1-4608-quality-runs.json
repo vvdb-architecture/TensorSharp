@@ -1,0 +1,71 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "phase": "quality",
+  "runs": [
+    {
+      "label": "quality",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "short,json,json_schema,multi_turn,tool_round_trip,agentic",
+        "--concurrency",
+        "1,4",
+        "--repeats",
+        "1",
+        "--structured-tool-results",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-quality.json"
+      ],
+      "started_epoch": 1789111672.8130898,
+      "wall_seconds": 98.44591450691223,
+      "exit_code": 1,
+      "output": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-quality.json",
+      "log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-quality.log"
+    },
+    {
+      "label": "unconstrained-tools",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "tool_round_trip,agentic",
+        "--concurrency",
+        "1,4",
+        "--repeats",
+        "1",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-unconstrained-tools.json"
+      ],
+      "started_epoch": 1789111771.266686,
+      "wall_seconds": 77.84850525856018,
+      "exit_code": 1,
+      "output": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-unconstrained-tools.json",
+      "log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-unconstrained-tools.log"
+    }
+  ]
+}

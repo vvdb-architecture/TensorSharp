@@ -1,0 +1,341 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final",
+  "thinking": true,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": true,
+  "max_tokens_override": 2048,
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1765.020728111267,
+      "generated_tokens": 39,
+      "end_to_end_tokens_per_second": 22.09605778496072,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_schema",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 11929.68598101288,
+      "generated_tokens": 308,
+      "end_to_end_tokens_per_second": 25.817946967775047,
+      "all_passed": true
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 33771.88409678638,
+      "generated_tokens": 157,
+      "end_to_end_tokens_per_second": 4.648837463437214,
+      "all_passed": false
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 2.410612069070339,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 493.66365745663643,
+      "ttft_ms_samples": [
+        493.66365745663643
+      ],
+      "prefill_tps_median": 109.38621708190739,
+      "prefill_tps_samples": [
+        109.38621708190739
+      ],
+      "decode_tps_median": 30.725482176756255,
+      "decode_tps_samples": [
+        30.725482176756255
+      ],
+      "conversation_wall_ms_median": 1763.6903021484613
+    },
+    "json_schema@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 11928.140383213758,
+      "ttft_ms_samples": [
+        11928.140383213758
+      ],
+      "prefill_tps_median": 20.539664367530733,
+      "prefill_tps_samples": [
+        20.539664367530733
+      ],
+      "conversation_wall_ms_median": 11928.378854878247
+    },
+    "tool_round_trip@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "agentic@c1": {
+      "passed": 0,
+      "total": 1
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final-thinking.json",
+  "source_report_sha256": "1986bc4d84882963a0b75bc255987327cf46f77e7444be279a91fc19011def59",
+  "native_sha256": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "7a0499fa93cef79e798a2b4f4f9776be12622c48f2554d1f9bb849d5973cc95d",
+      "validated_content": "42",
+      "total_wall_ms": 1763.6903021484613,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "883cb79e938611593132f8c6955334d515a5bc69325f6b78f69d1ed418fb57c3",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": true
+          },
+          "metrics": {
+            "prompt_tokens": 54,
+            "completion_tokens": 39,
+            "ttft_ms": 493.66365745663643,
+            "prefill_tps": 109.38621708190739,
+            "decode_tps": 30.725482176756255,
+            "total_wall_ms": 1763.4213184937835,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42",
+              "reasoning_content": "The user asks: \"What is 17 + 25? Reply with only the integer.\" So answer: 42. Need to reply with only the integer. No extra text."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "The user asks: \"What is 17 + 25? Reply with only the integer.\" So answer: 42. Need to reply with only the integer. No extra text.",
+            "output_text": "42",
+            "t_start_abs": 4383637.568554478,
+            "t_first_abs": 4383638.062218135,
+            "t_last_abs": 4383639.298976595,
+            "t_end_abs": 4383639.331975796
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "d8e8413179b50dd97c43fa64e8ae63bcf817c32bbc8848c985c471eecc1fa07c",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 11928.378854878247,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "61a395c38ac8a46f64724464185f37d7475ce443d207609c2386de2b011f63c1",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "planet",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "Mars"
+                    ]
+                  },
+                  "moons": {
+                    "type": "integer",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  "habitable": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "moons",
+                  "habitable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": true
+          },
+          "metrics": {
+            "prompt_tokens": 245,
+            "completion_tokens": 308,
+            "ttft_ms": 11928.140383213758,
+            "prefill_tps": 20.539664367530733,
+            "decode_tps": 0.0,
+            "total_wall_ms": 11928.264228627086,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4383639.34222631,
+            "t_first_abs": 4383651.270366693,
+            "t_last_abs": 4383651.270366693,
+            "t_end_abs": 4383651.270490538
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "34a774bbfc44be68a24e9495de243e891e171ae83eb97558164c51801c0fb3de",
+      "detail": "ChunkedEncodingError: Response ended prematurely",
+      "total_wall_ms": 33771.099323406816,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "e0a9f257adcc82c385f462898539ce38474ad6684d5d1eadba3bf2ec37fdc529",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": true
+          },
+          "metrics": {
+            "prompt_tokens": 351,
+            "completion_tokens": 157,
+            "ttft_ms": 1593.8946101814508,
+            "prefill_tps": 220.21531270504877,
+            "decode_tps": 33.69603678659259,
+            "total_wall_ms": 6233.589759096503,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_4f6ba272caa74092a3e",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "reasoning_content": "We need answer user. Need use tool get_weather for Paris in celsius, then report returned temperature as JSON object with exactly city and temperature_c. Do not invent weather. We need call tool. We have tool get_weather. Need call with city Paris, units celsius. Then report returned temperature as JSON object with exactly city and temperature_c. Need likely call tool, then respond with JSON. We need not invent. Let's call tool. We need maybe tool returns something. Let's invoke.",
+              "tool_calls": [
+                {
+                  "id": "call_4f6ba272caa74092a3e",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "We need answer user. Need use tool get_weather for Paris in celsius, then report returned temperature as JSON object with exactly city and temperature_c. Do not invent weather. We need call tool. We have tool get_weather. Need call with city Paris, units celsius. Then report returned temperature as JSON object with exactly city and temperature_c. Need likely call tool, then respond with JSON. We need not invent. Let's call tool. We need maybe tool returns something. Let's invoke.",
+            "output_text": "\n\n",
+            "t_start_abs": 4383651.290984309,
+            "t_first_abs": 4383652.884878919,
+            "t_last_abs": 4383657.514503495,
+            "t_end_abs": 4383657.524574068
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "3e3086783a5152081917666bb89bf404ac9a08d45b9b45ad46696a710c9753dd",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.8930090591311455,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    }
+  ],
+  "performance_qualified": false
+}

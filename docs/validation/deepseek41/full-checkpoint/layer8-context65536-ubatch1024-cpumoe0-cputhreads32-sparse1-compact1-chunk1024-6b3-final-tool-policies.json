@@ -1,0 +1,2700 @@
+{
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "server_build": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+  "url": "http://127.0.0.1:5000",
+  "started_utc": "2026-09-11T13:04:47.730892+00:00",
+  "run_complete": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "max_tokens": 512,
+  "thinking_max_tokens": 2048,
+  "harness_sha256": {
+    "validate_deepseek41_tools.py": "73fb441f6e5c309af95f5d4829fea9ef61e4ddd89640c554e9e0f9cda98c9b49",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077"
+  },
+  "fixtures": {
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_invoice",
+          "description": "Read an invoice by its identifier.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "invoice_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "invoice_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_weather",
+          "description": "Look up the current temperature.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "units": {
+                "type": "string",
+                "enum": [
+                  "celsius"
+                ]
+              }
+            },
+            "required": [
+              "city",
+              "units"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "weather_result": {
+      "city": "Paris",
+      "temperature_c": 19
+    }
+  },
+  "fixtures_sha256": "301888225aaada47592fb496ff3a00d7443f9e5e3ca360e156f55b3923342938",
+  "execution_plan": {
+    "waves": [
+      {
+        "scenario": "required",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "required",
+        "concurrency": 4,
+        "repetition": 0
+      },
+      {
+        "scenario": "named",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "named",
+        "concurrency": 4,
+        "repetition": 0
+      },
+      {
+        "scenario": "none_history",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "none_history",
+        "concurrency": 4,
+        "repetition": 0
+      },
+      {
+        "scenario": "single_call",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "single_call",
+        "concurrency": 4,
+        "repetition": 0
+      },
+      {
+        "scenario": "two_calls",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "two_calls",
+        "concurrency": 4,
+        "repetition": 0
+      },
+      {
+        "scenario": "required_thinking",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "named_thinking",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "invalid_required",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "invalid_named",
+        "concurrency": 1,
+        "repetition": 0
+      },
+      {
+        "scenario": "invalid_schema",
+        "concurrency": 1,
+        "repetition": 0
+      }
+    ],
+    "expected_cases": 30
+  },
+  "scope": "Tool-policy/schema transport and fixture arguments, not external tool execution or broad model quality/performance parity.",
+  "waves": [
+    {
+      "scenario": "required",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 3.545013281516731
+    },
+    {
+      "scenario": "required",
+      "concurrency": 4,
+      "repetition": 0,
+      "passed": 4,
+      "total": 4,
+      "wall_seconds": 13.073975700885057
+    },
+    {
+      "scenario": "named",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 3.502635511569679
+    },
+    {
+      "scenario": "named",
+      "concurrency": 4,
+      "repetition": 0,
+      "passed": 4,
+      "total": 4,
+      "wall_seconds": 13.022411316633224
+    },
+    {
+      "scenario": "none_history",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 4.5487710777670145
+    },
+    {
+      "scenario": "none_history",
+      "concurrency": 4,
+      "repetition": 0,
+      "passed": 4,
+      "total": 4,
+      "wall_seconds": 18.48333975300193
+    },
+    {
+      "scenario": "single_call",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 3.1691939290612936
+    },
+    {
+      "scenario": "single_call",
+      "concurrency": 4,
+      "repetition": 0,
+      "passed": 4,
+      "total": 4,
+      "wall_seconds": 12.839882402680814
+    },
+    {
+      "scenario": "two_calls",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 5.079173966310918
+    },
+    {
+      "scenario": "two_calls",
+      "concurrency": 4,
+      "repetition": 0,
+      "passed": 4,
+      "total": 4,
+      "wall_seconds": 18.191265241242945
+    },
+    {
+      "scenario": "required_thinking",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 5.32354230619967
+    },
+    {
+      "scenario": "named_thinking",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 5.460310944356024
+    },
+    {
+      "scenario": "invalid_required",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 0.046827792190015316
+    },
+    {
+      "scenario": "invalid_named",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 0.041389793157577515
+    },
+    {
+      "scenario": "invalid_schema",
+      "concurrency": 1,
+      "repetition": 0,
+      "passed": 1,
+      "total": 1,
+      "wall_seconds": 0.04855104349553585
+    }
+  ],
+  "finished_utc": "2026-09-11T13:06:34.132455+00:00",
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-tool-policies.json",
+  "source_report_sha256": "2d14bc3e54eaaf3a6607fb019f8072c3a84ce7ecb4e42fbb2f43fcfcf34d20be",
+  "cases": [
+    {
+      "scenario": "required",
+      "tag": "required-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "7b09bd1f25f1048b8f4a99459f27033f8f7c5901686db7dd449ac68123886181",
+      "wall_seconds": 3.5328600583598018,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "7b09bd1f25f1048b8f4a99459f27033f8f7c5901686db7dd449ac68123886181",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 1597.6408515125513,
+            "prefill_tps": 233.4692428820068,
+            "decode_tps": 28.343678050544458,
+            "total_wall_ms": 3532.1143502369523,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_2ad64fd8db1649bfbca",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_2ad64fd8db1649bfbca",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404697.030433332,
+            "t_first_abs": 4404698.628074183,
+            "t_last_abs": 4404700.533260938,
+            "t_end_abs": 4404700.562547682
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "required",
+      "tag": "required-c4-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "0f22609023511f879c944e8b8391b66a2813c13dc55afd0d2f170ffb99b7a533",
+      "wall_seconds": 12.941361547447741,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "0f22609023511f879c944e8b8391b66a2813c13dc55afd0d2f170ffb99b7a533",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6232.083471491933,
+            "prefill_tps": 59.85157318676052,
+            "decode_tps": 8.192162333077848,
+            "total_wall_ms": 12941.022987477481,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_dc4b353ecfdd48a38c0",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_dc4b353ecfdd48a38c0",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404700.57545595,
+            "t_first_abs": 4404706.807539421,
+            "t_last_abs": 4404713.399205675,
+            "t_end_abs": 4404713.516478937
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "required",
+      "tag": "required-c4-r0-i1",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "bce0d47dbfd5e448990486ec134ef17f2cfdd796db3a4b300d2c7c0ccbba5ba8",
+      "wall_seconds": 13.036281393840909,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 1,
+      "turns": [
+        {
+          "request_sha256": "bce0d47dbfd5e448990486ec134ef17f2cfdd796db3a4b300d2c7c0ccbba5ba8",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6432.793467305601,
+            "prefill_tps": 57.98414046646401,
+            "decode_tps": 8.299526231136769,
+            "total_wall_ms": 13035.754636861384,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_a30c71a8bb0e4a49baf",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_a30c71a8bb0e4a49baf",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404700.577672524,
+            "t_first_abs": 4404707.010465992,
+            "t_last_abs": 4404713.516861477,
+            "t_end_abs": 4404713.613427161
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "required",
+      "tag": "required-c4-r0-i3",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "ccc6e1f55940e1df3b39f81e3a0ae9f63f47492b8c5bd0d685632a87d9685c01",
+      "wall_seconds": 13.032608292996883,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 3,
+      "turns": [
+        {
+          "request_sha256": "ccc6e1f55940e1df3b39f81e3a0ae9f63f47492b8c5bd0d685632a87d9685c01",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6429.598700255156,
+            "prefill_tps": 58.01295187912702,
+            "decode_tps": 8.301079701844708,
+            "total_wall_ms": 13032.268821261823,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_5b916bfdb9614a38a4b",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_5b916bfdb9614a38a4b",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404700.581597247,
+            "t_first_abs": 4404707.011195947,
+            "t_last_abs": 4404713.516373821,
+            "t_end_abs": 4404713.613866068
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "required",
+      "tag": "required-c4-r0-i2",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "11bfa3506b01b2f3ca726bbd969ce6465f8826913aa6f0378eccc2b745e9298d",
+      "wall_seconds": 13.034674245864153,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 2,
+      "turns": [
+        {
+          "request_sha256": "11bfa3506b01b2f3ca726bbd969ce6465f8826913aa6f0378eccc2b745e9298d",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6431.684407405555,
+            "prefill_tps": 57.99413907350945,
+            "decode_tps": 8.302185571715151,
+            "total_wall_ms": 13034.330629743636,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_db30600865c84e97856",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_db30600865c84e97856",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404700.580202562,
+            "t_first_abs": 4404707.011886969,
+            "t_last_abs": 4404713.516198338,
+            "t_end_abs": 4404713.614533192
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "named",
+      "tag": "named-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "af839b6b6fbcd9dab5ebc5758f0d2ebf22fca1bbddd1189588e6de5b278790a0",
+      "wall_seconds": 3.478586522862315,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "af839b6b6fbcd9dab5ebc5758f0d2ebf22fca1bbddd1189588e6de5b278790a0",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": {
+            "type": "function",
+            "function": {
+              "name": "get_weather"
+            }
+          },
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 1590.012145228684,
+            "prefill_tps": 234.58940305537928,
+            "decode_tps": 29.037479385830558,
+            "total_wall_ms": 3478.0149329453707,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_42789508e98c4f8c96d",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_42789508e98c4f8c96d",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404713.649822509,
+            "t_first_abs": 4404715.239834654,
+            "t_last_abs": 4404717.099500202,
+            "t_end_abs": 4404717.127837442
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "named",
+      "tag": "named-c4-r0-i3",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "4772f38d7ad720a915981fba0bf24492663f55cc95404caafd179b7d304b373b",
+      "wall_seconds": 12.870402377098799,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 3,
+      "turns": [
+        {
+          "request_sha256": "4772f38d7ad720a915981fba0bf24492663f55cc95404caafd179b7d304b373b",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": {
+            "type": "function",
+            "function": {
+              "name": "get_weather"
+            }
+          },
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6145.495796576142,
+            "prefill_tps": 60.69485886033972,
+            "decode_tps": 8.172697640589746,
+            "total_wall_ms": 12869.960917159915,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_e64db2033e0b4fa9b60",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_e64db2033e0b4fa9b60",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404717.159800543,
+            "t_first_abs": 4404723.30529634,
+            "t_last_abs": 4404729.912661787,
+            "t_end_abs": 4404730.029761461
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "named",
+      "tag": "named-c4-r0-i1",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "6f4da1539188e4640c5e452cc835aa19eb49c1abd1ac376e16751e5a3dabb808",
+      "wall_seconds": 12.972980161197484,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 1,
+      "turns": [
+        {
+          "request_sha256": "6f4da1539188e4640c5e452cc835aa19eb49c1abd1ac376e16751e5a3dabb808",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": {
+            "type": "function",
+            "function": {
+              "name": "get_weather"
+            }
+          },
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6333.828101865947,
+            "prefill_tps": 58.890136265320194,
+            "decode_tps": 8.256379624424149,
+            "total_wall_ms": 12972.673377022147,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_2364ce100280432ca85",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_2364ce100280432ca85",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404717.155435736,
+            "t_first_abs": 4404723.489263838,
+            "t_last_abs": 4404730.029660774,
+            "t_end_abs": 4404730.128109113
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "named",
+      "tag": "named-c4-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "edc78bd9554c454623c163c1b69d99ed9cbc7e56c4f8546e9eb89643f40c2a6c",
+      "wall_seconds": 12.976254990324378,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "edc78bd9554c454623c163c1b69d99ed9cbc7e56c4f8546e9eb89643f40c2a6c",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": {
+            "type": "function",
+            "function": {
+              "name": "get_weather"
+            }
+          },
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6336.1654952168465,
+            "prefill_tps": 58.868411862281164,
+            "decode_tps": 8.255378797399885,
+            "total_wall_ms": 12975.779727101326,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_d73edb844edb45fb93f",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_d73edb844edb45fb93f",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404717.152702005,
+            "t_first_abs": 4404723.4888675,
+            "t_last_abs": 4404730.03005735,
+            "t_end_abs": 4404730.128481732
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "named",
+      "tag": "named-c4-r0-i2",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "de37ae3e57c0f64d673f6ffa4a334e616e568f5e8a50054eac964c67aaee4873",
+      "wall_seconds": 12.972038719803095,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 2,
+      "turns": [
+        {
+          "request_sha256": "de37ae3e57c0f64d673f6ffa4a334e616e568f5e8a50054eac964c67aaee4873",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": {
+            "type": "function",
+            "function": {
+              "name": "get_weather"
+            }
+          },
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 373,
+            "completion_tokens": 55,
+            "ttft_ms": 6331.174176186323,
+            "prefill_tps": 58.914822056701354,
+            "decode_tps": 8.25592465202243,
+            "total_wall_ms": 12971.570798195899,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_a81fc112e9a145319c8",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_a81fc112e9a145319c8",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404717.157231088,
+            "t_first_abs": 4404723.488405264,
+            "t_last_abs": 4404730.029162632,
+            "t_end_abs": 4404730.128801886
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "none_history",
+      "tag": "none_history-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "80ae0b7efbfdfad7ce8a3afb10e25776e6d944dd9e00822518d3bf2dcd911070",
+      "validated_content": "{\"city\":\"Paris\",\"temperature_c\":19}",
+      "wall_seconds": 4.52541237603873,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "80ae0b7efbfdfad7ce8a3afb10e25776e6d944dd9e00822518d3bf2dcd911070",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 377,
+            "completion_tokens": 55,
+            "ttft_ms": 1592.414440587163,
+            "prefill_tps": 236.7474134817508,
+            "decode_tps": 33.72369450139502,
+            "total_wall_ms": 3222.6598290726542,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_871b1c4910e24148aad",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_871b1c4910e24148aad",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404730.176176006,
+            "t_first_abs": 4404731.768590447,
+            "t_last_abs": 4404733.369838495,
+            "t_end_abs": 4404733.398835835
+          }
+        },
+        {
+          "request_sha256": "4b03fe4dd0459c02cd89b4efa955ed654d5cdabaf3493affa5ae8fd03f72f512",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": null,
+          "tool_choice": "none",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 174,
+            "completion_tokens": 10,
+            "ttft_ms": 964.5844753831625,
+            "prefill_tps": 180.38855532158743,
+            "decode_tps": 29.15413432651215,
+            "total_wall_ms": 1301.7106130719185,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\":\"Paris\",\"temperature_c\":19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\":\"Paris\",\"temperature_c\":19}",
+            "t_start_abs": 4404733.399335841,
+            "t_first_abs": 4404734.363920316,
+            "t_last_abs": 4404734.672624389,
+            "t_end_abs": 4404734.701046454
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "none_history",
+      "tag": "none_history-c4-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "2d088aca744fa46b6775212e52b1d6a85f0cc118ec502c273f269beae17d2d42",
+      "validated_content": "{\"city\":\"Paris\",\"temperature_c\":19}",
+      "wall_seconds": 18.263438350521028,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "2d088aca744fa46b6775212e52b1d6a85f0cc118ec502c273f269beae17d2d42",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 377,
+            "completion_tokens": 55,
+            "ttft_ms": 6174.468929879367,
+            "prefill_tps": 61.0578827558155,
+            "decode_tps": 8.052511704927523,
+            "total_wall_ms": 12998.266593553126,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_060001c0c9a948149b7",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_060001c0c9a948149b7",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404734.725276761,
+            "t_first_abs": 4404740.899745691,
+            "t_last_abs": 4404747.605727871,
+            "t_end_abs": 4404747.723543354
+          }
+        },
+        {
+          "request_sha256": "fd171e4435c76912887f233695b985295d70cd81e447f2860370797a8f895ea3",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": null,
+          "tool_choice": "none",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 174,
+            "completion_tokens": 10,
+            "ttft_ms": 3843.6422422528267,
+            "prefill_tps": 45.269561794079856,
+            "decode_tps": 6.898423841472984,
+            "total_wall_ms": 5264.176058582962,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\":\"Paris\",\"temperature_c\":19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\":\"Paris\",\"temperature_c\":19}",
+            "t_start_abs": 4404747.723993843,
+            "t_first_abs": 4404751.567636086,
+            "t_last_abs": 4404752.87228193,
+            "t_end_abs": 4404752.988169902
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "none_history",
+      "tag": "none_history-c4-r0-i1",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "fa43d9243eab71fa420aaabf21202518fee43d0bb3c041f93fefc84c092dcaad",
+      "validated_content": "{\"city\":\"Paris\",\"temperature_c\":19}",
+      "wall_seconds": 18.355718755163252,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 1,
+      "turns": [
+        {
+          "request_sha256": "fa43d9243eab71fa420aaabf21202518fee43d0bb3c041f93fefc84c092dcaad",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 377,
+            "completion_tokens": 55,
+            "ttft_ms": 6360.22461950779,
+            "prefill_tps": 59.27463612585047,
+            "decode_tps": 8.137437495199329,
+            "total_wall_ms": 14020.529629662633,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_6b7af40943254f0289d",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_6b7af40943254f0289d",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404734.727184819,
+            "t_first_abs": 4404741.087409439,
+            "t_last_abs": 4404747.723405111,
+            "t_end_abs": 4404748.747714449
+          }
+        },
+        {
+          "request_sha256": "44b2b62ab4ff98712abc8f5cda26184bbf291828d85f1e0f35b8069d5d8a62ce",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": null,
+          "tool_choice": "none",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 174,
+            "completion_tokens": 10,
+            "ttft_ms": 3033.8124530389905,
+            "prefill_tps": 57.353578275975174,
+            "decode_tps": 7.467271483983501,
+            "total_wall_ms": 4334.027796052396,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\":\"Paris\",\"temperature_c\":19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\":\"Paris\",\"temperature_c\":19}",
+            "t_start_abs": 4404748.748356127,
+            "t_first_abs": 4404751.78216858,
+            "t_last_abs": 4404752.987428094,
+            "t_end_abs": 4404753.082383923
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "none_history",
+      "tag": "none_history-c4-r0-i2",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "d88aa8f2eba4a2fbd56a371f196ef03612fe04acbcb355c1b2bf173d5ebc016f",
+      "validated_content": "{\"city\":\"Paris\",\"temperature_c\":19}",
+      "wall_seconds": 18.353509781882167,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 2,
+      "turns": [
+        {
+          "request_sha256": "d88aa8f2eba4a2fbd56a371f196ef03612fe04acbcb355c1b2bf173d5ebc016f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 377,
+            "completion_tokens": 55,
+            "ttft_ms": 6357.169676572084,
+            "prefill_tps": 59.303120599305146,
+            "decode_tps": 8.137484645777914,
+            "total_wall_ms": 14019.000274129212,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_83fece32564f4a10a45",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_83fece32564f4a10a45",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404734.729794754,
+            "t_first_abs": 4404741.08696443,
+            "t_last_abs": 4404747.722921652,
+            "t_end_abs": 4404748.748795028
+          }
+        },
+        {
+          "request_sha256": "0aaf5324703077ee1bfe340393ac12f1575232d72ab266b35a788210fd0ba6be",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": null,
+          "tool_choice": "none",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 174,
+            "completion_tokens": 10,
+            "ttft_ms": 3030.689344741404,
+            "prefill_tps": 57.41268081531025,
+            "decode_tps": 7.452003973775375,
+            "total_wall_ms": 4333.1805523484945,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\":\"Paris\",\"temperature_c\":19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\":\"Paris\",\"temperature_c\":19}",
+            "t_start_abs": 4404748.749619832,
+            "t_first_abs": 4404751.780309177,
+            "t_last_abs": 4404752.988038002,
+            "t_end_abs": 4404753.082800385
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "none_history",
+      "tag": "none_history-c4-r0-i3",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "54e744b7def49c8e1a09dbeea6299a292d1651a470560a89e6eb00f5571bd74d",
+      "validated_content": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "wall_seconds": 18.44711189903319,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 3,
+      "turns": [
+        {
+          "request_sha256": "54e744b7def49c8e1a09dbeea6299a292d1651a470560a89e6eb00f5571bd74d",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 377,
+            "completion_tokens": 55,
+            "ttft_ms": 6354.420592077076,
+            "prefill_tps": 59.32877664252463,
+            "decode_tps": 8.137779092864308,
+            "total_wall_ms": 14017.855041660368,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_73846d796e4a496fb7f",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_73846d796e4a496fb7f",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404734.733334543,
+            "t_first_abs": 4404741.087755135,
+            "t_last_abs": 4404747.72347225,
+            "t_end_abs": 4404748.751189585
+          }
+        },
+        {
+          "request_sha256": "6e6ea24fe15475f209878754d0e92ebb46e5e3d02c3ca77613d6230de143b4fd",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": null,
+          "tool_choice": "none",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 174,
+            "completion_tokens": 13,
+            "ttft_ms": 3029.4892014935613,
+            "prefill_tps": 57.4354250591871,
+            "decode_tps": 8.761362107332506,
+            "total_wall_ms": 4428.274915553629,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4404748.75165368,
+            "t_first_abs": 4404751.781142881,
+            "t_last_abs": 4404753.150792926,
+            "t_end_abs": 4404753.179928595
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "single_call",
+      "tag": "single_call-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "a5c2f7e7091e86c75c534a5d33b7f76add5e0f82edc7bfc583a7cafccef99320",
+      "wall_seconds": 3.1401376789435744,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "a5c2f7e7091e86c75c534a5d33b7f76add5e0f82edc7bfc583a7cafccef99320",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 387,
+            "completion_tokens": 55,
+            "ttft_ms": 1517.9802449420094,
+            "prefill_tps": 254.94402927146416,
+            "decode_tps": 33.89385748522155,
+            "total_wall_ms": 3139.627546072006,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_8f5a867de787408bad8",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_8f5a867de787408bad8",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404753.208674414,
+            "t_first_abs": 4404754.726654659,
+            "t_last_abs": 4404756.319863695,
+            "t_end_abs": 4404756.34830196
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "single_call",
+      "tag": "single_call-c4-r0-i1",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "3c351683fc8dedd7df40a93ca8027c33775166b1a9866c27d492d9c30d7f666c",
+      "wall_seconds": 12.72226569801569,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 1,
+      "turns": [
+        {
+          "request_sha256": "3c351683fc8dedd7df40a93ca8027c33775166b1a9866c27d492d9c30d7f666c",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 387,
+            "completion_tokens": 55,
+            "ttft_ms": 6024.535006843507,
+            "prefill_tps": 64.23732280755135,
+            "decode_tps": 8.206473887778479,
+            "total_wall_ms": 12721.808665432036,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_c447e1bfa21c40d59e7",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_c447e1bfa21c40d59e7",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404756.380256376,
+            "t_first_abs": 4404762.404791383,
+            "t_last_abs": 4404768.984962202,
+            "t_end_abs": 4404769.102065042
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "single_call",
+      "tag": "single_call-c4-r0-i2",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "3635b6000f4131341cad50cee6482b869f5f7476d7b109715c9670580249f134",
+      "wall_seconds": 12.720582665875554,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 2,
+      "turns": [
+        {
+          "request_sha256": "3635b6000f4131341cad50cee6482b869f5f7476d7b109715c9670580249f134",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 387,
+            "completion_tokens": 55,
+            "ttft_ms": 6021.725771017373,
+            "prefill_tps": 64.26729059344332,
+            "decode_tps": 8.20555234843253,
+            "total_wall_ms": 12720.320330932736,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_cf113fc8fed44b16981",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_cf113fc8fed44b16981",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404756.38215473,
+            "t_first_abs": 4404762.403880501,
+            "t_last_abs": 4404768.984790318,
+            "t_end_abs": 4404769.102475061
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "single_call",
+      "tag": "single_call-c4-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "1abec8d9b9dd41b7333dc398fac2aebf829851005ec0f49d634723f61e7db6f4",
+      "wall_seconds": 12.724968083202839,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "1abec8d9b9dd41b7333dc398fac2aebf829851005ec0f49d634723f61e7db6f4",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 387,
+            "completion_tokens": 55,
+            "ttft_ms": 6024.909220635891,
+            "prefill_tps": 64.23333295620255,
+            "decode_tps": 8.205012362051672,
+            "total_wall_ms": 12724.52094964683,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_9eca2520c1584788ae9",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_9eca2520c1584788ae9",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404756.37830926,
+            "t_first_abs": 4404762.403218481,
+            "t_last_abs": 4404768.984561399,
+            "t_end_abs": 4404769.10283021
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "single_call",
+      "tag": "single_call-c4-r0-i3",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "ae54ba27b9155c1ecd11b3c3ebf89cfebd4dbe2798f92a940080ac4a22f37c81",
+      "wall_seconds": 12.783402994275093,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 3,
+      "turns": [
+        {
+          "request_sha256": "ae54ba27b9155c1ecd11b3c3ebf89cfebd4dbe2798f92a940080ac4a22f37c81",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 387,
+            "completion_tokens": 55,
+            "ttft_ms": 6236.901838332415,
+            "prefill_tps": 62.05003862999289,
+            "decode_tps": 8.331624447640023,
+            "total_wall_ms": 12783.058133907616,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_e4f3472902f04821bbb",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_e4f3472902f04821bbb",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404756.384496885,
+            "t_first_abs": 4404762.621398724,
+            "t_last_abs": 4404769.102727826,
+            "t_end_abs": 4404769.167555019
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "two_calls",
+      "tag": "two_calls-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "1dbff07fe5f33870545d1eacc76df5ac8cf210b01c087990ce4e2428f2611a2e",
+      "wall_seconds": 5.005503659136593,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "1dbff07fe5f33870545d1eacc76df5ac8cf210b01c087990ce4e2428f2611a2e",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": true,
+          "metrics": {
+            "prompt_tokens": 391,
+            "completion_tokens": 101,
+            "ttft_ms": 1529.477027244866,
+            "prefill_tps": 255.64293744531133,
+            "decode_tps": 29.02255661087045,
+            "total_wall_ms": 5005.000709556043,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather",
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_256b309eb76a46e4b85",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              },
+              {
+                "id": "call_8ec0b8a482524510857",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_256b309eb76a46e4b85",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                },
+                {
+                  "id": "call_8ec0b8a482524510857",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404769.218998172,
+            "t_first_abs": 4404770.7484752,
+            "t_last_abs": 4404774.194071028,
+            "t_end_abs": 4404774.223998882
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "two_calls",
+      "tag": "two_calls-c4-r0-i1",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "415d93594f6ad307c207d50f3459bec80250803b992d6f7fe5d61b392da9f7c2",
+      "wall_seconds": 17.969225545413792,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 1,
+      "turns": [
+        {
+          "request_sha256": "415d93594f6ad307c207d50f3459bec80250803b992d6f7fe5d61b392da9f7c2",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": true,
+          "metrics": {
+            "prompt_tokens": 391,
+            "completion_tokens": 101,
+            "ttft_ms": 5903.356038033962,
+            "prefill_tps": 66.23351149428852,
+            "decode_tps": 8.369880487877325,
+            "total_wall_ms": 17968.838735483587,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather",
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_16ed3005b75443abb89",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              },
+              {
+                "id": "call_73e2dcaaac0a4bb2ac8",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_16ed3005b75443abb89",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                },
+                {
+                  "id": "call_73e2dcaaac0a4bb2ac8",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404774.299767064,
+            "t_first_abs": 4404780.203123102,
+            "t_last_abs": 4404792.150725,
+            "t_end_abs": 4404792.268605799
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "two_calls",
+      "tag": "two_calls-c4-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "141d4c90fb86efbabd4074115f2986c1b558429bc983e24d521754680119dbcf",
+      "wall_seconds": 18.068910360336304,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "141d4c90fb86efbabd4074115f2986c1b558429bc983e24d521754680119dbcf",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": true,
+          "metrics": {
+            "prompt_tokens": 391,
+            "completion_tokens": 101,
+            "ttft_ms": 6111.725433729589,
+            "prefill_tps": 63.97538702280971,
+            "decode_tps": 8.432907525815509,
+            "total_wall_ms": 18068.348758853972,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather",
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_225ec322ba23427e94a",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              },
+              {
+                "id": "call_8b84be49d53042f9a0f",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_225ec322ba23427e94a",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                },
+                {
+                  "id": "call_8b84be49d53042f9a0f",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404774.298339554,
+            "t_first_abs": 4404780.410064988,
+            "t_last_abs": 4404792.268371236,
+            "t_end_abs": 4404792.366688313
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "two_calls",
+      "tag": "two_calls-c4-r0-i3",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "b9c7cfb14d1411e4997107a6ed7605b621439aa20bf9609f20843fb500aecd22",
+      "wall_seconds": 18.06434664130211,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 3,
+      "turns": [
+        {
+          "request_sha256": "b9c7cfb14d1411e4997107a6ed7605b621439aa20bf9609f20843fb500aecd22",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": true,
+          "metrics": {
+            "prompt_tokens": 391,
+            "completion_tokens": 101,
+            "ttft_ms": 6106.012224219739,
+            "prefill_tps": 64.035246842298,
+            "decode_tps": 8.432201990215077,
+            "total_wall_ms": 18063.99157177657,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather",
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_cb02afa1472849238c1",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              },
+              {
+                "id": "call_6fd04eee4c954098b41",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_cb02afa1472849238c1",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                },
+                {
+                  "id": "call_6fd04eee4c954098b41",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404774.303178897,
+            "t_first_abs": 4404780.409191121,
+            "t_last_abs": 4404792.268489572,
+            "t_end_abs": 4404792.367170469
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "two_calls",
+      "tag": "two_calls-c4-r0-i2",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "1b6f12a1d74f61e1c2a0b48d1ba20a12d3c14e731ae99312ecda9c69a5617f3d",
+      "wall_seconds": 18.066573245450854,
+      "concurrency": 4,
+      "repetition": 0,
+      "client": 2,
+      "turns": [
+        {
+          "request_sha256": "1b6f12a1d74f61e1c2a0b48d1ba20a12d3c14e731ae99312ecda9c69a5617f3d",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": true,
+          "metrics": {
+            "prompt_tokens": 391,
+            "completion_tokens": 101,
+            "ttft_ms": 6108.1947246566415,
+            "prefill_tps": 64.01236660345323,
+            "decode_tps": 8.43299798969125,
+            "total_wall_ms": 18066.071956418455,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather",
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_3867738c07144de7811",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              },
+              {
+                "id": "call_c4ab43daf8ab4d55903",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_3867738c07144de7811",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                },
+                {
+                  "id": "call_c4ab43daf8ab4d55903",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"London\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4404774.30148282,
+            "t_first_abs": 4404780.409677545,
+            "t_last_abs": 4404792.267856584,
+            "t_end_abs": 4404792.367554776
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "required_thinking",
+      "tag": "required_thinking-c1-r0-i0",
+      "status": "ok",
+      "thinking": true,
+      "input_sha256": "543261f06b4bd74f157d338563be393167debe31d3f92a8c7b28de8ebffa6f27",
+      "wall_seconds": 5.272983570583165,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "543261f06b4bd74f157d338563be393167debe31d3f92a8c7b28de8ebffa6f27",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": "required",
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 399,
+            "completion_tokens": 121,
+            "ttft_ms": 1647.234403528273,
+            "prefill_tps": 242.22417838369995,
+            "decode_tps": 33.38310411977519,
+            "total_wall_ms": 5272.36062195152,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_500858fa666b40fcabb",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "reasoning_content": "We need answer user. Need call get_weather exactly once for Paris using celsius. We have tool get_weather. Need call with city Paris, units celsius. Then respond. We need not invent weather. We can call tool. Then final answer maybe with result. Need follow instruction. Let's call get_weather.",
+              "tool_calls": [
+                {
+                  "id": "call_500858fa666b40fcabb",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "We need answer user. Need call get_weather exactly once for Paris using celsius. We have tool get_weather. Need call with city Paris, units celsius. Then respond. We need not invent weather. We can call tool. Then final answer maybe with result. Need follow instruction. Let's call get_weather.",
+            "output_text": "\n\n",
+            "t_start_abs": 4404792.489716201,
+            "t_first_abs": 4404794.136950605,
+            "t_last_abs": 4404797.731583374,
+            "t_end_abs": 4404797.762076823
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "named_thinking",
+      "tag": "named_thinking-c1-r0-i0",
+      "status": "ok",
+      "thinking": true,
+      "input_sha256": "b35c566a672f09f52ec359f00fd37673ea4ced868c4bf1737f5a63ee2d2f57ff",
+      "wall_seconds": 5.42325281072408,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request_sha256": "b35c566a672f09f52ec359f00fd37673ea4ced868c4bf1737f5a63ee2d2f57ff",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": null,
+          "tool_choice": {
+            "type": "function",
+            "function": {
+              "name": "get_weather"
+            }
+          },
+          "parallel_tool_calls": false,
+          "metrics": {
+            "prompt_tokens": 399,
+            "completion_tokens": 133,
+            "ttft_ms": 1530.4706199094653,
+            "prefill_tps": 260.70412251598975,
+            "decode_tps": 34.18152839147783,
+            "total_wall_ms": 5422.57721349597,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_3083799a774d413db4f",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "reasoning_content": "We need answer user request. We need call get_weather exactly once for Paris using celsius. We have tool get_weather. Need call with city Paris, units celsius. Then respond. We need not invent weather. We can call tool. Let's do it. We need maybe no need to mention? We should call tool. Then final answer with result. Let's call.",
+              "tool_calls": [
+                {
+                  "id": "call_3083799a774d413db4f",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "We need answer user request. We need call get_weather exactly once for Paris using celsius. We have tool get_weather. Need call with city Paris, units celsius. Then respond. We need not invent weather. We can call tool. Let's do it. We need maybe no need to mention? We should call tool. Then final answer with result. Let's call.",
+            "output_text": "\n\n",
+            "t_start_abs": 4404797.813791242,
+            "t_first_abs": 4404799.344261862,
+            "t_last_abs": 4404803.205996729,
+            "t_end_abs": 4404803.236368456
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "invalid_required",
+      "tag": "invalid_required-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "23394fa2f6ef92009f8bae7c637fe6d6f12cbb1e16c1d9d47be20484211bfc59",
+      "wall_seconds": 0.010211634449660778,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request": {
+            "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation invalid_required-c1-r0-i0]\nCall get_weather exactly once for Paris using celsius. Do not invent weather or call another function."
+              }
+            ],
+            "tool_choice": "required",
+            "parallel_tool_calls": false,
+            "stream": false,
+            "max_tokens": 512,
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "request_sha256": "23394fa2f6ef92009f8bae7c637fe6d6f12cbb1e16c1d9d47be20484211bfc59",
+          "response": {
+            "http_status": 400,
+            "content_type": "application/json; charset=utf-8",
+            "body": "{\"error\":{\"message\":\"tool_choice requires at least one client-declared function.\",\"type\":\"invalid_request_error\"}}"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "invalid_named",
+      "tag": "invalid_named-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "8f6cc6f99bfee4ecc36776a8de6e4bda8985906d7db584e5ae549b24d4ec1963",
+      "wall_seconds": 0.0031038057059049606,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request": {
+            "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation invalid_named-c1-r0-i0]\nCall get_weather exactly once for Paris using celsius. Do not invent weather or call another function."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "description": "Read an invoice by its identifier.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "invoice_id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "invoice_id"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "tool_choice": {
+              "type": "function",
+              "function": {
+                "name": "undeclared_weather_tool"
+              }
+            },
+            "parallel_tool_calls": false,
+            "stream": false,
+            "max_tokens": 512,
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "request_sha256": "8f6cc6f99bfee4ecc36776a8de6e4bda8985906d7db584e5ae549b24d4ec1963",
+          "response": {
+            "http_status": 400,
+            "content_type": "application/json; charset=utf-8",
+            "body": "{\"error\":{\"message\":\"Unsupported DeepSeek V4.1 tool schema/policy: tool_choice names undeclared function 'undeclared_weather_tool'.\",\"type\":\"invalid_request_error\"}}"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "invalid_schema",
+      "tag": "invalid_schema-c1-r0-i0",
+      "status": "ok",
+      "thinking": false,
+      "input_sha256": "a70338e3dc8761395055aa5fcf6d827ae868d71b541151607b05bc5a31a9d303",
+      "wall_seconds": 0.008515004068613052,
+      "concurrency": 1,
+      "repetition": 0,
+      "client": 0,
+      "turns": [
+        {
+          "request": {
+            "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation invalid_schema-c1-r0-i0]\nCall get_weather exactly once for Paris using celsius. Do not invent weather or call another function."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "description": "Read an invoice by its identifier.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "invoice_id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "invoice_id"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string",
+                        "pattern": "^[A-Z][a-z]+$"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "tool_choice": "required",
+            "parallel_tool_calls": false,
+            "stream": false,
+            "max_tokens": 512,
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "request_sha256": "a70338e3dc8761395055aa5fcf6d827ae868d71b541151607b05bc5a31a9d303",
+          "response": {
+            "http_status": 400,
+            "content_type": "application/json; charset=utf-8",
+            "body": "{\"error\":{\"message\":\"Unsupported DeepSeek V4.1 tool schema/policy: schema keyword 'pattern' cannot be enforced.\",\"type\":\"invalid_request_error\"}}"
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

@@ -1,0 +1,148 @@
+{
+  "scope": "Final6b3 native smoke and fresh-slot trace completed; strict retained CPU-oracle comparison fails. Local guard tests, model execution, and read-only stage analysis remain distinct.",
+  "source": "eng/tests/dsv41-final-smoke18.py",
+  "source_sha256": "d3c57482d19ed59a4ba0bf06632ee2dec70c725c0b16f8cb94df38a712f3f100",
+  "helper_sha256": "e30c05c722cf0d0488f67f3b457b4e5547ab12fe9f31ec5e092ee5964d22cdb7",
+  "run": {
+    "started_utc": "2026-09-11T13:24:14.918388+00:00",
+    "status": "complete",
+    "arguments": [
+      "--trace-after"
+    ],
+    "session_id": 84593,
+    "exit_code": 0,
+    "strict_oracle_passed": false,
+    "expected_tokens_match": true,
+    "trace_primary_bitwise_equal": true,
+    "trace_required_files": 81,
+    "trace_required_files_passed": 81,
+    "verified_gpu_unload_utc": "2026-09-11T13:29:49.855336+00:00"
+  },
+  "review": {
+    "root": "Lifecycle and primary-result preservation reviewed before execution.",
+    "validation_harness": "Lifecycle reviewed; partial-trace concern addressed by81 exact-sized required files and terminal-logit equality checks.",
+    "local_checks": {
+      "fake_abi_and_coverage": 25,
+      "original_guards": 8,
+      "all_passed": true
+    }
+  },
+  "artifacts": {
+    "README.md": {
+      "sha256": "4091d934b72bf7813037bf3df3cca75e6f4555e39e309183d47128938c43823e",
+      "bytes": 7564
+    },
+    "analyze-stages.py": {
+      "sha256": "44b1f8b988181adc39e985ca6f1c7a36987aa104808924a7b9911ff5dd12131b",
+      "bytes": 6101
+    },
+    "completion.json": {
+      "sha256": "757ece1d1627bd5cb127b33b89a846c63efd933013af45a1971a06099d3a1f67",
+      "bytes": 1599
+    },
+    "final-run/checkpoint-sha256.json": {
+      "sha256": "b1f3d500acfedb8de6b3217b573b8c46094911c44d059f8f078b488f7e646f35",
+      "bytes": 2903
+    },
+    "final-run/comparison.json": {
+      "sha256": "93afb893da66d3cc0322d78477f89fc4f7a3b3c595c6449a64344511b55f80d3",
+      "bytes": 3785
+    },
+    "final-run/dsv41-smoke.py": {
+      "sha256": "e30c05c722cf0d0488f67f3b457b4e5547ab12fe9f31ec5e092ee5964d22cdb7",
+      "bytes": 13179
+    },
+    "final-run/manifest.json": {
+      "sha256": "468a39e5fdc257795cf62c5422e1eb0c8f08e285d3fe8b16cba0827998e6ef6b",
+      "bytes": 73078
+    },
+    "final-run/native.log": {
+      "sha256": "7349a5e2192048a3c3c79cb646e176a317cfa6f93200543a2287f4c3898701c7",
+      "bytes": 1894
+    },
+    "final-run/reference-last-logits.npy": {
+      "sha256": "50eb23db35f574d3ab534a116bc9b08d1c35cc002d21e749588700578710fd01",
+      "bytes": 517248
+    },
+    "final-run/reference.log": {
+      "sha256": "10ebb42dc8940e75ccdccc8e344faa8dae52a9291e4caceec5a8571c060dc8e6",
+      "bytes": 1835
+    },
+    "final-run/runner.py": {
+      "sha256": "d3c57482d19ed59a4ba0bf06632ee2dec70c725c0b16f8cb94df38a712f3f100",
+      "bytes": 15220
+    },
+    "final-run/settings.json": {
+      "sha256": "cbafe563f6429d6076b09d7a13415b829e279aa9ddd0fa9ea80b8cc41f950170",
+      "bytes": 7960
+    },
+    "final-run/smoke.first-logits.npy": {
+      "sha256": "1e835b54a343f6ea4c51a3c18e74df5651a3dae827ff118af918fc85c6d2289c",
+      "bytes": 517248
+    },
+    "final-run/smoke.json": {
+      "sha256": "dcca839775a0076bdcc0ad86e1e463a9ac7b1c784d18ecc16da8f8d590757ebf",
+      "bytes": 2610
+    },
+    "final-run/tokens.json": {
+      "sha256": "b7831ba96698077861c56354168402caff12466f7e8830922b0d6127b1695f29",
+      "bytes": 98
+    },
+    "final-stage-comparison.json": {
+      "sha256": "b98312429223ec301b138b41c0d43d168893f3e404fe4323894ca9f17e0f73be",
+      "bytes": 173701
+    },
+    "final-stage-comparison.log": {
+      "sha256": "ce411b312d0f75b9b42137de5425e685c55e266b3ea23ecef00d398d2f9a346d",
+      "bytes": 4594
+    },
+    "helper-trace-extension.patch": {
+      "sha256": "8e46fd0ae77d999ca19d5798f086b5eee6c8fc1d9941864416071e3b6e636b52",
+      "bytes": 9307
+    },
+    "previous-reviewed/dsv41-final-smoke18-e096164a.py": {
+      "sha256": "e096164a23cee46aa9f6e111a2f5b86e133c72b05a54205e3febe07e2e1905b8",
+      "bytes": 11782
+    },
+    "previous-reviewed/dsv41-smoke-f6716817.py": {
+      "sha256": "f6716817d14cb3cc35f60d18c974bdfadf58baee48001903f7313244b9dc43a5",
+      "bytes": 6814
+    },
+    "previous-reviewed/manifest-before-trace-extension.json": {
+      "sha256": "9de5382826e9bf34e7e8df8eb78771cf4fd4d596c9f1564e5f33d457c9dc2949",
+      "bytes": 1372
+    },
+    "previous-reviewed/runner-guards-e096164a.json": {
+      "sha256": "adad107687800b462231d61b802b3b0d8d20ae7c276435aa76c72df4d5474502",
+      "bytes": 1054
+    },
+    "projection-type-evidence.json": {
+      "sha256": "c591da614afa4df3d85643a486680a667e4f5eb3535a5bc870b6923e6d890dce",
+      "bytes": 1873
+    },
+    "provenance.json": {
+      "sha256": "64c86e986cf7d7c1ec28efb8c2ae22acc77d7d9ddcd7b294ab99931f8abc1231",
+      "bytes": 4075
+    },
+    "runner-guard-checks.py": {
+      "sha256": "8366645aada6e9024d5e962dd0ddb956e2030d62d231db4c1b10535ef974ea9a",
+      "bytes": 3179
+    },
+    "runner-guards.json": {
+      "sha256": "649222dfa523fb25146fb96dc3d490e0f4afe8a39acc8be734bbf4e6449f852b",
+      "bytes": 1054
+    },
+    "runner-trace-extension.patch": {
+      "sha256": "2df4190f0950ef65a2ebde095ee3df9d30f333a813a0229630de8b41402a7ea5",
+      "bytes": 6436
+    },
+    "trace-extension-checks.json": {
+      "sha256": "aaec8078535093c1d6d610d2142b6e1713124f2bf23c137b22c2384dbe160027",
+      "bytes": 505
+    },
+    "trace-extension-checks.log": {
+      "sha256": "0b969b34501db29bf7dec6b9de2a5345c488c9302f1c04a0a1865a24d013affa",
+      "bytes": 2612
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "scope": "Direct macOS and target Ubuntu .NET 10.0.10 managed/libc environment observations; no model/backend compute. Actual loader thread delivery is checked separately under native-recovery.",
+  "build_command": "dotnet build eng/tests/dsv41-native-environment/dsv41-native-environment.csproj -c Release --output /tmp/deepseek41-reference/native-environment-probe --verbosity quiet",
+  "run_command": "dotnet /tmp/deepseek41-reference/native-environment-probe/dsv41-native-environment.dll /Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/bin/Release/net10.0 /tmp/deepseek41-reference/native-environment-local.json",
+  "source_sha256": {
+    "eng/tests/dsv41-native-environment/Program.cs": "f9676e500a3473cc00b733b1023d5ac9a35cf19f445b2c48c26da01b7f9ba0a2",
+    "eng/tests/dsv41-native-environment/dsv41-native-environment.csproj": "cdd6f0b4e4b9c72196431282fc7f42508e52e0f6a10b88a948a157bbdabd220b"
+  },
+  "portable_files_sha256": {
+    "dsv41-native-environment.deps.json": "099885fa42bec29066b0f65b78c8c290462d0085be727cd2fb00ed7cbe6680a7",
+    "dsv41-native-environment.dll": "755e5756e06aae65eff7642bf2c56b92a99b0e772b3801764d8932781eafcd45",
+    "dsv41-native-environment.runtimeconfig.json": "9950d4583cfc9a106857c0d5b8a75b53e8774852b57b80bc3823a74d44a4d87f"
+  },
+  "remote_results": {
+    "default_native_environment": "Managed SetEnvironmentVariable and SetCpuThreads(9) do not change libc getenv; native setter export exists and no managed warning was emitted.",
+    "inherited_native_environment": "Inherited TS_CPU_MOE_THREADS=48 remains 48 in libc after managed SetCpuThreads(9) and reset(0)."
+  },
+  "artifact_sha256": {
+    "native-environment-vm-inherited48.json": "8381dbc3a7d85f6579bd617e928599fa507d29ff3446ab32c4dbcd40b3ad4d72",
+    "native-environment-vm.json": "1253e0ed2c51cb9377b0e8049d35ba141eacff45aab81d9b4d405b3fe39098a2",
+    "local-macos.json": "b2968524493aafb7ea2f207a3449a1ce752b15edeb576cb03cfc3f5b1287a830"
+  }
+}

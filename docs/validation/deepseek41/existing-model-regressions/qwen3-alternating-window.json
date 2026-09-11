@@ -1,0 +1,133 @@
+{
+  "started_utc": "2026-09-11T05:53:02Z",
+  "resident_context": "Full V41 model resident but idle on GPUs0-7; GPU compute reserved for this comparison.",
+  "gpu": 7,
+  "order": [
+    "after0",
+    "baseline0",
+    "after1",
+    "baseline1"
+  ],
+  "repeats": 3,
+  "scenarios": {
+    "decode": [
+      1
+    ],
+    "tool_round_trip": [
+      1,
+      4
+    ]
+  },
+  "runs": [
+    {
+      "label": "after0",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/deepseek41-work/dsv41-existing-regressions.py",
+        "--mode",
+        "performance",
+        "--label",
+        "qwen3-alternating-after0",
+        "--tensor-root",
+        "/workspace/TensorSharp",
+        "--engines",
+        "tensorsharp",
+        "--models",
+        "qwen3",
+        "--repeats",
+        "3",
+        "--warmup-decode",
+        "--scenarios",
+        "decode,tool_round_trip",
+        "--scenario-concurrency",
+        "decode=1;tool_round_trip=1,4"
+      ],
+      "started_utc": "2026-09-11T05:53:02Z",
+      "returncode": 0,
+      "finished_utc": "2026-09-11T05:54:01Z"
+    },
+    {
+      "label": "baseline0",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/deepseek41-work/dsv41-existing-regressions.py",
+        "--mode",
+        "performance",
+        "--label",
+        "qwen3-alternating-baseline0",
+        "--tensor-root",
+        "/workspace/TensorSharp-baseline",
+        "--engines",
+        "tensorsharp",
+        "--models",
+        "qwen3",
+        "--repeats",
+        "3",
+        "--warmup-decode",
+        "--scenarios",
+        "decode,tool_round_trip",
+        "--scenario-concurrency",
+        "decode=1;tool_round_trip=1,4"
+      ],
+      "started_utc": "2026-09-11T05:54:01Z",
+      "returncode": 1,
+      "finished_utc": "2026-09-11T05:55:09Z"
+    },
+    {
+      "label": "after1",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/deepseek41-work/dsv41-existing-regressions.py",
+        "--mode",
+        "performance",
+        "--label",
+        "qwen3-alternating-after1",
+        "--tensor-root",
+        "/workspace/TensorSharp",
+        "--engines",
+        "tensorsharp",
+        "--models",
+        "qwen3",
+        "--repeats",
+        "3",
+        "--warmup-decode",
+        "--scenarios",
+        "decode,tool_round_trip",
+        "--scenario-concurrency",
+        "decode=1;tool_round_trip=1,4"
+      ],
+      "started_utc": "2026-09-11T05:55:09Z",
+      "returncode": 0,
+      "finished_utc": "2026-09-11T05:56:06Z"
+    },
+    {
+      "label": "baseline1",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/deepseek41-work/dsv41-existing-regressions.py",
+        "--mode",
+        "performance",
+        "--label",
+        "qwen3-alternating-baseline1",
+        "--tensor-root",
+        "/workspace/TensorSharp-baseline",
+        "--engines",
+        "tensorsharp",
+        "--models",
+        "qwen3",
+        "--repeats",
+        "3",
+        "--warmup-decode",
+        "--scenarios",
+        "decode,tool_round_trip",
+        "--scenario-concurrency",
+        "decode=1;tool_round_trip=1,4"
+      ],
+      "started_utc": "2026-09-11T05:56:06Z",
+      "returncode": 1,
+      "finished_utc": "2026-09-11T05:57:02Z"
+    }
+  ],
+  "status": "completed",
+  "finished_utc": "2026-09-11T05:57:04Z"
+}

@@ -1,0 +1,752 @@
+{
+  "scope": "Independent local audit of all four managed/native diagnostic crossings. All 60 requests/outputs/token counts match completed R2. Instrumented timings are diagnostic only, never qualified regression/fix evidence.",
+  "integrity_valid": true,
+  "run_complete": true,
+  "all_60_cases_passed": true,
+  "performance_qualified": false,
+  "analysis_source": {
+    "path": "/tmp/deepseek41-reference/audit-qwen35-cross-phase.py",
+    "sha256": "85e4984b7b024ab892dd3d2130db0ca764b38484f9016918bda3f5d32a6c384e",
+    "bytes": 9028
+  },
+  "reused_case_auditor_source": {
+    "path": "/tmp/deepseek41-reference/audit-json-performance-r2.py",
+    "sha256": "68162d53df23706f7acd468953105654eb8176d30b01edf233b93973e181ab9f",
+    "bytes": 13169
+  },
+  "run_source": {
+    "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/run.json",
+    "sha256": "2dff39c993f0d53868b9ddcc41fa5ca2681a10a9dfa3ea8a4c4e5c8c2a241994",
+    "bytes": 78957
+  },
+  "rows": [
+    {
+      "label": "baseline-managed_baseline-native",
+      "cross": {
+        "managed": "baseline",
+        "native": "baseline"
+      },
+      "source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native.json",
+        "sha256": "1e6a736b03c56e6c5d875222ce3455f1cb338b05c0a926152f2e4f2f0dd59786",
+        "bytes": 64263
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+      },
+      "phase_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native-server-phases.json",
+        "sha256": "a2324bc80752ea97db72dfbe14c9a0b469d2e7e49cc1f88c7061567ecaa7d8ce",
+        "bytes": 11327
+      },
+      "phase_verify_lines": 26,
+      "groups": {
+        "1": {
+          "all_cases_passed": true,
+          "cases": 3,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            67.23977066576481,
+            181.06824532151222,
+            66.19999092072248
+          ],
+          "request_wall_ms": [
+            127.30958126485348,
+            241.3292983546853,
+            123.27767815440893
+          ],
+          "json_decode_tps": [
+            267.3797915632797,
+            266.46040264452495,
+            282.4895810208913
+          ],
+          "median_ttft_ms": 67.23977066576481,
+          "median_request_wall_ms": 127.30958126485348,
+          "median_json_decode_tps": 267.3797915632797,
+          "waves": [
+            {
+              "concurrency": 1,
+              "repeat": 0,
+              "wall_ms": 128.37669253349304,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 1,
+              "wall_ms": 242.45997611433268,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 2,
+              "wall_ms": 124.22981765121222,
+              "generated_tokens": 16,
+              "all_passed": true
+            }
+          ]
+        },
+        "4": {
+          "all_cases_passed": true,
+          "cases": 12,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            239.8437988013029,
+            184.74531453102827,
+            237.54461761564016,
+            368.5539672151208,
+            216.9425468891859,
+            291.1375444382429,
+            265.58387000113726,
+            264.1066974028945,
+            227.80844382941723,
+            348.28760754317045,
+            279.0796114131808,
+            276.89731772989035
+          ],
+          "request_wall_ms": [
+            486.81683000177145,
+            478.93710900098085,
+            483.74689742922783,
+            509.87675972282887,
+            391.6993113234639,
+            451.0767897590995,
+            395.811527967453,
+            394.38562374562025,
+            456.0090070590377,
+            546.0799690335989,
+            460.6893230229616,
+            459.0840730816126
+          ],
+          "json_decode_tps": [
+            62.67889543287376,
+            52.519765019442445,
+            62.775282491506864,
+            132.50202552252162,
+            89.82011414146787,
+            142.2857598099319,
+            122.45371119434678,
+            122.12027385539193,
+            68.05317380954979,
+            133.02571010831383,
+            86.3392969017689,
+            85.82840679633894
+          ],
+          "median_ttft_ms": 264.8452837020159,
+          "median_request_wall_ms": 459.8866980522871,
+          "median_json_decode_tps": 88.0797055216184,
+          "waves": [
+            {
+              "concurrency": 4,
+              "repeat": 0,
+              "wall_ms": 515.7609060406685,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 1,
+              "wall_ms": 454.3402325361967,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 2,
+              "wall_ms": 549.0286694839597,
+              "generated_tokens": 64,
+              "all_passed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "baseline-managed_final-native",
+      "cross": {
+        "managed": "baseline",
+        "native": "final"
+      },
+      "source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native.json",
+        "sha256": "561029588da0650d7e19cbd43add2003a88846c5903a6b38fa8d4e5797b1ebc1",
+        "bytes": 64343
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "phase_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native-server-phases.json",
+        "sha256": "f42c60a8926011a73105a14012b6c074d0ccc288a2f933d85c50536fba44d6f3",
+        "bytes": 10906
+      },
+      "phase_verify_lines": 25,
+      "groups": {
+        "1": {
+          "all_cases_passed": true,
+          "cases": 3,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            59.270069003105164,
+            69.03155986219645,
+            81.37290831655264
+          ],
+          "request_wall_ms": [
+            115.75381737202406,
+            125.03466475754976,
+            136.7814065888524
+          ],
+          "json_decode_tps": [
+            285.2337763282631,
+            287.7875216453154,
+            291.0757288442652
+          ],
+          "median_ttft_ms": 69.03155986219645,
+          "median_request_wall_ms": 125.03466475754976,
+          "median_json_decode_tps": 287.7875216453154,
+          "waves": [
+            {
+              "concurrency": 1,
+              "repeat": 0,
+              "wall_ms": 116.69936496764421,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 1,
+              "wall_ms": 126.01347360759974,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 2,
+              "wall_ms": 138.16684391349554,
+              "generated_tokens": 16,
+              "all_passed": true
+            }
+          ]
+        },
+        "4": {
+          "all_cases_passed": true,
+          "cases": 12,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            266.6618134826422,
+            166.52109380811453,
+            213.25830649584532,
+            211.7380341514945,
+            261.4532867446542,
+            310.14204770326614,
+            308.69044084101915,
+            330.8944460004568,
+            180.28965685516596,
+            179.27136551588774,
+            216.06636978685856,
+            214.2127798870206
+          ],
+          "request_wall_ms": [
+            402.105912566185,
+            368.48803889006376,
+            373.60753770917654,
+            371.2189821526408,
+            431.17406871169806,
+            436.3204622641206,
+            434.38879866153,
+            459.6619447693229,
+            329.523297958076,
+            328.4822376444936,
+            356.25476855784655,
+            354.3572071939707
+          ],
+          "json_decode_tps": [
+            137.91590034364557,
+            77.40350873011056,
+            98.17915954183552,
+            98.3827265976154,
+            92.36862361883159,
+            126.07786078451169,
+            126.91312565810645,
+            147.9996258228543,
+            105.98178452976002,
+            106.26695862027968,
+            136.19764911490915,
+            136.77146785976595
+          ],
+          "median_ttft_ms": 215.13957483693957,
+          "median_request_wall_ms": 372.4132599309087,
+          "median_json_decode_tps": 116.17240970239568,
+          "waves": [
+            {
+              "concurrency": 4,
+              "repeat": 0,
+              "wall_ms": 403.69123686105013,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 1,
+              "wall_ms": 466.0263489931822,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 2,
+              "wall_ms": 360.644425265491,
+              "generated_tokens": 64,
+              "all_passed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "final-managed_baseline-native",
+      "cross": {
+        "managed": "final",
+        "native": "baseline"
+      },
+      "source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native.json",
+        "sha256": "cc25c182ff25403c2c43392f751c852c623ce5258292fbe13ac645de10b4ac2a",
+        "bytes": 64336
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+      },
+      "phase_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native-server-phases.json",
+        "sha256": "0a7b798f79bb6b1d3039b7c04dc6c49da586a0fa77b627fd27cafd06a3cc804b",
+        "bytes": 11316
+      },
+      "phase_verify_lines": 26,
+      "groups": {
+        "1": {
+          "all_cases_passed": true,
+          "cases": 3,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            62.84140795469284,
+            76.8347680568695,
+            124.14839118719101
+          ],
+          "request_wall_ms": [
+            121.60936836153269,
+            134.3157598748803,
+            181.60794395953417
+          ],
+          "json_decode_tps": [
+            273.68938909565253,
+            279.98171041675135,
+            283.90748158339727
+          ],
+          "median_ttft_ms": 76.8347680568695,
+          "median_request_wall_ms": 134.3157598748803,
+          "median_json_decode_tps": 279.98171041675135,
+          "waves": [
+            {
+              "concurrency": 1,
+              "repeat": 0,
+              "wall_ms": 122.58501630276442,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 1,
+              "wall_ms": 135.50063036382198,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 2,
+              "wall_ms": 182.76562727987766,
+              "generated_tokens": 16,
+              "all_passed": true
+            }
+          ]
+        },
+        "4": {
+          "all_cases_passed": true,
+          "cases": 12,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            234.14577916264534,
+            232.00342245399952,
+            283.99373684078455,
+            177.54009552299976,
+            216.85474272817373,
+            267.36985240131617,
+            290.28758965432644,
+            265.10036643594503,
+            215.83262365311384,
+            265.79757407307625,
+            315.03092497587204,
+            262.14817725121975
+          ],
+          "request_wall_ms": [
+            397.6615658029914,
+            395.6001978367567,
+            477.7263095602393,
+            386.3967889919877,
+            387.3555874451995,
+            393.16412806510925,
+            418.70726365596056,
+            389.9148069322109,
+            420.6323781982064,
+            426.81537475436926,
+            450.81228762865067,
+            422.0400657504797
+          ],
+          "json_decode_tps": [
+            96.04899597896855,
+            95.84756622631507,
+            136.33412210568443,
+            74.45096744791013,
+            92.15359146128716,
+            126.99689514522684,
+            148.83395267980825,
+            127.40006028397254,
+            76.04891887112983,
+            97.64734603360023,
+            137.91591569621076,
+            98.08060800580864
+          ],
+          "median_ttft_ms": 263.6242718435824,
+          "median_request_wall_ms": 408.184414729476,
+          "median_json_decode_tps": 97.86397701970444,
+          "waves": [
+            {
+              "concurrency": 4,
+              "repeat": 0,
+              "wall_ms": 482.03280847519636,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 1,
+              "wall_ms": 422.8228125721216,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 2,
+              "wall_ms": 455.2206713706255,
+              "generated_tokens": 64,
+              "all_passed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "final-managed_final-native",
+      "cross": {
+        "managed": "final",
+        "native": "final"
+      },
+      "source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native.json",
+        "sha256": "ed5f96bbd4c6a08b8b33c1d4a57f93e2c621f0c000c08b94fbb588c5d1ffeb51",
+        "bytes": 64296
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "phase_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native-server-phases.json",
+        "sha256": "2f44490e1da14d043cc8d2cd2338166d8ae424df9b7084cce62711b840c8f0fe",
+        "bytes": 11320
+      },
+      "phase_verify_lines": 26,
+      "groups": {
+        "1": {
+          "all_cases_passed": true,
+          "cases": 3,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            65.41996169835329,
+            74.76300187408924,
+            142.84237660467625
+          ],
+          "request_wall_ms": [
+            124.16288815438747,
+            134.1135399416089,
+            200.46687871217728
+          ],
+          "json_decode_tps": [
+            273.97673128203513,
+            271.2008366915767,
+            280.0287634870138
+          ],
+          "median_ttft_ms": 74.76300187408924,
+          "median_request_wall_ms": 134.1135399416089,
+          "median_json_decode_tps": 273.97673128203513,
+          "waves": [
+            {
+              "concurrency": 1,
+              "repeat": 0,
+              "wall_ms": 125.11410657316446,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 1,
+              "wall_ms": 135.25601848959923,
+              "generated_tokens": 16,
+              "all_passed": true
+            },
+            {
+              "concurrency": 1,
+              "repeat": 2,
+              "wall_ms": 201.45007595419884,
+              "generated_tokens": 16,
+              "all_passed": true
+            }
+          ]
+        },
+        "4": {
+          "all_cases_passed": true,
+          "cases": 12,
+          "diagnostic_only": true,
+          "ttft_ms": [
+            238.07176854461432,
+            288.52602653205395,
+            235.262350179255,
+            181.03106692433357,
+            224.079099483788,
+            275.27641505002975,
+            299.02602545917034,
+            271.7774249613285,
+            232.68736898899078,
+            283.97546894848347,
+            334.33445636183023,
+            281.7237274721265
+          ],
+          "request_wall_ms": [
+            398.4087835997343,
+            483.65656193345785,
+            395.54489217698574,
+            387.0214642956853,
+            395.6438014283776,
+            400.2096001058817,
+            442.1979356557131,
+            396.708469837904,
+            441.08586478978395,
+            446.9443280249834,
+            471.9650996848941,
+            444.2273052409291
+          ],
+          "json_decode_tps": [
+            98.0469445374809,
+            139.73330548753233,
+            98.36649550547273,
+            75.74178125757497,
+            91.40903604945007,
+            127.22897167044924,
+            150.87263626854698,
+            127.71394434142493,
+            74.64496215095622,
+            96.15092182101768,
+            136.18689862800437,
+            96.78052252884748
+          ],
+          "median_ttft_ms": 273.52692000567913,
+          "median_request_wall_ms": 420.6477324478328,
+          "median_json_decode_tps": 98.20672002147681,
+          "waves": [
+            {
+              "concurrency": 4,
+              "repeat": 0,
+              "wall_ms": 487.1794329956174,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 1,
+              "wall_ms": 446.97771593928337,
+              "generated_tokens": 64,
+              "all_passed": true
+            },
+            {
+              "concurrency": 4,
+              "repeat": 2,
+              "wall_ms": 476.07923950999975,
+              "generated_tokens": 64,
+              "all_passed": true
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "loaded_library_observer_source": {
+    "path": "/tmp/deepseek41-reference/qwen35-cross-loaded-libraries.json",
+    "sha256": "31616eae51f3daf41629c5b60d865a03e7a819519bdaa032d8ae9fe3d0b772aa",
+    "bytes": 7628
+  },
+  "loaded_libraries": [
+    {
+      "label": "baseline-managed_baseline-native",
+      "pid": 147280,
+      "mapped_path": "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/libGgmlOps.so",
+      "native_sha256_from_verified_deployment": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    {
+      "label": "baseline-managed_final-native",
+      "pid": 147448,
+      "mapped_path": "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+      "native_sha256_from_verified_deployment": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+    },
+    {
+      "label": "final-managed_baseline-native",
+      "pid": 147604,
+      "mapped_path": "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/libGgmlOps.so",
+      "native_sha256_from_verified_deployment": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    {
+      "label": "final-managed_final-native",
+      "pid": 147754,
+      "mapped_path": "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/libGgmlOps.so",
+      "native_sha256_from_verified_deployment": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+    }
+  ],
+  "loaded_library_scope": "All four owned command lines and observed mapping paths match intended frozen hosts. Observer sampled mappings once per host and did not hash live libraries; content hashes come from the producer-verified unchanged deployment manifests.",
+  "phase_scope": "Every retained phase row was reparsed against its exact stdout line and hash. Phase lines lack request IDs; this audit does not assign concurrent native work to individual requests. Separate c1 correlation is required.",
+  "sources": [
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "ab9a83ba77e1542cc010fdf6d386a918fd063a90a30f884265eaeb8fa16deca3",
+      "bytes": 172086
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native-server-phases.json",
+      "sha256": "a2324bc80752ea97db72dfbe14c9a0b469d2e7e49cc1f88c7061567ecaa7d8ce",
+      "bytes": 11327
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native-server.log",
+      "sha256": "40af05e3825c21d2e8b80292e360cf8a39c759e2d774d39463134dabd801f897",
+      "bytes": 55428
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native-telemetry.jsonl",
+      "sha256": "3c6750f56e6ba066cdc8ae4d019e1b3ea8ccdcb7b5ef7ee77af16795b0760f07",
+      "bytes": 6213
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_baseline-native.json",
+      "sha256": "1e6a736b03c56e6c5d875222ce3455f1cb338b05c0a926152f2e4f2f0dd59786",
+      "bytes": 64263
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "219e66d9d7486530bfe03c7c6b261526e6f9f3287380d1d23d85537d187d7ac4",
+      "bytes": 171511
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native-server-phases.json",
+      "sha256": "f42c60a8926011a73105a14012b6c074d0ccc288a2f933d85c50536fba44d6f3",
+      "bytes": 10906
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native-server.log",
+      "sha256": "1a4602a87a563f9c421a548fb64272d50d3fdf9e1ab5cab164b4dda4a6907ffd",
+      "bytes": 55082
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native-telemetry.jsonl",
+      "sha256": "0396dfa65af715983137a9e209c53e596aabc910463bbf3149ccd16d1e8ff27a",
+      "bytes": 6212
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-baseline-managed_final-native.json",
+      "sha256": "561029588da0650d7e19cbd43add2003a88846c5903a6b38fa8d4e5797b1ebc1",
+      "bytes": 64343
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "0ede9a42ac691e56460b39afaea1e59972eaa548c9ff684561383d59541ec938",
+      "bytes": 172071
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native-server-phases.json",
+      "sha256": "0a7b798f79bb6b1d3039b7c04dc6c49da586a0fa77b627fd27cafd06a3cc804b",
+      "bytes": 11316
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native-server.log",
+      "sha256": "e5bea6bbdc7697f0b9d3b1aa01d4d388f8a2ea5247f56e679b0a29ceff1cec77",
+      "bytes": 55421
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native-telemetry.jsonl",
+      "sha256": "adb83c7066b42482aada7bf3df672f5e874c134595fe67694ecfaf302fc111af",
+      "bytes": 6213
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_baseline-native.json",
+      "sha256": "cc25c182ff25403c2c43392f751c852c623ce5258292fbe13ac645de10b4ac2a",
+      "bytes": 64336
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "333345a835f7b58c5c33d20dd9909ce8697a4441ffdfd20c02ea3ce43f38bd9c",
+      "bytes": 172034
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native-server-phases.json",
+      "sha256": "2f44490e1da14d043cc8d2cd2338166d8ae424df9b7084cce62711b840c8f0fe",
+      "bytes": 11320
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native-server.log",
+      "sha256": "e40cf5d55f5ce52d9f7266ceaaf6d587173d7cb7eedc51ca520f485912fb9cbb",
+      "bytes": 55405
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native-telemetry.jsonl",
+      "sha256": "660cdbacbfc7157b0d49e11217d08f20420eafa9a066174794e74d55623a61f5",
+      "bytes": 6212
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/qwen35-final-managed_final-native.json",
+      "sha256": "ed5f96bbd4c6a08b8b33c1d4a57f93e2c621f0c000c08b94fbb588c5d1ffeb51",
+      "bytes": 64296
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-managed-native-cross-phase-r1/run.json",
+      "sha256": "2dff39c993f0d53868b9ddcc41fa5ca2681a10a9dfa3ea8a4c4e5c8c2a241994",
+      "bytes": 78957
+    }
+  ]
+}

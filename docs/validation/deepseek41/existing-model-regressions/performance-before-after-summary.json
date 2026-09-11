@@ -1,0 +1,2203 @@
+[
+  {
+    "model": "qwen3",
+    "cases": 75,
+    "baseline_pass": 35,
+    "after_pass": 35,
+    "matching_status": 75,
+    "matching_generated_outputs": 69,
+    "introduced_failed_cases": [],
+    "changed_outputs": [
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i2",
+        4
+      ]
+    ],
+    "baseline_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+      "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+      "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+      "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+      "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+      "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    "after_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "dcc088addb36a99106bbe84291d898d7fb5457394f6985e7d8d3423e2f515188",
+      "TensorSharp.Runtime.dll": "7237fbdb4275ff5f5cc223dc2a47d3e13b3bbd3f4fb9b14e0f72e1deecc1ab55",
+      "TensorSharp.Models.dll": "2c9b2e7dbf7aac04cae50c877eb5e49ad94457e1f930f191075736516bd60aa4",
+      "TensorSharp.Chat.dll": "1cff009892189c7285c7099b939482b46eb41da86c233b059c65cd03729113ee",
+      "TensorSharp.Server.dll": "4bd9e1420583e37e2ffadc0d3fda2b27c42cc13fdb8cd87d47b8720f46215160",
+      "libGgmlOps.so": "30716e9bbc0747671f54b7e67e9c48244fb1b6aa72ee0a4a62e84a7da091be94"
+    },
+    "performance": {
+      "qualified": true,
+      "groups": {
+        "decode@c1": {
+          "samples": [
+            [
+              "decode",
+              "decode-c1-r0-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r1-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.8731454727959321,
+            0.7839210368098342,
+            0.8959484752582979
+          ],
+          "ttft_ratios": [
+            0.9155953792424792,
+            0.5288908633765103,
+            0.6849294218920787
+          ],
+          "decode_ratios": [
+            0.8664607248723113,
+            0.8180568725957315,
+            0.9189401520265944
+          ],
+          "wall_ratios_median_speedup": 0.8731454727959321,
+          "ttft_ratios_median_speedup": 0.6849294218920787,
+          "decode_ratios_median_speedup": 0.8664607248723113
+        },
+        "decode@c4": {
+          "samples": [
+            [
+              "decode",
+              "decode-c4-r0-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i2",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i3",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i2",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i3",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i2",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.0169930062942667,
+            1.0102335552906025,
+            1.0232881789303097,
+            1.0171076912646504,
+            0.972445713031771,
+            0.9724380351040459,
+            0.9724883255327559,
+            0.9726251340602498,
+            0.978763481714496,
+            0.9786846845969751,
+            0.9787021440461399,
+            0.9788595571784956
+          ],
+          "ttft_ratios": [
+            1.037865918604718,
+            0.9043589025796615,
+            1.2165165959029567,
+            1.0383185439891989,
+            0.913532867430108,
+            0.9138751168841159,
+            0.9134125784329574,
+            0.9139613996031957,
+            0.8345316601242563,
+            0.8344990175757452,
+            0.8344179604048333,
+            0.8346272542910342
+          ],
+          "decode_ratios": [
+            1.0135664050524416,
+            1.0277500314529473,
+            0.9964196942286364,
+            1.0135481120107614,
+            0.9860841722754677,
+            0.9860934163489733,
+            0.9861747263530677,
+            0.9846936635559642,
+            1.0132888873126247,
+            1.013222794532865,
+            1.0132849574354172,
+            1.0133620451854637
+          ],
+          "wall_ratios_median_speedup": 0.9787328128803179,
+          "ttft_ratios_median_speedup": 0.9134727229315327,
+          "decode_ratios_median_speedup": 1.013253875984141
+        },
+        "json@c1": {
+          "samples": [
+            [
+              "json",
+              "json-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            1.2181396051935427
+          ],
+          "ttft_ratios": [
+            1.029501490577085
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.2181396051935427,
+          "ttft_ratios_median_speedup": 1.029501490577085
+        },
+        "json@c4": {
+          "samples": [
+            [
+              "json",
+              "json-c4-r0-i0",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r0-i3",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r2-i0",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            0.8414480240905189,
+            0.8317502366848039,
+            0.879729893583822,
+            0.8796924156653472
+          ],
+          "ttft_ratios": [
+            0.8843797170145756,
+            0.8528660951383785,
+            0.8696600051290362,
+            0.8690713889098343
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 0.860570219877933,
+          "ttft_ratios_median_speedup": 0.8693656970194352
+        },
+        "tool_round_trip@c1": {
+          "samples": [
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r0-i0",
+              1
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r1-i0",
+              1
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            1.108088415081624,
+            0.9252674116849671,
+            0.661644890371619
+          ],
+          "ttft_ratios": [
+            1.2017504933895535,
+            0.8771749611011305,
+            0.956793236070101
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 0.9252674116849671,
+          "ttft_ratios_median_speedup": 0.956793236070101
+        },
+        "tool_round_trip@c4": {
+          "samples": [
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i0",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i1",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i2",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i3",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r1-i3",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            0.7477654946652835,
+            0.7558183282395445,
+            0.7556381887127085,
+            0.7565666541006087,
+            0.885525435389139,
+            0.8735591010033934
+          ],
+          "ttft_ratios": [
+            0.6829738080127581,
+            0.664862007821368,
+            0.5833464123589347,
+            0.5892029030196531,
+            0.8843876964172032,
+            0.827662013759707
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 0.7561924911700766,
+          "ttft_ratios_median_speedup": 0.673917907917063
+        }
+      },
+      "excluded_cases": [
+        {
+          "case": [
+            "short",
+            "short-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i0",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i1",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i2",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i0",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i1",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i2",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        }
+      ],
+      "regressions_at_5_percent": [
+        {
+          "scenario": "decode@c1",
+          "metric": "wall_ratios",
+          "median_speedup": 0.8731454727959321
+        },
+        {
+          "scenario": "decode@c1",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.6849294218920787
+        },
+        {
+          "scenario": "decode@c1",
+          "metric": "decode_ratios",
+          "median_speedup": 0.8664607248723113
+        },
+        {
+          "scenario": "decode@c4",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.9134727229315327
+        },
+        {
+          "scenario": "json@c4",
+          "metric": "wall_ratios",
+          "median_speedup": 0.860570219877933
+        },
+        {
+          "scenario": "json@c4",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.8693656970194352
+        },
+        {
+          "scenario": "tool_round_trip@c1",
+          "metric": "wall_ratios",
+          "median_speedup": 0.9252674116849671
+        },
+        {
+          "scenario": "tool_round_trip@c4",
+          "metric": "wall_ratios",
+          "median_speedup": 0.7561924911700766
+        },
+        {
+          "scenario": "tool_round_trip@c4",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.673917907917063
+        }
+      ],
+      "scope": "Comparable passing workflows only; exclusions and quality failures remain visible."
+    }
+  },
+  {
+    "model": "qwen35",
+    "cases": 75,
+    "baseline_pass": 52,
+    "after_pass": 52,
+    "matching_status": 75,
+    "matching_generated_outputs": 74,
+    "introduced_failed_cases": [],
+    "changed_outputs": [
+      [
+        "decode",
+        "decode-c4-r2-i0",
+        4
+      ]
+    ],
+    "baseline_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+      "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+      "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+      "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+      "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+      "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    "after_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "dcc088addb36a99106bbe84291d898d7fb5457394f6985e7d8d3423e2f515188",
+      "TensorSharp.Runtime.dll": "7237fbdb4275ff5f5cc223dc2a47d3e13b3bbd3f4fb9b14e0f72e1deecc1ab55",
+      "TensorSharp.Models.dll": "2c9b2e7dbf7aac04cae50c877eb5e49ad94457e1f930f191075736516bd60aa4",
+      "TensorSharp.Chat.dll": "1cff009892189c7285c7099b939482b46eb41da86c233b059c65cd03729113ee",
+      "TensorSharp.Server.dll": "4bd9e1420583e37e2ffadc0d3fda2b27c42cc13fdb8cd87d47b8720f46215160",
+      "libGgmlOps.so": "30716e9bbc0747671f54b7e67e9c48244fb1b6aa72ee0a4a62e84a7da091be94"
+    },
+    "performance": {
+      "qualified": true,
+      "groups": {
+        "short@c1": {
+          "samples": [
+            [
+              "short",
+              "short-c1-r0-i0",
+              1
+            ],
+            [
+              "short",
+              "short-c1-r1-i0",
+              1
+            ],
+            [
+              "short",
+              "short-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.593000996396203,
+            1.0890777965058105,
+            1.2433024008969293
+          ],
+          "ttft_ratios": [
+            0.5645422958860713,
+            1.0926719583286297,
+            1.2546822120606662
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.0890777965058105,
+          "ttft_ratios_median_speedup": 1.0926719583286297
+        },
+        "short@c4": {
+          "samples": [
+            [
+              "short",
+              "short-c4-r0-i0",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r0-i1",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r0-i2",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r0-i3",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r1-i0",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r1-i1",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r1-i2",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r1-i3",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r2-i0",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r2-i1",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r2-i2",
+              4
+            ],
+            [
+              "short",
+              "short-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.1171841012900878,
+            1.116642655582979,
+            1.1168118728547491,
+            1.117167060909668,
+            1.136525375032478,
+            1.1822178224991884,
+            1.1616860046149062,
+            1.1651697773111516,
+            1.186783486922648,
+            1.1497434179471406,
+            1.170289902492149,
+            1.167983472627743
+          ],
+          "ttft_ratios": [
+            1.1061704143674167,
+            1.1195983292319045,
+            1.1200407158849508,
+            1.1207490724513516,
+            0.9273920432958619,
+            1.3428798672914286,
+            1.1616130896418122,
+            1.1653571363003088,
+            1.4931789381881193,
+            0.9390550843357874,
+            1.1708916729722443,
+            1.1810666631931706
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.1557147112810235,
+          "ttft_ratios_median_speedup": 1.141181081046582
+        },
+        "decode@c4": {
+          "samples": [
+            [
+              "decode",
+              "decode-c4-r0-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i2",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i3",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.137623527120671,
+            1.1236785309933444,
+            1.1241794841176909,
+            1.1419841987801156,
+            1.14236487964938,
+            1.142612890065637,
+            1.129973081364759
+          ],
+          "ttft_ratios": [
+            2.0568327038516028,
+            1.7127587185466997,
+            1.7051306456319528,
+            1.380200557177959,
+            1.377742419245681,
+            2.031369194827251,
+            1.7647331043148093
+          ],
+          "decode_ratios": [
+            1.0729932369953756,
+            1.0744259767934317,
+            1.075175450789554,
+            1.0897354726846606,
+            1.0900112857444906,
+            1.0355210610438057,
+            1.0422516669160768
+          ],
+          "wall_ratios_median_speedup": 1.137623527120671,
+          "ttft_ratios_median_speedup": 1.7127587185466997,
+          "decode_ratios_median_speedup": 1.0744259767934317
+        },
+        "json@c1": {
+          "samples": [
+            [
+              "json",
+              "json-c1-r0-i0",
+              1
+            ],
+            [
+              "json",
+              "json-c1-r1-i0",
+              1
+            ],
+            [
+              "json",
+              "json-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.9341233297155487,
+            0.8977299222446744,
+            1.022261499745504
+          ],
+          "ttft_ratios": [
+            1.0097561900071939,
+            0.8421017527390581,
+            1.0876243428272705
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 0.9341233297155487,
+          "ttft_ratios_median_speedup": 1.0097561900071939
+        },
+        "json@c4": {
+          "samples": [
+            [
+              "json",
+              "json-c4-r0-i0",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r0-i1",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r0-i2",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r0-i3",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r1-i0",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r1-i1",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r1-i2",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r1-i3",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r2-i0",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r2-i1",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r2-i2",
+              4
+            ],
+            [
+              "json",
+              "json-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.3391519411696071,
+            1.3177473398623925,
+            1.3032177040101018,
+            1.3522656176592138,
+            0.9781735489815253,
+            0.9774815181225834,
+            0.8993980370635123,
+            1.0548060823684475,
+            1.1078537508641193,
+            1.282762550687122,
+            1.0318513810803878,
+            1.031423941092532
+          ],
+          "ttft_ratios": [
+            1.4997717171090612,
+            1.1884584738130484,
+            0.9631467129742406,
+            1.4260060190068147,
+            1.1489014145118563,
+            1.2097427774347398,
+            0.9422368961949669,
+            1.2126276091053323,
+            0.9152262055926214,
+            1.420250572232439,
+            0.9580424578203686,
+            0.9586414304734234
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.0813299166162835,
+          "ttft_ratios_median_speedup": 1.1686799441624522
+        },
+        "multi_turn@c1": {
+          "samples": [
+            [
+              "multi_turn",
+              "multi_turn-c1-r0-i0",
+              1
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c1-r1-i0",
+              1
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.8597848974317543,
+            1.0647648253616622,
+            1.2279140511227618
+          ],
+          "ttft_ratios": [
+            0.682013600599449,
+            1.0936225618659094,
+            1.8246033518875342
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.0647648253616622,
+          "ttft_ratios_median_speedup": 1.0936225618659094
+        },
+        "multi_turn@c4": {
+          "samples": [
+            [
+              "multi_turn",
+              "multi_turn-c4-r0-i0",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r0-i1",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r0-i2",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r0-i3",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r1-i2",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r1-i3",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r2-i1",
+              4
+            ],
+            [
+              "multi_turn",
+              "multi_turn-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.3769289993973142,
+            1.376956056809369,
+            1.377008857410249,
+            1.376407403404936,
+            1.6528504030735536,
+            1.662387057396122,
+            1.046339379204774,
+            1.0481635103650482
+          ],
+          "ttft_ratios": [
+            1.3655334726131705,
+            1.3593765095510202,
+            1.3596139157724967,
+            1.354824563263764,
+            1.5924967479827679,
+            1.5936228515167958,
+            1.091650350066376,
+            1.0849664230723364
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.3769425281033416,
+          "ttft_ratios_median_speedup": 1.3594952126617583
+        }
+      },
+      "excluded_cases": [
+        {
+          "case": [
+            "decode",
+            "decode-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i0",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i1",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i0",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i2",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        }
+      ],
+      "regressions_at_5_percent": [
+        {
+          "scenario": "json@c1",
+          "metric": "wall_ratios",
+          "median_speedup": 0.9341233297155487
+        }
+      ],
+      "scope": "Comparable passing workflows only; exclusions and quality failures remain visible."
+    }
+  },
+  {
+    "model": "gemma4",
+    "cases": 75,
+    "baseline_pass": 13,
+    "after_pass": 13,
+    "matching_status": 75,
+    "matching_generated_outputs": 60,
+    "introduced_failed_cases": [],
+    "changed_outputs": [
+      [
+        "tool_round_trip",
+        "tool_round_trip-c1-r0-i0",
+        1
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c1-r1-i0",
+        1
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c1-r2-i0",
+        1
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r0-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r0-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r0-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r0-i3",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i3",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i3",
+        4
+      ]
+    ],
+    "baseline_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+      "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+      "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+      "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+      "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+      "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    "after_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "dcc088addb36a99106bbe84291d898d7fb5457394f6985e7d8d3423e2f515188",
+      "TensorSharp.Runtime.dll": "7237fbdb4275ff5f5cc223dc2a47d3e13b3bbd3f4fb9b14e0f72e1deecc1ab55",
+      "TensorSharp.Models.dll": "2c9b2e7dbf7aac04cae50c877eb5e49ad94457e1f930f191075736516bd60aa4",
+      "TensorSharp.Chat.dll": "1cff009892189c7285c7099b939482b46eb41da86c233b059c65cd03729113ee",
+      "TensorSharp.Server.dll": "4bd9e1420583e37e2ffadc0d3fda2b27c42cc13fdb8cd87d47b8720f46215160",
+      "libGgmlOps.so": "30716e9bbc0747671f54b7e67e9c48244fb1b6aa72ee0a4a62e84a7da091be94"
+    },
+    "performance": {
+      "qualified": true,
+      "groups": {
+        "decode@c1": {
+          "samples": [
+            [
+              "decode",
+              "decode-c1-r0-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r1-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.9830640203739068,
+            0.9752681143004954,
+            0.9688443488946451
+          ],
+          "ttft_ratios": [
+            0.9588719342270732,
+            0.9354899901325013,
+            0.6725480962189674
+          ],
+          "decode_ratios": [
+            0.9837192892250373,
+            0.9759710213553838,
+            0.9763734883639412
+          ],
+          "wall_ratios_median_speedup": 0.9752681143004954,
+          "ttft_ratios_median_speedup": 0.9354899901325013,
+          "decode_ratios_median_speedup": 0.9763734883639412
+        },
+        "decode@c4": {
+          "samples": [
+            [
+              "decode",
+              "decode-c4-r0-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r0-i3",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i2",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r1-i3",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i0",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i1",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i2",
+              4
+            ],
+            [
+              "decode",
+              "decode-c4-r2-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.0094981895312687,
+            1.0111526585802528,
+            1.01084688331771,
+            1.0115556024026946,
+            1.013064295945058,
+            1.0122615952012841,
+            0.9396393900284984,
+            0.9398007962344889,
+            0.9398740585484302,
+            0.9398298085586144
+          ],
+          "ttft_ratios": [
+            0.7973641993323439,
+            0.9294453650067583,
+            0.9250778624686788,
+            0.8438009960836782,
+            0.9464071525087655,
+            0.9491992388784286,
+            0.880511357762611,
+            0.8849507412223303,
+            0.8885672976460698,
+            0.8798095141186746
+          ],
+          "decode_ratios": [
+            1.0136049353816887,
+            1.0125672881764536,
+            1.0126569724767016,
+            1.0163385000925411,
+            1.0149099744395151,
+            1.0148208568174493,
+            0.9409128103380452,
+            0.9411775617332327,
+            0.9411390253883558,
+            0.9413256503202357
+          ],
+          "wall_ratios_median_speedup": 1.0101725364244893,
+          "ttft_ratios_median_speedup": 0.8867590194342001,
+          "decode_ratios_median_speedup": 1.0126121303265776
+        }
+      },
+      "excluded_cases": [
+        {
+          "case": [
+            "short",
+            "short-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "short",
+            "short-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "decode",
+            "decode-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "json",
+            "json-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "multi_turn",
+            "multi_turn-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c1-r0-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c1-r1-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c1-r2-i0",
+            1
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r0-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        }
+      ],
+      "regressions_at_5_percent": [
+        {
+          "scenario": "decode@c1",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.9354899901325013
+        },
+        {
+          "scenario": "decode@c4",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.8867590194342001
+        }
+      ],
+      "scope": "Comparable passing workflows only; exclusions and quality failures remain visible."
+    }
+  }
+]

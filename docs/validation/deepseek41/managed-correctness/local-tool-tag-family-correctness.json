@@ -1,0 +1,61 @@
+{
+  "stage": "LOCAL3597 raw parameter/invoke tag-family serialization experiment on3582base",
+  "scope": "Reserve <param, </param, <invoke, </invoke within raw string=true arguments; keep ordinary XML/comparisons and every logical string through escaped JSON string=false. Shared history predicate uses the same reserve set. No output-parser or generated-value repair. VM/full-model A/B pending.",
+  "focused_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release --no-restore -p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true -p:TensorSharpSkipCudaNative=true --filter 'FullyQualifiedName~DeepSeek41ToolGrammarTests|FullyQualifiedName~DeepSeek41ChatTests|FullyQualifiedName~DeepSeek41GrammarTriggerTests|FullyQualifiedName~DeepSeek41ThinkingBudgetTests|FullyQualifiedName~GrammarPartialClassTests|FullyQualifiedName~GrammarUtf8ValidationTests' --logger 'trx;LogFileName=deepseek41-tool-tag-families-focused.trx' --results-directory /tmp/dsv41-grammar-tests",
+  "focused": {
+    "trx_path": "/tmp/dsv41-grammar-tests/deepseek41-tool-tag-families-focused.trx",
+    "trx_sha256": "ef7bad0c08965c5e08f36da6a8852153bb03a68d1e43340554a45806e270e0c8",
+    "counters": {
+      "total": "215",
+      "executed": "215",
+      "passed": "215",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "full_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release --no-build --no-restore --filter 'Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video' --logger 'trx;LogFileName=deepseek41-tool-tag-families-managed.trx' --results-directory /tmp/dsv41-grammar-tests",
+  "full": {
+    "trx_path": "/tmp/dsv41-grammar-tests/deepseek41-tool-tag-families-managed.trx",
+    "trx_sha256": "3e3c0da2486c9c43c1f002d3f3ca8061c37576083a5ff5109941432792b91aec",
+    "counters": {
+      "total": "3597",
+      "executed": "3597",
+      "passed": "3597",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "source_and_binary_sha256": {
+    "TensorSharp.Runtime/Grammar/DeepSeek41ToolGrammar.cs": "665b5db5d14ac6efe935031030e896b44116bfa98b4de49fb55988d383647f24",
+    "InferenceWeb.Tests/DeepSeek41ToolGrammarTests.cs": "ee1d2fd3003e0590bfd3692f059e93d0f076fa9f5fcf57eb3c57ff0288eb4d1a",
+    "TensorSharp.Runtime/ChatTemplate.DeepSeek41.cs": "6e4fcf32490e18a454f360603f12bca089ac8b98315a300183cf8337f69e71b4",
+    "TensorSharp.Runtime/Grammar/GrammarMatcher.cs": "67df3cf9ce025013906ad1336778a97c8618c946b3d10fd21ef0fc1426f4e0db",
+    "InferenceWeb.Tests/bin/Release/net10.0/TensorSharp.Runtime.dll": "1542edf883c89fb5a53c93dadabff111316fd1ae49582acd74e48f862e3b0e09",
+    "InferenceWeb.Tests/bin/Release/net10.0/InferenceWeb.Tests.dll": "6905b7c3e4297a7420a51ec10eea6be39667c31e2d3f300e3e06c86677f7ef30"
+  },
+  "unchanged_prior_stage": "local-partial-class-correctness.json",
+  "observed_failure_path": "/tmp/deepseek41-reference/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-named-thinking-failure.json",
+  "observed_failure_sha256": "e91c7ef905e7aa9321f3c44527a3f680547ae4eb5875ef2e4a1bb4bc32fe6ab0"
+}

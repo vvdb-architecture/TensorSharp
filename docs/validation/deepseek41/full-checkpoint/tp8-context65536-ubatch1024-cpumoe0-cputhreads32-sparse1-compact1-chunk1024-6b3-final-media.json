@@ -1,0 +1,1441 @@
+{
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "companion_sha256": "e7b0debed15706dd2f065879fa62a54f49e5c0472a54fa33d5ff40957f167e0c",
+  "harness_sha256": {
+    "validate_deepseek41_media.py": "e2401cedb88939e2923be60df5d8e89356af8949e07ce860ce729c38699cf87b",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8",
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077"
+  },
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "fixtures": {
+    "sha256": {
+      "ordered-cards.mp4": "7bd626261836db05c66167db95c02cb059b77a5019c2ff981be2c8c8a5789c67",
+      "frame-2.png": "f043c213b4b08a94842cdae897acbb4f5cc8908aab3c5f99f10c8f54bf17c7bc",
+      "frame-1.png": "3c5d04cd6f61635007297c4427f66d638e59f24a319ae03230154726e85258e3",
+      "frame-0.png": "a2e597c35e9299fce55eac8eb3d6306a3cfcb9c7391837bb681b47c39247a92b",
+      "card-1.png": "c1417e2740400aea7d4c54eff13237189d8af5014bd3830d42a506a762a7f920",
+      "card-0.png": "922f16960fb8fa086b6203f4fd212c92e97c165e8b051fbdd0d483f0bc5a0b25"
+    },
+    "cards": [
+      [
+        "4821",
+        "red"
+      ],
+      [
+        "9364",
+        "blue"
+      ]
+    ],
+    "video_codes": [
+      "17",
+      "42",
+      "86"
+    ],
+    "video_seconds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "execution_plan": {
+    "scenarios": [
+      "image_ocr",
+      "multi_image",
+      "image_follow_up",
+      "video_order",
+      "video_timestamp"
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "expected_cases": 25
+  },
+  "run_complete": true,
+  "scope": "Synthetic OCR, color, optional long text/image context, attachment order, image history and sampled video time labels; no audio validation or broad visual-quality parity.",
+  "waves": [
+    {
+      "scenario": "image_ocr",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 1.9451410695910454
+    },
+    {
+      "scenario": "image_ocr",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 6.966506507247686
+    },
+    {
+      "scenario": "multi_image",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 2.5377923864871264
+    },
+    {
+      "scenario": "multi_image",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 9.87902002595365
+    },
+    {
+      "scenario": "image_follow_up",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.0597637174651027
+    },
+    {
+      "scenario": "image_follow_up",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 11.839396361261606
+    },
+    {
+      "scenario": "video_order",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.4523472851142287
+    },
+    {
+      "scenario": "video_order",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 12.662039961665869
+    },
+    {
+      "scenario": "video_timestamp",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.0708877658471465
+    },
+    {
+      "scenario": "video_timestamp",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 11.732699717395008
+    }
+  ],
+  "source_report": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-media.json",
+  "source_report_sha256": "4cc96336ebac3d932c82dd4e6434f5409074010ab0f60828d166e2e8d98d5966",
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "cases": [
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c1-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "5748975daea97618b7b2dd58fb682b9226e8ff87a0f7348862cbc0433c30a7ac",
+      "wall_seconds": 1.9421013435348868,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "6da17e32512c2f0a66292d028b23428a0c7984ec655052d28c3eb75e27c706cf",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 1431.3077656552196,
+            "prefill_tps": 202.61190986219844,
+            "decode_tps": 25.398882859330193,
+            "total_wall_ms": 1941.3201371207833,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4402474.763379423,
+            "t_first_abs": 4402476.194687189,
+            "t_last_abs": 4402476.667148913,
+            "t_end_abs": 4402476.70469956
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "64b32c18b460014b1c0f8c38b22ffa9229c084b7ee3e3d33b236b5f1605349c0",
+      "wall_seconds": 6.818819008767605,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "e33e238e619a96df98fae5eec0bab9eaa9f31ff5d47c4c16f1b92c950a95ccd6",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 4640.333395451307,
+            "prefill_tps": 62.49550954340325,
+            "decode_tps": 5.9047262430294944,
+            "total_wall_ms": 6818.457308225334,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4402476.719029154,
+            "t_first_abs": 4402481.359362549,
+            "t_last_abs": 4402483.391632888,
+            "t_end_abs": 4402483.537486462
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i1",
+      "status": "ok",
+      "expected": {
+        "code": "9364",
+        "color": "blue"
+      },
+      "input_sha256": "1fcd7e00dca0f057d5f9788350a36464444e870694285b94758d0a28a0eb7dea",
+      "wall_seconds": 6.9609221117571,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "960fa35d67f9858a583dceb425f8cd8d3b784b566e966fbd2a7a555cc78e4418",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 4901.858895085752,
+            "prefill_tps": 59.16122968997189,
+            "decode_tps": 6.266214826908479,
+            "total_wall_ms": 6960.038183256984,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\", \"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\", \"color\": \"blue\"}",
+            "t_start_abs": 4402476.720432902,
+            "t_first_abs": 4402481.622291797,
+            "t_last_abs": 4402483.537323492,
+            "t_end_abs": 4402483.680471085
+          },
+          "expected": {
+            "code": "9364",
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i2",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "89bf5b0c381e171332a37b065c0129604cc2775af37d7ae1f0deabdb968e0011",
+      "wall_seconds": 6.957750864326954,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "25a62d97f0f2e1e673a2c1961cf7294679d0aade7ae88e709c5f1d8a54bb9661",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 4899.1260677576065,
+            "prefill_tps": 59.194230968777,
+            "decode_tps": 6.265258613442841,
+            "total_wall_ms": 6956.004250794649,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4402476.722542559,
+            "t_first_abs": 4402481.621668627,
+            "t_last_abs": 4402483.536992596,
+            "t_end_abs": 4402483.67854681
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i3",
+      "status": "ok",
+      "expected": {
+        "code": "9364",
+        "color": "blue"
+      },
+      "input_sha256": "3bc82604080dd538565726e9c3bfb9b1cd5293b843df7e64c35edc196521b9d0",
+      "wall_seconds": 6.958677393384278,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "273ab67c31ddd33c71b9ccf9c6389704401d6761077fa61da3cab3f94d804366",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 4901.603844948113,
+            "prefill_tps": 59.164308086401434,
+            "decode_tps": 6.270449000781014,
+            "total_wall_ms": 6957.8163819387555,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\", \"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\", \"color\": \"blue\"}",
+            "t_start_abs": 4402476.721512147,
+            "t_first_abs": 4402481.623115992,
+            "t_last_abs": 4402483.536854546,
+            "t_end_abs": 4402483.679328529
+          },
+          "expected": {
+            "code": "9364",
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c1-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "4821",
+          "9364"
+        ]
+      },
+      "input_sha256": "12e30d2ef833dcb57b59ed9ae7d8cde3ad582501466f3bf1c39771a5df9060f7",
+      "wall_seconds": 2.5299542769789696,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "7f2467862fcd97b72035cad430cb73c515794cd4e7908ca8df90f82b5f204963",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 1966.6343247517943,
+            "prefill_tps": 247.12270801097569,
+            "decode_tps": 20.931006683778314,
+            "total_wall_ms": 2528.6336420103908,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"4821\", \"9364\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"4821\", \"9364\"]}",
+            "t_start_abs": 4402483.700509787,
+            "t_first_abs": 4402485.667144111,
+            "t_last_abs": 4402486.192680229,
+            "t_end_abs": 4402486.229143429
+          },
+          "expected": {
+            "codes": [
+              "4821",
+              "9364"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "4821",
+          "9364"
+        ]
+      },
+      "input_sha256": "51d84e826154f8fc4df626858038fff9fb9ed8872710bd2d5f1ffb117679082b",
+      "wall_seconds": 9.87159012351185,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "1f84607e02c00d46f9b5856ab1559482bdd82801175db345099bd392cb134808",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 7726.059310138226,
+            "prefill_tps": 62.90399548994726,
+            "decode_tps": 5.561543119243705,
+            "total_wall_ms": 9869.245439767838,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"4821\", \"9364\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"4821\", \"9364\"]}",
+            "t_start_abs": 4402486.259306535,
+            "t_first_abs": 4402493.985365845,
+            "t_last_abs": 4402495.963234175,
+            "t_end_abs": 4402496.128551975
+          },
+          "expected": {
+            "codes": [
+              "4821",
+              "9364"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i1",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "9364",
+          "4821"
+        ]
+      },
+      "input_sha256": "f601e1d85971f192f0363284efc9f3f38ffe3721b19e98648091ce50f15120fe",
+      "wall_seconds": 9.704181506298482,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "639610fe1ccae718fd97a0fa32c086d902c69f43a528bae6a43a177633e4ab9f",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 7462.002882733941,
+            "prefill_tps": 65.12996679812841,
+            "decode_tps": 5.297028089005392,
+            "total_wall_ms": 9702.826913446188,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"9364\", \"4821\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"9364\", \"4821\"]}",
+            "t_start_abs": 4402486.25915044,
+            "t_first_abs": 4402493.721153323,
+            "t_last_abs": 4402495.797789469,
+            "t_end_abs": 4402495.961977353
+          },
+          "expected": {
+            "codes": [
+              "9364",
+              "4821"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i2",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "4821",
+          "9364"
+        ]
+      },
+      "input_sha256": "e88f44f73f33bd382e1c9dcba9f805ef291276d290cb07f85ae9144dfc4b6c9f",
+      "wall_seconds": 9.865910748019814,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "a30edba2d01aac2fbec97823094e84dfd0e83e19fcdf99c745a4181de334b12c",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 7722.012729384005,
+            "prefill_tps": 62.93695918819974,
+            "decode_tps": 5.563070765986699,
+            "total_wall_ms": 9864.220399409533,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"4821\", \"9364\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"4821\", \"9364\"]}",
+            "t_start_abs": 4402486.262513253,
+            "t_first_abs": 4402493.984525982,
+            "t_last_abs": 4402495.96185118,
+            "t_end_abs": 4402496.126733652
+          },
+          "expected": {
+            "codes": [
+              "4821",
+              "9364"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i3",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "9364",
+          "4821"
+        ]
+      },
+      "input_sha256": "9ef3a858eb232e8bf99d9b42288d3dfbbec34042335d76dee8214b29ceff9b6b",
+      "wall_seconds": 9.869432628154755,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "1f425c708eb1ad58583954b89868d697587d6b75d76724cebedfb9a2deaa1264",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 7723.253110423684,
+            "prefill_tps": 62.926851295870435,
+            "decode_tps": 5.564669644466621,
+            "total_wall_ms": 9868.07381361723,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"9364\", \"4821\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"9364\", \"4821\"]}",
+            "t_start_abs": 4402486.261672861,
+            "t_first_abs": 4402493.984925971,
+            "t_last_abs": 4402495.96168303,
+            "t_end_abs": 4402496.129746675
+          },
+          "expected": {
+            "codes": [
+              "9364",
+              "4821"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c1-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821"
+      },
+      "input_sha256": "17e1c08155af4fbb565fe86f6528d16d8b3eb9365432a2e3fda4778a6fa6d841",
+      "wall_seconds": 3.055411792360246,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "eaf3d58767e9e7c0124de027c86a582e0d28acbe655292c3047fee61a00d2f9d",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 1176.426950842142,
+            "prefill_tps": 233.75867052615718,
+            "decode_tps": 18.835850837181077,
+            "total_wall_ms": 1534.1867748647928,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\"}",
+            "t_start_abs": 4402496.144655856,
+            "t_first_abs": 4402497.321082807,
+            "t_last_abs": 4402497.639624298,
+            "t_end_abs": 4402497.678842631
+          },
+          "expected": {
+            "code": "4821"
+          }
+        },
+        {
+          "request_sha256": "c7240c0c6cfb8124659eff028403994c93bdfe0865afe0a803ec1ef2e55cecd2",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 1263.9555241912603,
+            "prefill_tps": 246.05296155415974,
+            "decode_tps": 23.050587553485283,
+            "total_wall_ms": 1519.6973029524088,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"red\"}",
+            "t_start_abs": 4402497.679626351,
+            "t_first_abs": 4402498.943581875,
+            "t_last_abs": 4402499.160496086,
+            "t_end_abs": 4402499.199323654
+          },
+          "expected": {
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821"
+      },
+      "input_sha256": "ab254dd2d6ae3620b4193dc5c5b56ef8f38b9fc756e448fb5a67ab034a3098c3",
+      "wall_seconds": 11.834281889721751,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "5e2f54cd7838dd1e3bee9d6cc705583fe87da2dde3803f5883659963f2037c35",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 4666.74414742738,
+            "prefill_tps": 58.92759305255642,
+            "decode_tps": 5.834153965898256,
+            "total_wall_ms": 5808.400140143931,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\"}",
+            "t_start_abs": 4402499.21312695,
+            "t_first_abs": 4402503.879871097,
+            "t_last_abs": 4402504.908297847,
+            "t_end_abs": 4402505.02152709
+          },
+          "expected": {
+            "code": "4821"
+          }
+        },
+        {
+          "request_sha256": "65416eafc9749311204e92a9f92b0cb37da1e4a6dbde4c613e27060731928f09",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 5095.844580791891,
+            "prefill_tps": 61.030118770158964,
+            "decode_tps": 6.051874671548381,
+            "total_wall_ms": 6022.14783616364,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"red\"}",
+            "t_start_abs": 4402505.023808979,
+            "t_first_abs": 4402510.11965356,
+            "t_last_abs": 4402510.945843835,
+            "t_end_abs": 4402511.045956816
+          },
+          "expected": {
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i1",
+      "status": "ok",
+      "expected": {
+        "code": "9364"
+      },
+      "input_sha256": "7b9e409665630879cb9e307978d2705b286c33ac481bbbea4ca2ad6bf18aa67b",
+      "wall_seconds": 11.732586029917002,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "fa20394a8f4e329eeae3440a9e45243bd550f99eb22333c6063757e0d5ab7890",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 4435.354894027114,
+            "prefill_tps": 62.00180291555242,
+            "decode_tps": 5.3661237931048,
+            "total_wall_ms": 5694.809345528483,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\"}",
+            "t_start_abs": 4402499.214236387,
+            "t_first_abs": 4402503.649591281,
+            "t_last_abs": 4402504.767716809,
+            "t_end_abs": 4402504.909045733
+          },
+          "expected": {
+            "code": "9364"
+          }
+        },
+        {
+          "request_sha256": "237ca2b9e1b200d326af811ccce16e35859316a22137dce52f7c727eb31c9840",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 4977.161288261414,
+            "prefill_tps": 62.48541728665504,
+            "decode_tps": 5.396644233658089,
+            "total_wall_ms": 6036.067455075681,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"blue\"}",
+            "t_start_abs": 4402504.909906627,
+            "t_first_abs": 4402509.887067915,
+            "t_last_abs": 4402510.813569604,
+            "t_end_abs": 4402510.945974082
+          },
+          "expected": {
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i2",
+      "status": "ok",
+      "expected": {
+        "code": "4821"
+      },
+      "input_sha256": "459cb61e63fb0bb4f0b3f36f2a01e09d9fa46de301aada79371e817aefd8f519",
+      "wall_seconds": 11.834557423368096,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "955012a3ba03c67edca382fafc2821caba1f1e1e4b65fe03b8c62142092f9ab0",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 4667.743072845042,
+            "prefill_tps": 58.91498218910846,
+            "decode_tps": 5.835524847976287,
+            "total_wall_ms": 5809.328395873308,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\"}",
+            "t_start_abs": 4402499.212953496,
+            "t_first_abs": 4402503.880696569,
+            "t_last_abs": 4402504.90888172,
+            "t_end_abs": 4402505.022281892
+          },
+          "expected": {
+            "code": "4821"
+          }
+        },
+        {
+          "request_sha256": "4c41c81299824fe98257e61b8e4376141cbd218052f26847bc2c33575edf8ec2",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 5096.356906928122,
+            "prefill_tps": 61.02398353953947,
+            "decode_tps": 6.061272942469582,
+            "total_wall_ms": 6022.531419992447,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"red\"}",
+            "t_start_abs": 4402505.024173888,
+            "t_first_abs": 4402510.120530795,
+            "t_last_abs": 4402510.945440026,
+            "t_end_abs": 4402511.046705308
+          },
+          "expected": {
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i3",
+      "status": "ok",
+      "expected": {
+        "code": "9364"
+      },
+      "input_sha256": "64c54d50b815adcacd3c4802c9698542eefda8a09c94bf1e01aa64c5454d2375",
+      "wall_seconds": 11.829584909603,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "4632e25115ae108046cd20426472b72f8224f58bc13235eeaa9579043525c7b6",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 4665.6726859509945,
+            "prefill_tps": 58.94112564476805,
+            "decode_tps": 5.841902608121569,
+            "total_wall_ms": 5807.222029194236,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\"}",
+            "t_start_abs": 4402499.215770016,
+            "t_first_abs": 4402503.881442702,
+            "t_last_abs": 4402504.908505357,
+            "t_end_abs": 4402505.022992046
+          },
+          "expected": {
+            "code": "9364"
+          }
+        },
+        {
+          "request_sha256": "8231ef8b407989ba083c9f994005671e6bda5cd96cec94589f6594da5f0d02e6",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 5094.15615722537,
+            "prefill_tps": 61.050346789799256,
+            "decode_tps": 6.0496953451641575,
+            "total_wall_ms": 6019.955281168222,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"blue\"}",
+            "t_start_abs": 4402505.024487047,
+            "t_first_abs": 4402510.118643205,
+            "t_last_abs": 4402510.945131104,
+            "t_end_abs": 4402511.044442329
+          },
+          "expected": {
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c1-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "f11486a816dbcc69d12d6dbd16be9f746b9bc55e37f265c3f1b541e7864b78f7",
+      "wall_seconds": 3.4448855370283127,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "1a23cc91531c7b5621922ba07ea0032e317d6eaa0add325c227501de35bf3e2a",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 2977.815962396562,
+            "prefill_tps": 241.78794428267494,
+            "decode_tps": 27.63650213756298,
+            "total_wall_ms": 3444.043726660311,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4402511.069704374,
+            "t_first_abs": 4402514.047520337,
+            "t_last_abs": 4402514.481728687,
+            "t_end_abs": 4402514.513748101
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "7d3cfe545dae7ffaef1e89a78cf686b3d3ba3b33a1fd8c366960ce03ead4ee46",
+      "wall_seconds": 12.548799334093928,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "4f2df7284123eb84592caa32ec1f3de4b3dcaa2d350d237e9c024ef688070cd1",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 10686.690665781498,
+            "prefill_tps": 67.37352305942765,
+            "decode_tps": 6.918967188597646,
+            "total_wall_ms": 12547.921339049935,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4402514.547628059,
+            "t_first_abs": 4402525.234318725,
+            "t_last_abs": 4402526.968681625,
+            "t_end_abs": 4402527.095549398
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i1",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "6789598a6409dc0dd4beeb111fcc93068293385ac45f0cf73b156476bb7a7d5e",
+      "wall_seconds": 12.655465566553175,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "d17f4dbea10c42ba5e7a908fcd6ab79a2f57b1e9abedad9ed46abe1e2754571a",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 10891.999833285809,
+            "prefill_tps": 66.10356325930978,
+            "decode_tps": 7.2534938690959505,
+            "total_wall_ms": 12653.06250937283,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4402514.548753069,
+            "t_first_abs": 4402525.440752902,
+            "t_last_abs": 4402527.095128051,
+            "t_end_abs": 4402527.201815578
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i2",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "d878c454e0da336c08fe070f802fc60d46e6c66d68f278f43aef244b902d0932",
+      "wall_seconds": 12.649694656021893,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "05b8ac54431452ab1e5f175c0d9b899ffc726f1e752c6fa64c9b9e2d5fca2cf9",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 10886.866243556142,
+            "prefill_tps": 66.1347337142277,
+            "decode_tps": 7.258455770889962,
+            "total_wall_ms": 12647.998181171715,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4402514.554639708,
+            "t_first_abs": 4402525.441505952,
+            "t_last_abs": 4402527.094750165,
+            "t_end_abs": 4402527.202637889
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i3",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "dcdb4ba9e01161e7ab1e546da618fc6926ee6e46ea70736a4b94869705751f84",
+      "wall_seconds": 12.654148028232157,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "cbaf657dc54aa457dbadadf4b92be464dcfbb53650ef397b6177c389d11a3d21",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 10892.182457260787,
+            "prefill_tps": 66.1024549327159,
+            "decode_tps": 7.261811542934314,
+            "total_wall_ms": 12653.154886327684,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4402514.550293811,
+            "t_first_abs": 4402525.442476268,
+            "t_last_abs": 4402527.094956497,
+            "t_end_abs": 4402527.203448697
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c1-i0",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "12bb81a357d61e200b6bf5695806c0a742372e9d906df6de794e154edac406df",
+      "wall_seconds": 3.064675685018301,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "6c1bf144eb510e3b91a6d8d94ac3cd9353ecb250ba24251e9c81ba42d374f5d2",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 2790.1809299364686,
+            "prefill_tps": 259.12298096613483,
+            "decode_tps": 20.682040188980064,
+            "total_wall_ms": 3063.828286714852,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4402527.221669425,
+            "t_first_abs": 4402530.011850355,
+            "t_last_abs": 4402530.253606002,
+            "t_end_abs": 4402530.285497712
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i0",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "87bab4b7a7d90bf7b851a793aae3c612591b473f1c7e9e3698786b35f0802c7f",
+      "wall_seconds": 11.611783928237855,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "7b8e7e36dcdc8d3a236a0eb0bb8abe03a92c4c368f9a06f2551ce38ba55ade74",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 10646.757932379842,
+            "prefill_tps": 67.90799646164113,
+            "decode_tps": 5.970624645595897,
+            "total_wall_ms": 11610.908878967166,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4402530.313040904,
+            "t_first_abs": 4402540.959798836,
+            "t_last_abs": 4402541.797232153,
+            "t_end_abs": 4402541.923949783
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i1",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "f5e81040d9274c752abb0c8854c979180fd43b6f442f09514f50d334440d3ca5",
+      "wall_seconds": 11.718924895860255,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "92395f2209b1759b649ac937e3272779d9ced5ac8f89d576d29ccb0f378debbd",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 10841.027427464724,
+            "prefill_tps": 66.69109591664231,
+            "decode_tps": 6.522640040626307,
+            "total_wall_ms": 11716.426578350365,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4402530.315814185,
+            "t_first_abs": 4402541.156841612,
+            "t_last_abs": 4402541.923402387,
+            "t_end_abs": 4402542.032240763
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i2",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "e33de35528e24ddeab848bb519e9efcddce366106b2eff3b1996d0745444dd58",
+      "wall_seconds": 11.716519761830568,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "253103bbd4491a176f9340b9e600077d0887ae2cadb1a4af9bee04a058ffd870",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 10838.913257233799,
+            "prefill_tps": 66.70410426224934,
+            "decode_tps": 6.523617931384087,
+            "total_wall_ms": 11715.523823164403,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4402530.318439519,
+            "t_first_abs": 4402541.157352776,
+            "t_last_abs": 4402541.923798643,
+            "t_end_abs": 4402542.033963342
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i3",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "161013007c36af3184c8a61a7ce134302fd1d74709ea765925bbd68ea81ca813",
+      "wall_seconds": 11.717875548638403,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "39933d683f2d88246fbb75e53039bf74647c800aa69c53845ed5a2f04fb91113",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 10839.403982274234,
+            "prefill_tps": 66.70108441223593,
+            "decode_tps": 6.520156080323411,
+            "total_wall_ms": 11716.187089681625,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4402530.316979464,
+            "t_first_abs": 4402541.156383446,
+            "t_last_abs": 4402541.923236255,
+            "t_end_abs": 4402542.033166554
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

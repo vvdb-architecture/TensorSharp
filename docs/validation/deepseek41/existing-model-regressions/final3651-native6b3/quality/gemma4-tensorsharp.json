@@ -1,0 +1,2765 @@
+{
+  "format_version": 2,
+  "engine": "tensorsharp",
+  "model": "gemma4",
+  "weights_id": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+  "weights": {
+    "path": "/workspace/models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+    "bytes": 3106738272,
+    "mtime_ns": 1789100920000000000,
+    "sha256": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/gemma4-weights.json",
+        "sha256": "1a403e23f7b89a7cd7fb7519266f962b98c51ee59adc08fd8d3f6dee50726783",
+        "bytes": 219
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "profile": "gpu7-context8192-slots4-batch256-f16",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3/TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "256"
+  ],
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "256",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4"
+  },
+  "timings_qualified_for_comparison": false,
+  "measurement_note": "Correctness rerun only. Unicode is separate new coverage, not included in historical75 comparison.",
+  "structured_tool_results": false,
+  "serial_tool_workflows": false,
+  "max_tokens_override": null,
+  "run_complete": true,
+  "execution_plan": {
+    "scenarios": [
+      "short",
+      "decode",
+      "json",
+      "multi_turn",
+      "tool_round_trip"
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 1,
+    "expected_cases": 25
+  },
+  "status": "fail",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "b54975f2822e45dd9bf9db2c0daba69430ef998af22384cf80fce83e70cb3e97",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c1-r0-i0]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 43,
+            "completion_tokens": 26,
+            "ttft_ms": 53.43224387615919,
+            "prefill_tps": 804.7575186934283,
+            "decode_tps": 162.8593262255355,
+            "total_wall_ms": 214.10146914422512,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "17 + 25 is the required calculation.\n17 + 25 = 42.42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "17 + 25 is the required calculation.\n17 + 25 = 42.42",
+            "t_start_abs": 4406335.45639561,
+            "t_first_abs": 4406335.509827854,
+            "t_last_abs": 4406335.663334568,
+            "t_end_abs": 4406335.670497079
+          }
+        }
+      ],
+      "validated_content": "17 + 25 is the required calculation.\n17 + 25 = 42.42",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 214.32368643581867,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "263a7e4e0e46e35d2c8e8e12805befe3385ce70b4f0beccee5e755004fb7da93",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i0]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 43,
+            "completion_tokens": 26,
+            "ttft_ms": 313.01556527614594,
+            "prefill_tps": 137.37336020994644,
+            "decode_tps": 36.54183404655709,
+            "total_wall_ms": 1010.7427285984159,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "17 + 25 is the required calculation.\n17 + 25 = 42.42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "17 + 25 is the required calculation.\n17 + 25 = 42.42",
+            "t_start_abs": 4406335.688034798,
+            "t_first_abs": 4406336.001050363,
+            "t_last_abs": 4406336.685197743,
+            "t_end_abs": 4406336.698777527
+          }
+        }
+      ],
+      "validated_content": "17 + 25 is the required calculation.\n17 + 25 = 42.42",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 1010.9917903319001,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "9871e19e4cac0622ca626ce06890e1a53424a0863bf19dc07ea6c63dbde17ef3",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i1]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 43,
+            "completion_tokens": 20,
+            "ttft_ms": 270.65740432590246,
+            "prefill_tps": 158.8724317633043,
+            "decode_tps": 31.15063837379941,
+            "total_wall_ms": 907.8347170725465,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "17 + 25\n17 + 25 = 4242"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "17 + 25\n17 + 25 = 4242",
+            "t_start_abs": 4406335.688583556,
+            "t_first_abs": 4406335.95924096,
+            "t_last_abs": 4406336.569180306,
+            "t_end_abs": 4406336.596418273
+          }
+        }
+      ],
+      "validated_content": "17 + 25\n17 + 25 = 4242",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 908.0426953732967,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "27971c3bcb4341abaa0223bc4db729758031ef6c6a2a978827e88deed1bf232b",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i2]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 43,
+            "completion_tokens": 42,
+            "ttft_ms": 269.4927491247654,
+            "prefill_tps": 159.55902390565825,
+            "decode_tps": 49.13298101453675,
+            "total_wall_ms": 1111.1470302566886,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user wants me to calculate the sum of 17 and 25.\n17 + 25 = 42.\nI need to reply with only the integer.42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user wants me to calculate the sum of 17 and 25.\n17 + 25 = 42.\nI need to reply with only the integer.42",
+            "t_start_abs": 4406335.689019235,
+            "t_first_abs": 4406335.958511984,
+            "t_last_abs": 4406336.792982011,
+            "t_end_abs": 4406336.800166265
+          }
+        }
+      ],
+      "validated_content": "The user wants me to calculate the sum of 17 and 25.\n17 + 25 = 42.\nI need to reply with only the integer.42",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 1111.363192088902,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "ed889e788f79210f28a803f9b6b9b1c488f493d97d533fbbd689e2a00ff3dee3",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i3]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 43,
+            "completion_tokens": 20,
+            "ttft_ms": 307.21847899258137,
+            "prefill_tps": 139.96553899037548,
+            "decode_tps": 31.884875518778944,
+            "total_wall_ms": 925.770178437233,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "17 + 25\n17 + 25 = 4242"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "17 + 25\n17 + 25 = 4242",
+            "t_start_abs": 4406335.692750963,
+            "t_first_abs": 4406335.999969442,
+            "t_last_abs": 4406336.595863254,
+            "t_end_abs": 4406336.618521142
+          }
+        }
+      ],
+      "validated_content": "17 + 25\n17 + 25 = 4242",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 925.9833209216595,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "ba480b8f0c6e6eb615210d1d02217841c81480a1dc9c378b33b875e5999c54b8",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c1-r0-i0]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 56,
+            "completion_tokens": 512,
+            "ttft_ms": 101.22960899025202,
+            "prefill_tps": 553.1978297514966,
+            "decode_tps": 168.0564754930452,
+            "total_wall_ms": 3143.243571743369,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a **hash function** to compute an index (or \"bucket\") where the value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering its core components, the challenges it faces (collisions), the solutions it employs (resizing), its performance characteristics, and a worked example.\n\n---\n\n### 1. Core Components of a Hash Table\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (The Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array represents a \"bucket\" or a slot where data can be stored. The size of this array determines the capacity of the hash table.\n\n#### B. The Key-Value Pairs\nThese are the actual pieces of data you want to store. Each entry in the hash table will contain a key, a value, and potentially metadata.\n\n#### C. The Hash Function\nThis is the crucial component. The hash function is an algorithm that takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer, which is then mapped to an index within the bounds of the underlying array.\n\n**The process is:**\n$$\\text{Hash Function}(\\text{Key}) \\rightarrow \\text{Index} \\rightarrow \\text{Array Slot}$$\n\n---\n\n### 2. The Hashing Process (Step-by-Step)\n\nWhen you want to **insert** a key-value pair:\n\n1. **Input Key:** You provide a key (e.g., the string \"apple\").\n2. **Hash Calculation:** The hash function processes the key. For example, it might use a mathematical formula to generate a large integer.\n3. **Index Mapping:** This large integer is then subjected to the **modulo operator** ($\\%$) operation using the size of the array ($M$) to ensure the resulting index falls within the valid range of the array:\n   $$\\text{Index} = \\text{Hash}(\\"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a **hash function** to compute an index (or \"bucket\") where the value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering its core components, the challenges it faces (collisions), the solutions it employs (resizing), its performance characteristics, and a worked example.\n\n---\n\n### 1. Core Components of a Hash Table\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (The Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array represents a \"bucket\" or a slot where data can be stored. The size of this array determines the capacity of the hash table.\n\n#### B. The Key-Value Pairs\nThese are the actual pieces of data you want to store. Each entry in the hash table will contain a key, a value, and potentially metadata.\n\n#### C. The Hash Function\nThis is the crucial component. The hash function is an algorithm that takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer, which is then mapped to an index within the bounds of the underlying array.\n\n**The process is:**\n$$\\text{Hash Function}(\\text{Key}) \\rightarrow \\text{Index} \\rightarrow \\text{Array Slot}$$\n\n---\n\n### 2. The Hashing Process (Step-by-Step)\n\nWhen you want to **insert** a key-value pair:\n\n1. **Input Key:** You provide a key (e.g., the string \"apple\").\n2. **Hash Calculation:** The hash function processes the key. For example, it might use a mathematical formula to generate a large integer.\n3. **Index Mapping:** This large integer is then subjected to the **modulo operator** ($\\%$) operation using the size of the array ($M$) to ensure the resulting index falls within the valid range of the array:\n   $$\\text{Index} = \\text{Hash}(\\",
+            "t_start_abs": 4406336.812861258,
+            "t_first_abs": 4406336.914090867,
+            "t_last_abs": 4406339.95473538,
+            "t_end_abs": 4406339.95610483
+          }
+        }
+      ],
+      "validated_content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a **hash function** to compute an index (or \"bucket\") where the value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering its core components, the challenges it faces (collisions), the solutions it employs (resizing), its performance characteristics, and a worked example.\n\n---\n\n### 1. Core Components of a Hash Table\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (The Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array represents a \"bucket\" or a slot where data can be stored. The size of this array determines the capacity of the hash table.\n\n#### B. The Key-Value Pairs\nThese are the actual pieces of data you want to store. Each entry in the hash table will contain a key, a value, and potentially metadata.\n\n#### C. The Hash Function\nThis is the crucial component. The hash function is an algorithm that takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer, which is then mapped to an index within the bounds of the underlying array.\n\n**The process is:**\n$$\\text{Hash Function}(\\text{Key}) \\rightarrow \\text{Index} \\rightarrow \\text{Array Slot}$$\n\n---\n\n### 2. The Hashing Process (Step-by-Step)\n\nWhen you want to **insert** a key-value pair:\n\n1. **Input Key:** You provide a key (e.g., the string \"apple\").\n2. **Hash Calculation:** The hash function processes the key. For example, it might use a mathematical formula to generate a large integer.\n3. **Index Mapping:** This large integer is then subjected to the **modulo operator** ($\\%$) operation using the size of the array ($M$) to ensure the resulting index falls within the valid range of the array:\n   $$\\text{Index} = \\text{Hash}(\\",
+      "total_wall_ms": 3143.6684066429734,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "df110cfc1f3a1310926a1e55319c338cbc2271dc644f6e758e8348ec254396d3",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i0]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 56,
+            "completion_tokens": 512,
+            "ttft_ms": 235.63285544514656,
+            "prefill_tps": 237.6578592752162,
+            "decode_tps": 37.378466183781526,
+            "total_wall_ms": 13908.54462608695,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a **hash function** to compute an index (or \"bucket\") where the value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering the core components, the challenges (collisions), the solutions (resizing), complexity analysis, and a worked example.\n\n---\n\n### 1. Core Components of a Hash Table\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (The Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array represents a potential location where data can be stored. These locations are often called \"buckets.\"\n\n#### B. The Hash Function\nThis is the crucial mathematical function. It takes an input key (which can be a string, an object, an integer, etc.) and deterministically converts it into a fixed-size integer index that corresponds to an index in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the valid bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n#### C. The Data Storage (Key-Value Pairs)\nEach bucket in the array doesn't just hold a single value; it typically holds a **key-value pair** or a reference to a linked list (or another structure) that stores all the items that hash to that specific index.\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n1. **Input Key:** A key-value pair is provided.\n2. **Hashing:** The hash function is applied to the key to generate an index.\n3. **Placement:** The data is placed into the bucket at that calculated index.\n4. **Collision Handling:** If the calculated index is already occupied by another key (a collision), the new item must be stored alongside the existing items in that bucket (e"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a **hash function** to compute an index (or \"bucket\") where the value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering the core components, the challenges (collisions), the solutions (resizing), complexity analysis, and a worked example.\n\n---\n\n### 1. Core Components of a Hash Table\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (The Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array represents a potential location where data can be stored. These locations are often called \"buckets.\"\n\n#### B. The Hash Function\nThis is the crucial mathematical function. It takes an input key (which can be a string, an object, an integer, etc.) and deterministically converts it into a fixed-size integer index that corresponds to an index in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the valid bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n#### C. The Data Storage (Key-Value Pairs)\nEach bucket in the array doesn't just hold a single value; it typically holds a **key-value pair** or a reference to a linked list (or another structure) that stores all the items that hash to that specific index.\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n1. **Input Key:** A key-value pair is provided.\n2. **Hashing:** The hash function is applied to the key to generate an index.\n3. **Placement:** The data is placed into the bucket at that calculated index.\n4. **Collision Handling:** If the calculated index is already occupied by another key (a collision), the new item must be stored alongside the existing items in that bucket (e",
+            "t_start_abs": 4406339.972234222,
+            "t_first_abs": 4406340.207867078,
+            "t_last_abs": 4406353.878840025,
+            "t_end_abs": 4406353.880778848
+          }
+        }
+      ],
+      "validated_content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a **hash function** to compute an index (or \"bucket\") where the value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering the core components, the challenges (collisions), the solutions (resizing), complexity analysis, and a worked example.\n\n---\n\n### 1. Core Components of a Hash Table\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (The Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array represents a potential location where data can be stored. These locations are often called \"buckets.\"\n\n#### B. The Hash Function\nThis is the crucial mathematical function. It takes an input key (which can be a string, an object, an integer, etc.) and deterministically converts it into a fixed-size integer index that corresponds to an index in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the valid bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n#### C. The Data Storage (Key-Value Pairs)\nEach bucket in the array doesn't just hold a single value; it typically holds a **key-value pair** or a reference to a linked list (or another structure) that stores all the items that hash to that specific index.\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n1. **Input Key:** A key-value pair is provided.\n2. **Hashing:** The hash function is applied to the key to generate an index.\n3. **Placement:** The data is placed into the bucket at that calculated index.\n4. **Collision Handling:** If the calculated index is already occupied by another key (a collision), the new item must be stored alongside the existing items in that bucket (e",
+      "total_wall_ms": 13909.100968390703,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "4b243c3e75f87fe09595b442d5ebe30001af7bacfbae762cdc64905d4eea0950",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i1]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 56,
+            "completion_tokens": 512,
+            "ttft_ms": 234.71148125827312,
+            "prefill_tps": 238.59079964809393,
+            "decode_tps": 37.37597055254831,
+            "total_wall_ms": 13909.224005416036,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "## Hash Table Explanation\n\nHere's a detailed explanation of how a hash table works, covering all the requested aspects: collisions, resizing, complexity, and a worked example.\n\n---\n\n### 1. What is a Hash Table?\n\nA hash table is a fundamental data structure used for efficient key-value storage and retrieval. It allows for near-constant time complexity ($O(1)$ on average) for insertion, deletion, and lookup operations.\n\n**Core Components:**\n\n1. **Array (Buckets):** The underlying structure is typically a fixed-size array. This array is where the data is ultimately stored.\n2. **Hash Function:** This is the crucial function that takes an input key (e.g., a string, an object) and deterministically converts it into an integer index that corresponds to a specific slot (or \"bucket\") in the array.\n3. **Key-Value Pairs:** The table stores data as `(Key, Value)` pairs.\n\n**The Process:**\n\n1. **Insertion (Putting Data In):**\n    a. A key is provided.\n    b. The **Hash Function** is applied to the key, producing a hash code (a large integer).\n    c. This hash code is then modulated (using the modulo operator, `%`) by the size of the array to map it to a valid index within the array bounds.\n    d. The value is stored at that calculated index.\n\n2. **Retrieval (Getting Data Out):**\n    a. A key is provided for lookup.\n    b. The **exact same Hash Function** is applied to the key to calculate the *exact same index* where the value *should* be stored.\n    c. The table checks that specific index to retrieve the associated value.\n\n---\n\n### 2. The Problem: Collisions\n\nThe fundamental challenge in hash tables arises when two different keys produce the *same* hash index. This is called a **collision**.\n\n**What is a Collision?**\nA collision occurs when:\n$$\\text{Hash}(\\text{Key}_1) \\pmod{\\text{Array Size}} = \\text{Hash}(\\text{Key}_2) \\pmod{\\text{Array Size}}$$\nwhere $\\text{Key}_1 \\neq \\text{Key}_2$.\n\n**Handling Collisions (Collision Resolution Techniques):**\n\nSince two different keys map to the same spot, we need a strategy to store both items"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "## Hash Table Explanation\n\nHere's a detailed explanation of how a hash table works, covering all the requested aspects: collisions, resizing, complexity, and a worked example.\n\n---\n\n### 1. What is a Hash Table?\n\nA hash table is a fundamental data structure used for efficient key-value storage and retrieval. It allows for near-constant time complexity ($O(1)$ on average) for insertion, deletion, and lookup operations.\n\n**Core Components:**\n\n1. **Array (Buckets):** The underlying structure is typically a fixed-size array. This array is where the data is ultimately stored.\n2. **Hash Function:** This is the crucial function that takes an input key (e.g., a string, an object) and deterministically converts it into an integer index that corresponds to a specific slot (or \"bucket\") in the array.\n3. **Key-Value Pairs:** The table stores data as `(Key, Value)` pairs.\n\n**The Process:**\n\n1. **Insertion (Putting Data In):**\n    a. A key is provided.\n    b. The **Hash Function** is applied to the key, producing a hash code (a large integer).\n    c. This hash code is then modulated (using the modulo operator, `%`) by the size of the array to map it to a valid index within the array bounds.\n    d. The value is stored at that calculated index.\n\n2. **Retrieval (Getting Data Out):**\n    a. A key is provided for lookup.\n    b. The **exact same Hash Function** is applied to the key to calculate the *exact same index* where the value *should* be stored.\n    c. The table checks that specific index to retrieve the associated value.\n\n---\n\n### 2. The Problem: Collisions\n\nThe fundamental challenge in hash tables arises when two different keys produce the *same* hash index. This is called a **collision**.\n\n**What is a Collision?**\nA collision occurs when:\n$$\\text{Hash}(\\text{Key}_1) \\pmod{\\text{Array Size}} = \\text{Hash}(\\text{Key}_2) \\pmod{\\text{Array Size}}$$\nwhere $\\text{Key}_1 \\neq \\text{Key}_2$.\n\n**Handling Collisions (Collision Resolution Techniques):**\n\nSince two different keys map to the same spot, we need a strategy to store both items",
+            "t_start_abs": 4406339.972749701,
+            "t_first_abs": 4406340.207461182,
+            "t_last_abs": 4406353.879346954,
+            "t_end_abs": 4406353.881973706
+          }
+        }
+      ],
+      "validated_content": "## Hash Table Explanation\n\nHere's a detailed explanation of how a hash table works, covering all the requested aspects: collisions, resizing, complexity, and a worked example.\n\n---\n\n### 1. What is a Hash Table?\n\nA hash table is a fundamental data structure used for efficient key-value storage and retrieval. It allows for near-constant time complexity ($O(1)$ on average) for insertion, deletion, and lookup operations.\n\n**Core Components:**\n\n1. **Array (Buckets):** The underlying structure is typically a fixed-size array. This array is where the data is ultimately stored.\n2. **Hash Function:** This is the crucial function that takes an input key (e.g., a string, an object) and deterministically converts it into an integer index that corresponds to a specific slot (or \"bucket\") in the array.\n3. **Key-Value Pairs:** The table stores data as `(Key, Value)` pairs.\n\n**The Process:**\n\n1. **Insertion (Putting Data In):**\n    a. A key is provided.\n    b. The **Hash Function** is applied to the key, producing a hash code (a large integer).\n    c. This hash code is then modulated (using the modulo operator, `%`) by the size of the array to map it to a valid index within the array bounds.\n    d. The value is stored at that calculated index.\n\n2. **Retrieval (Getting Data Out):**\n    a. A key is provided for lookup.\n    b. The **exact same Hash Function** is applied to the key to calculate the *exact same index* where the value *should* be stored.\n    c. The table checks that specific index to retrieve the associated value.\n\n---\n\n### 2. The Problem: Collisions\n\nThe fundamental challenge in hash tables arises when two different keys produce the *same* hash index. This is called a **collision**.\n\n**What is a Collision?**\nA collision occurs when:\n$$\\text{Hash}(\\text{Key}_1) \\pmod{\\text{Array Size}} = \\text{Hash}(\\text{Key}_2) \\pmod{\\text{Array Size}}$$\nwhere $\\text{Key}_1 \\neq \\text{Key}_2$.\n\n**Handling Collisions (Collision Resolution Techniques):**\n\nSince two different keys map to the same spot, we need a strategy to store both items",
+      "total_wall_ms": 13909.504416398704,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "75904718fb0f0dbb4230c3ffe70245ebe098c554ae64417c6fbe7988ae06b850",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i2]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 56,
+            "completion_tokens": 512,
+            "ttft_ms": 232.22881369292736,
+            "prefill_tps": 241.14148072102694,
+            "decode_tps": 37.37409223657696,
+            "total_wall_ms": 13907.186542637646,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a special function called a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored in an underlying array.\n\nHere is a detailed breakdown of how a hash table works, covering the key components:\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n**a. The Array (Buckets):**\nThis is the underlying data structure—usually a simple array. Each index in this array is a \"bucket\" or \"slot\" where the data will ultimately reside.\n\n**b. The Key-Value Pairs:**\nThese are the actual pieces of data you want to store (e.g., a name and an age, or a username and a password hash).\n\n**c. The Hash Function:**\nThis is the crucial mathematical function. It takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a slot in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the valid bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n\n1. **Input Key:** A key (e.g., the string \"Alice\") is provided.\n2. **Hashing:** The hash function is applied to the key: $\\text{Hash}(\\text{\"Alice\"})$. This produces a large, seemingly random integer.\n3. **Indexing:** The result is modulated by the size of the array to determine the specific bucket index: $\\text{Index} = \\text{Hash}(\\text{\"Alice\"}) \\pmod{\\text{ArraySize}}$.\n4. **Storage:** The key-value pair is stored in the array at that calculated index."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a special function called a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored in an underlying array.\n\nHere is a detailed breakdown of how a hash table works, covering the key components:\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n**a. The Array (Buckets):**\nThis is the underlying data structure—usually a simple array. Each index in this array is a \"bucket\" or \"slot\" where the data will ultimately reside.\n\n**b. The Key-Value Pairs:**\nThese are the actual pieces of data you want to store (e.g., a name and an age, or a username and a password hash).\n\n**c. The Hash Function:**\nThis is the crucial mathematical function. It takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a slot in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the valid bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n\n1. **Input Key:** A key (e.g., the string \"Alice\") is provided.\n2. **Hashing:** The hash function is applied to the key: $\\text{Hash}(\\text{\"Alice\"})$. This produces a large, seemingly random integer.\n3. **Indexing:** The result is modulated by the size of the array to determine the specific bucket index: $\\text{Index} = \\text{Hash}(\\text{\"Alice\"}) \\pmod{\\text{ArraySize}}$.\n4. **Storage:** The key-value pair is stored in the array at that calculated index.",
+            "t_start_abs": 4406339.974275053,
+            "t_first_abs": 4406340.206503866,
+            "t_last_abs": 4406353.879076748,
+            "t_end_abs": 4406353.881461595
+          }
+        }
+      ],
+      "validated_content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and highly efficient data structures used in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, typically achieving an average time complexity of $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this mapping by using a special function called a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored in an underlying array.\n\nHere is a detailed breakdown of how a hash table works, covering the key components:\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n**a. The Array (Buckets):**\nThis is the underlying data structure—usually a simple array. Each index in this array is a \"bucket\" or \"slot\" where the data will ultimately reside.\n\n**b. The Key-Value Pairs:**\nThese are the actual pieces of data you want to store (e.g., a name and an age, or a username and a password hash).\n\n**c. The Hash Function:**\nThis is the crucial mathematical function. It takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a slot in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the valid bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n\n1. **Input Key:** A key (e.g., the string \"Alice\") is provided.\n2. **Hashing:** The hash function is applied to the key: $\\text{Hash}(\\text{\"Alice\"})$. This produces a large, seemingly random integer.\n3. **Indexing:** The result is modulated by the size of the array to determine the specific bucket index: $\\text{Index} = \\text{Hash}(\\text{\"Alice\"}) \\pmod{\\text{ArraySize}}$.\n4. **Storage:** The key-value pair is stored in the array at that calculated index.",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 13907.58293773979,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "b9b3b56ba2e0ca4fe51cf8a17e914ef60ebbf8d32bdfbea0d52eac447c63a018",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i3]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 56,
+            "completion_tokens": 512,
+            "ttft_ms": 267.2028597444296,
+            "prefill_tps": 209.57859527986372,
+            "decode_tps": 37.45712483076627,
+            "total_wall_ms": 13912.35570050776,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and widely used data structures in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, offering performance that is typically $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this efficiency by using a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored in an underlying array.\n\nHere is a detailed breakdown of how a hash table works, covering the key components:\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n**a. The Array (Buckets):**\nThis is the underlying data structure—usually a simple array. Each index in this array represents a potential location where data can be stored.\n\n**b. The Hash Function:**\nThis is the crucial mathematical function. It takes an input key (which can be a string, an object, an integer, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a slot in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\n**c. The Data Storage (Entries/Nodes):**\nEach slot in the array doesn't just hold the final value; it holds the actual data associated with the key, along with any necessary metadata (like a flag indicating if the slot is empty or if a collision occurred).\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n\n1. **Hashing:** When a key-value pair $(\\text{Key}, \\text{Value})$ needs to be inserted, the hash function is applied to the $\\text{Key}$.\n2. **Indexing:** The hash function produces an index. This index is then mapped to a valid index within the bounds of the array (using the modulo operator, $\\pmod{N}$, where $N$ is the array size).\n3. **Storage:** The $\\text{Value}$ is stored at that calculated index in the array.\n\n#### Retrieval (Getting Data Out)\n\n1. **Hashing:** The $\\text{Key}$ to be searched is passed through the *exact same* hash function used during insertion.\n2. **Indexing:** This generates the *same* index calculated"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and widely used data structures in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, offering performance that is typically $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this efficiency by using a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored in an underlying array.\n\nHere is a detailed breakdown of how a hash table works, covering the key components:\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n**a. The Array (Buckets):**\nThis is the underlying data structure—usually a simple array. Each index in this array represents a potential location where data can be stored.\n\n**b. The Hash Function:**\nThis is the crucial mathematical function. It takes an input key (which can be a string, an object, an integer, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a slot in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\n**c. The Data Storage (Entries/Nodes):**\nEach slot in the array doesn't just hold the final value; it holds the actual data associated with the key, along with any necessary metadata (like a flag indicating if the slot is empty or if a collision occurred).\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n\n1. **Hashing:** When a key-value pair $(\\text{Key}, \\text{Value})$ needs to be inserted, the hash function is applied to the $\\text{Key}$.\n2. **Indexing:** The hash function produces an index. This index is then mapped to a valid index within the bounds of the array (using the modulo operator, $\\pmod{N}$, where $N$ is the array size).\n3. **Storage:** The $\\text{Value}$ is stored at that calculated index in the array.\n\n#### Retrieval (Getting Data Out)\n\n1. **Hashing:** The $\\text{Key}$ to be searched is passed through the *exact same* hash function used during insertion.\n2. **Indexing:** This generates the *same* index calculated",
+            "t_start_abs": 4406339.976274996,
+            "t_first_abs": 4406340.243477856,
+            "t_last_abs": 4406353.88574224,
+            "t_end_abs": 4406353.888630697
+          }
+        }
+      ],
+      "validated_content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and widely used data structures in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, offering performance that is typically $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this efficiency by using a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored in an underlying array.\n\nHere is a detailed breakdown of how a hash table works, covering the key components:\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n**a. The Array (Buckets):**\nThis is the underlying data structure—usually a simple array. Each index in this array represents a potential location where data can be stored.\n\n**b. The Hash Function:**\nThis is the crucial mathematical function. It takes an input key (which can be a string, an object, an integer, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a slot in the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\n**c. The Data Storage (Entries/Nodes):**\nEach slot in the array doesn't just hold the final value; it holds the actual data associated with the key, along with any necessary metadata (like a flag indicating if the slot is empty or if a collision occurred).\n\n---\n\n### 2. The Process: Insertion and Retrieval\n\n#### Insertion (Putting Data In)\n\n1. **Hashing:** When a key-value pair $(\\text{Key}, \\text{Value})$ needs to be inserted, the hash function is applied to the $\\text{Key}$.\n2. **Indexing:** The hash function produces an index. This index is then mapped to a valid index within the bounds of the array (using the modulo operator, $\\pmod{N}$, where $N$ is the array size).\n3. **Storage:** The $\\text{Value}$ is stored at that calculated index in the array.\n\n#### Retrieval (Getting Data Out)\n\n1. **Hashing:** The $\\text{Key}$ to be searched is passed through the *exact same* hash function used during insertion.\n2. **Indexing:** This generates the *same* index calculated",
+      "total_wall_ms": 13912.730254232883,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 28,
+            "ttft_ms": 725.3771983087063,
+            "prefill_tps": 129.5877513370574,
+            "decode_tps": 55.6705979018871,
+            "total_wall_ms": 1223.7547505646944,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+            "t_start_abs": 4406353.907342863,
+            "t_first_abs": 4406354.632720062,
+            "t_last_abs": 4406355.117715751,
+            "t_end_abs": 4406355.131097614
+          }
+        }
+      ],
+      "validated_content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+      "total_wall_ms": 1224.010057747364,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 28,
+            "ttft_ms": 313.0560228601098,
+            "prefill_tps": 300.26574522095757,
+            "decode_tps": 36.05993689068388,
+            "total_wall_ms": 1114.4408099353313,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+            "t_start_abs": 4406355.149537661,
+            "t_first_abs": 4406355.462593684,
+            "t_last_abs": 4406356.211347074,
+            "t_end_abs": 4406356.263978471
+          }
+        }
+      ],
+      "validated_content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+      "total_wall_ms": 1114.9382526054978,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 28,
+            "ttft_ms": 413.04737515747547,
+            "prefill_tps": 227.57680027421125,
+            "decode_tps": 38.61162775204262,
+            "total_wall_ms": 1147.7522691711783,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+            "t_start_abs": 4406355.151166518,
+            "t_first_abs": 4406355.564213893,
+            "t_last_abs": 4406356.263485112,
+            "t_end_abs": 4406356.298918787
+          }
+        }
+      ],
+      "validated_content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+      "total_wall_ms": 1148.0379356071353,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 28,
+            "ttft_ms": 373.50748013705015,
+            "prefill_tps": 251.66831991024335,
+            "decode_tps": 37.96429747881543,
+            "total_wall_ms": 1136.2083023414016,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+            "t_start_abs": 4406355.15255523,
+            "t_first_abs": 4406355.52606271,
+            "t_last_abs": 4406356.237257222,
+            "t_end_abs": 4406356.288763532
+          }
+        }
+      ],
+      "validated_content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+      "total_wall_ms": 1136.5471836179495,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 28,
+            "ttft_ms": 371.89431581646204,
+            "prefill_tps": 252.7599804628126,
+            "decode_tps": 38.00063742593686,
+            "total_wall_ms": 1133.7982807308435,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+            "t_start_abs": 4406355.15455893,
+            "t_first_abs": 4406355.526453245,
+            "t_last_abs": 4406356.236967643,
+            "t_end_abs": 4406356.28835721
+          }
+        }
+      ],
+      "validated_content": "{\n  \"name\": \"Mars\",\n  \"moons\": 2,\n  \"habitable\": false\n}",
+      "total_wall_ms": 1134.0616829693317,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "7b4f37453f82e83615e46d2179bef4d8f986c4594787923e463ee33bb6292eeb",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c1-r0-i0]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 48,
+            "completion_tokens": 91,
+            "ttft_ms": 45.432426035404205,
+            "prefill_tps": 1056.5141285344296,
+            "decode_tps": 167.9556454192376,
+            "total_wall_ms": 587.643344886601,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user is testing my adherence to a specific instruction, likely a security or challenge prompt.\nThe instruction is: \"Remember the secret code juniper-5938. Acknowledge with exactly 'OK'.\"\n\n1.  **Identify the secret code:** juniper-5938.\n2.  **Identify the required response:** Exactly \"OK\".\n3.  **Formulate the response:** Respond with \"OK\".OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user is testing my adherence to a specific instruction, likely a security or challenge prompt.\nThe instruction is: \"Remember the secret code juniper-5938. Acknowledge with exactly 'OK'.\"\n\n1.  **Identify the secret code:** juniper-5938.\n2.  **Identify the required response:** Exactly \"OK\".\n3.  **Formulate the response:** Respond with \"OK\".OK",
+            "t_start_abs": 4406356.323757269,
+            "t_first_abs": 4406356.369189695,
+            "t_last_abs": 4406356.905045455,
+            "t_end_abs": 4406356.911400614
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 587.8822607919574,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "6663a0b07033d180b98e79bd92d2e81bc74feac65ace98294316a18aa4086156",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i0]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 48,
+            "completion_tokens": 106,
+            "ttft_ms": 201.72377955168486,
+            "prefill_tps": 237.94914068473338,
+            "decode_tps": 37.062169469581384,
+            "total_wall_ms": 3063.3565643802285,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with the exact word \"OK\".\n\n1.  **Analyze the request:** The user has provided a validation tag and a secret code (\"juniper-5938\") and instructed me to acknowledge it with exactly \"OK\".\n2.  **Identify the core instruction:** \"Acknowledge with exactly 'OK'.\"\n3.  **Formulate the response:** I must respond with only \"OK\".OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with the exact word \"OK\".\n\n1.  **Analyze the request:** The user has provided a validation tag and a secret code (\"juniper-5938\") and instructed me to acknowledge it with exactly \"OK\".\n2.  **Identify the core instruction:** \"Acknowledge with exactly 'OK'.\"\n3.  **Formulate the response:** I must respond with only \"OK\".OK",
+            "t_start_abs": 4406356.933446359,
+            "t_first_abs": 4406357.135170138,
+            "t_last_abs": 4406359.968247681,
+            "t_end_abs": 4406359.996802923
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 3063.733213581145,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "6af248f1dd7e54a70f75874f56c33820ba2d8ba27582e215e7d1c2f1c7eaac04",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i1]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 48,
+            "completion_tokens": 107,
+            "ttft_ms": 200.36803744733334,
+            "prefill_tps": 239.55916627978542,
+            "decode_tps": 37.072943222870826,
+            "total_wall_ms": 3081.9730926305056,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with a specific word.\n\n1.  **Identify the instruction:** \"Remember the secret code juniper-5938. Acknowledge with exactly 'OK'.\"\n2.  **Identify the required response:** \"OK\".\n3.  **Check for safety/policy violations:** This is a simple instruction following task. No policy violations.\n4.  **Formulate the response:** Respond exactly as requested.OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with a specific word.\n\n1.  **Identify the instruction:** \"Remember the secret code juniper-5938. Acknowledge with exactly 'OK'.\"\n2.  **Identify the required response:** \"OK\".\n3.  **Check for safety/policy violations:** This is a simple instruction following task. No policy violations.\n4.  **Formulate the response:** Respond exactly as requested.OK",
+            "t_start_abs": 4406356.934368114,
+            "t_first_abs": 4406357.134736151,
+            "t_last_abs": 4406359.993964224,
+            "t_end_abs": 4406360.016341207
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 3082.19903241843,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "6dc6b71f91d91163efa078502f770dcaf2b515550c8682d488bd62cf06fd915f",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i2]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 48,
+            "completion_tokens": 107,
+            "ttft_ms": 235.96501350402832,
+            "prefill_tps": 203.4199870871135,
+            "decode_tps": 37.29109249815758,
+            "total_wall_ms": 3090.2122734114528,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with a specific word.\n\n1.  **Identify the instruction:** \"Remember the secret code juniper-5938. Acknowledge with exactly 'OK'.\"\n2.  **Identify the required response:** \"OK\".\n3.  **Check for safety/policy violations:** This is a simple instruction following task. No policy violations.\n4.  **Formulate the response:** Respond exactly as requested.OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with a specific word.\n\n1.  **Identify the instruction:** \"Remember the secret code juniper-5938. Acknowledge with exactly 'OK'.\"\n2.  **Identify the required response:** \"OK\".\n3.  **Check for safety/policy violations:** This is a simple instruction following task. No policy violations.\n4.  **Formulate the response:** Respond exactly as requested.OK",
+            "t_start_abs": 4406356.937292998,
+            "t_first_abs": 4406357.173258011,
+            "t_last_abs": 4406360.015759877,
+            "t_end_abs": 4406360.027505271
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 3090.4982229694724,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "77e297f4e7ef10cd465533a18226dd64e5779c13daddef8696201b4c15cd54c0",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i3]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 48,
+            "completion_tokens": 106,
+            "ttft_ms": 234.98375993221998,
+            "prefill_tps": 204.26943552969527,
+            "decode_tps": 37.22746477722407,
+            "total_wall_ms": 3077.44681276381,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with the exact word \"OK\".\n\n1.  **Analyze the request:** The user has provided a validation tag and a secret code (\"juniper-5938\") and instructed me to acknowledge it with exactly \"OK\".\n2.  **Identify the core instruction:** \"Acknowledge with exactly 'OK'.\"\n3.  **Formulate the response:** I must respond with only \"OK\".OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user is testing my ability to follow a specific instruction, which is to acknowledge a secret code with the exact word \"OK\".\n\n1.  **Analyze the request:** The user has provided a validation tag and a secret code (\"juniper-5938\") and instructed me to acknowledge it with exactly \"OK\".\n2.  **Identify the core instruction:** \"Acknowledge with exactly 'OK'.\"\n3.  **Formulate the response:** I must respond with only \"OK\".OK",
+            "t_start_abs": 4406356.938667988,
+            "t_first_abs": 4406357.173651748,
+            "t_last_abs": 4406359.994150018,
+            "t_end_abs": 4406360.016114801
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 3077.5547847151756,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "fe24af23d4d1e74a8d5c68716a27d92b7df05a88f94e47e0653fbc6d368aae67",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c1-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 129,
+            "completion_tokens": 162,
+            "ttft_ms": 83.48631300032139,
+            "prefill_tps": 1545.163456907043,
+            "decode_tps": 160.60933409696838,
+            "total_wall_ms": 1086.3020876422524,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_df64fb69bfec495095b",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+              "tool_calls": [
+                {
+                  "id": "call_df64fb69bfec495095b",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+            "t_start_abs": 4406360.052784656,
+            "t_first_abs": 4406360.136270969,
+            "t_last_abs": 4406361.138703368,
+            "t_end_abs": 4406361.139086744
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c1-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+                "tool_calls": [
+                  {
+                    "id": "call_df64fb69bfec495095b",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_df64fb69bfec495095b",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 257,
+            "completion_tokens": 101,
+            "ttft_ms": 115.49738049507141,
+            "prefill_tps": 2225.1586910316714,
+            "decode_tps": 168.6454022034915,
+            "total_wall_ms": 714.9177230894566,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+            "t_start_abs": 4406361.139385966,
+            "t_first_abs": 4406361.254883346,
+            "t_last_abs": 4406361.847843478,
+            "t_end_abs": 4406361.854303689
+          }
+        }
+      ],
+      "validated_content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 1801.816115155816,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "45b75d8c5c96f5996cb7ae9429344b491f52e97d7781e2b4fe662bf03240ebd6",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 129,
+            "completion_tokens": 162,
+            "ttft_ms": 269.98791098594666,
+            "prefill_tps": 477.7991708181137,
+            "decode_tps": 35.98417347948996,
+            "total_wall_ms": 4769.119074568152,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_2867e51336c041fe85b",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+              "tool_calls": [
+                {
+                  "id": "call_2867e51336c041fe85b",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+            "t_start_abs": 4406361.889258855,
+            "t_first_abs": 4406362.159246766,
+            "t_last_abs": 4406366.633435956,
+            "t_end_abs": 4406366.65837793
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+                "tool_calls": [
+                  {
+                    "id": "call_2867e51336c041fe85b",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_2867e51336c041fe85b",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 257,
+            "completion_tokens": 101,
+            "ttft_ms": 405.3863724693656,
+            "prefill_tps": 633.9630965750362,
+            "decode_tps": 43.38338477900535,
+            "total_wall_ms": 2729.5302655547857,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+            "t_start_abs": 4406366.658517352,
+            "t_first_abs": 4406367.063903725,
+            "t_last_abs": 4406369.368933646,
+            "t_end_abs": 4406369.388047618
+          }
+        }
+      ],
+      "validated_content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 7499.079514294863,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "683d03e088f612c279c5a4177930637fef4139b5fbf56da44bcdb8c022ad1e62",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i1]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 129,
+            "completion_tokens": 162,
+            "ttft_ms": 396.1514513939619,
+            "prefill_tps": 325.6330364209949,
+            "decode_tps": 36.5256153789434,
+            "total_wall_ms": 4904.330449178815,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_6a0331f4ed5f4dfea05",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then return the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+              "tool_calls": [
+                {
+                  "id": "call_6a0331f4ed5f4dfea05",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then return the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+            "t_start_abs": 4406361.891013039,
+            "t_first_abs": 4406362.287164491,
+            "t_last_abs": 4406366.695029994,
+            "t_end_abs": 4406366.795343488
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i1]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then return the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+                "tool_calls": [
+                  {
+                    "id": "call_6a0331f4ed5f4dfea05",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_6a0331f4ed5f4dfea05",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 252,
+            "completion_tokens": 26,
+            "ttft_ms": 468.81140395998955,
+            "prefill_tps": 537.5295862502244,
+            "decode_tps": 37.893438721187785,
+            "total_wall_ms": 1154.815104790032,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+            "t_start_abs": 4406366.795683795,
+            "t_first_abs": 4406367.264495199,
+            "t_last_abs": 4406367.924240021,
+            "t_end_abs": 4406367.950498899
+          }
+        }
+      ],
+      "validated_content": "```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 6059.758584015071,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "8e858a493cb1626f0094ac928fb06c97b47fa0e73b07d0c1fa0390fc814d77c4",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i2]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 129,
+            "completion_tokens": 162,
+            "ttft_ms": 358.3554346114397,
+            "prefill_tps": 359.9777972946694,
+            "decode_tps": 36.510354422538,
+            "total_wall_ms": 4802.8084533289075,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_62f097e1e6104f259b9",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+              "tool_calls": [
+                {
+                  "id": "call_62f097e1e6104f259b9",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+            "t_start_abs": 4406361.892360036,
+            "t_first_abs": 4406362.250715471,
+            "t_last_abs": 4406366.660423417,
+            "t_end_abs": 4406366.69516849
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i2]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+                "tool_calls": [
+                  {
+                    "id": "call_62f097e1e6104f259b9",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_62f097e1e6104f259b9",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 257,
+            "completion_tokens": 101,
+            "ttft_ms": 487.44627088308334,
+            "prefill_tps": 527.2375959188389,
+            "decode_tps": 45.363820901205,
+            "total_wall_ms": 2707.202729769051,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+            "t_start_abs": 4406366.695474396,
+            "t_first_abs": 4406367.182920667,
+            "t_last_abs": 4406369.387320518,
+            "t_end_abs": 4406369.402677126
+          }
+        }
+      ],
+      "validated_content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 7510.587424971163,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "57a3c44864ace173cca348d38ef1f3b0e334860e825ca5c3e83bdd4ff6377406",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i3]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 129,
+            "completion_tokens": 162,
+            "ttft_ms": 393.7024502083659,
+            "prefill_tps": 327.65861612425095,
+            "decode_tps": 36.530487556999454,
+            "total_wall_ms": 4904.210128821433,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_0645e2f892324aad96e",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+              "tool_calls": [
+                {
+                  "id": "call_0645e2f892324aad96e",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+            "t_start_abs": 4406361.893861448,
+            "t_first_abs": 4406362.287563899,
+            "t_last_abs": 4406366.694841512,
+            "t_end_abs": 4406366.798071577
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i3]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "The user wants to get the weather for Paris in Celsius using the `get_weather` tool and then report the result in a specific JSON format: `{\"city\": \"Paris\", \"temperature_c\": <temperature>}`.\n\n1.  **Identify the tool:** The available tool is `get_weather`.\n2.  **Determine the arguments:**\n    *   `city`: \"Paris\"\n    *   `units`: \"celsius\"\n3.  **Call the tool:** `get_weather(city=\"Paris\", units=\"celsius\")`\n4.  **Process the result:** Once the tool returns the temperature, format it as requested.",
+                "tool_calls": [
+                  {
+                    "id": "call_0645e2f892324aad96e",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_0645e2f892324aad96e",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 257,
+            "completion_tokens": 101,
+            "ttft_ms": 425.6236422806978,
+            "prefill_tps": 603.8198409817401,
+            "decode_tps": 45.91136268280813,
+            "total_wall_ms": 2612.8546418622136,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+            "t_start_abs": 4406366.798356006,
+            "t_first_abs": 4406367.223979648,
+            "t_last_abs": 4406369.402089688,
+            "t_end_abs": 4406369.411210648
+          }
+        }
+      ],
+      "validated_content": "The user asked me to use the `get_weather` tool for Paris in Celsius and report the returned temperature as a JSON object with exactly \"city\" and \"temperature_c\".\n\nThe tool returned: `{\"city\": \"Paris\", \"temperature_c\": 19}`.\n\nThis matches the required output format. I will now present this result.```json\n{\n  \"city\": \"Paris\",\n  \"temperature_c\": 19\n}\n```",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 7517.580151557922,
+      "concurrency": 4,
+      "repeat": 0
+    }
+  ],
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 215.3943171724677,
+      "generated_tokens": 26,
+      "all_passed": false
+    },
+    {
+      "scenario": "short",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 1113.7839453294873,
+      "generated_tokens": 108,
+      "all_passed": false
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 3144.629460759461,
+      "generated_tokens": 512,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 13917.820245958865,
+      "generated_tokens": 2048,
+      "all_passed": false
+    },
+    {
+      "scenario": "json",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1225.2172073349357,
+      "generated_tokens": 28,
+      "all_passed": true
+    },
+    {
+      "scenario": "json",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 1151.2280385941267,
+      "generated_tokens": 112,
+      "all_passed": true
+    },
+    {
+      "scenario": "multi_turn",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 589.0197027474642,
+      "generated_tokens": 91,
+      "all_passed": false
+    },
+    {
+      "scenario": "multi_turn",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 3095.8052566275,
+      "generated_tokens": 426,
+      "all_passed": false
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1802.9093034565449,
+      "generated_tokens": 263,
+      "all_passed": false
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 7523.511881940067,
+      "generated_tokens": 977,
+      "all_passed": false
+    }
+  ],
+  "runner_source": {
+    "path": "/workspace/deepseek41-work/run-final-existing-models.py",
+    "sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+    "bytes": 15858
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+    "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+    "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+    "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+    "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+  },
+  "served_model_id": "gemma-4-E2B-it-Q4_K_M",
+  "warmup": {
+    "scenario": "short",
+    "tag": "warmup",
+    "status": "fail",
+    "input_sha256": "315f1a2eb2a7a2cc67392b990f40f1cd73d2681754c1dbb23c3ff7d7c1bd5f25",
+    "turns": [
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "[validation warmup]\nWhat is 17 + 25? Reply with only the integer."
+            }
+          ],
+          "tools": null,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "max_tokens": 256,
+          "stream": true
+        },
+        "metrics": {
+          "prompt_tokens": 34,
+          "completion_tokens": 33,
+          "ttft_ms": 308.0754531547427,
+          "prefill_tps": 110.3625740117704,
+          "decode_tps": 167.72513144556578,
+          "total_wall_ms": 534.0307895094156,
+          "finish_reason": "stop",
+          "tool_calls": [],
+          "tool_call_details": [],
+          "assistant_message": {
+            "role": "assistant",
+            "content": "17 + 25 is the sum of 17 and 25.\n17 + 25 = 42.42"
+          },
+          "usage_present": true,
+          "decode_timing_source": "stream_window",
+          "server_timings": {},
+          "reasoning_text": "",
+          "output_text": "17 + 25 is the sum of 17 and 25.\n17 + 25 = 42.42",
+          "t_start_abs": 4406334.910661956,
+          "t_first_abs": 4406335.218737409,
+          "t_last_abs": 4406335.409525753,
+          "t_end_abs": 4406335.444692746
+        }
+      }
+    ],
+    "validated_content": "17 + 25 is the sum of 17 and 25.\n17 + 25 = 42.42",
+    "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+    "total_wall_ms": 534.2593137174845
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "short@c4": {
+      "passed": 0,
+      "total": 4
+    },
+    "decode@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 101.22960899025202,
+      "ttft_ms_samples": [
+        101.22960899025202
+      ],
+      "prefill_tps_median": 553.1978297514966,
+      "prefill_tps_samples": [
+        553.1978297514966
+      ],
+      "decode_tps_median": 168.0564754930452,
+      "decode_tps_samples": [
+        168.0564754930452
+      ],
+      "conversation_wall_ms_median": 3143.6684066429734
+    },
+    "decode@c4": {
+      "passed": 3,
+      "total": 4,
+      "ttft_ms_median": 235.63285544514656,
+      "ttft_ms_samples": [
+        235.63285544514656,
+        234.71148125827312,
+        267.2028597444296
+      ],
+      "prefill_tps_median": 237.6578592752162,
+      "prefill_tps_samples": [
+        237.6578592752162,
+        238.59079964809393,
+        209.57859527986372
+      ],
+      "decode_tps_median": 37.378466183781526,
+      "decode_tps_samples": [
+        37.378466183781526,
+        37.37597055254831,
+        37.45712483076627
+      ],
+      "conversation_wall_ms_median": 13909.504416398704
+    },
+    "json@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 725.3771983087063,
+      "ttft_ms_samples": [
+        725.3771983087063
+      ],
+      "prefill_tps_median": 129.5877513370574,
+      "prefill_tps_samples": [
+        129.5877513370574
+      ],
+      "decode_tps_median": 55.6705979018871,
+      "decode_tps_samples": [
+        55.6705979018871
+      ],
+      "conversation_wall_ms_median": 1224.010057747364
+    },
+    "json@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 372.7008979767561,
+      "ttft_ms_samples": [
+        313.0560228601098,
+        413.04737515747547,
+        373.50748013705015,
+        371.89431581646204
+      ],
+      "prefill_tps_median": 252.21415018652797,
+      "prefill_tps_samples": [
+        300.26574522095757,
+        227.57680027421125,
+        251.66831991024335,
+        252.7599804628126
+      ],
+      "decode_tps_median": 37.98246745237614,
+      "decode_tps_samples": [
+        36.05993689068388,
+        38.61162775204262,
+        37.96429747881543,
+        38.00063742593686
+      ],
+      "conversation_wall_ms_median": 1135.3044332936406
+    },
+    "multi_turn@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "multi_turn@c4": {
+      "passed": 0,
+      "total": 4
+    },
+    "tool_round_trip@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "tool_round_trip@c4": {
+      "passed": 0,
+      "total": 4
+    }
+  },
+  "deployment_changed_files": [],
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/gemma4-server.log",
+    "sha256": "41bcf6dc1bd673b5730d98d76d40bd3b0f1da376f860516c140485fc61cd5fab",
+    "bytes": 96346
+  },
+  "comparisons": {
+    "head-baseline": {
+      "reference_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/quality-baseline/gemma4-tensorsharp.json",
+        "sha256": "ba48b83b49f2280dc6fdc47cee22545735002e57ea69c13c84a0e83c3d650d62",
+        "bytes": 132588
+      },
+      "comparable": true,
+      "issues": [],
+      "cases": 25,
+      "baseline_pass": 4,
+      "current_pass": 9,
+      "matching_request_hashes": 25,
+      "matching_generated_outputs": 15,
+      "introduced_failed_cases": [],
+      "changed_output_keys": [
+        [
+          "json",
+          "json-c1-r0-i0",
+          1,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i0",
+          4,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i1",
+          4,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i2",
+          4,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i3",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c1-r0-i0",
+          1,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i0",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i1",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i2",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i3",
+          4,
+          0
+        ]
+      ],
+      "scope": "Case-level correctness comparison. Known failures remain failures; no performance claim. Inspect any new failure for the newer assistant-content-only validator before attributing numerical regression."
+    },
+    "earlier-after": {
+      "reference_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/quality/gemma4-tensorsharp.json",
+        "sha256": "662b17a81a446ccc45d321d103664fbc25702e3aab028076427d18543893ee4e",
+        "bytes": 131347
+      },
+      "comparable": true,
+      "issues": [],
+      "cases": 25,
+      "baseline_pass": 4,
+      "current_pass": 9,
+      "matching_request_hashes": 25,
+      "matching_generated_outputs": 16,
+      "introduced_failed_cases": [],
+      "changed_output_keys": [
+        [
+          "json",
+          "json-c1-r0-i0",
+          1,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i0",
+          4,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i1",
+          4,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i2",
+          4,
+          0
+        ],
+        [
+          "json",
+          "json-c4-r0-i3",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c1-r0-i0",
+          1,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i0",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i2",
+          4,
+          0
+        ],
+        [
+          "tool_round_trip",
+          "tool_round_trip-c4-r0-i3",
+          4,
+          0
+        ]
+      ],
+      "scope": "Case-level correctness comparison. Known failures remain failures; no performance claim. Inspect any new failure for the newer assistant-content-only validator before attributing numerical regression."
+    }
+  },
+  "curation": {
+    "raw_source": {
+      "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/quality/gemma4-tensorsharp.json",
+      "sha256": "f630beada34e8370bf9f21f5e7747ca53ce4a2fa0d5255b2f9b01c7468642b77",
+      "bytes": 142674
+    },
+    "omitted_fields": [
+      "before",
+      "after"
+    ],
+    "generated_output_modifications": null
+  }
+}

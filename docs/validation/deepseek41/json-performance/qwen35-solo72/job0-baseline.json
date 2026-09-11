@@ -1,0 +1,2384 @@
+{
+  "job": 0,
+  "version": "baseline",
+  "run_complete": true,
+  "status": "ok",
+  "scope": "Four fresh processes in B/F/F/B order, final native6b3 fixed. Each retains exact R2 decode512 and five JSON warmups, then repeats its original r0/r1/r2 solo requests six times. All18 requests participate in each paired comparison; first3/later15 are predeclared descriptive groups.",
+  "execution_plan": {
+    "case_count": 18,
+    "concurrency": 1,
+    "exact_tags": [
+      "json-c1-r0-i0",
+      "json-c1-r1-i0",
+      "json-c1-r2-i0"
+    ],
+    "cycles": 6,
+    "warmups": {
+      "decode512": 1,
+      "json": 5
+    },
+    "descriptive_groups": [
+      3,
+      15
+    ]
+  },
+  "cross": {
+    "managed": "baseline",
+    "native": "final"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+    "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+    "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+    "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+    "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+    "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+  },
+  "weights_id": "0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c",
+  "weights": {
+    "path": "/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
+    "bytes": 811843840,
+    "mtime_ns": 1789100915000000000,
+    "sha256": "0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/qwen35-weights.json",
+        "sha256": "981db89b19bfebd03ba1c73663e909df6f4cb7d2aea2e3a8aaf11693948a1d84",
+        "bytes": 212
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "thinking": false,
+  "stream": true,
+  "profile": "gpu7-context8192-slots4-batch256-f16",
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "256",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4"
+  },
+  "runtime_environment_policy": {
+    "stripped_prefixes": [
+      "TS_",
+      "TENSORSHARP_",
+      "GGML_",
+      "KV_CACHE_",
+      "MAX_CONTEXT",
+      "DOTNET_",
+      "COMPlus_",
+      "CORECLR_"
+    ],
+    "deliberate_DOTNET_COMPlus_CORECLR_settings": {},
+    "runtime_defaults": "No inherited override from these prefixes"
+  },
+  "logging_environment": {
+    "TENSORSHARP_LOG_DIR": "/workspace/deepseek41-work/existing-regressions/qwen35-solo72-final-native-r1/job0-baseline-file-logs"
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "256"
+  ],
+  "cases": [
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 67.61052366346121,
+            "prefill_tps": 1360.734912481082,
+            "decode_tps": 272.96794311247976,
+            "total_wall_ms": 126.53210945427418,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412032.698234392,
+            "t_first_abs": 4412032.765844916,
+            "t_last_abs": 4412032.820796424,
+            "t_end_abs": 4412032.824766502
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 126.75612047314644,
+      "concurrency": 1,
+      "repeat": 0,
+      "job": 0,
+      "iteration": 0,
+      "cycle": 0,
+      "logical_id": "job0-baseline-iteration00",
+      "wave_wall_ms": 127.55074724555016,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 174.07496832311153,
+            "prefill_tps": 528.5079232600117,
+            "decode_tps": 263.36201933398127,
+            "total_wall_ms": 235.04989687353373,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412032.841018881,
+            "t_first_abs": 4412033.015093849,
+            "t_last_abs": 4412033.07204967,
+            "t_end_abs": 4412033.076068778
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 235.302803106606,
+      "concurrency": 1,
+      "repeat": 1,
+      "job": 0,
+      "iteration": 1,
+      "cycle": 0,
+      "logical_id": "job0-baseline-iteration01",
+      "wave_wall_ms": 236.10669560730457,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 66.36636331677437,
+            "prefill_tps": 1386.2444075905335,
+            "decode_tps": 275.7908909930825,
+            "total_wall_ms": 125.12402702122927,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.103768025,
+            "t_first_abs": 4412033.170134388,
+            "t_last_abs": 4412033.224523421,
+            "t_end_abs": 4412033.228892052
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 125.36789663136005,
+      "concurrency": 1,
+      "repeat": 2,
+      "job": 0,
+      "iteration": 2,
+      "cycle": 0,
+      "logical_id": "job0-baseline-iteration02",
+      "wave_wall_ms": 126.15745328366756,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 65.23627508431673,
+            "prefill_tps": 1410.2583245455328,
+            "decode_tps": 289.1182115065553,
+            "total_wall_ms": 121.01028021425009,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.247699118,
+            "t_first_abs": 4412033.312935393,
+            "t_last_abs": 4412033.364817286,
+            "t_end_abs": 4412033.368709398
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 121.23684864491224,
+      "concurrency": 1,
+      "repeat": 0,
+      "job": 0,
+      "iteration": 3,
+      "cycle": 1,
+      "logical_id": "job0-baseline-iteration03",
+      "wave_wall_ms": 122.1876759082079,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 66.72657933086157,
+            "prefill_tps": 1378.7609213986677,
+            "decode_tps": 291.1859501738605,
+            "total_wall_ms": 122.18580953776836,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.39260014,
+            "t_first_abs": 4412033.459326719,
+            "t_last_abs": 4412033.510840193,
+            "t_end_abs": 4412033.514785949
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 122.41518497467041,
+      "concurrency": 1,
+      "repeat": 1,
+      "job": 0,
+      "iteration": 4,
+      "cycle": 1,
+      "logical_id": "job0-baseline-iteration04",
+      "wave_wall_ms": 123.23474884033203,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 98.05063437670469,
+            "prefill_tps": 938.290716677482,
+            "decode_tps": 291.57165200827393,
+            "total_wall_ms": 153.44126150012016,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.533812404,
+            "t_first_abs": 4412033.631863038,
+            "t_last_abs": 4412033.683308369,
+            "t_end_abs": 4412033.687253665
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 153.7435557693243,
+      "concurrency": 1,
+      "repeat": 2,
+      "job": 0,
+      "iteration": 5,
+      "cycle": 1,
+      "logical_id": "job0-baseline-iteration05",
+      "wave_wall_ms": 154.58845905959606,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 67.58333835750818,
+            "prefill_tps": 1361.2822662492706,
+            "decode_tps": 291.11693958950127,
+            "total_wall_ms": 122.96200264245272,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.706818353,
+            "t_first_abs": 4412033.774401692,
+            "t_last_abs": 4412033.825927378,
+            "t_end_abs": 4412033.829780356
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 123.19144792854786,
+      "concurrency": 1,
+      "repeat": 0,
+      "job": 0,
+      "iteration": 6,
+      "cycle": 2,
+      "logical_id": "job0-baseline-iteration06",
+      "wave_wall_ms": 124.12680499255657,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 65.81777613610029,
+            "prefill_tps": 1397.7986708295825,
+            "decode_tps": 289.0843305595924,
+            "total_wall_ms": 121.59643042832613,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.860169763,
+            "t_first_abs": 4412033.925987539,
+            "t_last_abs": 4412033.977875512,
+            "t_end_abs": 4412033.981766193
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 121.82563357055187,
+      "concurrency": 1,
+      "repeat": 1,
+      "job": 0,
+      "iteration": 7,
+      "cycle": 2,
+      "logical_id": "job0-baseline-iteration07",
+      "wave_wall_ms": 122.74227943271399,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 65.944854170084,
+            "prefill_tps": 1395.1050640390372,
+            "decode_tps": 290.27338035727314,
+            "total_wall_ms": 121.47409748286009,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412033.999958108,
+            "t_first_abs": 4412034.065902962,
+            "t_last_abs": 4412034.117578386,
+            "t_end_abs": 4412034.121432206
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 121.70750368386507,
+      "concurrency": 1,
+      "repeat": 2,
+      "job": 0,
+      "iteration": 8,
+      "cycle": 2,
+      "logical_id": "job0-baseline-iteration08",
+      "wave_wall_ms": 122.64154944568872,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 138.2769290357828,
+            "prefill_tps": 665.331524510445,
+            "decode_tps": 282.6277497685001,
+            "total_wall_ms": 195.24830300360918,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412034.144841589,
+            "t_first_abs": 4412034.283118518,
+            "t_last_abs": 4412034.336191863,
+            "t_end_abs": 4412034.340089892
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 195.48362120985985,
+      "concurrency": 1,
+      "repeat": 0,
+      "job": 0,
+      "iteration": 9,
+      "cycle": 3,
+      "logical_id": "job0-baseline-iteration09",
+      "wave_wall_ms": 196.3332975283265,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 75.79904608428478,
+            "prefill_tps": 1213.7355910482113,
+            "decode_tps": 290.8845853826649,
+            "total_wall_ms": 131.2430053949356,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412034.358923937,
+            "t_first_abs": 4412034.434722983,
+            "t_last_abs": 4412034.486289827,
+            "t_end_abs": 4412034.490166943
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 131.47134613245726,
+      "concurrency": 1,
+      "repeat": 1,
+      "job": 0,
+      "iteration": 10,
+      "cycle": 3,
+      "logical_id": "job0-baseline-iteration10",
+      "wave_wall_ms": 132.3525570333004,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 65.44214859604836,
+            "prefill_tps": 1405.8218132152726,
+            "decode_tps": 290.85908178540194,
+            "total_wall_ms": 121.10750563442707,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412034.533744918,
+            "t_first_abs": 4412034.599187067,
+            "t_last_abs": 4412034.650758432,
+            "t_end_abs": 4412034.654852424
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 121.43528647720814,
+      "concurrency": 1,
+      "repeat": 2,
+      "job": 0,
+      "iteration": 11,
+      "cycle": 3,
+      "logical_id": "job0-baseline-iteration11",
+      "wave_wall_ms": 122.31330387294292,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 145.72607073932886,
+            "prefill_tps": 631.3214892383072,
+            "decode_tps": 287.60740902684057,
+            "total_wall_ms": 201.7641682177782,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412034.672865737,
+            "t_first_abs": 4412034.818591808,
+            "t_last_abs": 4412034.870746236,
+            "t_end_abs": 4412034.874629905
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 201.98512356728315,
+      "concurrency": 1,
+      "repeat": 0,
+      "job": 0,
+      "iteration": 12,
+      "cycle": 4,
+      "logical_id": "job0-baseline-iteration12",
+      "wave_wall_ms": 202.6741188019514,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 66.12457614392042,
+            "prefill_tps": 1391.3132660353333,
+            "decode_tps": 291.26444262181064,
+            "total_wall_ms": 121.5446861460805,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412034.897068778,
+            "t_first_abs": 4412034.963193354,
+            "t_last_abs": 4412035.014692946,
+            "t_end_abs": 4412035.018613464
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 121.77392840385437,
+      "concurrency": 1,
+      "repeat": 1,
+      "job": 0,
+      "iteration": 13,
+      "cycle": 4,
+      "logical_id": "job0-baseline-iteration13",
+      "wave_wall_ms": 122.73339461535215,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 66.12790562212467,
+            "prefill_tps": 1391.2432147135657,
+            "decode_tps": 290.3058556910123,
+            "total_wall_ms": 121.67842406779528,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412035.036467175,
+            "t_first_abs": 4412035.102595081,
+            "t_last_abs": 4412035.154264724,
+            "t_end_abs": 4412035.158145599
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 121.9058632850647,
+      "concurrency": 1,
+      "repeat": 2,
+      "job": 0,
+      "iteration": 14,
+      "cycle": 4,
+      "logical_id": "job0-baseline-iteration14",
+      "wave_wall_ms": 122.6838044822216,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 102.39272378385067,
+            "prefill_tps": 898.5013446288475,
+            "decode_tps": 288.70927057568326,
+            "total_wall_ms": 158.57956372201443,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412035.20651904,
+            "t_first_abs": 4412035.308911764,
+            "t_last_abs": 4412035.360867145,
+            "t_end_abs": 4412035.365098604
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 158.8200367987156,
+      "concurrency": 1,
+      "repeat": 0,
+      "job": 0,
+      "iteration": 15,
+      "cycle": 5,
+      "logical_id": "job0-baseline-iteration15",
+      "wave_wall_ms": 159.8227797076106,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 67.49753560870886,
+            "prefill_tps": 1363.0127258769091,
+            "decode_tps": 289.25513942387965,
+            "total_wall_ms": 123.30723088234663,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412035.389138479,
+            "t_first_abs": 4412035.456636014,
+            "t_last_abs": 4412035.508493347,
+            "t_end_abs": 4412035.51244571
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 123.59344027936459,
+      "concurrency": 1,
+      "repeat": 1,
+      "job": 0,
+      "iteration": 16,
+      "cycle": 5,
+      "logical_id": "job0-baseline-iteration16",
+      "wave_wall_ms": 125.12782961130142,
+      "original_request_matches": true
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 92,
+            "completion_tokens": 16,
+            "ttft_ms": 83.49956478923559,
+            "prefill_tps": 1101.8021498940825,
+            "decode_tps": 293.22352715511306,
+            "total_wall_ms": 138.56421504169703,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412035.534082515,
+            "t_first_abs": 4412035.61758208,
+            "t_last_abs": 4412035.668737593,
+            "t_end_abs": 4412035.67264673
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 138.81552778184414,
+      "concurrency": 1,
+      "repeat": 2,
+      "job": 0,
+      "iteration": 17,
+      "cycle": 5,
+      "logical_id": "job0-baseline-iteration17",
+      "wave_wall_ms": 139.98080231249332,
+      "original_request_matches": true
+    }
+  ],
+  "waves": [
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 127.55074724555016,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 0,
+      "cycle": 0,
+      "logical_id": "job0-baseline-iteration00"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 236.10669560730457,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 1,
+      "cycle": 0,
+      "logical_id": "job0-baseline-iteration01"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 126.15745328366756,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 2,
+      "cycle": 0,
+      "logical_id": "job0-baseline-iteration02"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 122.1876759082079,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 3,
+      "cycle": 1,
+      "logical_id": "job0-baseline-iteration03"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 123.23474884033203,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 4,
+      "cycle": 1,
+      "logical_id": "job0-baseline-iteration04"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 154.58845905959606,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 5,
+      "cycle": 1,
+      "logical_id": "job0-baseline-iteration05"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 124.12680499255657,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 6,
+      "cycle": 2,
+      "logical_id": "job0-baseline-iteration06"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 122.74227943271399,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 7,
+      "cycle": 2,
+      "logical_id": "job0-baseline-iteration07"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 122.64154944568872,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 8,
+      "cycle": 2,
+      "logical_id": "job0-baseline-iteration08"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 196.3332975283265,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 9,
+      "cycle": 3,
+      "logical_id": "job0-baseline-iteration09"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 132.3525570333004,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 10,
+      "cycle": 3,
+      "logical_id": "job0-baseline-iteration10"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 122.31330387294292,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 11,
+      "cycle": 3,
+      "logical_id": "job0-baseline-iteration11"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 202.6741188019514,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 12,
+      "cycle": 4,
+      "logical_id": "job0-baseline-iteration12"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 122.73339461535215,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 13,
+      "cycle": 4,
+      "logical_id": "job0-baseline-iteration13"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 122.6838044822216,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 14,
+      "cycle": 4,
+      "logical_id": "job0-baseline-iteration14"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 159.8227797076106,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 15,
+      "cycle": 5,
+      "logical_id": "job0-baseline-iteration15"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 125.12782961130142,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 16,
+      "cycle": 5,
+      "logical_id": "job0-baseline-iteration16"
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 139.98080231249332,
+      "generated_tokens": 16,
+      "all_passed": true,
+      "job": 0,
+      "iteration": 17,
+      "cycle": 5,
+      "logical_id": "job0-baseline-iteration17"
+    }
+  ],
+  "warmups": [
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c1-i0",
+      "status": "ok",
+      "input_sha256": "e8d65fa33e003bbf33d61f0540979777348aca21ad350ee18b04aa0fc8ff27a9",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 93,
+            "completion_tokens": 16,
+            "ttft_ms": 620.8583451807499,
+            "prefill_tps": 149.79262294191278,
+            "decode_tps": 33.741278052816924,
+            "total_wall_ms": 1069.7502922266722,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412030.901400678,
+            "t_first_abs": 4412031.522259023,
+            "t_last_abs": 4412031.966818354,
+            "t_end_abs": 4412031.97115097
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 1070.007604546845,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i0",
+      "status": "ok",
+      "input_sha256": "159b022d837a1f1e15a7c47d9f289c81b4b71c9cc3397cbc0d2966cbae6349df",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 93,
+            "completion_tokens": 16,
+            "ttft_ms": 523.7585613504052,
+            "prefill_tps": 177.56272997279197,
+            "decode_tps": 125.2287080243295,
+            "total_wall_ms": 652.9879067093134,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412031.992984036,
+            "t_first_abs": 4412032.516742597,
+            "t_last_abs": 4412032.636523439,
+            "t_end_abs": 4412032.645971943
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 653.3299386501312,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i1",
+      "status": "ok",
+      "input_sha256": "69ec99d17da04a70fe694b03b8c1db2b81d91ece62fe727350d442a9b42faf58",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 93,
+            "completion_tokens": 16,
+            "ttft_ms": 456.53660874813795,
+            "prefill_tps": 203.70765064167335,
+            "decode_tps": 84.21918706234514,
+            "total_wall_ms": 642.2462929040194,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412031.994826595,
+            "t_first_abs": 4412032.451363204,
+            "t_last_abs": 4412032.629469886,
+            "t_end_abs": 4412032.637072888
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 642.5009369850159,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i2",
+      "status": "ok",
+      "input_sha256": "76d530ba37aeb4e7e7d4cc55997b8df8bdf8904b5e88dff41905c348a17835ee",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 93,
+            "completion_tokens": 16,
+            "ttft_ms": 517.7347855642438,
+            "prefill_tps": 179.6286488624589,
+            "decode_tps": 124.65966720992702,
+            "total_wall_ms": 646.9941893592477,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412031.998608012,
+            "t_first_abs": 4412032.516342797,
+            "t_last_abs": 4412032.636670409,
+            "t_end_abs": 4412032.645602201
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 647.239213809371,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i3",
+      "status": "ok",
+      "input_sha256": "bc66d3594b548850a4f17d3755df20620ce64e3fef046f1ae8c1271e045d9faa",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 93,
+            "completion_tokens": 16,
+            "ttft_ms": 542.571340687573,
+            "prefill_tps": 171.40603092331756,
+            "decode_tps": 146.7602918121171,
+            "total_wall_ms": 674.797716550529,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4412032.000185229,
+            "t_first_abs": 4412032.54275657,
+            "t_last_abs": 4412032.644964052,
+            "t_end_abs": 4412032.674982945
+          }
+        }
+      ],
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 675.0685982406139,
+      "concurrency": 4,
+      "repeat": 0
+    }
+  ],
+  "historical_reference": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/qwen35-baseline.json",
+    "sha256": "bc4f51d149d9b3767f182b10b69ab7ba62b20fe63c32ce8bee531e514a41fe2e",
+    "bytes": 62692
+  },
+  "safe_before_snapshot": {
+    "utc": "2026-09-11T15:06:53Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.07 W, 300.00 W, 33\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.18 W, 300.00 W, 32\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.41 W, 300.00 W, 32\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.28 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.57 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.48 W, 300.00 W, 32\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.70 W, 300.00 W, 34\n7, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.67 W, 300.00 W, 35\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1   9\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  58\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 148629 sshd             0.0    1  88\n 148640 python          55.9    1  51\n 148648 ps               0.0    1  54\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "native_mapping_observation": {
+    "pid": 148649,
+    "selected_library_paths": [
+      "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so"
+    ],
+    "mapping_lines": [
+      "7d5bfda00000-7d5bfda7a000 r--p 00000000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+      "7d5bfda7a000-7d5bfed56000 r-xp 0007a000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+      "7d5bfed56000-7d5c09ab9000 r--p 01356000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+      "7d5c09ab9000-7d5c09abd000 r--p 0c0b9000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+      "7d5c09abd000-7d5c09ac5000 rw-p 0c0bd000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so"
+    ],
+    "library_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+    "observed_utc": "2026-09-11T15:06:59Z",
+    "scope": "One owned-process maps read after readiness and before warmups; no observer in the measured interval."
+  },
+  "served_model_id": "Qwen3.5-0.8B-Q8_0",
+  "decode512_warmup": {
+    "scenario": "decode",
+    "tag": "warmup-decode",
+    "status": "ok",
+    "input_sha256": "ba62cb4ea57a92f051aa47ca98b81bb6e06981f39a3b173ea31e0894498c1128",
+    "turns": [
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "[validation warmup-decode]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+            }
+          ],
+          "tools": null,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "max_tokens": 512,
+          "stream": true
+        },
+        "metrics": {
+          "prompt_tokens": 49,
+          "completion_tokens": 512,
+          "ttft_ms": 221.17921710014343,
+          "prefill_tps": 221.53980216782412,
+          "decode_tps": 297.25624886180105,
+          "total_wall_ms": 1962.9808831959963,
+          "finish_reason": "length",
+          "tool_calls": [],
+          "tool_call_details": [],
+          "assistant_message": {
+            "role": "assistant",
+            "content": "A hash table is a data structure that uses a table to store key-value pairs. It is designed to provide fast lookup, insertion, and deletion operations by using a hash function to map keys to table indices.\n\n### How a Hash Table Works\n\nThe core mechanism relies on a **hash function** to transform the input key into an integer index within the table. This index is then used to store the key-value pair.\n\n1.  **Collision Resolution**: If multiple keys map to the same index, a collision occurs. The table must handle these collisions to maintain data integrity.\n2.  **Resizing**: If the table is full (all slots occupied), it cannot store more elements. To accommodate more keys, the table size is increased (resizing).\n3.  **Load Factor**: The table size is typically set to $N \\times (1 - \\alpha)$, where $N$ is the number of slots and $\\alpha$ is the load factor (usually 0.75). This ensures the table remains efficient even with high traffic.\n\n### Collision Handling\n\nWhen a collision happens, the table uses a **chain table** (linked list) to resolve it.\n*   **Open Addressing**: If the table is small, the next slot is calculated by adding the hash value modulo the table size.\n*   **Chaining**: If the table is large, the next slot is calculated by adding the hash value to the current index, and the key-value pair is appended to the end of the linked list at that index.\n\n### Complexity Analysis\n\nThe time complexity of a hash table depends on the number of collisions and the resizing strategy:\n\n*   **Average Time Complexity**: $O(1)$ on average.\n    *   With a good hash function and chaining, the expected number of collisions is proportional to the number of keys.\n    *   $T_{avg} = O(1)$ per operation.\n*   **Worst-Case Time Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   This occurs if the hash function is bad (e.g., a linear probing algorithm with a bad initial hash).\n    *   In this scenario, the table fills up one by one, and each insertion takes time proportional to the number of elements.\n*   **Space Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   The table size is proportional to the number"
+          },
+          "usage_present": true,
+          "decode_timing_source": "stream_window",
+          "server_timings": {},
+          "reasoning_text": "",
+          "output_text": "A hash table is a data structure that uses a table to store key-value pairs. It is designed to provide fast lookup, insertion, and deletion operations by using a hash function to map keys to table indices.\n\n### How a Hash Table Works\n\nThe core mechanism relies on a **hash function** to transform the input key into an integer index within the table. This index is then used to store the key-value pair.\n\n1.  **Collision Resolution**: If multiple keys map to the same index, a collision occurs. The table must handle these collisions to maintain data integrity.\n2.  **Resizing**: If the table is full (all slots occupied), it cannot store more elements. To accommodate more keys, the table size is increased (resizing).\n3.  **Load Factor**: The table size is typically set to $N \\times (1 - \\alpha)$, where $N$ is the number of slots and $\\alpha$ is the load factor (usually 0.75). This ensures the table remains efficient even with high traffic.\n\n### Collision Handling\n\nWhen a collision happens, the table uses a **chain table** (linked list) to resolve it.\n*   **Open Addressing**: If the table is small, the next slot is calculated by adding the hash value modulo the table size.\n*   **Chaining**: If the table is large, the next slot is calculated by adding the hash value to the current index, and the key-value pair is appended to the end of the linked list at that index.\n\n### Complexity Analysis\n\nThe time complexity of a hash table depends on the number of collisions and the resizing strategy:\n\n*   **Average Time Complexity**: $O(1)$ on average.\n    *   With a good hash function and chaining, the expected number of collisions is proportional to the number of keys.\n    *   $T_{avg} = O(1)$ per operation.\n*   **Worst-Case Time Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   This occurs if the hash function is bad (e.g., a linear probing algorithm with a bad initial hash).\n    *   In this scenario, the table fills up one by one, and each insertion takes time proportional to the number of elements.\n*   **Space Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   The table size is proportional to the number",
+          "t_start_abs": 4412028.922131991,
+          "t_first_abs": 4412029.143311208,
+          "t_last_abs": 4412030.862366743,
+          "t_end_abs": 4412030.885112874
+        }
+      }
+    ],
+    "validated_content": "A hash table is a data structure that uses a table to store key-value pairs. It is designed to provide fast lookup, insertion, and deletion operations by using a hash function to map keys to table indices.\n\n### How a Hash Table Works\n\nThe core mechanism relies on a **hash function** to transform the input key into an integer index within the table. This index is then used to store the key-value pair.\n\n1.  **Collision Resolution**: If multiple keys map to the same index, a collision occurs. The table must handle these collisions to maintain data integrity.\n2.  **Resizing**: If the table is full (all slots occupied), it cannot store more elements. To accommodate more keys, the table size is increased (resizing).\n3.  **Load Factor**: The table size is typically set to $N \\times (1 - \\alpha)$, where $N$ is the number of slots and $\\alpha$ is the load factor (usually 0.75). This ensures the table remains efficient even with high traffic.\n\n### Collision Handling\n\nWhen a collision happens, the table uses a **chain table** (linked list) to resolve it.\n*   **Open Addressing**: If the table is small, the next slot is calculated by adding the hash value modulo the table size.\n*   **Chaining**: If the table is large, the next slot is calculated by adding the hash value to the current index, and the key-value pair is appended to the end of the linked list at that index.\n\n### Complexity Analysis\n\nThe time complexity of a hash table depends on the number of collisions and the resizing strategy:\n\n*   **Average Time Complexity**: $O(1)$ on average.\n    *   With a good hash function and chaining, the expected number of collisions is proportional to the number of keys.\n    *   $T_{avg} = O(1)$ per operation.\n*   **Worst-Case Time Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   This occurs if the hash function is bad (e.g., a linear probing algorithm with a bad initial hash).\n    *   In this scenario, the table fills up one by one, and each insertion takes time proportional to the number of elements.\n*   **Space Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   The table size is proportional to the number",
+    "total_wall_ms": 1963.3525777608156
+  },
+  "timed_monotonic_interval": [
+    4412032.696924741,
+    4412035.701772248
+  ],
+  "telemetry_source": {
+    "path": "/workspace/deepseek41-work/existing-regressions/qwen35-solo72-final-native-r1/job0-baseline-telemetry.jsonl",
+    "sha256": "110e8ffabd8c19ac7d0e5fd33c1710ab32a92a6c3de929a862e30f221d9b85e9",
+    "bytes": 8860
+  },
+  "telemetry_qualification": {
+    "qualified": true,
+    "issues": [],
+    "samples_in_timed_interval": 3,
+    "gpu7": {
+      "clocks.sm": {
+        "min": 1740.0,
+        "median": 1740.0,
+        "max": 1740.0
+      },
+      "clocks.mem": {
+        "min": 7251.0,
+        "median": 7251.0,
+        "max": 7251.0
+      },
+      "power.draw": {
+        "min": 99.34,
+        "median": 113.96,
+        "max": 133.13
+      },
+      "power.limit": {
+        "min": 300.0,
+        "median": 300.0,
+        "max": 300.0
+      },
+      "temperature.gpu": {
+        "min": 41.0,
+        "median": 41.0,
+        "max": 42.0
+      },
+      "utilization.gpu": {
+        "min": 7.0,
+        "median": 45.0,
+        "max": 54.0
+      },
+      "memory.used": {
+        "min": 2149.0,
+        "median": 2149.0,
+        "max": 2409.0
+      }
+    },
+    "foreign_gpu_clients": [],
+    "foreign_cpu_processes": [],
+    "policy": {
+      "external_exclusive_declaration": true,
+      "sample_period_seconds": 1,
+      "maximum_sm_clock_spread_fraction": 0.03,
+      "maximum_memory_clock_spread_fraction": 0.005,
+      "foreign_cpu_limit_percent_of_one_core": 10
+    },
+    "limitation": "Sampling cannot prove every in-flight clock or exclude sub-second contention. No clocks/power limits are changed."
+  },
+  "owned_process_exit_observed": true,
+  "deployment_changed_files": [],
+  "safe_after_snapshot": {
+    "utc": "2026-09-11T15:07:08Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.07 W, 300.00 W, 33\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.18 W, 300.00 W, 32\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.36 W, 300.00 W, 32\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.28 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.61 W, 300.00 W, 33\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.57 W, 300.00 W, 32\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.79 W, 300.00 W, 34\n7, NVIDIA A40, 0 MiB, 0 %, 1740 MHz, 7251 MHz, 87.68 W, 300.00 W, 40\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1  58\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  58\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 148629 sshd             0.0    1  61\n 148640 python          37.2    1  67\n 148800 ps               0.0    1  68\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/qwen35-solo72-final-native-r1/job0-baseline-server.log",
+    "sha256": "49e6afbb8c721aede18b519aa785971e17564a5976a4d3c6e52e318a8839115d",
+    "bytes": 57241
+  },
+  "unexpected_native_phase_lines": [],
+  "runtime_file_logs": [
+    {
+      "path": "/workspace/deepseek41-work/existing-regressions/qwen35-solo72-final-native-r1/job0-baseline-file-logs/tensorsharp-server-20260911.jsonl",
+      "sha256": "2740e03b580660637d5d10c6c2ad7b8b1fb3d37eefc3b8d9b45156f3c61f6d96",
+      "bytes": 192024
+    }
+  ],
+  "warmup_complete": true,
+  "finalization_errors": [],
+  "descriptive_groups": {
+    "all18": {
+      "cases": 18,
+      "logical_ids": [
+        "job0-baseline-iteration00",
+        "job0-baseline-iteration01",
+        "job0-baseline-iteration02",
+        "job0-baseline-iteration03",
+        "job0-baseline-iteration04",
+        "job0-baseline-iteration05",
+        "job0-baseline-iteration06",
+        "job0-baseline-iteration07",
+        "job0-baseline-iteration08",
+        "job0-baseline-iteration09",
+        "job0-baseline-iteration10",
+        "job0-baseline-iteration11",
+        "job0-baseline-iteration12",
+        "job0-baseline-iteration13",
+        "job0-baseline-iteration14",
+        "job0-baseline-iteration15",
+        "job0-baseline-iteration16",
+        "job0-baseline-iteration17"
+      ],
+      "statuses": [
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "scope": "All specified observations retained, descriptive only.",
+      "ttft_ms": {
+        "values": [
+          67.61052366346121,
+          174.07496832311153,
+          66.36636331677437,
+          65.23627508431673,
+          66.72657933086157,
+          98.05063437670469,
+          67.58333835750818,
+          65.81777613610029,
+          65.944854170084,
+          138.2769290357828,
+          75.79904608428478,
+          65.44214859604836,
+          145.72607073932886,
+          66.12457614392042,
+          66.12790562212467,
+          102.39272378385067,
+          67.49753560870886,
+          83.49956478923559
+        ],
+        "all_valid": true,
+        "median": 67.54043698310852
+      },
+      "total_wall_ms": {
+        "values": [
+          126.53210945427418,
+          235.04989687353373,
+          125.12402702122927,
+          121.01028021425009,
+          122.18580953776836,
+          153.44126150012016,
+          122.96200264245272,
+          121.59643042832613,
+          121.47409748286009,
+          195.24830300360918,
+          131.2430053949356,
+          121.10750563442707,
+          201.7641682177782,
+          121.5446861460805,
+          121.67842406779528,
+          158.57956372201443,
+          123.30723088234663,
+          138.56421504169703
+        ],
+        "all_valid": true,
+        "median": 124.21562895178795
+      },
+      "decode_tps": {
+        "values": [
+          272.96794311247976,
+          263.36201933398127,
+          275.7908909930825,
+          289.1182115065553,
+          291.1859501738605,
+          291.57165200827393,
+          291.11693958950127,
+          289.0843305595924,
+          290.27338035727314,
+          282.6277497685001,
+          290.8845853826649,
+          290.85908178540194,
+          287.60740902684057,
+          291.26444262181064,
+          290.3058556910123,
+          288.70927057568326,
+          289.25513942387965,
+          293.22352715511306
+        ],
+        "all_valid": true,
+        "median": 289.7642598905764
+      },
+      "wave_wall_ms": {
+        "values": [
+          127.55074724555016,
+          236.10669560730457,
+          126.15745328366756,
+          122.1876759082079,
+          123.23474884033203,
+          154.58845905959606,
+          124.12680499255657,
+          122.74227943271399,
+          122.64154944568872,
+          196.3332975283265,
+          132.3525570333004,
+          122.31330387294292,
+          202.6741188019514,
+          122.73339461535215,
+          122.6838044822216,
+          159.8227797076106,
+          125.12782961130142,
+          139.98080231249332
+        ],
+        "all_valid": true,
+        "median": 125.6426414474845
+      },
+      "completion_tokens": [
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16
+      ]
+    },
+    "first3": {
+      "cases": 3,
+      "logical_ids": [
+        "job0-baseline-iteration00",
+        "job0-baseline-iteration01",
+        "job0-baseline-iteration02"
+      ],
+      "statuses": [
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "scope": "All specified observations retained, descriptive only.",
+      "ttft_ms": {
+        "values": [
+          67.61052366346121,
+          174.07496832311153,
+          66.36636331677437
+        ],
+        "all_valid": true,
+        "median": 67.61052366346121
+      },
+      "total_wall_ms": {
+        "values": [
+          126.53210945427418,
+          235.04989687353373,
+          125.12402702122927
+        ],
+        "all_valid": true,
+        "median": 126.53210945427418
+      },
+      "decode_tps": {
+        "values": [
+          272.96794311247976,
+          263.36201933398127,
+          275.7908909930825
+        ],
+        "all_valid": true,
+        "median": 272.96794311247976
+      },
+      "wave_wall_ms": {
+        "values": [
+          127.55074724555016,
+          236.10669560730457,
+          126.15745328366756
+        ],
+        "all_valid": true,
+        "median": 127.55074724555016
+      },
+      "completion_tokens": [
+        16,
+        16,
+        16
+      ]
+    },
+    "later15": {
+      "cases": 15,
+      "logical_ids": [
+        "job0-baseline-iteration03",
+        "job0-baseline-iteration04",
+        "job0-baseline-iteration05",
+        "job0-baseline-iteration06",
+        "job0-baseline-iteration07",
+        "job0-baseline-iteration08",
+        "job0-baseline-iteration09",
+        "job0-baseline-iteration10",
+        "job0-baseline-iteration11",
+        "job0-baseline-iteration12",
+        "job0-baseline-iteration13",
+        "job0-baseline-iteration14",
+        "job0-baseline-iteration15",
+        "job0-baseline-iteration16",
+        "job0-baseline-iteration17"
+      ],
+      "statuses": [
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "scope": "All specified observations retained, descriptive only.",
+      "ttft_ms": {
+        "values": [
+          65.23627508431673,
+          66.72657933086157,
+          98.05063437670469,
+          67.58333835750818,
+          65.81777613610029,
+          65.944854170084,
+          138.2769290357828,
+          75.79904608428478,
+          65.44214859604836,
+          145.72607073932886,
+          66.12457614392042,
+          66.12790562212467,
+          102.39272378385067,
+          67.49753560870886,
+          83.49956478923559
+        ],
+        "all_valid": true,
+        "median": 67.49753560870886
+      },
+      "total_wall_ms": {
+        "values": [
+          121.01028021425009,
+          122.18580953776836,
+          153.44126150012016,
+          122.96200264245272,
+          121.59643042832613,
+          121.47409748286009,
+          195.24830300360918,
+          131.2430053949356,
+          121.10750563442707,
+          201.7641682177782,
+          121.5446861460805,
+          121.67842406779528,
+          158.57956372201443,
+          123.30723088234663,
+          138.56421504169703
+        ],
+        "all_valid": true,
+        "median": 122.96200264245272
+      },
+      "decode_tps": {
+        "values": [
+          289.1182115065553,
+          291.1859501738605,
+          291.57165200827393,
+          291.11693958950127,
+          289.0843305595924,
+          290.27338035727314,
+          282.6277497685001,
+          290.8845853826649,
+          290.85908178540194,
+          287.60740902684057,
+          291.26444262181064,
+          290.3058556910123,
+          288.70927057568326,
+          289.25513942387965,
+          293.22352715511306
+        ],
+        "all_valid": true,
+        "median": 290.3058556910123
+      },
+      "wave_wall_ms": {
+        "values": [
+          122.1876759082079,
+          123.23474884033203,
+          154.58845905959606,
+          124.12680499255657,
+          122.74227943271399,
+          122.64154944568872,
+          196.3332975283265,
+          132.3525570333004,
+          122.31330387294292,
+          202.6741188019514,
+          122.73339461535215,
+          122.6838044822216,
+          159.8227797076106,
+          125.12782961130142,
+          139.98080231249332
+        ],
+        "all_valid": true,
+        "median": 124.12680499255657
+      },
+      "completion_tokens": [
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16,
+        16
+      ]
+    }
+  }
+}

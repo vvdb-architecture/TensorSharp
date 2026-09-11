@@ -1,0 +1,59 @@
+{
+  "scope": "Targeted Qwen3 alternating rerun,2026-09-11T05:53:02Z through05:57:04Z; full V41 model resident but idle; no builds/tests or other GPU work.",
+  "gpu7_samples": 178,
+  "gpu7": {
+    "power_watts": {
+      "min": 89.0,
+      "max": 139.0
+    },
+    "temperature_celsius": {
+      "min": 43.0,
+      "max": 48.0
+    },
+    "memory_clock_mhz": {
+      "min": 7251.0,
+      "max": 7251.0
+    },
+    "sm_clock_mhz": {
+      "min": 1740.0,
+      "max": 1740.0
+    },
+    "power_violation_percent": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "thermal_violation": {
+      "min": 0.0,
+      "max": 0.0
+    },
+    "memory_used_mib": {
+      "min": 25673.0,
+      "max": 30772.0
+    }
+  },
+  "resident_v41_positive_sm_samples": 0,
+  "resident_v41_peak_cpu_percent": 1.98,
+  "aggregate_median_paired_speedups": {
+    "decode@c1": {
+      "wall_ratios": 1.0072778656370078,
+      "ttft_ratios": 1.1274425974246096,
+      "decode_ratios": 1.0070023357857596
+    },
+    "tool_round_trip@c1": {
+      "wall_ratios": 1.100217234918032,
+      "ttft_ratios": 1.174534100887268
+    },
+    "tool_round_trip@c4": {
+      "wall_ratios": 1.3283339813943393,
+      "ttft_ratios": 1.3090916154017973
+    }
+  },
+  "conclusion": "Original sustained-decode slowdown did not reproduce consistently. Per-pair total-wall/TTFT flags remain; no blanket latency or llama.cpp parity claim.",
+  "raw_artifact_root": "/workspace/deepseek41-work/existing-regressions",
+  "raw_telemetry_files": [
+    "qwen3-alternating-cpu.jsonl",
+    "qwen3-alternating-dmon.log",
+    "qwen3-alternating-pmon.log",
+    "qwen3-alternating-vmstat.log"
+  ]
+}

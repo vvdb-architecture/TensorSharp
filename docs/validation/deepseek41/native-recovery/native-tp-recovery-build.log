@@ -1,0 +1,831 @@
+-- NCCL found: enabling multi-GPU collective AllReduce for tensor parallelism
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: -march=native 
+-- CUDA Toolkit found
+-- Using CMAKE_CUDA_ARCHITECTURES=86 CMAKE_CUDA_ARCHITECTURES_NATIVE=86-real
+-- FlashAttention K-V type combinations: f16-f16;q4_0-q4_0;q8_0-q8_0;bf16-bf16
+-- Including CUDA backend
+-- ggml version: 0.23.0
+-- ggml commit:  7840aab-dirty
+-- TensorSharp: cuDNN headers at /usr/include; VAE convolutions will use cuDNN when its runtime is present
+-- Configuring done (2.1s)
+-- Generating done (3.4s)
+-- Build files have been written to: /workspace/TensorSharp/TensorSharp.GGML.Native/build
+[  4%] Built target ggml-base
+[ 11%] Built target ggml-cpu
+[ 77%] Built target ggml-cuda
+[ 78%] Built target ggml
+[ 78%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_core.cpp.o
+[ 78%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_attention_alloc.cpp.o
+[ 79%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_elementwise.cpp.o
+[ 79%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_norm_attn.cpp.o
+[ 79%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_matmul.cpp.o
+[ 80%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_fused.cpp.o
+[ 81%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_training.cpp.o
+[ 81%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_transformer_prefill.cpp.o
+[ 81%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen3_decode.cpp.o
+[ 82%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gptoss_decode.cpp.o
+[ 81%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_transformer.cpp.o
+[ 82%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen3_prefill.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_decode.cpp: In function ‘int TSGgml_Qwen3ModelDecodeLogits(const {anonymous}::TSGgmlQwen3LayerDesc*, int, int, void*, int, int64_t, int64_t, int64_t, int, int, int, int, int, int, int, int, float, float, float, int, int, float, float, float, float, void*, int, void*, int, int64_t, int64_t, int64_t, void*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_decode.cpp:513:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  513 |             ggml_flash_attn_ext_set_prec(attn, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_decode.cpp:8:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp: In function ‘int {anonymous}::scaled_dot_product_attention_f32_impl(const tsg::TensorView4DDesc&, const tsg::TensorView4DDesc&, const tsg::TensorView4DDesc&, const tsg::TensorView4DDesc&, const tsg::TensorView4DDesc&, bool, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:1446:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1446 |                 ggml_flash_attn_ext_set_prec(flash, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:11:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:1471:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1471 |             ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp: In function ‘bool {anonymous}::build_prefill_session(PrefillAttnSession&, int, int, int, int, int, float, bool)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:2418:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2418 |         ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp: In function ‘int {anonymous}::fused_prefill_attn_flash(const void*, const void*, const void*, float*, int, int, int, int, int, int, int, int, float, bool)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:2602:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2602 |         ggml_flash_attn_ext_set_prec(attn_out, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp: In function ‘int TSGgml_FusedPrefillAttentionF32(const float*, const float*, const float*, float*, int, int, int, int, int, int, int, float, int)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:2837:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2837 |         ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp: In function ‘int TSGgml_FusedPrefillAttentionF16KV(const float*, const void*, const void*, float*, int, int, int, int, int, int, int, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_norm_attn.cpp:3020:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3020 |         ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 83%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gptoss_batched.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_prefill.cpp: In function ‘int TSGgml_Qwen3ModelPrefill(const TSGgmlQwen3PrefillLayerDesc*, int, const int32_t*, int, int, float*, int, int, void*, int, int64_t, int64_t, int64_t, void*, void*, int, int64_t, int64_t, int64_t, int, int, int, int, int, int, int, float, float, float, int, int, float, float, float, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_prefill.cpp:452:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  452 |             ggml_flash_attn_ext_set_prec(attn, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_prefill.cpp:7:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen3_prefill.cpp:482:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  482 |                 ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp: In function ‘int TSGgml_Gemma4LayerPrefill(float*, int, int, void*, void*, int, int64_t, int64_t, int64_t, void*, void*, void*, int, int64_t, int64_t, int64_t, void*, void*, void*, int, int64_t, int64_t, int64_t, void*, int, int64_t, int64_t, int64_t, void*, float*, float*, int, int, int, int, int, int, int, float, int, float*, int, float, float, float*, float*, int, float*, int, void*, int, int64_t, int64_t, int64_t, void*, int, int64_t, int64_t, int64_t, void*, float*, float*, int, float*, float*, int, int)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:504:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  504 |             ggml_flash_attn_ext_set_prec(flash_attn_out, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:526:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  526 |                 ggml_flash_attn_ext_set_prec(flash_attn_out, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:538:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  538 |             ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp: In function ‘int TSGgml_GptOssAttentionLayerPrefill(float*, int, int, void*, void*, int, int64_t, int64_t, int64_t, void*, int, void*, int, int64_t, int64_t, int64_t, void*, void*, int, int64_t, int64_t, int64_t, void*, void*, int, int64_t, int64_t, int64_t, void*, void*, void*, int, int, int, int, int, int, int, float*, float, float, int, int, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:1393:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1393 |         ggml_flash_attn_ext_set_prec(fa_test, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:1405:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1405 |             ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp: In function ‘ggml_tensor* {anonymous}::build_vision_attention(ggml_context*, ggml_tensor*, ggml_tensor*, ggml_tensor*, int, int, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp:1272:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1272 |         ggml_flash_attn_ext_set_prec(attn, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp:1311:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1311 |         ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp: In function ‘int TSGgml_Qwen35AttentionLayerPrefill(float*, int, int, void*, void*, int, int64_t, int64_t, int64_t, void*, void*, void*, int, int64_t, int64_t, int64_t, void*, void*, int, int, int, int, int, float, float, int, int, int, float, int, void**)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:1841:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1841 |         ggml_flash_attn_ext_set_prec(fa_test, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_transformer_prefill.cpp:1850:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1850 |             ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_decode.cpp: In function ‘int gptoss_model_decode_impl(const TSGgmlGptOssLayerDesc*, int, void*, int, int, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, int, void**)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_decode.cpp:680:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  680 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_decode.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_decode.cpp:693:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  693 |                 ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp: In function ‘int fused_ple_block_quant_f32_impl(const tsg::TensorView2DDesc&, const tsg::TensorView2DDesc&, const tsg::QuantizedWeightDesc&, const tsg::QuantizedWeightDesc&, void*, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp:2794:26: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2794 |     ggml_mul_mat_set_prec(gate, GGML_PREC_F32);
+      |     ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_fused.cpp:2801:26: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2801 |     ggml_mul_mat_set_prec(ple_proj, GGML_PREC_F32);
+      |     ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 83%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen35_batched_arena.cpp.o
+[ 83%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen4exp.cpp.o
+[ 85%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen4exp_arena.cpp.o
+[ 85%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gptoss_prefill.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_batched.cpp: In function ‘int gob_decode_batched_legacy(const TSGgmlGptOssLayerDesc*, int, int, void*, void**, void**, const int*, const int*, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, int32_t*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_batched.cpp:592:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  592 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_batched.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_batched.cpp: In function ‘int gob_decode_batched_arena(const TSGgmlGptOssLayerDesc*, int, int, void*, void**, void**, const int*, const int*, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, int32_t*, int, bool&)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_batched.cpp:1092:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1092 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 86%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen35_decode.cpp.o
+[ 86%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen35_verify.cpp.o
+[ 86%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gemma4_decode.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_batched_arena.cpp: In function ‘int TSGgml_Qwen35ArenaDecodeBatched(const TSGgmlQwen35LayerDesc*, int, int, const int32_t*, const int32_t*, void**, void**, void**, void**, const int32_t*, const int32_t*, int, int, int, int, int, int, int, int, int, int, int, float, float, float, int, int, int, int, int, float, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, const void*, int, int64_t, int64_t, int64_t, int32_t*, int)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_batched_arena.cpp:892:49: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  892 |                     ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_batched_arena.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen4exp.cpp: In function ‘ggml_tensor* q4e_nodes_attn(ggml_context*, ggml_cgraph*, Q4eBinder&, const TSGgmlQwen4ExpAttnArgs*, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, int, int, int, int, int, int, int, int, int, int, float, float, float, float, bool, std::vector<ggml_tensor*>*, std::vector<ggml_tensor*>*, const int32_t*, Q4eAttnArenaIO*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen4exp.cpp:1025:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1025 |         ggml_flash_attn_ext_set_prec(arena->fa, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen4exp.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen4exp.cpp:1053:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1053 |         ggml_flash_attn_ext_set_prec(attn, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen4exp.cpp:1058:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1058 |         ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_prefill.cpp: In function ‘int gptoss_model_prefill_impl(const TSGgmlGptOssLayerDesc*, int, const void*, int, int, int, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, int, void**)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_prefill.cpp:522:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  522 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_prefill.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gptoss_prefill.cpp:535:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  535 |                 ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 87%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gemma4_batched.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_decode.cpp: In function ‘int {anonymous}::qwen35_model_decode_impl(const TSGgmlQwen35LayerDesc*, int, int, void*, int, int, int, int, int, int, int, int, int, int, int, int, int, int, float, float, float, int, int, int, int, int, float, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, int, void**, int, const void*, int, int64_t, int64_t, int64_t)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_decode.cpp:1371:42: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1371 |                     ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_decode.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_decode.cpp:1381:49: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1381 |                     ggml_flash_attn_ext_set_prec(attn_out_4d, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_decode.cpp: In function ‘int {anonymous}::qwen35_model_decode_batched_impl(const TSGgmlQwen35LayerDesc*, int, void*, int, int, int, const int*, const int64_t*, const int*, const int*, int, int, int, int, int, int, int, int, int, int, int, int, int, float, float, float, int, int, int, int, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_decode.cpp:2745:49: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2745 |                     ggml_flash_attn_ext_set_prec(o4, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 87%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gemma4_verify.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_verify.cpp: In function ‘int {anonymous}::qwen35_model_verify_impl(const TSGgmlQwen35LayerDesc*, int, void*, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, float, float, float, int, int, int, int, int, float, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, void*, int, const int32_t*, const int32_t*, int, void**, float*, const int*, int, int, int*, int, int, uint64_t)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_verify.cpp:1203:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1203 |                 ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_verify.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen35_verify.cpp:1212:42: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1212 |                     ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 88%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gemma4_moe.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_batched.cpp: In function ‘int TSGgml_Gemma4ModelDecodeBatched(float*, int, int, int, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, int*, int*, int*, int*, float*, float*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int, const int*, float, int, float*, int, int*, int, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_batched.cpp:482:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  482 |                 ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_batched.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_batched.cpp: In function ‘int TSGgml_Gemma4MoEModelDecodeBatched(const TSGgmlGemma4MoELayerDesc*, int, int, void*, void**, void**, const int*, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_batched.cpp:951:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  951 |                 ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 88%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_muse_glimmer.cpp.o
+[ 89%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_muse_glimmer_vision.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_verify.cpp: In function ‘int TSGgml_Gemma4ModelVerify(float*, int, int, int, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, int*, int*, int*, int*, float*, float*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int, int, float, float*, int, int*, int, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, int*, float*, int, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void**, const unsigned char*, const void*, int, int64_t, int64_t, int64_t, const int32_t*, const void*, int, int64_t, int64_t, int64_t, const void*, int, void**, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_verify.cpp:903:49: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  903 |                     ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+[ 89%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_dflash.cpp.o
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_verify.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_verify.cpp:917:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  917 |                 ggml_flash_attn_ext_set_prec(attn_out, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 89%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_diffusion.cpp.o
+[ 89%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen_image.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp: In function ‘int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp:218:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  218 |         ggml_flash_attn_ext_set_prec(attn_out, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp: In function ‘int TSGgml_Gemma4MoEModelDecode(const TSGgmlGemma4MoELayerDesc*, int, void*, int, int, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, float, int, void**)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp:1053:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1053 |             ggml_flash_attn_ext_set_prec(attn_out, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp: In function ‘int TSGgml_Gemma4MoEModelVerify(const TSGgmlGemma4MoELayerDesc*, int, void*, int, int, int, const unsigned char*, int, void**)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp:2296:49: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2296 |                     ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_gemma4_moe.cpp:2325:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2325 |                 ggml_flash_attn_ext_set_prec(attn_out, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 90%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_wan.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer.cpp: In function ‘int TSGgml_MuseGlimmerModelForward(float*, int, int, int, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, void**, int*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int*, int64_t*, int64_t*, int64_t*, int, int, int, int, int, int, int, float, float, float, float, float, int, void*, int, const void*, int, int64_t, int64_t, int64_t, const void*, float, float, float*, int*, int, const void*, int, int64_t, int64_t, int64_t, const int*, int, int, void**)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer.cpp:946:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  946 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer.cpp:955:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  955 |                 ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 90%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_minimax_h3.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer_vision.cpp: In function ‘int {anonymous}::muse_glimmer_vision_block_impl(const MuseGlimmerVisionBlockDesc&)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer_vision.cpp:371:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  371 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_muse_glimmer_vision.cpp:7:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_dflash.cpp: In function ‘int TSGgml_DFlashDraftBlock(const int*, int, const int*, int, int, int, int, int, int, float, float, float, float, const int*, int, void**, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void**, void**, void**, int*, int64_t*, int64_t*, int64_t*, void**, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void**, int*, int64_t*, int64_t*, int64_t*, void**, void**, int, const void*, const void*, int, int64_t, int64_t, int64_t, const void*, int, int64_t, int64_t, int64_t, int, int*, float*, int, int, int, void**, void**, int*, int64_t*, int64_t*, int64_t*, void**, void**, int*, int64_t*, int64_t*, int64_t*, int, int, float, float, const void*, int, int64_t, int64_t, int64_t, const void*, int, int64_t, int64_t, int64_t, const void*, int, int64_t, int64_t, int64_t, float*, int*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_dflash.cpp:724:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  724 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_dflash.cpp:10:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_dflash.cpp:733:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  733 |                 ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen_image.cpp: In function ‘int TSGgml_QwenImageJointAttn(const TSGgmlQwenImageJointAttnDesc*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen_image.cpp:969:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  969 |         ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen_image.cpp:25:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_diffusion.cpp: In function ‘int TSGgml_DiffusionDecodeLayer(const TSGgmlDiffusionDecodeLayerDesc*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_diffusion.cpp:328:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  328 |         ggml_flash_attn_ext_set_prec(flash, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen_image.cpp: In function ‘ggml_tensor* {anonymous}::qi_attention(ggml_context*, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, int, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen_image.cpp:1190:50: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1190 |         if (!f16acc) ggml_flash_attn_ext_set_prec(faop, GGML_PREC_F32);
+      |                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_qwen_image.cpp:1206:26: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 1206 |     ggml_mul_mat_set_prec(scores, GGML_PREC_F32);
+      |     ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_diffusion.cpp:42:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_diffusion.cpp: In function ‘int TSGgml_DiffusionModelDecode(const TSGgmlDiffusionDecodeLayerDesc*, int, void*, int, int, int, void*, void*, int, int64_t, int64_t, int64_t, void*, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_diffusion.cpp:744:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  744 |             ggml_flash_attn_ext_set_prec(flash, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 91%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_gated_delta_net.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_wan.cpp: In function ‘ggml_tensor* {anonymous}::wan_attention(ggml_context*, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, int, int, float)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_wan.cpp:508:37: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  508 |         ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_wan.cpp:41:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 91%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen35_recurrent_prefill.cpp.o
+[ 91%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_qwen35_gdn_tp.cpp.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_minimax_h3.cpp: In function ‘ggml_tensor* {anonymous}::h3_attend(ggml_context*, ggml_backend_t, ggml_tensor*, ggml_tensor*, ggml_tensor*, int, int, int, float, bool)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_minimax_h3.cpp:212:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+  212 |             ggml_flash_attn_ext_set_prec(out, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_minimax_h3.cpp:37:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[ 93%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_mamba2.cpp.o
+[ 93%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_moe.cpp.o
+[ 94%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_deepseek4.cpp.o
+[ 94%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_deepseek41_tp.cpp.o
+[ 94%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_deepseek41_vision.cpp.o
+[ 95%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_glm_dsa.cpp.o
+[ 95%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_dsv4_fused_cpu.cpp.o
+[ 96%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_paged_attention.cpp.o
+[ 96%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_paged_kv_pool.cpp.o
+[ 96%] Building CXX object CMakeFiles/GgmlOps.dir/ggml_ops_tensor_parallel.cpp.o
+[ 97%] Building CUDA object CMakeFiles/GgmlOps.dir/ggml_ops_diffusion_sample.cu.o
+[ 97%] Building CUDA object CMakeFiles/GgmlOps.dir/ggml_ops_mask.cu.o
+[ 98%] Building CUDA object CMakeFiles/GgmlOps.dir/ggml_ops_dsv4_fused.cu.o
+[ 98%] Building CUDA object CMakeFiles/GgmlOps.dir/ggml_ops_tp_probe.cu.o
+[ 98%] Building CUDA object CMakeFiles/GgmlOps.dir/ggml_ops_host_pin.cu.o
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp: In function ‘tsg_dsv4::dsv4_model* tsg_dsv4::dsv4_load(const char*, int, int, int, int, const char*, int, const char*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:2466:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2466 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:38:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp: In member function ‘void tsg_dsv4::graph_builder::build_dspark_draft()’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:3101:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3101 |         ggml_mul_mat_set_prec(base, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:3112:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3112 |             ggml_mul_mat_set_prec(bias, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp: In member function ‘ggml_tensor* tsg_dsv4::graph_builder::attn_mha(ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, float, int)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:3303:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3303 |             ggml_flash_attn_ext_set_prec(cur, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:3320:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3320 |             ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp: In member function ‘ggml_tensor* tsg_dsv4::graph_builder::build_moe(int, ggml_tensor*, ggml_tensor*, ggml_tensor*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp:3732:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3732 |         ggml_mul_mat_set_prec(logits, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In function ‘tsg_glm::glm_model* tsg_glm::glm_load(const char*, int, int, int, int, int, const char*, int, bool, bool)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:2581:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2581 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+In file included from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_internal.h:34,
+                 from /workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:47:
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘void tsg_glm::graph_builder::build_indexer_bd(int, ggml_tensor*, ggml_tensor*, ggml_tensor*, bool, std::vector<ggml_tensor*>&)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:2958:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 2958 |                 ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘ggml_tensor* tsg_glm::graph_builder::build_attention_bd(int, ggml_tensor*, ggml_tensor*, ggml_tensor*, const std::vector<ggml_tensor*>&)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3045:45: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3045 |                 ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3052:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3052 |                 ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3056:38: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3056 |                 ggml_mul_mat_set_prec(out, GGML_PREC_F32);
+      |                 ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘void tsg_glm::graph_builder::build_indexer_g5n_bd(int, ggml_tensor*, ggml_tensor*, std::vector<ggml_tensor*>&)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3199:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3199 |         ggml_mul_mat_set_prec(w, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘ggml_tensor* tsg_glm::graph_builder::build_indexer(int, int, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, bool)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3657:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3657 |             ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘ggml_tensor* tsg_glm::graph_builder::build_attention(int, int, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*, ggml_tensor*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3790:41: warning: ‘void ggml_flash_attn_ext_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3790 |             ggml_flash_attn_ext_set_prec(fa, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:2497:35: note: declared here
+ 2497 |     GGML_DEPRECATED(GGML_API void ggml_flash_attn_ext_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3804:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3804 |             ggml_mul_mat_set_prec(kq, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3811:34: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3811 |             ggml_mul_mat_set_prec(kqv, GGML_PREC_F32);
+      |             ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘ggml_tensor* tsg_glm::graph_builder::build_moe(int, int, ggml_tensor*)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:3866:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 3866 |         ggml_mul_mat_set_prec(logits, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp: In member function ‘ggml_tensor* tsg_glm::graph_builder::build_indexer_g5n(int, int, ggml_tensor*, ggml_tensor*, bool)’:
+/workspace/TensorSharp/TensorSharp.GGML.Native/ggml_ops_glm_dsa.cpp:4224:30: warning: ‘void ggml_mul_mat_set_prec(ggml_tensor*, ggml_prec)’ is deprecated: use ggml_prec_set_acc() instead [-Wdeprecated-declarations]
+ 4224 |         ggml_mul_mat_set_prec(w, GGML_PREC_F32);
+      |         ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:1489:35: note: declared here
+ 1489 |     GGML_DEPRECATED(GGML_API void ggml_mul_mat_set_prec(
+      |                                   ^~~~~~~~~~~~~~~~~~~~~
+/workspace/TensorSharp/TensorSharp.GGML.Native/../ExternalProjects/ggml/include/ggml.h:192:41: note: in definition of macro ‘GGML_DEPRECATED’
+  192 | #    define GGML_DEPRECATED(func, hint) func __attribute__((deprecated(hint)))
+      |                                         ^~~~
+[100%] Building CUDA object CMakeFiles/GgmlOps.dir/tsg_cuda_cudnn_conv.cu.o
+[100%] Linking CXX shared library libGgmlOps.so
+[100%] Built target GgmlOps
+[  5%] Built target ggml-base
+[ 14%] Built target ggml-cpu
+[ 98%] Built target ggml-cuda
+[100%] Building CXX object CMakeFiles/GgmlOpsDsv41TpTest.dir/ggml_ops_deepseek41_tp.cpp.o
+[100%] Building CXX object CMakeFiles/GgmlOpsDsv41TpTest.dir/tests/dsv41_tp_test.cpp.o
+[100%] Linking CXX executable GgmlOpsDsv41TpTest
+[100%] Built target GgmlOpsDsv41TpTest

@@ -1,0 +1,297 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-warm",
+  "thinking": true,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": true,
+  "max_tokens_override": 2048,
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1612.37580049783,
+      "generated_tokens": 39,
+      "end_to_end_tokens_per_second": 24.187909535704105,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_schema",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 8.439422585070133,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 6082.842284813523,
+      "generated_tokens": 157,
+      "end_to_end_tokens_per_second": 25.810302593570043,
+      "all_passed": false
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 12446.004672907293,
+      "generated_tokens": 362,
+      "end_to_end_tokens_per_second": 29.08563908769926,
+      "all_passed": false
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 489.60985988378525,
+      "ttft_ms_samples": [
+        489.60985988378525
+      ],
+      "prefill_tps_median": 110.29189651698915,
+      "prefill_tps_samples": [
+        110.29189651698915
+      ],
+      "decode_tps_median": 34.78677638216002,
+      "decode_tps_samples": [
+        34.78677638216002
+      ],
+      "conversation_wall_ms_median": 1610.8329389244318
+    },
+    "json_schema@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "tool_round_trip@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "agentic@c1": {
+      "passed": 0,
+      "total": 1
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-warm-thinking.json",
+  "source_report_sha256": "9633a21ce74db013a383411a75ba59f0981501ae6de51dff13d49ff71a1478d9",
+  "native_sha256": "1fef35e95a30a2d61d8083963b62c3980f24cff25756ecfbb2ceb33b94784b69",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "7a0499fa93cef79e798a2b4f4f9776be12622c48f2554d1f9bb849d5973cc95d",
+      "total_wall_ms": 1610.8329389244318,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "883cb79e938611593132f8c6955334d515a5bc69325f6b78f69d1ed418fb57c3",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": true
+          },
+          "metrics": {
+            "prompt_tokens": 54,
+            "completion_tokens": 39,
+            "ttft_ms": 489.60985988378525,
+            "prefill_tps": 110.29189651698915,
+            "decode_tps": 34.78677638216002,
+            "total_wall_ms": 1610.5958316475153,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42",
+              "reasoning_content": "The user asks: \"What is 17 + 25? Reply with only the integer.\" So answer: 42. Need to reply with only the integer. No extra text."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "The user asks: \"What is 17 + 25? Reply with only the integer.\" So answer: 42. Need to reply with only the integer. No extra text.",
+            "output_text": "42",
+            "t_start_abs": 4382401.251968398,
+            "t_first_abs": 4382401.741578258,
+            "t_last_abs": 4382402.833947369,
+            "t_end_abs": 4382402.862564229
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "d8e8413179b50dd97c43fa64e8ae63bcf817c32bbc8848c985c471eecc1fa07c",
+      "detail": "HTTPError: 400 Client Error: Bad Request for url: http://127.0.0.1:5000/v1/chat/completions",
+      "total_wall_ms": 7.580550387501717,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "34a774bbfc44be68a24e9495de243e891e171ae83eb97558164c51801c0fb3de",
+      "detail": "HTTPError: 400 Client Error: Bad Request for url: http://127.0.0.1:5000/v1/chat/completions",
+      "total_wall_ms": 6081.912397406995,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "e0a9f257adcc82c385f462898539ce38474ad6684d5d1eadba3bf2ec37fdc529",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": true
+          },
+          "metrics": {
+            "prompt_tokens": 351,
+            "completion_tokens": 157,
+            "ttft_ms": 1550.1121003180742,
+            "prefill_tps": 226.43523647610826,
+            "decode_tps": 34.68743118501896,
+            "total_wall_ms": 6076.093214564025,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_21da1adb90604d90af1",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "reasoning_content": "We need answer user. Need use tool get_weather for Paris in celsius, then report returned temperature as JSON object with exactly city and temperature_c. Do not invent weather. We need call tool. We have tool get_weather. Need call with city Paris, units celsius. Then report returned temperature as JSON object with exactly city and temperature_c. Need likely call tool, then respond with JSON. We need not invent. Let's call tool. We need maybe tool returns something. Let's invoke.",
+              "tool_calls": [
+                {
+                  "id": "call_21da1adb90604d90af1",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "We need answer user. Need use tool get_weather for Paris in celsius, then report returned temperature as JSON object with exactly city and temperature_c. Do not invent weather. We need call tool. We have tool get_weather. Need call with city Paris, units celsius. Then report returned temperature as JSON object with exactly city and temperature_c. Need likely call tool, then respond with JSON. We need not invent. Let's call tool. We need maybe tool returns something. Let's invoke.",
+            "output_text": "\n\n",
+            "t_start_abs": 4382402.893226395,
+            "t_first_abs": 4382404.443338496,
+            "t_last_abs": 4382408.940644715,
+            "t_end_abs": 4382408.96931961
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "3e3086783a5152081917666bb89bf404ac9a08d45b9b45ad46696a710c9753dd",
+      "detail": "ValueError: expected exactly one structured tool call and finish_reason=tool_calls",
+      "total_wall_ms": 12445.074775256217,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "411dc81784af58550d08001b37ac814f5df812e6bd7d7569159146b8f8db0fac",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 2048,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": true
+          },
+          "metrics": {
+            "prompt_tokens": 408,
+            "completion_tokens": 362,
+            "ttft_ms": 1530.9091228991747,
+            "prefill_tps": 266.5083079701987,
+            "decode_tps": 33.078077695585435,
+            "total_wall_ms": 12444.786939769983,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": null,
+              "reasoning_content": "We need answer user. Need follow instruction. We need call read_invoice with invoice_id INV-472. Then calculate_total with unit_price and quantity from returned. Need know tool outputs? We don't have actual outputs. We need simulate? We are assistant, can call tools. Need provide final JSON only? User asks \"Read invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results.\"\n\nWe need perform calls. We have tools. Need call read_invoice first. Then calculate_total. But we don't know output. We can call tool and get result. Let's do. Need maybe read_invoice returns something. We'll call. Then calculate_total. Then final JSON. But we need know values. Let's call read_invoice. Then based on result, call calculate_total. Then final. We need not expose reasoning? We can just do. But we need actually call tools. Let's call read_invoice. Then calculate_total. Then final. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "We need answer user. Need follow instruction. We need call read_invoice with invoice_id INV-472. Then calculate_total with unit_price and quantity from returned. Need know tool outputs? We don't have actual outputs. We need simulate? We are assistant, can call tools. Need provide final JSON only? User asks \"Read invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results.\"\n\nWe need perform calls. We have tools. Need call read_invoice first. Then calculate_total. But we don't know output. We can call tool and get result. Let's do. Need maybe read_invoice returns something. We'll call. Then calculate_total. Then final JSON. But we need know values. Let's call read_invoice. Then based on result, call calculate_total. Then final. We need not expose reasoning? We can just do. But we need actually call tools. Let's call read_invoice. Then calculate_total. Then final. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total",
+            "output_text": "We need answer user. Need follow instruction. We need call read_invoice with invoice_id INV-472. Then calculate_total with unit_price and quantity from returned. Need know tool outputs? We don't have actual outputs. We need simulate? We are assistant, can call tools. Need provide final JSON only? User asks \"Read invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results.\"\n\nWe need perform calls. We have tools. Need call read_invoice first. Then calculate_total. But we don't know output. We can call tool and get result. Let's do. Need maybe read_invoice returns something. We'll call. Then calculate_total. Then final JSON. But we need know values. Let's call read_invoice. Then based on result, call calculate_total. Then final. We need not expose reasoning? We can just do. But we need actually call tools. Let's call read_invoice. Then calculate_total. Then final. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total. But we need know output. Let's call read_invoice. Then calculate_total",
+            "t_start_abs": 4382408.988954852,
+            "t_first_abs": 4382410.519863975,
+            "t_last_abs": 4382421.433436503,
+            "t_end_abs": 4382421.433741792
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": false
+}

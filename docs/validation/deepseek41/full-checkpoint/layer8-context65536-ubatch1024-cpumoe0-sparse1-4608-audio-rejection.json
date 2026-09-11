@@ -1,0 +1,54 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "scope": "Explicit refusal of unsupported audio-only and image+audio inputs",
+  "cases": [
+    {
+      "kind": "input_audio",
+      "mixed_image": false,
+      "http_status": 400,
+      "response": {
+        "error": {
+          "message": "DeepSeek V4.1 Flash does not support audio input. Remove audio attachments or use a model with an audio encoder.",
+          "type": "invalid_request_error"
+        }
+      },
+      "passed": true
+    },
+    {
+      "kind": "input_audio",
+      "mixed_image": true,
+      "http_status": 400,
+      "response": {
+        "error": {
+          "message": "DeepSeek V4.1 Flash does not support audio input. Remove audio attachments or use a model with an audio encoder.",
+          "type": "invalid_request_error"
+        }
+      },
+      "passed": true
+    },
+    {
+      "kind": "audio_url",
+      "mixed_image": false,
+      "http_status": 400,
+      "response": {
+        "error": {
+          "message": "DeepSeek V4.1 Flash does not support audio input. Remove audio attachments or use a model with an audio encoder.",
+          "type": "invalid_request_error"
+        }
+      },
+      "passed": true
+    },
+    {
+      "kind": "audio_url",
+      "mixed_image": true,
+      "http_status": 400,
+      "response": {
+        "error": {
+          "message": "DeepSeek V4.1 Flash does not support audio input. Remove audio attachments or use a model with an audio encoder.",
+          "type": "invalid_request_error"
+        }
+      },
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,329 @@
+{
+  "diagnostic_only": true,
+  "performance_qualified": false,
+  "manifest_source": {
+    "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/run.json",
+    "bytes": 58589,
+    "sha256": "13602b9c3fae625a7a66eb89de0fc00e46ee465dab3e63ca81b6931f37b52128"
+  },
+  "analyzer_source": {
+    "path": "/tmp/deepseek41-reference/analyze-qwen35-eventpipe-phases.py",
+    "bytes": 8132,
+    "sha256": "2267d56f3f2c6ededf842cf37ace4470d2c6c8802dcdcb30e4e9a3756821c8ac"
+  },
+  "all_measured_cases_passed": 30,
+  "solo_correlated_cases": 6,
+  "runs": [
+    {
+      "cross": {
+        "managed": "baseline",
+        "native": "final"
+      },
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.json",
+        "bytes": 64836,
+        "sha256": "1c57a36d05ee302c0c843bc2e4911cf8b5bbf42c188d2bb15b05f8113ef6b3d8"
+      },
+      "stdout_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-server.log",
+        "bytes": 55407,
+        "sha256": "e2112b7d58672439f3ad695a64bc2e6df2d97be4cd9dc5aeb905e7e6f8642815"
+      },
+      "file_log_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-file-logs/tensorsharp-server-20260911.jsonl",
+        "bytes": 172040,
+        "sha256": "4504f988d53573586148bf24be47891949716799c977d8aa99f3de859a8a70d3"
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+        "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+        "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+        "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+        "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "collector_evidence_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-eventpipe.json",
+        "bytes": 2727,
+        "sha256": "27576deca9f979e19304b578f512802ab7a71b9b1e51d222ba35968a25870d53"
+      },
+      "actual_case_monotonic_interval": [
+        4410542.306929582,
+        4410544.436955359
+      ],
+      "phase_lines_all_warmup_and_requests": 26,
+      "solo_cases": [
+        {
+          "tag": "json-c1-r0-i0",
+          "request_id": "7564d37b73b7",
+          "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+          "assistant_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "stdout_lines": {
+            "start": 185,
+            "phase": 189,
+            "complete": 191
+          },
+          "phase_text": "[phase] Qwen3.5 model verify total=27.99ms build=0.29 bind=1.43 optimize=0.00 alloc=0.16 upload=13.43 submit=9.86 compute+download=2.83",
+          "phase_ms": {
+            "total": 27.99,
+            "build": 0.29,
+            "bind": 1.43,
+            "optimize": 0.0,
+            "alloc": 0.16,
+            "upload": 13.43,
+            "submit": 9.86,
+            "compute+download": 2.83
+          },
+          "pipeline_ttft_ms": 59,
+          "pipeline_elapsed_ms": 121.8018,
+          "client_ttft_ms": 70.30102144926786,
+          "client_elapsed_ms": 131.96743093430996,
+          "pipeline_ttft_minus_native_total_ms": 31.01
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "request_id": "e9de11f387ee",
+          "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+          "assistant_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "stdout_lines": {
+            "start": 199,
+            "phase": 201,
+            "complete": 203
+          },
+          "phase_text": "[phase] Qwen3.5 model verify total=27.68ms build=0.33 bind=1.24 optimize=0.00 alloc=0.15 upload=13.28 submit=9.87 compute+download=2.82",
+          "phase_ms": {
+            "total": 27.68,
+            "build": 0.33,
+            "bind": 1.24,
+            "optimize": 0.0,
+            "alloc": 0.15,
+            "upload": 13.28,
+            "submit": 9.87,
+            "compute+download": 2.82
+          },
+          "pipeline_ttft_ms": 63,
+          "pipeline_elapsed_ms": 123.5929,
+          "client_ttft_ms": 73.54435417801142,
+          "client_elapsed_ms": 133.525051176548,
+          "pipeline_ttft_minus_native_total_ms": 35.32
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "request_id": "b898001740f4",
+          "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+          "assistant_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "stdout_lines": {
+            "start": 211,
+            "phase": 213,
+            "complete": 215
+          },
+          "phase_text": "[phase] Qwen3.5 model verify total=49.59ms build=0.32 bind=23.03 optimize=0.00 alloc=0.16 upload=13.38 submit=9.86 compute+download=2.85",
+          "phase_ms": {
+            "total": 49.59,
+            "build": 0.32,
+            "bind": 23.03,
+            "optimize": 0.0,
+            "alloc": 0.16,
+            "upload": 13.38,
+            "submit": 9.86,
+            "compute+download": 2.85
+          },
+          "pipeline_ttft_ms": 134,
+          "pipeline_elapsed_ms": 194.2265,
+          "client_ttft_ms": 144.34181433171034,
+          "client_elapsed_ms": 203.5392327234149,
+          "pipeline_ttft_minus_native_total_ms": 84.41
+        }
+      ],
+      "solo_medians": {
+        "pipeline_ttft_ms": 63,
+        "pipeline_elapsed_ms": 123.5929,
+        "client_ttft_ms": 73.54435417801142,
+        "client_elapsed_ms": 133.525051176548,
+        "pipeline_ttft_minus_native_total_ms": 35.32,
+        "phase_ms": {
+          "total": 27.99,
+          "build": 0.32,
+          "bind": 1.43,
+          "optimize": 0.0,
+          "alloc": 0.16,
+          "upload": 13.38,
+          "submit": 9.86,
+          "compute+download": 2.83
+        }
+      }
+    },
+    {
+      "cross": {
+        "managed": "final",
+        "native": "final"
+      },
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.json",
+        "bytes": 64816,
+        "sha256": "b95d90b7b0f31c69a387d125ecc005cc8a1d9d9797e021bec333840b0ad07c16"
+      },
+      "stdout_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-server.log",
+        "bytes": 55075,
+        "sha256": "465e6e0680c0e1acc9e0fd7e5d16f87eb8ba2ccae52aaac49c3ae8e7d42bb285"
+      },
+      "file_log_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-file-logs/tensorsharp-server-20260911.jsonl",
+        "bytes": 171500,
+        "sha256": "178c0659be243b00d5add1b363947f7e0962f70c86034fc619e14139bd0ab3b0"
+      },
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "collector_evidence_source": {
+        "path": "/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-eventpipe.json",
+        "bytes": 2715,
+        "sha256": "8b20b29955afb40e817877f11aa09376f61e1537738df04726b01e995c2ea403"
+      },
+      "actual_case_monotonic_interval": [
+        4410556.487387525,
+        4410558.530105198
+      ],
+      "phase_lines_all_warmup_and_requests": 25,
+      "solo_cases": [
+        {
+          "tag": "json-c1-r0-i0",
+          "request_id": "abb5365c1265",
+          "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+          "assistant_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "stdout_lines": {
+            "start": 185,
+            "phase": 189,
+            "complete": 191
+          },
+          "phase_text": "[phase] Qwen3.5 model verify total=32.07ms build=0.29 bind=1.64 optimize=0.00 alloc=0.28 upload=16.67 submit=9.92 compute+download=3.27",
+          "phase_ms": {
+            "total": 32.07,
+            "build": 0.29,
+            "bind": 1.64,
+            "optimize": 0.0,
+            "alloc": 0.28,
+            "upload": 16.67,
+            "submit": 9.92,
+            "compute+download": 3.27
+          },
+          "pipeline_ttft_ms": 64,
+          "pipeline_elapsed_ms": 130.8397,
+          "client_ttft_ms": 71.84295821934938,
+          "client_elapsed_ms": 137.46459037065506,
+          "pipeline_ttft_minus_native_total_ms": 31.93
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "request_id": "4e3893678fd2",
+          "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+          "assistant_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "stdout_lines": {
+            "start": 199,
+            "phase": 201,
+            "complete": 203
+          },
+          "phase_text": "[phase] Qwen3.5 model verify total=30.42ms build=0.43 bind=1.74 optimize=0.00 alloc=0.20 upload=15.11 submit=9.92 compute+download=3.02",
+          "phase_ms": {
+            "total": 30.42,
+            "build": 0.43,
+            "bind": 1.74,
+            "optimize": 0.0,
+            "alloc": 0.2,
+            "upload": 15.11,
+            "submit": 9.92,
+            "compute+download": 3.02
+          },
+          "pipeline_ttft_ms": 98,
+          "pipeline_elapsed_ms": 157.7741,
+          "client_ttft_ms": 105.6735860183835,
+          "client_elapsed_ms": 164.608514867723,
+          "pipeline_ttft_minus_native_total_ms": 67.58
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "request_id": "a92070bb0bd8",
+          "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+          "assistant_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+          "prompt_tokens": 92,
+          "completion_tokens": 16,
+          "kv_reused_tokens": 0,
+          "stdout_lines": {
+            "start": 211,
+            "phase": 213,
+            "complete": 215
+          },
+          "phase_text": "[phase] Qwen3.5 model verify total=28.61ms build=0.36 bind=1.31 optimize=0.00 alloc=0.15 upload=14.04 submit=9.86 compute+download=2.88",
+          "phase_ms": {
+            "total": 28.61,
+            "build": 0.36,
+            "bind": 1.31,
+            "optimize": 0.0,
+            "alloc": 0.15,
+            "upload": 14.04,
+            "submit": 9.86,
+            "compute+download": 2.88
+          },
+          "pipeline_ttft_ms": 61,
+          "pipeline_elapsed_ms": 121.269,
+          "client_ttft_ms": 69.13073547184467,
+          "client_elapsed_ms": 128.37710697203875,
+          "pipeline_ttft_minus_native_total_ms": 32.39
+        }
+      ],
+      "solo_medians": {
+        "pipeline_ttft_ms": 64,
+        "pipeline_elapsed_ms": 130.8397,
+        "client_ttft_ms": 71.84295821934938,
+        "client_elapsed_ms": 137.46459037065506,
+        "pipeline_ttft_minus_native_total_ms": 32.39,
+        "phase_ms": {
+          "total": 30.42,
+          "build": 0.36,
+          "bind": 1.64,
+          "optimize": 0.0,
+          "alloc": 0.2,
+          "upload": 15.11,
+          "submit": 9.92,
+          "compute+download": 3.02
+        }
+      }
+    }
+  ],
+  "managed_effects_at_fixed_native": [
+    {
+      "held_native": "final",
+      "managed_final_minus_baseline_ms": {
+        "client_ttft_ms": -1.701395958662033,
+        "pipeline_ttft_ms": 1,
+        "client_elapsed_ms": 3.9395391941070557,
+        "pipeline_ttft_minus_native_total_ms": -2.9299999999999997
+      },
+      "native_phase_total_median_delta_ms": 2.4300000000000033
+    }
+  ],
+  "finding": "The earlier solo first-token gap does not persist at the median under EventPipe: client73.54 to71.84ms and pipeline63 to64ms. Native verify rises27.99 to30.42ms; wall133.53 to137.46ms. This profiled run can expose mechanisms and outliers, but cannot establish a cause or resolution for the earlier qualified latency regression that it does not reproduce.",
+  "limits": "Only3 solo requests/job, fixed order,1ms sampled-thread tracing plus native phase timing: diagnostic only. Baseline r2 contains a23.03ms native bind; final r1 has98ms pipeline TTFT with30.42ms native total. The pipeline-minus-native difference is an unresolved residual, not a separately instrumented grammar/scheduler/GC measurement. Asynchronous timing boundaries can overlap. Concurrent phases remain aggregate. Raw trace parse/loss/time-range analysis is owned independently and is not replaced by this log correlation.",
+  "identity_scope": "Same immutable final-native hosts from the preceding crossing; this analysis checks retained manifest/child/log hashes and does not independently inspect process mappings."
+}

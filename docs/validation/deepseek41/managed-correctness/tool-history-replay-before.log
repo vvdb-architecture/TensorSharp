@@ -1,0 +1,20 @@
+Test run for /Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/bin/Release/net10.0/InferenceWeb.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.38]     InferenceWeb.Tests.DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(nested: False) [FAIL]
+[xUnit.net 00:00:00.38]     InferenceWeb.Tests.DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(nested: True) [FAIL]
+  Failed InferenceWeb.Tests.DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(nested: False) [22 ms]
+  Error Message:
+   System.ArgumentNullException : Value cannot be null. (Parameter 'collection')
+  Stack Trace:
+     at InferenceWeb.Tests.DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(Boolean nested) in /Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/DeepSeek41ToolGrammarTests.cs:line 209
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+  Failed InferenceWeb.Tests.DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(nested: True) [3 ms]
+  Error Message:
+   System.ArgumentNullException : Value cannot be null. (Parameter 'collection')
+  Stack Trace:
+     at InferenceWeb.Tests.DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(Boolean nested) in /Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/DeepSeek41ToolGrammarTests.cs:line 209
+   at InvokeStub_DeepSeek41ToolGrammarTests.ToolHistoryReplayPreservesDelimiterBearingStringAndNestedJsonArguments(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+
+Failed!  - Failed:     2, Passed:     0, Skipped:     0, Total:     2, Duration: 31 ms - InferenceWeb.Tests.dll (net10.0)

@@ -1,0 +1,40 @@
+{
+  "host": "194.68.245.4",
+  "gpu": {
+    "count": 8,
+    "model": "NVIDIA A40",
+    "compute_capability": "8.6",
+    "nvidia_smi_total_mib_each": 46068,
+    "ggml_usable_vram_mib_each": 45488,
+    "driver": "580.159.04",
+    "cuda_toolkit": "12.8",
+    "native_build_architecture": "86",
+    "managed_ptx_architecture": "compute_86"
+  },
+  "cpu": {
+    "model": "Intel Xeon Gold 6342 @ 2.80GHz",
+    "sockets": 2,
+    "physical_cores": 48,
+    "logical_processors": 96,
+    "cgroup_quota_us": 6460000,
+    "cgroup_period_us": 100000
+  },
+  "memory": {
+    "physical_kib": 527972728,
+    "cgroup_limit_bytes": 400999997440
+  },
+  "dotnet_sdk": "10.0.302",
+  "ggml_commit": "7840aaba1989c6deeefede1d77d5aaf8f52b947e",
+  "ggml_patch": "eng/ggml-patches/0001-cuda-honor-f32-matmul-precision.patch",
+  "llama_cpp_source_commit": "df03399b885831b2a1603b3abb0d8c156808e363",
+  "llama_cpp_target_load": {
+    "status": "blocked",
+    "error": "unknown model architecture: 'deepseek41'",
+    "remote_log": "/workspace/deepseek41-work/llama-v41-load.log"
+  },
+  "checkpoint_manifest": "q2-manifest.json",
+  "notes": [
+    "Per-run binary hashes, placement, context, and activity qualification belong to the individual measured artifacts.",
+    "The llama.cpp source was copied from the local checkout; the remote copy has no Git metadata."
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "commands": [
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "build",
+      "TensorSharp.Server.Host/TensorSharp.Server.Host.csproj",
+      "-c",
+      "Release",
+      "-p:TensorSharpSkipGgmlNative=true",
+      "-p:TensorSharpSkipMlxNative=true",
+      "-p:TensorSharpSkipCudaNative=true",
+      "-p:CudaArch=compute_86",
+      "--verbosity",
+      "quiet",
+      "--output",
+      "/workspace/deepseek41-work/server-v41-budget"
+    ],
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "build",
+      "InferenceWeb.Tests/InferenceWeb.Tests.csproj",
+      "-c",
+      "Release",
+      "-p:TensorSharpSkipGgmlNative=true",
+      "-p:TensorSharpSkipMlxNative=true",
+      "-p:TensorSharpSkipCudaNative=true",
+      "-p:CudaArch=compute_86",
+      "--verbosity",
+      "quiet",
+      "--output",
+      "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-budget"
+    ],
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "vstest",
+      "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-budget/InferenceWeb.Tests.dll",
+      "--TestCaseFilter:Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video",
+      "--Logger:trx;LogFileName=managed-budget-correctness.trx",
+      "--ResultsDirectory:/workspace/deepseek41-work/test-results"
+    ]
+  ],
+  "stages": [
+    {
+      "name": "host-build",
+      "exit_code": 0,
+      "elapsed_seconds": 56.98232158552855
+    },
+    {
+      "name": "test-build",
+      "exit_code": 0,
+      "elapsed_seconds": 41.541568242013454
+    },
+    {
+      "name": "managed-tests",
+      "exit_code": 0,
+      "elapsed_seconds": 83.19441352412105
+    }
+  ],
+  "previous_host_before": {
+    "TensorSharp.Runtime.dll": "bdca2ce3041a6b7d2baa7512f2e0fbdbe4b1561afde337e379f22eab415ebbb4",
+    "TensorSharp.Chat.dll": "19ec3d2325480ccb9a193053baa12102b665b0c84613701da8c84eb68a7d9aa8",
+    "TensorSharp.Server.dll": "098205e19de79d6d138e613d51d4396993eded31db930bd131b3fb1a6cb65de3",
+    "libGgmlOps.so": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573"
+  },
+  "test_counters": {
+    "total": "3433",
+    "executed": "3433",
+    "passed": "3433",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "trx_sha256": "12987e4569f1c3cf0da57c60b569409d8ec7f0b75cb8e28b16bcc85f897ac777",
+  "host_sha256": {
+    "TensorSharp.Runtime.dll": "12ce3bc3f780853aab91eafee2dec49d53eba34493cb6881d3c07b54130e67ff",
+    "TensorSharp.Chat.dll": "4e19639e1aa75baf830ffc690a0aec3c98b79ef25787b14acff4262246b7d8d4",
+    "TensorSharp.Server.dll": "5cd666d122c2c9cb74d521affe1adc84e1b18ad6922444cd68b7acbe61f5f6d2",
+    "libGgmlOps.so": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573"
+  },
+  "test_assembly_sha256": "b12ff4087d97a91af510d94a5fe6962b818c85f83351c118808d64b65339419a",
+  "exit_code": 0,
+  "elapsed_seconds": 185.7139483243227,
+  "previous_host_after": {
+    "TensorSharp.Runtime.dll": "bdca2ce3041a6b7d2baa7512f2e0fbdbe4b1561afde337e379f22eab415ebbb4",
+    "TensorSharp.Chat.dll": "19ec3d2325480ccb9a193053baa12102b665b0c84613701da8c84eb68a7d9aa8",
+    "TensorSharp.Server.dll": "098205e19de79d6d138e613d51d4396993eded31db930bd131b3fb1a6cb65de3",
+    "libGgmlOps.so": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573"
+  },
+  "previous_host_unchanged": true,
+  "harness": {
+    "passed": 17,
+    "failed": 0,
+    "command": "cd benchmarks/engine_comparison && /workspace/deepseek41-work/reference-venv/bin/python -m unittest test_validate_inference -v",
+    "log_sha256": "bd1f3107888892789345cd33c29a590ec29d0c8c719d7ef3a840d5ebd16c5c63",
+    "full_log_path": "/workspace/deepseek41-work/budget-validation-harness.log"
+  },
+  "full_build_log_path": "/workspace/deepseek41-work/managed-budget-build.log",
+  "full_build_log_sha256": "b671b7150d14dfab2e5ac54266d22c71e9114672e8144f7cc188db25f7a57fb7"
+}

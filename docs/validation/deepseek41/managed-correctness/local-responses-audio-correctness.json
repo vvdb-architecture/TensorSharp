@@ -1,0 +1,204 @@
+{
+  "scope": "V4.1-only Responses input_audio/audio_url preflight before decoding/uploads/planning/SSE; other architectures and Runtime unchanged. Native/full-model behavior is outside this managed stage.",
+  "source_sha256": {
+    "TensorSharp.Chat/RequestParsers/ChatMessageParser.cs": "3eaf9d58f6b6306fbdb6553a9346008d081c00cffc876565923f1954be48856f",
+    "InferenceWeb.Tests/DeepSeek41ResponsesAudioTests.cs": "fb7be8caf0b6c5fd668133c7184c75719d20389e45bc5c05b0dcf735a23518ce",
+    "InferenceWeb.Tests/ProtocolAdapterRequestWorkspaceTests.cs": "727c48e245004e19bbdb2ed3617be87a81ae5d7fcbaa0803661c39d94ab717c3"
+  },
+  "stages": {
+    "before": {
+      "command": [
+        "dotnet",
+        "test",
+        "InferenceWeb.Tests/InferenceWeb.Tests.csproj",
+        "-c",
+        "Release",
+        "-p:TensorSharpSkipGgmlNative=true",
+        "-p:TensorSharpSkipMlxNative=true",
+        "-p:TensorSharpSkipCudaNative=true",
+        "--filter",
+        "FullyQualifiedName~DeepSeek41ResponsesAudioTests|FullyQualifiedName~DeepSeek41ResponsesAudio_ReturnsJson400BeforeUploadsPlanningOrStreaming",
+        "--logger",
+        "trx;LogFileName=responses-audio-before.trx",
+        "--results-directory",
+        "/tmp/dsv41-grammar-tests",
+        "--verbosity",
+        "quiet"
+      ],
+      "trx_path": "/tmp/dsv41-grammar-tests/responses-audio-before.trx",
+      "trx_sha256": "4afda6ad931fb55d576db91fffeda3c69a20d3479bbea195d20b6e8cc878cc7d",
+      "counters": {
+        "total": "16",
+        "executed": "16",
+        "passed": "3",
+        "failed": "13",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "full_log_path": "/tmp/deepseek41-reference/responses-audio-before.log",
+      "full_log_sha256": "f702183b82c441fb2886953e6b84a9427918d40492f0ddf6cfb784363965c6a5",
+      "production_parser_sha256": "8a52e1413f26ac86fa186e2d87ff6e1fabda48a2edadf724f533005bde13eade",
+      "failures": [
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\",\\\"input_audio\\\":{\\\"data\\\"\u00b7\u00b7\u00b7)",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\",\\\"input_audio\\\":\\\"wrong-\"\u00b7\u00b7\u00b7)",
+          "message": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.Text.Json.JsonException)\nActual:   typeof(System.InvalidOperationException)\n---- System.InvalidOperationException : The requested operation requires an element of type 'Object', but the target element has type 'String'."
+        },
+        {
+          "test": "InferenceWeb.Tests.ProtocolAdapterRequestWorkspaceTests.DeepSeek41ResponsesAudio_ReturnsJson400BeforeUploadsPlanningOrStreaming(malformed: True, stream: True)",
+          "message": "Assert.Equal() Failure: Values differ\nExpected: 400\nActual:   200"
+        },
+        {
+          "test": "InferenceWeb.Tests.ProtocolAdapterRequestWorkspaceTests.DeepSeek41ResponsesAudio_ReturnsJson400BeforeUploadsPlanningOrStreaming(malformed: False, stream: True)",
+          "message": "Assert.Equal() Failure: Values differ\nExpected: 400\nActual:   200"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\"}\")",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\",\\\"input_audio\\\":{\\\"forma\"\u00b7\u00b7\u00b7)",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        },
+        {
+          "test": "InferenceWeb.Tests.ProtocolAdapterRequestWorkspaceTests.DeepSeek41ResponsesAudio_ReturnsJson400BeforeUploadsPlanningOrStreaming(malformed: False, stream: False)",
+          "message": "Assert.Equal() Failure: Values differ\nExpected: 400\nActual:   404"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\",\\\"input_audio\\\":{\\\"forma\"\u00b7\u00b7\u00b7)",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\",\\\"input_audio\\\":{\\\"forma\"\u00b7\u00b7\u00b7)",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"input_audio\\\",\\\"input_audio\\\":null}\")",
+          "message": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.Text.Json.JsonException)\nActual:   typeof(System.InvalidOperationException)\n---- System.InvalidOperationException : The requested operation requires an element of type 'Object', but the target element has type 'Null'."
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"audio_url\\\",\\\"audio_url\\\":{\\\"url\\\":\\\"h\"\u00b7\u00b7\u00b7)",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        },
+        {
+          "test": "InferenceWeb.Tests.ProtocolAdapterRequestWorkspaceTests.DeepSeek41ResponsesAudio_ReturnsJson400BeforeUploadsPlanningOrStreaming(malformed: True, stream: False)",
+          "message": "Assert.Equal() Failure: Values differ\nExpected: 400\nActual:   404"
+        },
+        {
+          "test": "InferenceWeb.Tests.DeepSeek41ResponsesAudioTests.AudioInLaterMessageRejectsWholeInputBeforeWritingAnyMedia(audioPart: \"{\\\"type\\\":\\\"audio_url\\\",\\\"audio_url\\\":null}\")",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.Text.Json.JsonException)"
+        }
+      ],
+      "curated_log": "local-responses-audio-before.log"
+    },
+    "focused": {
+      "command": [
+        "dotnet",
+        "test",
+        "InferenceWeb.Tests/InferenceWeb.Tests.csproj",
+        "-c",
+        "Release",
+        "-p:TensorSharpSkipGgmlNative=true",
+        "-p:TensorSharpSkipMlxNative=true",
+        "-p:TensorSharpSkipCudaNative=true",
+        "--filter",
+        "FullyQualifiedName~DeepSeek41ResponsesAudioTests|FullyQualifiedName~DeepSeek41AudioInputTests|FullyQualifiedName~DeepSeek41ImageRequestTests|FullyQualifiedName~ProtocolAdapterRequestWorkspaceTests",
+        "--logger",
+        "trx;LogFileName=responses-audio-focused.trx",
+        "--results-directory",
+        "/tmp/dsv41-grammar-tests",
+        "--verbosity",
+        "quiet"
+      ],
+      "trx_path": "/tmp/dsv41-grammar-tests/responses-audio-focused.trx",
+      "trx_sha256": "12c9ac10841e7a133841f5697a9ced3fbbad7c675eaa9d6fd83a32edde74e213",
+      "counters": {
+        "total": "84",
+        "executed": "84",
+        "passed": "84",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "full_log_path": "/tmp/deepseek41-reference/responses-audio-focused.log",
+      "full_log_sha256": "2e18f6397380e8301db2d28f03308bb64116b3c2e17adc9d3dd6d81e019313e9",
+      "curated_log": "local-responses-audio-focused.log"
+    },
+    "managed": {
+      "command": [
+        "dotnet",
+        "test",
+        "InferenceWeb.Tests/InferenceWeb.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--filter",
+        "Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video",
+        "--logger",
+        "trx;LogFileName=responses-audio-managed.trx",
+        "--results-directory",
+        "/tmp/dsv41-grammar-tests",
+        "--verbosity",
+        "quiet"
+      ],
+      "trx_path": "/tmp/dsv41-grammar-tests/responses-audio-managed.trx",
+      "trx_sha256": "28b076782fa2b56d41dfa540b62fbd252be73f30fd742b9c8cf486ab07dafc19",
+      "counters": {
+        "total": "3651",
+        "executed": "3651",
+        "passed": "3651",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "full_log_path": "/tmp/deepseek41-reference/responses-audio-managed.log",
+      "full_log_sha256": "f6e236e2ea7b56de60997eb8e73aac87ff6b094375989bdc652a7d091ea3f306",
+      "curated_log": "local-responses-audio-managed.log"
+    }
+  },
+  "runtime_sha256": "1542edf883c89fb5a53c93dadabff111316fd1ae49582acd74e48f862e3b0e09",
+  "runtime_unchanged_from_local3597": true,
+  "test_assembly_sha256": "8220abdc2acbffc5d8dcbeacff7ab54801850f99f122beed40fe3569ca06f7b5",
+  "chat_assembly_sha256": "ad5534c8bd3a06ac4abcf8d4fa8768fa87e0ec98a10b84b5986f192d7f583f79",
+  "http_checker": {
+    "source": "benchmarks/engine_comparison/validate_deepseek41_audio_inputs.py",
+    "sha256": "40b08347ae2d202e3d71515c0a77a064713da9cd133d59ca9bde15b342ceff1e",
+    "cases": 4,
+    "status": "Syntax/CLI checked locally; uploaded for later real HTTP execution. No live result claimed."
+  },
+  "vm_status": "Completed3651/3651 full and84/84 focused; see remote-responses-audio-correctness.json."
+}

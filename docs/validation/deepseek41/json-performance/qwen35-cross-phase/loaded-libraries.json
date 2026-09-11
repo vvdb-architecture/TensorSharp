@@ -1,0 +1,141 @@
+{
+  "observer_sha256": "ee30d16c13064f244723682c7ae5730fe022034fa2f0543efb26db4b1a69c9ac",
+  "scope": "Read-only /proc mapping observations once per owned diagnostic host; does not rehash live libraries or qualify timings.",
+  "observations": [
+    {
+      "utc": "2026-09-11T14:25:19Z",
+      "pid": 147280,
+      "version": "baseline-managed_baseline-native",
+      "command": [
+        "/workspace/deepseek41-work/dotnet/dotnet",
+        "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/TensorSharp.Server.Host.dll",
+        "--model",
+        "/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
+        "--backend",
+        "ggml_cuda",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5011",
+        "--max-tokens",
+        "1024",
+        "--kv-cache-dtype",
+        "f16",
+        "--no-spec",
+        "--no-prefix-cache",
+        "--no-webui",
+        "--prefill-chunk-size",
+        "256"
+      ],
+      "mappings": [
+        "7823b2e00000-7823b2ed2000 r--p 00000000 00:57 153035000                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/libGgmlOps.so",
+        "7823b2ed2000-7823b436c000 r-xp 000d2000 00:57 153035000                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/libGgmlOps.so",
+        "7823b436c000-7823c1a88000 r--p 0156c000 00:57 153035000                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/libGgmlOps.so",
+        "7823c1a88000-7823c1a93000 r--p 0ec87000 00:57 153035000                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/libGgmlOps.so",
+        "7823c1a93000-7823c1a9c000 rw-p 0ec92000 00:57 153035000                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_baseline-native/bin/libGgmlOps.so"
+      ]
+    },
+    {
+      "utc": "2026-09-11T14:25:29Z",
+      "pid": 147448,
+      "version": "baseline-managed_final-native",
+      "command": [
+        "/workspace/deepseek41-work/dotnet/dotnet",
+        "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/TensorSharp.Server.Host.dll",
+        "--model",
+        "/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
+        "--backend",
+        "ggml_cuda",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5011",
+        "--max-tokens",
+        "1024",
+        "--kv-cache-dtype",
+        "f16",
+        "--no-spec",
+        "--no-prefix-cache",
+        "--no-webui",
+        "--prefill-chunk-size",
+        "256"
+      ],
+      "mappings": [
+        "7db709a00000-7db709a7a000 r--p 00000000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+        "7db709a7a000-7db70ad56000 r-xp 0007a000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+        "7db70ad56000-7db715ab9000 r--p 01356000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+        "7db715ab9000-7db715abd000 r--p 0c0b9000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so",
+        "7db715abd000-7db715ac5000 rw-p 0c0bd000 00:57 156055712                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin/libGgmlOps.so"
+      ]
+    },
+    {
+      "utc": "2026-09-11T14:25:42Z",
+      "pid": 147604,
+      "version": "final-managed_baseline-native",
+      "command": [
+        "/workspace/deepseek41-work/dotnet/dotnet",
+        "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/TensorSharp.Server.Host.dll",
+        "--model",
+        "/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
+        "--backend",
+        "ggml_cuda",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5011",
+        "--max-tokens",
+        "1024",
+        "--kv-cache-dtype",
+        "f16",
+        "--no-spec",
+        "--no-prefix-cache",
+        "--no-webui",
+        "--prefill-chunk-size",
+        "256"
+      ],
+      "mappings": [
+        "7171f2e00000-7171f2ed2000 r--p 00000000 00:57 165877654                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/libGgmlOps.so",
+        "7171f2ed2000-7171f436c000 r-xp 000d2000 00:57 165877654                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/libGgmlOps.so",
+        "7171f436c000-717201a88000 r--p 0156c000 00:57 165877654                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/libGgmlOps.so",
+        "717201a88000-717201a93000 r--p 0ec87000 00:57 165877654                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/libGgmlOps.so",
+        "717201a93000-717201a9c000 rw-p 0ec92000 00:57 165877654                  /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_baseline-native/bin/libGgmlOps.so"
+      ]
+    },
+    {
+      "utc": "2026-09-11T14:25:56Z",
+      "pid": 147754,
+      "version": "final-managed_final-native",
+      "command": [
+        "/workspace/deepseek41-work/dotnet/dotnet",
+        "/workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/TensorSharp.Server.Host.dll",
+        "--model",
+        "/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf",
+        "--backend",
+        "ggml_cuda",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "5011",
+        "--max-tokens",
+        "1024",
+        "--kv-cache-dtype",
+        "f16",
+        "--no-spec",
+        "--no-prefix-cache",
+        "--no-webui",
+        "--prefill-chunk-size",
+        "256"
+      ],
+      "mappings": [
+        "6fe0bda00000-6fe0bda7a000 r--p 00000000 00:57 1529592                    /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/libGgmlOps.so",
+        "6fe0bda7a000-6fe0bed56000 r-xp 0007a000 00:57 1529592                    /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/libGgmlOps.so",
+        "6fe0bed56000-6fe0c9ab9000 r--p 01356000 00:57 1529592                    /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/libGgmlOps.so",
+        "6fe0c9ab9000-6fe0c9abd000 r--p 0c0b9000 00:57 1529592                    /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/libGgmlOps.so",
+        "6fe0c9abd000-6fe0c9ac5000 rw-p 0c0bd000 00:57 1529592                    /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/final-managed_final-native/bin/libGgmlOps.so"
+      ]
+    }
+  ],
+  "runner_finished_utc": "2026-09-11T14:26:14Z",
+  "finished_utc": "2026-09-11T14:26:14Z",
+  "observed_hosts": 4
+}

@@ -1,0 +1,914 @@
+{
+  "scope": "Actual Q2_K tokenizer plus generic JSON grammar only; no model inference and no DSML grammar.",
+  "metadata_path": "/tmp/deepseek41-reference/q2-header-1.json",
+  "metadata_sha256": "7b8a16f9c6438e2488957c4fa3c191010e0a154b1f3ff40acc5674306b56b09d",
+  "runtime_path": "/private/tmp/dsv41-json-unicode-3433/TensorSharp.Runtime.dll",
+  "runtime_sha256": "12ce3bc3f780853aab91eafee2dec49d53eba34493cb6881d3c07b54130e67ff",
+  "source_sha256": "fcf82eb39d1e2c2c2f06881c08ffd8be379036d31ae74a08e5c0e2c87cd0a22b",
+  "vocab_size": 129280,
+  "pretokenizer": "joyai-llm",
+  "rocket_utf8_byte_token_ids": [
+    175,
+    256,
+    251,
+    225
+  ],
+  "failures": 5,
+  "reports": [
+    {
+      "name": "literal-rocket",
+      "pass": false,
+      "all_tokens_allowed": false,
+      "complete": true,
+      "text": "{\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "reconstructed": "{\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 74287,
+          "vocabulary_piece": "\u00F0\u0141\u013C",
+          "utf8_hex": "F09F9A",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 225,
+          "vocabulary_piece": "\u0122",
+          "utf8_hex": "80",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    },
+    {
+      "name": "literal-chinese-object",
+      "pass": false,
+      "all_tokens_allowed": false,
+      "complete": true,
+      "text": "{\u0022city\u0022:\u0022\u5317\u4EAC\u0022,\u0022message\u0022:\u0022\u4F60\u597D\uFF0C\u4E16\u754C\u0022,\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "reconstructed": "{\u0022city\u0022:\u0022\u5317\u4EAC\u0022,\u0022message\u0022:\u0022\u4F60\u597D\uFF0C\u4E16\u754C\u0022,\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 37399,
+          "vocabulary_piece": "city",
+          "utf8_hex": "63697479",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 6127,
+          "vocabulary_piece": "\u00E5\u012E\u0139\u00E4\u00BA\u00AC",
+          "utf8_hex": "E58C97E4BAAC",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 10177,
+          "vocabulary_piece": "\u0022,\u0022",
+          "utf8_hex": "222C22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 20400,
+          "vocabulary_piece": "message",
+          "utf8_hex": "6D657373616765",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 30594,
+          "vocabulary_piece": "\u00E4\u00BD\u0142\u00E5\u00A5\u00BD",
+          "utf8_hex": "E4BDA0E5A5BD",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 303,
+          "vocabulary_piece": "\u00EF\u00BC\u012E",
+          "utf8_hex": "EFBC8C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 3427,
+          "vocabulary_piece": "\u00E4\u00B8\u0138\u00E7\u0137\u012E",
+          "utf8_hex": "E4B896E7958C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 10177,
+          "vocabulary_piece": "\u0022,\u0022",
+          "utf8_hex": "222C22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 74287,
+          "vocabulary_piece": "\u00F0\u0141\u013C",
+          "utf8_hex": "F09F9A",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 225,
+          "vocabulary_piece": "\u0122",
+          "utf8_hex": "80",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    },
+    {
+      "name": "rocket-four-byte-tokens",
+      "pass": false,
+      "all_tokens_allowed": false,
+      "complete": true,
+      "text": "{\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "reconstructed": "{\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 175,
+          "vocabulary_piece": "\u00F0",
+          "utf8_hex": "F0",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 256,
+          "vocabulary_piece": "\u0141",
+          "utf8_hex": "9F",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 251,
+          "vocabulary_piece": "\u013C",
+          "utf8_hex": "9A",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 225,
+          "vocabulary_piece": "\u0122",
+          "utf8_hex": "80",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    },
+    {
+      "name": "chinese-object-four-byte-rocket",
+      "pass": false,
+      "all_tokens_allowed": false,
+      "complete": true,
+      "text": "{\u0022city\u0022:\u0022\u5317\u4EAC\u0022,\u0022message\u0022:\u0022\u4F60\u597D\uFF0C\u4E16\u754C\u0022,\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "reconstructed": "{\u0022city\u0022:\u0022\u5317\u4EAC\u0022,\u0022message\u0022:\u0022\u4F60\u597D\uFF0C\u4E16\u754C\u0022,\u0022emoji\u0022:\u0022\uD83D\uDE80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 37399,
+          "vocabulary_piece": "city",
+          "utf8_hex": "63697479",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 6127,
+          "vocabulary_piece": "\u00E5\u012E\u0139\u00E4\u00BA\u00AC",
+          "utf8_hex": "E58C97E4BAAC",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 10177,
+          "vocabulary_piece": "\u0022,\u0022",
+          "utf8_hex": "222C22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 20400,
+          "vocabulary_piece": "message",
+          "utf8_hex": "6D657373616765",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 30594,
+          "vocabulary_piece": "\u00E4\u00BD\u0142\u00E5\u00A5\u00BD",
+          "utf8_hex": "E4BDA0E5A5BD",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 303,
+          "vocabulary_piece": "\u00EF\u00BC\u012E",
+          "utf8_hex": "EFBC8C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 3427,
+          "vocabulary_piece": "\u00E4\u00B8\u0138\u00E7\u0137\u012E",
+          "utf8_hex": "E4B896E7958C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 10177,
+          "vocabulary_piece": "\u0022,\u0022",
+          "utf8_hex": "222C22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 175,
+          "vocabulary_piece": "\u00F0",
+          "utf8_hex": "F0",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 256,
+          "vocabulary_piece": "\u0141",
+          "utf8_hex": "9F",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 251,
+          "vocabulary_piece": "\u013C",
+          "utf8_hex": "9A",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 225,
+          "vocabulary_piece": "\u0122",
+          "utf8_hex": "80",
+          "mask_allows": false,
+          "logit_is_finite": false,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    },
+    {
+      "name": "ascii-lower-surrogates",
+      "pass": true,
+      "all_tokens_allowed": true,
+      "complete": true,
+      "text": "{\u0022emoji\u0022:\u0022\\ud83d\\ude80\u0022}",
+      "reconstructed": "{\u0022emoji\u0022:\u0022\\ud83d\\ude80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62,
+          "vocabulary_piece": "\\",
+          "utf8_hex": "5C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 519,
+          "vocabulary_piece": "ud",
+          "utf8_hex": "7564",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 6131,
+          "vocabulary_piece": "83",
+          "utf8_hex": "3833",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 70,
+          "vocabulary_piece": "d",
+          "utf8_hex": "64",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62,
+          "vocabulary_piece": "\\",
+          "utf8_hex": "5C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 3685,
+          "vocabulary_piece": "ude",
+          "utf8_hex": "756465",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 1892,
+          "vocabulary_piece": "80",
+          "utf8_hex": "3830",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    },
+    {
+      "name": "ascii-upper-surrogates",
+      "pass": true,
+      "all_tokens_allowed": true,
+      "complete": true,
+      "text": "{\u0022emoji\u0022:\u0022\\uD83D\\uDE80\u0022}",
+      "reconstructed": "{\u0022emoji\u0022:\u0022\\uD83D\\uDE80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62,
+          "vocabulary_piece": "\\",
+          "utf8_hex": "5C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 87,
+          "vocabulary_piece": "u",
+          "utf8_hex": "75",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 38,
+          "vocabulary_piece": "D",
+          "utf8_hex": "44",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 6131,
+          "vocabulary_piece": "83",
+          "utf8_hex": "3833",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 38,
+          "vocabulary_piece": "D",
+          "utf8_hex": "44",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 17360,
+          "vocabulary_piece": "\\u",
+          "utf8_hex": "5C75",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 11173,
+          "vocabulary_piece": "DE",
+          "utf8_hex": "4445",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 1892,
+          "vocabulary_piece": "80",
+          "utf8_hex": "3830",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    },
+    {
+      "name": "chinese-object-surrogate-escape",
+      "pass": true,
+      "all_tokens_allowed": true,
+      "complete": true,
+      "text": "{\u0022city\u0022:\u0022\u5317\u4EAC\u0022,\u0022message\u0022:\u0022\u4F60\u597D\uFF0C\u4E16\u754C\u0022,\u0022emoji\u0022:\u0022\\ud83d\\ude80\u0022}",
+      "reconstructed": "{\u0022city\u0022:\u0022\u5317\u4EAC\u0022,\u0022message\u0022:\u0022\u4F60\u597D\uFF0C\u4E16\u754C\u0022,\u0022emoji\u0022:\u0022\\ud83d\\ude80\u0022}",
+      "parsed_emoji": "\uD83D\uDE80",
+      "steps": [
+        {
+          "token_id": 24313,
+          "vocabulary_piece": "{\u0022",
+          "utf8_hex": "7B22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 37399,
+          "vocabulary_piece": "city",
+          "utf8_hex": "63697479",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 6127,
+          "vocabulary_piece": "\u00E5\u012E\u0139\u00E4\u00BA\u00AC",
+          "utf8_hex": "E58C97E4BAAC",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 10177,
+          "vocabulary_piece": "\u0022,\u0022",
+          "utf8_hex": "222C22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 20400,
+          "vocabulary_piece": "message",
+          "utf8_hex": "6D657373616765",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 30594,
+          "vocabulary_piece": "\u00E4\u00BD\u0142\u00E5\u00A5\u00BD",
+          "utf8_hex": "E4BDA0E5A5BD",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 303,
+          "vocabulary_piece": "\u00EF\u00BC\u012E",
+          "utf8_hex": "EFBC8C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 3427,
+          "vocabulary_piece": "\u00E4\u00B8\u0138\u00E7\u0137\u012E",
+          "utf8_hex": "E4B896E7958C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 10177,
+          "vocabulary_piece": "\u0022,\u0022",
+          "utf8_hex": "222C22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 18872,
+          "vocabulary_piece": "emo",
+          "utf8_hex": "656D6F",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 7063,
+          "vocabulary_piece": "ji",
+          "utf8_hex": "6A69",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 16562,
+          "vocabulary_piece": "\u0022:\u0022",
+          "utf8_hex": "223A22",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62,
+          "vocabulary_piece": "\\",
+          "utf8_hex": "5C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 519,
+          "vocabulary_piece": "ud",
+          "utf8_hex": "7564",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 6131,
+          "vocabulary_piece": "83",
+          "utf8_hex": "3833",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 70,
+          "vocabulary_piece": "d",
+          "utf8_hex": "64",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62,
+          "vocabulary_piece": "\\",
+          "utf8_hex": "5C",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 3685,
+          "vocabulary_piece": "ude",
+          "utf8_hex": "756465",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 1892,
+          "vocabulary_piece": "80",
+          "utf8_hex": "3830",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        },
+        {
+          "token_id": 62773,
+          "vocabulary_piece": "\u0022}",
+          "utf8_hex": "227D",
+          "mask_allows": true,
+          "logit_is_finite": true,
+          "dead_after_accept": false
+        }
+      ]
+    }
+  ],
+  "negative": [
+    {
+      "name": "raw-newline-in-string",
+      "pass": true,
+      "prefix_hex": "",
+      "rejected_token_id": 201
+    },
+    {
+      "name": "isolated-continuation",
+      "pass": true,
+      "prefix_hex": "",
+      "rejected_token_id": 225
+    },
+    {
+      "name": "overlong-after-F0",
+      "pass": true,
+      "prefix_hex": "F0",
+      "rejected_token_id": 225
+    },
+    {
+      "name": "ascii-before-rocket-completes",
+      "pass": false,
+      "prefix_hex": "F09F9A",
+      "rejected_token_id": 4
+    }
+  ]
+}

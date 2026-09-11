@@ -1,0 +1,50 @@
+test_comparison_never_passes_unavailable_reference (test_validate_inference.ValidationTests.test_comparison_never_passes_unavailable_reference) ... ok
+test_comparison_rejects_different_final_tool_format (test_validate_inference.ValidationTests.test_comparison_rejects_different_final_tool_format) ... ok
+test_comparison_rejects_single_failed_parallel_response (test_validate_inference.ValidationTests.test_comparison_rejects_single_failed_parallel_response) ... ok
+test_finish_reason_without_arguments_cannot_pass_tool_check (test_validate_inference.ValidationTests.test_finish_reason_without_arguments_cannot_pass_tool_check) ... ok
+test_fragmented_tool_call_preserves_id_name_and_arguments (test_validate_inference.ValidationTests.test_fragmented_tool_call_preserves_id_name_and_arguments) ... ok
+test_json_schema_checks_types_and_rejects_surrounding_prose (test_validate_inference.ValidationTests.test_json_schema_checks_types_and_rejects_surrounding_prose) ... ok
+test_long_prompt_uses_three_distributed_needles (test_validate_inference.ValidationTests.test_long_prompt_uses_three_distributed_needles) ... ok
+test_matching_partial_reports_cannot_establish_parity (test_validate_inference.ValidationTests.test_matching_partial_reports_cannot_establish_parity) ... ok
+test_missing_usage_and_reasoning_only_fail (test_validate_inference.ValidationTests.test_missing_usage_and_reasoning_only_fail) ... ok
+test_real_agent_tool_round_trips_are_sent_back_to_server (test_validate_inference.ValidationTests.test_real_agent_tool_round_trips_are_sent_back_to_server) ... ok
+test_reasoning_budget_override_changes_sent_request_and_comparison_hash (test_validate_inference.ValidationTests.test_reasoning_budget_override_changes_sent_request_and_comparison_hash) ... ok
+test_reasoning_only_acknowledgement_does_not_advance_conversation (test_validate_inference.ValidationTests.test_reasoning_only_acknowledgement_does_not_advance_conversation) ... ok
+test_reasoning_only_sse_fallback_is_never_validated_as_an_answer (test_validate_inference.ValidationTests.test_reasoning_only_sse_fallback_is_never_validated_as_an_answer) ... ok
+test_sse_without_charset_preserves_utf8_content (test_validate_inference.ValidationTests.test_sse_without_charset_preserves_utf8_content) ... ok
+test_stream_error_does_not_become_successful_empty_completion (test_validate_inference.ValidationTests.test_stream_error_does_not_become_successful_empty_completion) ... ok
+test_wrong_content_cannot_be_overridden_by_correct_reasoning (test_validate_inference.ValidationTests.test_wrong_content_cannot_be_overridden_by_correct_reasoning) ... ok
+test_wrong_tool_arguments_fail (test_validate_inference.ValidationTests.test_wrong_tool_arguments_fail) ... ok
+test_explicit_tensor_shard_count_matches_requested_gpu_count (test_backend_launch.BackendLaunchTests.test_explicit_tensor_shard_count_matches_requested_gpu_count) ... ok
+test_actual_http400_must_identify_the_expected_defect (test_validate_deepseek41_tools.ToolPolicyTests.test_actual_http400_must_identify_the_expected_defect) ... ok
+test_call_counts_and_duplicate_ids_cannot_pass (test_validate_deepseek41_tools.ToolPolicyTests.test_call_counts_and_duplicate_ids_cannot_pass) ... ok
+test_complete_run_retains_failed_two_call_cases_and_execution_plan (test_validate_deepseek41_tools.ToolPolicyTests.test_complete_run_retains_failed_two_call_cases_and_execution_plan) ... required c1 r0: 1/1 passed
+required c4 r0: 4/4 passed
+named c1 r0: 1/1 passed
+named c4 r0: 4/4 passed
+none_history c1 r0: 1/1 passed
+none_history c4 r0: 4/4 passed
+single_call c1 r0: 1/1 passed
+single_call c4 r0: 4/4 passed
+two_calls c1 r0: 0/1 passed
+two_calls c4 r0: 0/4 passed
+required_thinking c1 r0: 1/1 passed
+named_thinking c1 r0: 1/1 passed
+invalid_required c1 r0: 1/1 passed
+invalid_named c1 r0: 1/1 passed
+invalid_schema c1 r0: 1/1 passed
+ok
+test_fragmented_parallel_calls_keep_full_names_arguments_ids_and_wire_output (test_validate_deepseek41_tools.ToolPolicyTests.test_fragmented_parallel_calls_keep_full_names_arguments_ids_and_wire_output) ... ok
+test_interrupted_run_keeps_partial_results_and_never_marks_complete (test_validate_deepseek41_tools.ToolPolicyTests.test_interrupted_run_keeps_partial_results_and_never_marks_complete) ... required c1 r0: 1/1 passed
+ok
+test_malformed_ids_types_and_arguments_remain_failed (test_validate_deepseek41_tools.ToolPolicyTests.test_malformed_ids_types_and_arguments_remain_failed) ... ok
+test_named_and_thinking_requests_keep_policy_and_both_declarations (test_validate_deepseek41_tools.ToolPolicyTests.test_named_and_thinking_requests_keep_policy_and_both_declarations) ... ok
+test_none_rejects_calls_surrounding_prose_and_wrong_json_types (test_validate_deepseek41_tools.ToolPolicyTests.test_none_rejects_calls_surrounding_prose_and_wrong_json_types) ... ok
+test_none_uses_generated_call_id_and_fixed_result_before_final_json (test_validate_deepseek41_tools.ToolPolicyTests.test_none_uses_generated_call_id_and_fixed_result_before_final_json) ... ok
+test_partial_invalid_sse_is_retained_after_transport_parser_failure (test_validate_deepseek41_tools.ToolPolicyTests.test_partial_invalid_sse_is_retained_after_transport_parser_failure) ... ok
+test_reasoning_only_never_satisfies_tool_or_final_answer_contract (test_validate_deepseek41_tools.ToolPolicyTests.test_reasoning_only_never_satisfies_tool_or_final_answer_contract) ... ok
+
+----------------------------------------------------------------------
+Ran 29 tests in 0.202s
+
+OK

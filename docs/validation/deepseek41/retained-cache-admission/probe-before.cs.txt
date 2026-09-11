@@ -1,0 +1,54 @@
+using System.Reflection;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using TensorSharp.Runtime;
+using TensorSharp.Runtime.Scheduling;
+using InferenceWeb.Tests;
+
+var flags=BindingFlags.NonPublic|BindingFlags.Static;
+var test=typeof(RetainedFusedCacheTests);
+var modelType=test.GetNestedType("FusedStubModel",BindingFlags.NonPublic);
+int promptLength=(int)test.GetField("PromptLen",flags).GetRawConstantValue();
+int suffixLength=(int)test.GetField("SuffixLen",flags).GetRawConstantValue();
+int peak=(int)test.GetField("PeakToken",flags).GetRawConstantValue();
+int blockSize=(int)test.GetField("BlockSize",flags).GetRawConstantValue();
+Environment.SetEnvironmentVariable("TS_RETAINED_FUSED_CACHE","1");
+var reports=new List<object>();
+foreach(var mode in new[]{"unchanged","delay_old_partner","delay_new_partner","no_pooled_reuse"})
+{
+ for(int trial=0;trial<40;trial++)
+ {
+  var model=(IModelArchitecture)Activator.CreateInstance(modelType,new object[]{false,0,true,mode!="no_pooled_reuse",16,true,false,false});
+  var log=new Recorder();
+  using var engine=new InferenceEngine(model,(SchedulerConfig)test.GetMethod("Config",flags).Invoke(null,null),log);
+  const string id="reused-request-id";
+  var oldPrompt=Enumerable.Repeat(1,promptLength).ToList();
+  var oldA=engine.SubmitRequest(new SequenceState(id,oldPrompt,4,blockSize,SamplingConfig.Greedy));
+  if(mode=="delay_old_partner")Thread.Sleep(1);
+  var oldB=engine.SubmitRequest(new SequenceState("old-partner",Enumerable.Repeat(2,promptLength).ToList(),4,blockSize,SamplingConfig.Greedy));
+  var a=Drain(oldA);var b=Drain(oldB);await Task.WhenAll(a,b);
+  var newA=engine.SubmitRequest(new SequenceState(id,Enumerable.Repeat(5,promptLength).ToList(),4,blockSize,SamplingConfig.Greedy));
+  if(mode=="delay_new_partner")Thread.Sleep(1);
+  var newB=engine.SubmitRequest(new SequenceState("new-partner",Enumerable.Repeat(6,promptLength).ToList(),4,blockSize,SamplingConfig.Greedy));
+  await Task.WhenAll(Drain(newA),Drain(newB));
+  var follow=new List<int>(oldPrompt);follow.AddRange(a.Result.output);follow.AddRange(Enumerable.Repeat(peak+1,suffixLength));
+  var result=await Drain(engine.SubmitRequest(new SequenceState("old-follow-up",follow,4,blockSize,SamplingConfig.Greedy)));
+  var discards=(IReadOnlyList<string>)modelType.GetProperty("DiscardedRetainedRequestIds").GetValue(model);
+  reports.Add(new{mode,trial,reused=result.completion.PrefixCacheReusedTokens,discards=discards.ToArray(),logs=log.Lines.ToArray()});
+ }
+}
+File.WriteAllText("/tmp/deepseek41-reference/retained-cache-diagnostic/results.json",JsonSerializer.Serialize(reports,new JsonSerializerOptions{WriteIndented=true}));
+Console.WriteLine("Saved160paired diagnostics.");
+static async Task<(InferenceCompletion completion,List<int> output)> Drain(InferenceRequestHandle h)
+{
+ var output=new List<int>();await foreach(var t in h.Tokens.ReadAllAsync())output.Add(t);
+ return(await h.Completion,output);
+}
+sealed class Recorder:ILogger
+{
+ public ConcurrentQueue<string> Lines=new();
+ public IDisposable BeginScope<TState>(TState s)where TState:notnull=>null;
+ public bool IsEnabled(LogLevel l)=>true;
+ public void Log<TState>(LogLevel l,EventId id,TState state,Exception e,Func<TState,Exception,string> format)=>Lines.Enqueue(format(state,e));
+}

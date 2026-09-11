@@ -1,0 +1,132 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final",
+  "thinking": false,
+  "stream": false,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": true,
+  "max_tokens_override": null,
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 2.5836722925305367,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "json",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1.5456145629286766,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1.7238892614841461,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 2.3692715913057327,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "json@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "tool_round_trip@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "agentic@c1": {
+      "passed": 0,
+      "total": 1
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final-blocking.json",
+  "source_report_sha256": "eeb57c0f4d48044675636458ab065a5b66f946227b02e7a3b8ec083e07135021",
+  "native_sha256": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "b0a6ec9cd8b44b52c8df1e059de72c0126d3f5b58ada428edfe52d52d181e084",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.599450595676899,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "a513b650bb73ba250a2148f6f44d0fe9456462155f1ee5d35ec775e95de217de",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.0677473619580269,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "22d87d8454866859458a389fe120c8d9ef8e9945037d3b2f82ac9e4fa4d8c640",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.1171093210577965,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "e8fbe9e524876c239a65bcdd7e7d8643e246bdd78c3b3b8a9cc77cca9d37649c",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.6168393194675446,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    }
+  ],
+  "performance_qualified": false
+}

@@ -1,0 +1,169 @@
+{
+  "library_sha256": "ef7473574eedc9ee50906de7d4204864c65afb6bc2a58a330be42f14525dd115",
+  "backend": "CPU",
+  "test_hooks_required": true,
+  "checks": [
+    {
+      "name": "automatic",
+      "cpu_moe": 0,
+      "cli": 0,
+      "environment": null,
+      "actual_pool_threads": 2,
+      "expected": 2,
+      "passed": true
+    },
+    {
+      "name": "cli",
+      "cpu_moe": 0,
+      "cli": 7,
+      "environment": null,
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "environment_over_cli",
+      "cpu_moe": 0,
+      "cli": 7,
+      "environment": "5",
+      "actual_pool_threads": 5,
+      "expected": 5,
+      "passed": true
+    },
+    {
+      "name": "invalid_environment_ignored",
+      "cpu_moe": 0,
+      "cli": 7,
+      "environment": "invalid",
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "zero_environment_ignored",
+      "cpu_moe": 0,
+      "cli": 7,
+      "environment": "0",
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "negative_environment_ignored",
+      "cpu_moe": 0,
+      "cli": 7,
+      "environment": "-2",
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "cli_zero_resets",
+      "cpu_moe": 0,
+      "cli": 0,
+      "environment": null,
+      "actual_pool_threads": 2,
+      "expected": 2,
+      "passed": true
+    },
+    {
+      "name": "cli_negative_resets",
+      "cpu_moe": 0,
+      "cli": -1,
+      "environment": null,
+      "actual_pool_threads": 2,
+      "expected": 2,
+      "passed": true
+    },
+    {
+      "name": "environment_after_cli_reset",
+      "cpu_moe": 0,
+      "cli": 0,
+      "environment": "5",
+      "actual_pool_threads": 5,
+      "expected": 5,
+      "passed": true
+    },
+    {
+      "name": "automatic",
+      "cpu_moe": 1,
+      "cli": 0,
+      "environment": null,
+      "actual_pool_threads": 18,
+      "expected": 18,
+      "passed": true
+    },
+    {
+      "name": "cli",
+      "cpu_moe": 1,
+      "cli": 7,
+      "environment": null,
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "environment_over_cli",
+      "cpu_moe": 1,
+      "cli": 7,
+      "environment": "5",
+      "actual_pool_threads": 5,
+      "expected": 5,
+      "passed": true
+    },
+    {
+      "name": "invalid_environment_ignored",
+      "cpu_moe": 1,
+      "cli": 7,
+      "environment": "invalid",
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "zero_environment_ignored",
+      "cpu_moe": 1,
+      "cli": 7,
+      "environment": "0",
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "negative_environment_ignored",
+      "cpu_moe": 1,
+      "cli": 7,
+      "environment": "-2",
+      "actual_pool_threads": 7,
+      "expected": 7,
+      "passed": true
+    },
+    {
+      "name": "cli_zero_resets",
+      "cpu_moe": 1,
+      "cli": 0,
+      "environment": null,
+      "actual_pool_threads": 18,
+      "expected": 18,
+      "passed": true
+    },
+    {
+      "name": "cli_negative_resets",
+      "cpu_moe": 1,
+      "cli": -1,
+      "environment": null,
+      "actual_pool_threads": 18,
+      "expected": 18,
+      "passed": true
+    },
+    {
+      "name": "environment_after_cli_reset",
+      "cpu_moe": 1,
+      "cli": 0,
+      "environment": "5",
+      "actual_pool_threads": 5,
+      "expected": 5,
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+Internal ctest changing into directory: /workspace/TensorSharp/TensorSharp.GGML.Native/build
+Test project /workspace/TensorSharp/TensorSharp.GGML.Native/build
+      Start  1: deepseek41-engram-parallel-io
+ 1/12 Test  #1: deepseek41-engram-parallel-io .................   Passed    0.30 sec
+      Start  2: deepseek41-moe-tensor-parallel
+ 2/12 Test  #2: deepseek41-moe-tensor-parallel ................   Passed    2.36 sec
+      Start  3: deepseek41-moe-tensor-parallel-cuda-2
+ 3/12 Test  #3: deepseek41-moe-tensor-parallel-cuda-2 .........***Skipped   0.23 sec
+      Start  4: deepseek41-moe-tensor-parallel-cuda-4
+ 4/12 Test  #4: deepseek41-moe-tensor-parallel-cuda-4 .........***Skipped   0.21 sec
+      Start  5: deepseek41-moe-tensor-parallel-cuda-8
+ 5/12 Test  #5: deepseek41-moe-tensor-parallel-cuda-8 .........***Skipped   0.21 sec
+      Start  6: scheduler-seventeen-backends
+ 6/12 Test  #6: scheduler-seventeen-backends ..................   Passed    0.03 sec
+      Start  7: deepseek41-compact-raw-gather
+ 7/12 Test  #7: deepseek41-compact-raw-gather .................   Passed    0.14 sec
+      Start  8: deepseek41-activation-quant-candidates
+ 8/12 Test  #8: deepseek41-activation-quant-candidates ........   Passed    0.02 sec
+      Start  9: deepseek41-sparse-flash-attention-cuda
+ 9/12 Test  #9: deepseek41-sparse-flash-attention-cuda ........   Passed   24.57 sec
+      Start 10: cuda-explicit-f32-matmul
+10/12 Test #10: cuda-explicit-f32-matmul ......................   Passed    1.15 sec
+      Start 11: deepseek41-activation-quant-candidates-cuda
+11/12 Test #11: deepseek41-activation-quant-candidates-cuda ...   Passed    0.45 sec
+      Start 12: attention-allocation
+12/12 Test #12: attention-allocation ..........................   Passed    0.65 sec
+
+100% tests passed, 0 tests failed out of 12
+
+Total Test time (real) =  30.50 sec
+
+The following tests did not run:
+	  3 - deepseek41-moe-tensor-parallel-cuda-2 (Skipped)
+	  4 - deepseek41-moe-tensor-parallel-cuda-4 (Skipped)
+	  5 - deepseek41-moe-tensor-parallel-cuda-8 (Skipped)

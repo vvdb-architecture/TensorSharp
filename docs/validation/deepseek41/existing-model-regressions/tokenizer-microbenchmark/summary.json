@@ -1,0 +1,336 @@
+{
+  "scope": "Local macOS ARM64 warm-JIT metadata-only diagnostic, not a GPU/server throughput measurement. Baseline source04a5faa9e641fc0b06de661be1191afbc6edaf50 and current managed code. Identical BMP short/tool/long rendered strings and token hashes verified across all runs.",
+  "order": [
+    "current0",
+    "baseline0",
+    "baseline1",
+    "current1"
+  ],
+  "samples_per_implementation_operation": 14,
+  "rows": [
+    {
+      "model": "qwen3",
+      "case": "short_bmp",
+      "operation": "encode",
+      "tokens": 37,
+      "prompt_sha256": "6F9974396A35CC353F4B31D490A33EB5B5279E4FBC532A0118DBE9E87F3E25FD",
+      "token_sha256": "2822AB805EA12421BDA5CA66A8BD84E89720C23E15C8BABA21935C6217505E07",
+      "baseline_ns": 4942.1721834126865,
+      "baseline_allocated_bytes": 26632.0,
+      "current_ns": 4283.165440713031,
+      "current_allocated_bytes": 20816.0,
+      "speedup": 1.1538597450463994,
+      "allocation_ratio": 0.7816161009312106,
+      "pair_speedups": [
+        1.1495339399735232,
+        1.1524005221042308
+      ]
+    },
+    {
+      "model": "qwen3",
+      "case": "short_bmp",
+      "operation": "render",
+      "tokens": 37,
+      "prompt_sha256": "6F9974396A35CC353F4B31D490A33EB5B5279E4FBC532A0118DBE9E87F3E25FD",
+      "token_sha256": "2822AB805EA12421BDA5CA66A8BD84E89720C23E15C8BABA21935C6217505E07",
+      "baseline_ns": 32952.05182345872,
+      "baseline_allocated_bytes": 173320.0,
+      "current_ns": 32779.76951601675,
+      "current_allocated_bytes": 173320.0,
+      "speedup": 1.0052557510313729,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        1.00609245443281,
+        1.00522786717539
+      ]
+    },
+    {
+      "model": "qwen3",
+      "case": "tool_bmp",
+      "operation": "encode",
+      "tokens": 210,
+      "prompt_sha256": "6940EA32E262E5DE38D538ADB1AC539963FD24DC84071872861282178BA128D7",
+      "token_sha256": "262BB6E84600A934C59EFB36271509CC912D7B84CAAE002EAF9BD19DFD73177D",
+      "baseline_ns": 24280.862036386257,
+      "baseline_allocated_bytes": 121304.0,
+      "current_ns": 18964.00049633567,
+      "current_allocated_bytes": 83672.0,
+      "speedup": 1.2803660304205298,
+      "allocation_ratio": 0.689771153465673,
+      "pair_speedups": [
+        1.2749310594095047,
+        1.2868711286761978
+      ]
+    },
+    {
+      "model": "qwen3",
+      "case": "tool_bmp",
+      "operation": "render",
+      "tokens": 210,
+      "prompt_sha256": "6940EA32E262E5DE38D538ADB1AC539963FD24DC84071872861282178BA128D7",
+      "token_sha256": "262BB6E84600A934C59EFB36271509CC912D7B84CAAE002EAF9BD19DFD73177D",
+      "baseline_ns": 43286.86662971621,
+      "baseline_allocated_bytes": 208272.0,
+      "current_ns": 42813.287749414056,
+      "current_allocated_bytes": 208272.0,
+      "speedup": 1.0110614929428923,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        1.0037762340301666,
+        1.0148973342668852
+      ]
+    },
+    {
+      "model": "qwen3",
+      "case": "long_bmp",
+      "operation": "encode",
+      "tokens": 13220,
+      "prompt_sha256": "818210BA5D038039535AD231C60BE609529B62B831564FD7A02303416128C17D",
+      "token_sha256": "EA98F647C18AC89EF1320D965AACE554A76FF2A39BBB93BF05C4DDB3E98318CA",
+      "baseline_ns": 3687291.0588235296,
+      "baseline_allocated_bytes": 6520106.060606061,
+      "current_ns": 1694743.810810811,
+      "current_allocated_bytes": 4037890.2702702703,
+      "speedup": 2.1757218024944023,
+      "allocation_ratio": 0.6192982495586794,
+      "pair_speedups": [
+        2.171739511723386,
+        2.239148677413492
+      ]
+    },
+    {
+      "model": "qwen3",
+      "case": "long_bmp",
+      "operation": "render",
+      "tokens": 13220,
+      "prompt_sha256": "818210BA5D038039535AD231C60BE609529B62B831564FD7A02303416128C17D",
+      "token_sha256": "EA98F647C18AC89EF1320D965AACE554A76FF2A39BBB93BF05C4DDB3E98318CA",
+      "baseline_ns": 252729.916749503,
+      "baseline_allocated_bytes": 1095841.674796748,
+      "current_ns": 255060.2144308943,
+      "current_allocated_bytes": 1095841.674796748,
+      "speedup": 0.9908637351121546,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        0.9979785904742475,
+        0.988177974068984
+      ]
+    },
+    {
+      "model": "qwen35",
+      "case": "short_bmp",
+      "operation": "encode",
+      "tokens": 39,
+      "prompt_sha256": "CE0499EF42FEBD828599E3EB60F64FD85A90ECEDDAFCD47081D5B9D3EE61F136",
+      "token_sha256": "66B28FA9A5645193DAACA0285C717BCC1DF6BCADFCD2A4FF696305290C576CFE",
+      "baseline_ns": 5725.14533620186,
+      "baseline_allocated_bytes": 31464.0,
+      "current_ns": 5080.437282755833,
+      "current_allocated_bytes": 25544.0,
+      "speedup": 1.1269001106724246,
+      "allocation_ratio": 0.8118484617340452,
+      "pair_speedups": [
+        1.141337340199581,
+        1.0849217860471405
+      ]
+    },
+    {
+      "model": "qwen35",
+      "case": "short_bmp",
+      "operation": "render",
+      "tokens": 39,
+      "prompt_sha256": "CE0499EF42FEBD828599E3EB60F64FD85A90ECEDDAFCD47081D5B9D3EE61F136",
+      "token_sha256": "66B28FA9A5645193DAACA0285C717BCC1DF6BCADFCD2A4FF696305290C576CFE",
+      "baseline_ns": 53033.31838264955,
+      "baseline_allocated_bytes": 288320.0,
+      "current_ns": 53444.74256395634,
+      "current_allocated_bytes": 288320.0,
+      "speedup": 0.992301877386453,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        0.9900499595644439,
+        0.9961397455923781
+      ]
+    },
+    {
+      "model": "qwen35",
+      "case": "tool_bmp",
+      "operation": "encode",
+      "tokens": 331,
+      "prompt_sha256": "511F11A8073DBFE2A06655A9B6B7340110DF676A99D0D9F34C63EFA54B2A38B0",
+      "token_sha256": "E9D4F7417DC4A52A29A97D3B272D795F2E3E67847986D78811300F5BE8F465D4",
+      "baseline_ns": 43890.24131113271,
+      "baseline_allocated_bytes": 215432.0,
+      "current_ns": 36712.69969715412,
+      "current_allocated_bytes": 158192.0,
+      "speedup": 1.195505688036747,
+      "allocation_ratio": 0.7343013108544691,
+      "pair_speedups": [
+        1.2012901640466835,
+        1.189961844030857
+      ]
+    },
+    {
+      "model": "qwen35",
+      "case": "tool_bmp",
+      "operation": "render",
+      "tokens": 331,
+      "prompt_sha256": "511F11A8073DBFE2A06655A9B6B7340110DF676A99D0D9F34C63EFA54B2A38B0",
+      "token_sha256": "E9D4F7417DC4A52A29A97D3B272D795F2E3E67847986D78811300F5BE8F465D4",
+      "baseline_ns": 66072.39404114298,
+      "baseline_allocated_bytes": 329256.0,
+      "current_ns": 66342.7275862069,
+      "current_allocated_bytes": 329256.0,
+      "speedup": 0.9959251970050126,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        0.9709060655590169,
+        1.0153493990538796
+      ]
+    },
+    {
+      "model": "qwen35",
+      "case": "long_bmp",
+      "operation": "encode",
+      "tokens": 12821,
+      "prompt_sha256": "A2E926CEF6A3416A39CE4E6866120DFE9E429E58451473CA25979587DCF68F40",
+      "token_sha256": "4FB5BAB11CC01CC2039E81F47B3D7ED03B4C134710DC94EC0BEEE1E2B4FC8951",
+      "baseline_ns": 4090697.921875,
+      "baseline_allocated_bytes": 6601234.0,
+      "current_ns": 1680995.3961038962,
+      "current_allocated_bytes": 4118912.0,
+      "speedup": 2.4334973976467507,
+      "allocation_ratio": 0.623960913974569,
+      "pair_speedups": [
+        2.3962946281380573,
+        2.456508595032403
+      ]
+    },
+    {
+      "model": "qwen35",
+      "case": "long_bmp",
+      "operation": "render",
+      "tokens": 12821,
+      "prompt_sha256": "A2E926CEF6A3416A39CE4E6866120DFE9E429E58451473CA25979587DCF68F40",
+      "token_sha256": "4FB5BAB11CC01CC2039E81F47B3D7ED03B4C134710DC94EC0BEEE1E2B4FC8951",
+      "baseline_ns": 409485.95369461726,
+      "baseline_allocated_bytes": 1858496.7272727273,
+      "current_ns": 409048.139158576,
+      "current_allocated_bytes": 1858497.7605177993,
+      "speedup": 1.0010703252114577,
+      "allocation_ratio": 1.0000005559574343,
+      "pair_speedups": [
+        0.9942514572732084,
+        1.0068362887015638
+      ]
+    },
+    {
+      "model": "gemma4",
+      "case": "short_bmp",
+      "operation": "encode",
+      "tokens": 43,
+      "prompt_sha256": "520794FF0C9C049A66A0978D1AC4AA072C9E7DA9E7599C1CFCBD784B7A3A5C64",
+      "token_sha256": "42A27BFA7101723D30FA71A8D395D3B7CD6572DB1E52F16F13566AC6A6F7149C",
+      "baseline_ns": 9730.64077140675,
+      "baseline_allocated_bytes": 38056.0,
+      "current_ns": 9498.794017247126,
+      "current_allocated_bytes": 36760.0,
+      "speedup": 1.0244080199800791,
+      "allocation_ratio": 0.9659449232709691,
+      "pair_speedups": [
+        1.017251040010644,
+        1.0239928238630553
+      ]
+    },
+    {
+      "model": "gemma4",
+      "case": "short_bmp",
+      "operation": "render",
+      "tokens": 43,
+      "prompt_sha256": "520794FF0C9C049A66A0978D1AC4AA072C9E7DA9E7599C1CFCBD784B7A3A5C64",
+      "token_sha256": "42A27BFA7101723D30FA71A8D395D3B7CD6572DB1E52F16F13566AC6A6F7149C",
+      "baseline_ns": 101181.50209334979,
+      "baseline_allocated_bytes": 503544.0,
+      "current_ns": 101441.38936041773,
+      "current_allocated_bytes": 503544.0,
+      "speedup": 0.997438054932937,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        1.0127507640899986,
+        0.9929777590328321
+      ]
+    },
+    {
+      "model": "gemma4",
+      "case": "tool_bmp",
+      "operation": "encode",
+      "tokens": 129,
+      "prompt_sha256": "4416DA1F2856E0DFE4F23E270087D826F2C16B1E36C3260A81379807179FD7C8",
+      "token_sha256": "444ED63E3F29100FBA6A499984EBCFDAB8E6D9FFD370E1BACFE7900E3761271A",
+      "baseline_ns": 51103.49276209192,
+      "baseline_allocated_bytes": 182160.0,
+      "current_ns": 50418.938337763015,
+      "current_allocated_bytes": 179472.0,
+      "speedup": 1.01357732722857,
+      "allocation_ratio": 0.9852437417654809,
+      "pair_speedups": [
+        1.019184332866346,
+        1.0116018952412116
+      ]
+    },
+    {
+      "model": "gemma4",
+      "case": "tool_bmp",
+      "operation": "render",
+      "tokens": 129,
+      "prompt_sha256": "4416DA1F2856E0DFE4F23E270087D826F2C16B1E36C3260A81379807179FD7C8",
+      "token_sha256": "444ED63E3F29100FBA6A499984EBCFDAB8E6D9FFD370E1BACFE7900E3761271A",
+      "baseline_ns": 161312.55354838708,
+      "baseline_allocated_bytes": 791456.0,
+      "current_ns": 161039.16046302195,
+      "current_allocated_bytes": 791456.0,
+      "speedup": 1.0016976807664613,
+      "allocation_ratio": 1.0,
+      "pair_speedups": [
+        1.0036863104496994,
+        1.0023368323913953
+      ]
+    },
+    {
+      "model": "gemma4",
+      "case": "long_bmp",
+      "operation": "encode",
+      "tokens": 12421,
+      "prompt_sha256": "FB0A97A18763DF93199CA0BA5F4B37877898B59A2C2469AA5F6C72A2EE15BF91",
+      "token_sha256": "2F01531CE69BC5B7BE8AD6659FF6FEC02903E2E7EFA373D95E826EF98C5D7B1B",
+      "baseline_ns": 28384520.9,
+      "baseline_allocated_bytes": 21585232.0,
+      "current_ns": 28486762.4,
+      "current_allocated_bytes": 21584272.0,
+      "speedup": 0.9964109118978014,
+      "allocation_ratio": 0.9999555251479345,
+      "pair_speedups": [
+        0.9972252848092767,
+        0.995776654848747
+      ]
+    },
+    {
+      "model": "gemma4",
+      "case": "long_bmp",
+      "operation": "render",
+      "tokens": 12421,
+      "prompt_sha256": "FB0A97A18763DF93199CA0BA5F4B37877898B59A2C2469AA5F6C72A2EE15BF91",
+      "token_sha256": "2F01531CE69BC5B7BE8AD6659FF6FEC02903E2E7EFA373D95E826EF98C5D7B1B",
+      "baseline_ns": 355981.4747826929,
+      "baseline_allocated_bytes": 1426088.3209590672,
+      "current_ns": 364038.1555232558,
+      "current_allocated_bytes": 1426088.3387437768,
+      "speedup": 0.9778685815804595,
+      "allocation_ratio": 1.0000000124709734,
+      "pair_speedups": [
+        0.9537370424865942,
+        1.0146330171310889
+      ]
+    }
+  ]
+}

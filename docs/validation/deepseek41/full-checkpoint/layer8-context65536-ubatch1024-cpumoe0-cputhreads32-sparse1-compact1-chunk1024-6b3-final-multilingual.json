@@ -1,0 +1,736 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "serial_tool_workflows": false,
+  "max_tokens_override": null,
+  "execution_plan": {
+    "scenarios": [
+      "short_zh",
+      "json_unicode"
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 1,
+    "expected_cases": 10
+  },
+  "run_complete": true,
+  "waves": [
+    {
+      "scenario": "short_zh",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 298.2155755162239,
+      "generated_tokens": 1,
+      "end_to_end_tokens_per_second": 3.3532789099595393,
+      "all_passed": true
+    },
+    {
+      "scenario": "short_zh",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 1156.2478048726916,
+      "generated_tokens": 4,
+      "end_to_end_tokens_per_second": 3.459466027215869,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_unicode",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1334.7633881494403,
+      "generated_tokens": 22,
+      "end_to_end_tokens_per_second": 16.482322031998137,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_unicode",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 5583.67233723402,
+      "generated_tokens": 88,
+      "end_to_end_tokens_per_second": 15.760237113697201,
+      "all_passed": true
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short_zh@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 256.8146353587508,
+      "ttft_ms_samples": [
+        256.8146353587508
+      ],
+      "prefill_tps_median": 120.70963150793692,
+      "prefill_tps_samples": [
+        120.70963150793692
+      ],
+      "conversation_wall_ms_median": 297.0926221460104
+    },
+    "short_zh@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 979.8033721745014,
+      "ttft_ms_samples": [
+        899.7789490967989,
+        897.3723016679287,
+        1061.8282547220588,
+        1059.827795252204
+      ],
+      "prefill_tps_median": 31.85147069824922,
+      "prefill_tps_samples": [
+        34.4529064956653,
+        34.54530515637812,
+        29.194928522705844,
+        29.250034900833136
+      ],
+      "conversation_wall_ms_median": 1107.7248039655387
+    },
+    "json_unicode@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 700.2862403169274,
+      "ttft_ms_samples": [
+        700.2862403169274
+      ],
+      "prefill_tps_median": 124.23491279883858,
+      "prefill_tps_samples": [
+        124.23491279883858
+      ],
+      "decode_tps_median": 34.76231227075315,
+      "decode_tps_samples": [
+        34.76231227075315
+      ],
+      "conversation_wall_ms_median": 1333.6793472990394
+    },
+    "json_unicode@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 2867.7891017869115,
+      "ttft_ms_samples": [
+        2715.013056062162,
+        2869.409571401775,
+        2868.572501465678,
+        2867.0057021081448
+      ],
+      "prefill_tps_median": 30.33696112381027,
+      "prefill_tps_samples": [
+        32.04404479961664,
+        30.31982637372274,
+        30.32867391552695,
+        30.345248332093593
+      ],
+      "decode_tps_median": 8.018702191572672,
+      "decode_tps_samples": [
+        7.901067101974258,
+        8.017657119154773,
+        8.019747263990572,
+        8.01991142841786
+      ],
+      "conversation_wall_ms_median": 5578.501065727323
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-multilingual.json",
+  "source_report_sha256": "e8562aebbdab58d8363202d9642c46a37d7c2cc004df6eae44e18fc5030511e1",
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "cases": [
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "2422b4f1f697adc35671f61ad16c66b67a840f5821caf0a49aabbf27ab54b440",
+      "validated_content": "42",
+      "total_wall_ms": 297.0926221460104,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "4f7fc2fce06aae12646639d348eb4f98b0f82765fb97d79250d1c25b4fc0e905",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 256.8146353587508,
+            "prefill_tps": 120.70963150793692,
+            "decode_tps": 0.0,
+            "total_wall_ms": 296.84190079569817,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4405028.800983193,
+            "t_first_abs": 4405029.057797829,
+            "t_last_abs": 4405029.057797829,
+            "t_end_abs": 4405029.097825094
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "e6ec82e87f770024480997cff0612021d72366503fe493798fb4bc182710bb93",
+      "validated_content": "42",
+      "total_wall_ms": 1065.0030225515366,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "e5272ae7e36bfa02a6208b1a06f30f291e21915ef27e14cb716c75bdd3fa7dfb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 899.7789490967989,
+            "prefill_tps": 34.4529064956653,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1064.8596165701747,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4405029.106072639,
+            "t_first_abs": 4405030.005851588,
+            "t_last_abs": 4405030.005851588,
+            "t_end_abs": 4405030.170932256
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "8a02d80cab6c3593f03bc5570f6647cfd56c82f406bccec0933ed5f727d4caf9",
+      "validated_content": "42",
+      "total_wall_ms": 1063.8233702629805,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "ddb3135c07ec19d06718d1124d5b6bab87bdfe6864bac199cbe9b4527c87aa43",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 897.3723016679287,
+            "prefill_tps": 34.54530515637812,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1063.6943941935897,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4405029.107463839,
+            "t_first_abs": 4405030.004836141,
+            "t_last_abs": 4405030.004836141,
+            "t_end_abs": 4405030.171158234
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "8598ba5670fddbcf3a12a1839c1c888e4f61cd4f84b5538af0661e00aef9bb78",
+      "validated_content": "42",
+      "total_wall_ms": 1152.4013141170144,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "75135cb0cab01f7b5d881780d17b469493f38bdc9cbd4400b29ed3dab3170ba3",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 1061.8282547220588,
+            "prefill_tps": 29.194928522705844,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1152.2812470793724,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4405029.109029669,
+            "t_first_abs": 4405030.170857924,
+            "t_last_abs": 4405030.170857924,
+            "t_end_abs": 4405030.261310916
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "c56ee2f6f83f1dbe5c50ba8610a483295e0d89858bc07686512d242607f2b104",
+      "validated_content": "42",
+      "total_wall_ms": 1150.446585379541,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "1223b269739d054b9787335104e9d22dc36da09b1b5fb47ebfb89ff9e6c3d15f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 1059.827795252204,
+            "prefill_tps": 29.250034900833136,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1150.2461433410645,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4405029.1106351,
+            "t_first_abs": 4405030.170462895,
+            "t_last_abs": 4405030.170462895,
+            "t_end_abs": 4405030.260881243
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "23e88c78b88cba4d02ebcd47c442ccb886e043aee866d01be04a8e46148783c7",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+      "total_wall_ms": 1333.6793472990394,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "fc2e0d52aadb1f101bbdcb448c6a7aa8c48307c09436cc3c6e93fc6586b7fa50",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 22,
+            "ttft_ms": 700.2862403169274,
+            "prefill_tps": 124.23491279883858,
+            "decode_tps": 34.76231227075315,
+            "total_wall_ms": 1333.305419422686,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+            "t_start_abs": 4405030.272574872,
+            "t_first_abs": 4405030.972861112,
+            "t_last_abs": 4405031.576963619,
+            "t_end_abs": 4405031.605880291
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "b6497f035d3cf206781f875717d0e3f15d1332b2e036fee217c8ddef93568777",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+      "total_wall_ms": 5491.045651957393,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "c05cd5bd2b09ea4fc7a2aa9bc4d34208dc7d32d79afbb9343ccc2a9753d415af",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 22,
+            "ttft_ms": 2715.013056062162,
+            "prefill_tps": 32.04404479961664,
+            "decode_tps": 7.901067101974258,
+            "total_wall_ms": 5490.802580490708,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+            "t_start_abs": 4405031.61736777,
+            "t_first_abs": 4405034.332380826,
+            "t_last_abs": 4405036.990249659,
+            "t_end_abs": 4405037.10817035
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "5703cbb23c2529bed0ab35fcc736a66a0a6c409c756ace0090095b49137b346f",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+      "total_wall_ms": 5580.084797926247,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "ac55bf4d20628ef321740353d85373cdc1c2877a7ef92ae95c044a2fd8af0478",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 22,
+            "ttft_ms": 2869.409571401775,
+            "prefill_tps": 30.31982637372274,
+            "decode_tps": 8.017657119154773,
+            "total_wall_ms": 5579.8526192083955,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+            "t_start_abs": 4405031.618914276,
+            "t_first_abs": 4405034.488323848,
+            "t_last_abs": 4405037.107542865,
+            "t_end_abs": 4405037.198766896
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "f12b3d7c440e64cd0f0b6e58257b794d7de645a9a96d40d9963eb6a0c8603706",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+      "total_wall_ms": 5579.306507483125,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "6bdf34c805154ba5d057626f3d4837020ac37a59e65920416171dfe9bf4d9703",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 22,
+            "ttft_ms": 2868.572501465678,
+            "prefill_tps": 30.32867391552695,
+            "decode_tps": 8.019747263990572,
+            "total_wall_ms": 5579.078913666308,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+            "t_start_abs": 4405031.62025448,
+            "t_first_abs": 4405034.488826982,
+            "t_last_abs": 4405037.107363366,
+            "t_end_abs": 4405037.199333394
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "8f0d19deddb9d39625c5cbade5ec41b090657f9bc72be6d3d4bbee2cf261fdf4",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+      "total_wall_ms": 5577.695623971522,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "363c27b07ad8366b0a63c8e6c74f3eccd936ed0791c02c371dc920ac6700750f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 22,
+            "ttft_ms": 2867.0057021081448,
+            "prefill_tps": 30.345248332093593,
+            "decode_tps": 8.01991142841786,
+            "total_wall_ms": 5577.490352094173,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+            "t_start_abs": 4405031.622232409,
+            "t_first_abs": 4405034.489238111,
+            "t_last_abs": 4405037.107720895,
+            "t_end_abs": 4405037.199722761
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

@@ -1,0 +1,55 @@
+{
+  "checked_utc": "2026-09-11T13:10:18.131062+00:00",
+  "scope": "Primary-source network reads and local read-only HEAD check. No clone/fetch/checkout/patch application, source or repository edits, build, VM access, inference, or weights download.",
+  "tested_baseline_preserved": "df03399b885831b2a1603b3abb0d8c156808e363",
+  "upstream_master": {
+    "sha": "5bda51bfbc62e64193221e639f6ad4e08767d760",
+    "html_url": "https://github.com/ggml-org/llama.cpp/commit/5bda51bfbc62e64193221e639f6ad4e08767d760",
+    "message": "metal : skip the empty half of the mul_mm_id token tile (#28301)\n\nkernel_mul_mm_id splits its NR1 = 32 token tile into two 16-row halves and skips\nthe upper half when the expert did not fill it, on both the tensor and simdgroup\npaths. The tB extents are corrected to (NK, NR1H) for the [NR1][NK] row-major tile.\n\nThe B tile is staged unconditionally, as on master: rows past nr1 restage a clamped\nduplicate of a valid row, lie in the output-row dimension so they never contribute\nto a valid row, and are dropped by the final store loop.\n\ntest-backend-ops: re-draw the expert ids between perf iterations of test_mul_mat_id\nso MoE perf numbers are not warm-cache, and add token-tile boundary coverage using\nn_used == n_mats, which routes every token to every expert so each expert receives\nexactly n rows; n = 32, 33, 47, 48, 49 reach mul_mm_id and leave a last tile of 32,\n1, 15, 16 and 17 rows.",
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-09-11T11:12:55Z"
+    }
+  },
+  "supplied_hf_head": {
+    "sha": "3b4c2f9dc4f3045b96b18620f50046be6ffc39be",
+    "lastModified": "2026-09-11T08:07:03.000Z",
+    "patch_files": [
+      "llama.cpp/patches/README.md",
+      "llama.cpp/patches/patch_llamacpp_v41.py"
+    ]
+  },
+  "supplied_patch_unchanged_from_weights_revision": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5",
+  "patch_sha256": "8699042d64765ab4b42f10a773b5903f53756d3aaeb0c147e49d14b9fdc26a28",
+  "patch_readme_sha256": "2ed2ec475fba94d18c2d21c855af1d5090ac27a4b98ff27c3f89fc31130f24ed",
+  "linked_pull_request": {
+    "url": "https://github.com/ggml-org/llama.cpp/pull/28696",
+    "number": 28696,
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "head_sha": "b12818a24407175d941e9299e7b5fb7874a654d9",
+    "head_repo": "vcruz305/llama.cpp",
+    "head_ref": "feat/deepseek-v41-convert",
+    "updated_at": "2026-09-11T12:51:17Z",
+    "changed_paths": [
+      "conversion/__init__.py",
+      "conversion/deepseek.py",
+      "gguf-py/gguf/constants.py"
+    ],
+    "body_states_runtime_absent": true
+  },
+  "source_findings": [
+    "Current upstream C++ architecture enum/name map/model dispatcher do not contain deepseek41 or deepseek_v41. The loader still throws for an architecture mapped to LLM_ARCH_UNKNOWN.",
+    "The untruncated upstream tree includes deepseek4 runtime but no V4.1 runtime path. This corroborates the exact registry/dispatcher checks, rather than relying on filenames alone.",
+    "The supplied patch and README are byte-identical to the preserved Q2 checkpoint revision. They change exactly converter registration/model logic and GGUF Python constants, with no C++ runtime.",
+    "The linked open draft PR has three conversion/Python-constant files only and explicitly says runtime support is absent."
+  ],
+  "conclusion": "No callable DeepSeek-V4.1 llama.cpp GGUF inference reference is present in checked official master or supplied patch/linked PR. Preserve the actual tested df03399b baseline unknown-architecture result. Quality/performance parity against llama.cpp remains unverified.",
+  "limits": [
+    "Source inspection, not a new build or inference test.",
+    "The result is limited to pinned official master, supplied HF patch, and its linked upstream PR. It does not prove absence in every third-party branch or another serving framework.",
+    "Moving refs may change after the captured check time."
+  ]
+}

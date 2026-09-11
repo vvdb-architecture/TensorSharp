@@ -1,0 +1,159 @@
+{
+  "scope": "Native GGUF logits versus retained F32-matrix-input reference; strict tolerance is reported, not relaxed.",
+  "final_native": {
+    "max_absolute_error": 2.7089203596115112,
+    "relative_l2": 0.14621571445483383,
+    "cosine": 0.9898177484742992,
+    "strict_allclose_atol_rtol_2e_5": false,
+    "argmax": 22,
+    "reference_argmax": 22,
+    "top5": [
+      22,
+      20,
+      21,
+      24,
+      19
+    ],
+    "reference_top5": [
+      22,
+      20,
+      21,
+      24,
+      19
+    ]
+  },
+  "generated_tokens": [
+    22,
+    1
+  ],
+  "expected_generated_tokens": [
+    22,
+    1
+  ],
+  "generated_tokens_match": true,
+  "traced_diagnostic": {
+    "execution": {
+      "scope": "Traced fresh-slot diagnostic after the untraced primary generation; not a performance measurement.",
+      "requested": true,
+      "complete": true,
+      "forward_complete": true,
+      "trace_coverage_scope": "Nonempty position-zero files only; architecture-specific completeness is checked by the guarded runner.",
+      "directory": "/workspace/deepseek41-work/final-smoke18-6b3/trace-after",
+      "prompt_tokens": [
+        0,
+        128803,
+        3085,
+        344,
+        223,
+        20,
+        940,
+        223,
+        20,
+        33,
+        19414,
+        418,
+        1438,
+        270,
+        1167,
+        16,
+        128804,
+        128822
+      ],
+      "primary_slot_id": 0,
+      "primary_n_past_before": 19,
+      "slot_id": 1,
+      "diagnostic_seconds": 6.019583941437304,
+      "n_past_after": 18,
+      "logits_path": "/workspace/deepseek41-work/final-smoke18-6b3/smoke.traced-first-logits.npy",
+      "trace_file_count": 384,
+      "bitwise_equal": true,
+      "max_absolute_error": 0.0,
+      "relative_l2": 0.0,
+      "cosine": 1.0,
+      "strict_allclose_atol_rtol_2e_5": true,
+      "argmax": 22,
+      "primary_argmax": 22,
+      "primary_slot_restored": true
+    },
+    "scope": "Fresh-slot traced graph may change fusion and is not the primary production-path comparison.",
+    "vs_primary": {
+      "max_absolute_error": 0.0,
+      "relative_l2": 0.0,
+      "cosine": 1.0,
+      "strict_allclose_atol_rtol_2e_5": true,
+      "argmax": 22,
+      "reference_argmax": 22,
+      "top5": [
+        22,
+        20,
+        21,
+        24,
+        19
+      ],
+      "reference_top5": [
+        22,
+        20,
+        21,
+        24,
+        19
+      ]
+    },
+    "vs_reference": {
+      "max_absolute_error": 2.7089203596115112,
+      "relative_l2": 0.14621571445483383,
+      "cosine": 0.9898177484742992,
+      "strict_allclose_atol_rtol_2e_5": false,
+      "argmax": 22,
+      "reference_argmax": 22,
+      "top5": [
+        22,
+        20,
+        21,
+        24,
+        19
+      ],
+      "reference_top5": [
+        22,
+        20,
+        21,
+        24,
+        19
+      ]
+    },
+    "logits_sha256": "1e835b54a343f6ea4c51a3c18e74df5651a3dae827ff118af918fc85c6d2289c",
+    "trace_coverage": {
+      "complete": true,
+      "required_files": 81,
+      "scope": "Per-layer attention/FFN outputs and terminal last-row logits, with exact F32 byte sizes; not every intermediate.",
+      "missing": [],
+      "wrong_sizes": []
+    },
+    "terminal_trace_matches_returned_logits": true
+  },
+  "old_native": {
+    "max_absolute_error": 2.7089203596115112,
+    "relative_l2": 0.14621571445483383,
+    "cosine": 0.9898177484742992,
+    "strict_allclose_atol_rtol_2e_5": false,
+    "argmax": 22,
+    "reference_argmax": 22,
+    "top5": [
+      22,
+      20,
+      21,
+      24,
+      19
+    ],
+    "reference_top5": [
+      22,
+      20,
+      21,
+      24,
+      19
+    ]
+  },
+  "old_native_artifact": {
+    "path": "/workspace/deepseek41-work/smoke-first-logits.f32",
+    "sha256": "5a18da68540ab4e298982aec3e09e9ad412add28132d967d7632de3982233336"
+  }
+}

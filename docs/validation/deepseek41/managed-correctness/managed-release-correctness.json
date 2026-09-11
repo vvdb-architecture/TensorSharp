@@ -1,0 +1,80 @@
+{
+  "commands": [
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "build",
+      "TensorSharp.Server.Host/TensorSharp.Server.Host.csproj",
+      "-c",
+      "Release",
+      "-p:TensorSharpSkipGgmlNative=true",
+      "-p:TensorSharpSkipMlxNative=true",
+      "-p:TensorSharpSkipCudaNative=true",
+      "-p:CudaArch=compute_86",
+      "--verbosity",
+      "quiet",
+      "--output",
+      "/workspace/deepseek41-work/server-v41-release"
+    ],
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "build",
+      "InferenceWeb.Tests/InferenceWeb.Tests.csproj",
+      "-c",
+      "Release",
+      "-p:TensorSharpSkipGgmlNative=true",
+      "-p:TensorSharpSkipMlxNative=true",
+      "-p:TensorSharpSkipCudaNative=true",
+      "-p:CudaArch=compute_86",
+      "--verbosity",
+      "quiet",
+      "--output",
+      "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-release"
+    ],
+    [
+      "/workspace/deepseek41-work/dotnet/dotnet",
+      "vstest",
+      "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-release/InferenceWeb.Tests.dll",
+      "--TestCaseFilter:Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video",
+      "--Logger:trx;LogFileName=managed-release-correctness.trx",
+      "--ResultsDirectory:/workspace/deepseek41-work/test-results"
+    ]
+  ],
+  "previous_host_before": {
+    "/workspace/deepseek41-work/server-v41-thinking/TensorSharp.Chat.dll": "e3151613a99b65132b203dd94d9ec75cedcdb35be0dd7d86c6be1b36881f158a",
+    "/workspace/deepseek41-work/server-v41-thinking/TensorSharp.Server.dll": "dd43c932a0da358075c480789a1555b08a5f635ef5fbba13b7299764506dd5ad",
+    "/workspace/deepseek41-work/server-v41-thinking/libGgmlOps.so": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88"
+  },
+  "previous_host_after": {
+    "/workspace/deepseek41-work/server-v41-thinking/TensorSharp.Chat.dll": "e3151613a99b65132b203dd94d9ec75cedcdb35be0dd7d86c6be1b36881f158a",
+    "/workspace/deepseek41-work/server-v41-thinking/TensorSharp.Server.dll": "dd43c932a0da358075c480789a1555b08a5f635ef5fbba13b7299764506dd5ad",
+    "/workspace/deepseek41-work/server-v41-thinking/libGgmlOps.so": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88"
+  },
+  "previous_host_unchanged": true,
+  "elapsed_seconds": 238.71136215887964,
+  "exit_code": 0,
+  "test_counters": {
+    "total": "3400",
+    "executed": "3400",
+    "passed": "3400",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "sha256": {
+    "/workspace/deepseek41-work/test-results/managed-release-correctness.trx": "34e0677aa95228a2db3aee1ec80979e940f031805c4023a58efdacfccb048b6c",
+    "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-release/InferenceWeb.Tests.dll": "563b5c7a769ca405aafd28d3ac2a757f2caf18c5405c785b3757e52433ba5bd4",
+    "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-release/TensorSharp.Chat.dll": "19ec3d2325480ccb9a193053baa12102b665b0c84613701da8c84eb68a7d9aa8",
+    "/workspace/TensorSharp/InferenceWeb.Tests/bin/managed-v41-release/libGgmlOps.so": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88",
+    "/workspace/deepseek41-work/server-v41-release/TensorSharp.Chat.dll": "19ec3d2325480ccb9a193053baa12102b665b0c84613701da8c84eb68a7d9aa8"
+  }
+}

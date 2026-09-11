@@ -1,0 +1,258 @@
+{
+  "scope": "Run the final native Q2_K smoke18 against the retained CPU oracle.\n\nRequires an exclusive GPU window after stopping the full-model HTTP server.\nThis is a GGUF/F32-input-reference comparison, not exact quantized-kernel,\noriginal-FP8-checkpoint, or llama.cpp parity. No CPU oracle is recomputed.\n",
+  "command": [
+    "/workspace/deepseek41-work/reference-venv/bin/python",
+    "/workspace/TensorSharp/eng/dsv41-smoke.py",
+    "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+    "--library",
+    "/workspace/deepseek41-work/native-v41-shared-pins-6b3b5ab3.so",
+    "--tokens",
+    "/workspace/deepseek41-work/smoke-tokens.json",
+    "--output",
+    "/workspace/deepseek41-work/final-smoke18-6b3/smoke.json",
+    "--backend",
+    "CUDA",
+    "--gpus",
+    "8",
+    "--context",
+    "4096",
+    "--ubatch",
+    "128",
+    "--threads",
+    "24",
+    "--cpu-moe",
+    "0",
+    "--steps",
+    "2",
+    "--trace-after-dir",
+    "/workspace/deepseek41-work/final-smoke18-6b3/trace-after"
+  ],
+  "explicit_environment": {
+    "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
+    "TS_DSV41_TP": "0",
+    "TS_DSV4_FA": "1",
+    "TS_DSV4_FUSED": "1",
+    "TS_DSV4_GATHER": "1",
+    "TS_DSV41_SPARSE_FA": "0",
+    "TS_DSV41_COMPACT_RAW_GATHER": "0",
+    "TS_CPU_MOE_THREADS": "24",
+    "TS_DSV41_ENGRAM_THREADS": "16",
+    "TS_DSV41_ENGRAM_WARM": "0"
+  },
+  "trace_mode": "fresh_slot_after_untraced_primary",
+  "removed_override_names": [
+    "NVIDIA_TF32_OVERRIDE",
+    "TS_DSV41_TRACE_DIR",
+    "TS_DSV4_HC_NATIVE"
+  ],
+  "gpu_processes_before": "",
+  "reference_provenance": {
+    "recorded_summary": {
+      "tokens": [
+        0,
+        128803,
+        3085,
+        344,
+        223,
+        20,
+        940,
+        223,
+        20,
+        33,
+        19414,
+        418,
+        1438,
+        270,
+        1167,
+        16,
+        128804,
+        128822
+      ],
+      "top_tokens": [
+        22,
+        20,
+        21,
+        24,
+        19,
+        25,
+        18,
+        23,
+        43,
+        6756
+      ],
+      "last_logits_l2": 1290.829833984375,
+      "cache_type": "model"
+    },
+    "layer_sequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39
+    ],
+    "trace_position_prefixes": {
+      "p000000": 660
+    },
+    "embedding_shape": [
+      18,
+      4,
+      5120
+    ],
+    "logits_shape": [
+      18,
+      129280
+    ],
+    "original_argv": null,
+    "log_top10_and_norm_match": true,
+    "norm_tolerance": 0.0009765625,
+    "unrecorded_fields": [
+      "CPU threads",
+      "matrix row-block size",
+      "creation-source hash"
+    ]
+  },
+  "checkpoint_identity": {
+    "source": "/workspace/deepseek41-work/final-smoke18-checkpoint-sha256.json",
+    "current_sizes_checked": true,
+    "current_weight_bytes_rehashed": false,
+    "retained_verification": {
+      "repository": "vcruz305/DeepSeek-V4.1-Flash-GGUF",
+      "revision": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5",
+      "metadata_url": "https://huggingface.co/api/models/vcruz305/DeepSeek-V4.1-Flash-GGUF/tree/8e0c4de3cb6519bfc11ed69dc87184b457a57bb5?recursive=false&expand=false",
+      "workers": 3,
+      "elapsed_seconds": 283.80043085850775,
+      "passed": true,
+      "shards": [
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+          "expected_bytes": 43072470848,
+          "expected_sha256": "e60df101ee5da1f391dba90aef527f19dac1487721b71af504227f089b4200fc",
+          "actual_sha256": "e60df101ee5da1f391dba90aef527f19dac1487721b71af504227f089b4200fc",
+          "passed": true,
+          "elapsed_seconds": 142.79728287737817
+        },
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00002-of-00007.gguf",
+          "expected_bytes": 44805480352,
+          "expected_sha256": "124ffa15b6b7ec9630715ad18752a4c3f371749647837b8c9d5f7eb52c4f73c0",
+          "actual_sha256": "124ffa15b6b7ec9630715ad18752a4c3f371749647837b8c9d5f7eb52c4f73c0",
+          "passed": true,
+          "elapsed_seconds": 148.63439510483295
+        },
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00003-of-00007.gguf",
+          "expected_bytes": 14935107904,
+          "expected_sha256": "4dd35b0b086cc0fb19d3a72afd8aed331317950e2257f37b9672702edc3f2453",
+          "actual_sha256": "4dd35b0b086cc0fb19d3a72afd8aed331317950e2257f37b9672702edc3f2453",
+          "passed": true,
+          "elapsed_seconds": 47.620509115979075
+        },
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00004-of-00007.gguf",
+          "expected_bytes": 44217904672,
+          "expected_sha256": "d24832f4c2f42340d5d4bf4d9b3277c861e0a0a9ccd25e94bda5581c5351f960",
+          "actual_sha256": "d24832f4c2f42340d5d4bf4d9b3277c861e0a0a9ccd25e94bda5581c5351f960",
+          "passed": true,
+          "elapsed_seconds": 146.63247286807746
+        },
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00005-of-00007.gguf",
+          "expected_bytes": 44804598176,
+          "expected_sha256": "34714c3880bde310207e3d12fa488d8d676f338ff635157fded8ec73e133efad",
+          "actual_sha256": "34714c3880bde310207e3d12fa488d8d676f338ff635157fded8ec73e133efad",
+          "passed": true,
+          "elapsed_seconds": 127.61532818991691
+        },
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00006-of-00007.gguf",
+          "expected_bytes": 44803713696,
+          "expected_sha256": "08dc941d26687cb51f736a4f1c3a2c4843fb1d79573164c645106711081f5faf",
+          "actual_sha256": "08dc941d26687cb51f736a4f1c3a2c4843fb1d79573164c645106711081f5faf",
+          "passed": true,
+          "elapsed_seconds": 129.94577101431787
+        },
+        {
+          "file": "DeepSeek-V4.1-Flash-Q2_K-00007-of-00007.gguf",
+          "expected_bytes": 27875485600,
+          "expected_sha256": "550bbdb94a69142abfa4b2f2db86ffe3dd6d4ca45eafbb6728f4fe40506fa6b9",
+          "actual_sha256": "550bbdb94a69142abfa4b2f2db86ffe3dd6d4ca45eafbb6728f4fe40506fa6b9",
+          "passed": true,
+          "elapsed_seconds": 89.5388152776286
+        }
+      ]
+    }
+  },
+  "inputs": {
+    "/workspace/deepseek41-work/native-v41-shared-pins-6b3b5ab3.so": {
+      "sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+      "bytes": 204523264
+    },
+    "/workspace/deepseek41-work/reference/q2-smoke18.log": {
+      "sha256": "10ebb42dc8940e75ccdccc8e344faa8dae52a9291e4caceec5a8571c060dc8e6",
+      "bytes": 1835
+    },
+    "/workspace/deepseek41-work/reference/q2-smoke18/logits.npy": {
+      "sha256": "f88ed583a541e03858ac90b22d0e22192336ebff2e24f7ac845d162749383562",
+      "bytes": 9308288
+    },
+    "/workspace/deepseek41-work/smoke-tokens.json": {
+      "sha256": "b7831ba96698077861c56354168402caff12466f7e8830922b0d6127b1695f29",
+      "bytes": 98
+    },
+    "/workspace/TensorSharp/eng/dsv41-smoke.py": {
+      "sha256": "e30c05c722cf0d0488f67f3b457b4e5547ab12fe9f31ec5e092ee5964d22cdb7",
+      "bytes": 13179
+    },
+    "/workspace/deepseek41-work/final-smoke18-runner.py": {
+      "sha256": "d3c57482d19ed59a4ba0bf06632ee2dec70c725c0b16f8cb94df38a712f3f100",
+      "bytes": 15220
+    },
+    "/workspace/deepseek41-work/final-smoke18-checkpoint-sha256.json": {
+      "sha256": "b1f3d500acfedb8de6b3217b573b8c46094911c44d059f8f078b488f7e646f35",
+      "bytes": 2903
+    },
+    "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.engram.bin": {
+      "sha256": "dd5977528f1bf40bd159f6a391716b3041388d00f3a257ecfbcfcff812716929",
+      "bytes": 517896
+    },
+    "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.config.json": {
+      "sha256": "b495df1f9ba9d51eb3f89c68f63eeac4b480614358cfc9b644c049de38e4f3c4",
+      "bytes": 6298
+    }
+  }
+}

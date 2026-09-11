@@ -1,0 +1,38 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "phase": "long",
+  "runs": [
+    {
+      "label": "long",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "long_8k,long_32k",
+        "--concurrency",
+        "1",
+        "--repeats",
+        "3",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-long.json"
+      ],
+      "started_epoch": 1789112089.3201945,
+      "wall_seconds": 311.4342975616455,
+      "exit_code": 1,
+      "output": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-long.json",
+      "log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-long.log"
+    }
+  ]
+}

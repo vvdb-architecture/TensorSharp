@@ -1,0 +1,47 @@
+{
+  "scope": "Local mocked orchestration, no HTTP/GPU or model inference. Original runner AST changes only workspace root; subprocess calls simulated.",
+  "checks": [
+    {
+      "name": "pass",
+      "pass": true,
+      "attempted": [
+        "quality",
+        "steady",
+        "long"
+      ],
+      "final_run_complete": true,
+      "all_passed": true
+    },
+    {
+      "name": "first-fails",
+      "pass": true,
+      "attempted": [
+        "quality",
+        "steady",
+        "long"
+      ],
+      "final_run_complete": true,
+      "all_passed": false
+    },
+    {
+      "name": "zero-exit-missing-report",
+      "pass": true,
+      "attempted": [
+        "quality",
+        "steady",
+        "long"
+      ],
+      "final_run_complete": true,
+      "all_passed": false
+    },
+    {
+      "name": "exception",
+      "pass": true,
+      "attempted": [
+        "quality"
+      ],
+      "final_run_complete": false,
+      "all_passed": false
+    }
+  ]
+}

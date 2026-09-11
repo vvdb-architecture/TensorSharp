@@ -1,0 +1,56 @@
+{
+  "scope": "Test-only deterministic paired admission; original assertions unchanged. No Runtime code or model changes.",
+  "focused_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release -p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true -p:TensorSharpSkipCudaNative=true --filter 'FullyQualifiedName~RetainedFusedCacheTests' --logger 'trx;LogFileName=retained-cache-admission-focused.trx' --results-directory /tmp/dsv41-grammar-tests --verbosity quiet",
+  "focused": {
+    "path": "/tmp/dsv41-grammar-tests/retained-cache-admission-focused.trx",
+    "sha256": "33e1656b5ca4bf205b87ce0539a8e779c0d233b8177476c552b889c22a73ff70",
+    "counters": {
+      "total": "28",
+      "executed": "28",
+      "passed": "28",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "full_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release --no-build --no-restore --filter 'Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video' --logger 'trx;LogFileName=retained-cache-admission-managed.trx' --results-directory /tmp/dsv41-grammar-tests --verbosity quiet",
+  "full": {
+    "path": "/tmp/dsv41-grammar-tests/retained-cache-admission-managed.trx",
+    "sha256": "2cd02080cb7ee4378805e2dd03c519035e9792bcd1db5a24fc67c3c7c6bd93b6",
+    "counters": {
+      "total": "3635",
+      "executed": "3635",
+      "passed": "3635",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "source_sha256": {
+    "InferenceWeb.Tests/RetainedFusedCacheTests.cs": "4409af079c39df3c5a60b805310ab03cc15c985c95b1ad7fad321aa3b32cbe08"
+  },
+  "runtime_sha256": "1542edf883c89fb5a53c93dadabff111316fd1ae49582acd74e48f862e3b0e09",
+  "runtime_unchanged_from_local3597": true,
+  "test_assembly_sha256": "7e113ec6ed24b0ab464be6b09312c56f76c0e4b35f97e903dd7ab2608f15bdec",
+  "vm_status": "held during qualified placement benchmark; no VM rerun yet"
+}

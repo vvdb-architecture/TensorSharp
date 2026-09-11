@@ -1,0 +1,685 @@
+{
+  "backend": "CPU",
+  "gpus": 1,
+  "tensor_parallel": 0,
+  "library_sha256": "ef7473574eedc9ee50906de7d4204864c65afb6bc2a58a330be42f14525dd115",
+  "test_hooks_required": true,
+  "checks": [
+    {
+      "name": "attach",
+      "passed": true
+    },
+    {
+      "name": "second_slot",
+      "passed": true
+    },
+    {
+      "name": "partial_graph_failure",
+      "passed": true
+    },
+    {
+      "name": "partial_graph_position",
+      "passed": true
+    },
+    {
+      "name": "partial_graph_sticky",
+      "passed": true
+    },
+    {
+      "name": "partial_graph_same_shape_recovery",
+      "passed": true
+    },
+    {
+      "name": "partial_graph_recovery_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "text_engram_position0_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "text_engram_position0_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_select_other",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_engram_position0_select_original",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_reset_position",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position0_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_engram_position3_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "text_engram_position3_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_select_other",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_engram_position3_select_original",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_reset_position",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "text_engram_position3_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_compute_position0_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "text_compute_position0_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_select_other",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_compute_position0_select_original",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_reset_position",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position0_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_compute_position3_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "text_compute_position3_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_select_other",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "text_compute_position3_select_original",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_reset_position",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "text_compute_position3_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "vision_engram_position0_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "vision_engram_position0_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_select_other",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_engram_position0_select_original",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_reset_position",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position0_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_engram_position3_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "vision_engram_position3_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_select_other",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_engram_position3_select_original",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_reset_position",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "vision_engram_position3_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_compute_position0_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "vision_compute_position0_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_select_other",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_compute_position0_select_original",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_reset_position",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position0_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_compute_position3_prepare_other",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_other_prefix",
+      "passed": true
+    },
+    {
+      "name": "select_failed_slot",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_injected_failure",
+      "passed": true,
+      "note": "If this fails, ensure the native library was built with test hooks enabled"
+    },
+    {
+      "name": "vision_compute_position3_committed_prefix",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_sticky_False",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_sticky_True",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_rewind_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_still_failed_after_rewind",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_select_other",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_other_prefix_preserved",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_other_slot_healthy",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_other_slot_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "vision_compute_position3_select_original",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_reset_position",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_reset_recovered",
+      "passed": true
+    },
+    {
+      "name": "vision_compute_position3_reset_oracle",
+      "passed": true,
+      "max_absolute_error": 3.5762786865234375e-06,
+      "relative_l2": 1.0150906746275723e-06
+    },
+    {
+      "name": "healthy_speculative_rejected",
+      "passed": true
+    },
+    {
+      "name": "invalid_text_token_retryable",
+      "passed": true
+    },
+    {
+      "name": "invalid_visual_input_retryable",
+      "passed": true
+    },
+    {
+      "name": "invalid_visual_input_retryable",
+      "passed": true
+    },
+    {
+      "name": "valid_after_invalid_input",
+      "passed": true
+    },
+    {
+      "name": "validation_errors_preserve_fresh_state",
+      "passed": true,
+      "max_absolute_error": 3.337860107421875e-06,
+      "relative_l2": 1.116020257541095e-06
+    },
+    {
+      "name": "free_other_slot",
+      "passed": true
+    }
+  ]
+}

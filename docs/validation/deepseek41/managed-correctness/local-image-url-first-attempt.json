@@ -1,0 +1,31 @@
+{
+  "stage": "first local image-URL validation full lane",
+  "counts": {
+    "total": "3620",
+    "executed": "3620",
+    "passed": "3619",
+    "failed": "1",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "trx": "/tmp/dsv41-grammar-tests/deepseek41-image-url-managed-first-attempt.trx",
+  "trx_sha256": "bbcf8aa9eefec1ca8b247bc7feacb788dfd80a62b459b41320fcad10f3cee0e4",
+  "failures": [
+    {
+      "test": "InferenceWeb.Tests.TensorAgentMauiProjectTests.Head_RetainsBonsaiNativeEntryPointsInRelease",
+      "message": "Assert.Equal() Failure: Collections differ\n                                                               \u2193 (pos 51)\nExpected: [\u00b7\u00b7\u00b7, \"TSGgml_Dsv4SlotAlloc\", \"TSGgml_Dsv4SlotFree\", \"TSGgml_Dsv4TestCpuThreads\", \"TSGgml_Dsv4VocabSize\", \"TSGgml_FlashAttnDecodeF32\", \u00b7\u00b7\u00b7]\nActual:   [\u00b7\u00b7\u00b7, \"TSGgml_Dsv4SlotAlloc\", \"TSGgml_Dsv4SlotFree\", \"TSGgml_Dsv4VocabSize\", \"TSGgml_FlashAttnDecodeF32\", \"TSGgml_FusedActMulF32\", \u00b7\u00b7\u00b7]\n                                                               \u2191 (pos 51)"
+    }
+  ],
+  "diagnosis": "The retained-symbol test scans raw native source and included TSGgml_Dsv4TestCpuThreads despite its TSG_GGML_TEST_HOOKS guard. That diagnostic is absent in production; adding it to the iOS manifest would be incorrect. The test scanner needs to exclude the explicitly test-only scope while retaining production export checks.",
+  "correction": "The new observer uses the test-only TSG_TEST_EXPORT alias within its existing guard. The production TSG_EXPORT scanner and iOS manifest remain unchanged; subsequent focused and full tests passed."
+}

@@ -1,0 +1,171 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+info: TensorSharp.Server.Host.Startup[1030]
+      Logging initialized: minimumLevel=Information fileLogging=True logDir=/workspace/deepseek41-work/existing-regressions/final3651-native6b3-qwen3-json-chunks/final-chunk64-file-logs
+info: TensorSharp.Server.Host.Startup[1010]
+      Speculative decoding configured via CLI: enabled=False algorithm=auto maxDraft=8 pMin=auto (per algorithm) draftModel=(none) (engages for solo sequences)
+info: TensorSharp.Server.Host.Startup[1010]
+      Web UI disabled (--no-webui / TS_NO_WEBUI): wwwroot is not served; API endpoints and /uploads remain available
+info: TensorSharp.Server.Host.Startup[1010]
+      Prefix cache disabled (--no-prefix-cache): the first message of this process will prefill the whole shared prompt, and nothing is kept between launches.
+info: TensorSharp.Server.ModelService[1400]
+      Loading model Qwen3-0.6B-Q8_0.gguf (mmproj=, backend=ggml_cuda, fullPath=/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf, mmprojPath=(none))
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Model: qwen3, Layers=28, Hidden=1024, Heads=16, KVHeads=8, HeadDim=128, Vocab=151936
+RoPE base=1000000, scale=1, type=, origCtx=0, eps=1E-06
+Loading model weights... done (113 F32 tensors, 197 quantized tensors)
+  Quantized: 603 MB (603 MB file-backed), F32: 0 MB
+  Fused projections: 28 QKV
+  Fused projections: 28 Gate+Up
+  Device-resident quantized weights: 603 MB across 113 tensors
+Context length: using MAX_CONTEXT=8192; model declares qwen3.context_length=40960.
+info: TensorSharp.Server.ModelService[1401]
+      Loaded model Qwen3-0.6B-Q8_0.gguf (architecture=qwen3, backend=ggml_cuda, modelBytes=639446688, mmproj=(none), mmprojBytes=0) in 1798.5 ms
+info: TensorSharp.Server.Host.Startup[1401]
+      Startup model loaded: Qwen3-0.6B-Q8_0.gguf architecture=qwen3 backend=ggml_cuda mmproj=(none)
+  Warming up kernels (decode + prefill)...
+    Decode warmup: 248.5 ms
+    Prefill warmup (2048 tokens): starting...
+    Prefill warmup (2048 tokens): completed in 3818.0 ms
+info: TensorSharp.Server.Host.Startup[1010]
+      Kernel warmup completed in 4098.5 ms
+info: TensorSharp.Server.Host.Startup[1020]
+      Supported backends: cuda, ggml_cuda, ggml_cpu, cpu
+info: TensorSharp.Server.Host.Startup[1010]
+      Server configuration: hostedModel=/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf hostedMmProj=(none) defaultMaxTokens=1024 (server cap) videoFrames=model-default videoFps=model-default videoSize=model-default videoSteps=model-default videoMode=auto videoSampleFps=1 videoMaxFrames=0 listen=http://127.0.0.1:5011
+info: TensorSharp.Server.Host.Startup[1010]
+      Default sampling: temperature=0.8 topK=40 topP=0.9 minP=0 repeatPenalty=1.1 repeatLastN=64 presencePenalty=0 frequencyPenalty=0 seed=-1 stopSequences=(none)
+info: TensorSharp.Server.Host.Startup[1010]
+      Sampling precedence: config (nothing pinned — every request keeps full control)
+info: TensorSharp.Server.Host.Startup[1000]
+      Starting TensorSharp.Server on http://127.0.0.1:5011
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /                          - Web UI (index.html)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /health                    - Health check
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /api/tags                  - List hosted models (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/show                  - Show model details (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/generate              - Generate text (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/chat/ollama           - Chat completion (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /v1/chat/completions       - Chat completion (OpenAI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /v1/models                 - List hosted models (OpenAI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/chat                  - Chat (Web UI SSE)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/models/load           - Reload hosted model (Web UI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /api/models                - Show hosted model state (Web UI)
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:5011
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/final/bin
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP GET /v1/models from 127.0.0.1 (content-type=, content-length=(none))
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP GET /v1/models -> 200 in 44.7 ms (response content-type=application/json; charset=utf-8)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=516)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-2b1011b8b40f4b3fb2c70 model=Qwen3-0.6B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c4-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[0]
+      InferenceEngine[qwen3] execution capability report:
+      batched paged attention: available (multimodal peels off to per-sequence)
+      per-sequence fused concurrent decode: available (+ token-batched fused decode)
+      N=1 single-sequence fused fast path: available
+      Speculative decoding: off (not requested)
+      KV snapshot/swap fallback: available (unbounded prefix reuse)
+      retained fused-cache continuation: unavailable (model does not support retained holders)
+info: TensorSharp.Server.ModelService[0]
+      InferenceEngine constructed for fingerprint qwen3|arch=qwen3|L=28|H=16|KV=8|D=128|dtype=f16 (blocks=256, blockSize=256, kvCapacityTokens=65536, maxBatched=256, config=environment)
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen3 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c4-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen3', prompt length=420
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen3', prompt length=201
+info: TensorSharp.Server.ModelService[0]
+      BatchExecutor execution plan: SingleSequenceFused
+[cb] SOLO step n=1 owner=<none> work=[chat-a6c3ad69347c483489ecd64cdaf386c4:P@0]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:P@64]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@90]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@91]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@92]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@93]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@94]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@95]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@96]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@97]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@98]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@99]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@100]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@101]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@102]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@103]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@104]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@105]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@106]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@107]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@108]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@109]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@110]
+[cb] SOLO step n=1 owner=chat-a6c3ad69347c483489ecd64cdaf386c4 work=[chat-a6c3ad69347c483489ecd64cdaf386c4:D@111]
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=21 promptTokens=90 kvReused=0 kvReusePercent=0.0 ttftMs=479 elapsedMs=1072.0 tokensPerSec=19.56 finishReason=eos assistantOutput="{\n\n"name": "Mars",\n"moons": 2,\n"habitable": false\n}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 1492.8 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=516)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-0aff4d2ad10b4fd29e61a model=Qwen3-0.6B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c4-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen3 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c4-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen3', prompt length=420
+[cb] SOLO step n=1 owner=<none> work=[chat-d63e26e16e2a416eb1255f86d465409d:P@0]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:P@64]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@90]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@91]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@92]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@93]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@94]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@95]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@96]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@97]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@98]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@99]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@100]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@101]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@102]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@103]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@104]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@105]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@106]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@107]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@108]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@109]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@110]
+[cb] SOLO step n=1 owner=chat-d63e26e16e2a416eb1255f86d465409d work=[chat-d63e26e16e2a416eb1255f86d465409d:D@111]
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=21 promptTokens=90 kvReused=0 kvReusePercent=0.0 ttftMs=379 elapsedMs=498.6 tokensPerSec=42.12 finishReason=eos assistantOutput="{\n\n"name": "Mars",\n"moons": 2,\n"habitable": false\n}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 503.5 ms (response content-type=text/event-stream)
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
