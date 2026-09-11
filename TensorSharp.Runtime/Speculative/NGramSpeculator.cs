@@ -143,7 +143,11 @@ namespace TensorSharp.Runtime.Speculative
             // draft nothing rather than mine a corpus that is not this
             // sequence's.
             if (committed != ctx.Position)
+            {
+                if (s_debug)
+                    System.Console.Error.WriteLine($"[ngram] corpus {committed} != position {ctx.Position}: no draft");
                 return 0;
+            }
 
             int required = RequiredMatchLength();
             int longest = Math.Min(_maxNgram, committed + 1);
@@ -173,8 +177,13 @@ namespace TensorSharp.Runtime.Speculative
             return 0;
         }
 
+        private static readonly bool s_debug =
+            System.Environment.GetEnvironmentVariable("TS_NGRAM_DEBUG") == "1";
+
         public void Commit(int[] tokens, float[] hRows, int startPos)
         {
+            if (s_debug && tokens != null && startPos != _tokens.Count)
+                System.Console.Error.WriteLine($"[ngram] commit of {tokens.Length} at {startPos} while corpus holds {_tokens.Count}");
             if (tokens == null || tokens.Length == 0)
                 return;
             // Commit is the loop's single source of truth for "these tokens are

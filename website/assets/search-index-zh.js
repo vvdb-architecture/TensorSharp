@@ -51,6 +51,7 @@ window.SEARCH_INDEX_ZH = [
   { t: "约 30 秒快速上手：Gemma 4 E4B Q8_0（原生 GGML）", p: "文本与 LLM 模型", u: "models-text.html#gemma4-fast-lane", s: "推荐公开 E4B Q8_0 文件、原生构建、CLI/Server 命令、后端选择与可选 mmproj。", k: "gemma4 e4b q8 快速上手 30 秒 快路径 原生 ggml cuda metal vulkan mmproj" },
   { t: "DeepSeek V4 Flash（284B MoE）", p: "文本与 LLM 模型", u: "models-text.html#deepseek4", s: "压缩稀疏注意力的 284B MoE，三种整模型执行器（直连 CUDA、原生 ggml、纯 C# CPU），跨 GPU 自动切分，并支持 DSpark 推测解码。", k: "deepseek deepseek4 v4 flash 284b moe dspark draft-model 切分 gguf 分片 1m 上下文" },
   { t: "GLM 5.x（744B-A40B MoE）", p: "文本与 LLM 模型", u: "models-text.html#glm", s: "带权重吸收的 MLA 加 DeepSeek 稀疏注意力的 lightning indexer，256 个路由专家 top-8，6 分片的 split GGUF，一个原生 ggml 整模型执行器与一条 100% 托管的逐算子路径，上下文按加载后实际空闲的显存来定。", k: "glm glm-dsa glm5 glm 5.2 744b a40b moe mla 潜在注意力 dsa 稀疏 lightning indexer 分片 gguf 1m 上下文 n-cpu-moe tp 槽位 批处理 融合 解码 MAX_CONTEXT" },
+  { t: "Bonsai Q1_0（仅本地旁加载）", p: "文本与 LLM 模型", u: "models-text.html#bonsai", s: "两个哈希钉住的 Q1_0 文件，名字相同但架构不同——一个是稠密 Qwen 3 解码器，一个是稠密 Qwen 3.5 混合架构。GGUF 中没有发布方 URL 或 license，因此没有可下载的东西。", k: "bonsai q1_0 1-bit 旁加载 导入 sha256 哈希 钉住 qwen3 qwen35 gatedeltanet tensoragent 仅文本" },
   { t: "多模态：图像、视频、音频、PDF", p: "文本与 LLM 模型", u: "models-text.html#multimodal", s: "Gemma 4 支持图像/视频/音频；其他视觉家族支持图像；CLI/Web UI 支持 PDF 文本提取或页面图像。", k: "vision 视觉 图像 音频 视频 mmproj 投影器 pdf 文档" },
   { t: "思考 / 推理模式", p: "文本与 LLM 模型", u: "models-text.html#thinking", s: "Qwen、Gemma 4、GPT OSS、Nemotron-H 带 think 标签的结构化思维链。", k: "reasoning 推理 思维链 think cot" },
   { t: "工具调用 / 函数调用", p: "文本与 LLM 模型", u: "models-text.html#toolcalling", s: "模型调用用户自定义工具；跨三种 API 风格的多轮。", k: "functions 函数 工具 agent 智能体" },
@@ -113,6 +114,7 @@ window.SEARCH_INDEX_ZH = [
 
   { t: "连续批处理与分页 KV 缓存", p: "高级", u: "advanced.html#continuous-batching", s: "vLLM 式分页 KV 池、块哈希前缀共享、迭代级调度器。", k: "vllm 分页注意力 调度器 批处理" },
   { t: "分页注意力", p: "高级", u: "advanced.html#paged-kv", s: "原生 TSGgml_PagedAttentionForward 在 Metal/CUDA 上驱动 ggml_flash_attn_ext。", k: "flash 闪存注意力 kv 块" },
+  { t: "共享前缀 checkpoint", p: "高级", u: "advanced.html#prefix-checkpoints", s: "所有会话共享的那段提示词末尾的模型状态会被 checkpoint 并克隆进每个新会话，于是新会话只需重新 prefill 自己的那条消息；宿主还可让它跨进程重启存活。", k: "prefix checkpoint 前缀 检查点 TS_PREFIX_CHECKPOINTS IPrefixCheckpointStore 保留 融合 缓存 TS_RETAINED_FUSED_CACHE TS_KV_INITIAL_TOKENS ttft 首 token 预热 gemma4 qwen35 tensoragent" },
   { t: "MTP / NextN 推测解码", p: "高级", u: "advanced.html#mtp", s: "草稿头提出 token；主干一次批量前向验证。--spec。", k: "speculative 推测 解码 草稿 eagle nextn qwen gemma" },
   { t: "性能优化", p: "高级", u: "advanced.html#perf", s: "保留 E4B 语义的融合 GPU decode/prefill、原生量化计算、批量 MoE 与 KV 前缀复用。", k: "fused 融合 内核 速度 优化 gpu solo prefill chunk 独占 gemma4 e4b ple 共享 kv n1" },
   { t: "内存优化", p: "高级", u: "advanced.html#memory", s: "零拷贝 mmap 权重、最佳匹配池、SSD KV 溢出、KV 编解码器。", k: "memory 内存 mmap 占用 ram turboquant q2 q4 q8 paged-kv-quant-bits kv 编解码器" },
@@ -131,6 +133,7 @@ window.SEARCH_INDEX_ZH = [
 
   { t: "同台对比 vs llama.cpp", p: "基准测试", u: "benchmarks.html#head-to-head", s: "纯 .NET 的 TensorSharp 在相同 GGUF + GPU 下、CUDA 与 Vulkan 两个后端上与 llama.cpp 互有胜负：E4B 与 2-bit Qwen 3.6 35B-A3B MoE 在 CUDA 上 prefill 1.28× / TTFT 1.27×（多轮最高 1.49×）；12B 在 Vulkan 上 decode 1.21×；四个模型中有三个的 CUDA decode 持平或更快。", k: "llama.cpp 对比 更快 加速 几何平均 moe prefill ttft 多轮 decode 持平 cuda vulkan vs versus" },
   { t: "基准测试", p: "基准测试", u: "benchmarks.html#head-to-head", s: "在相同 GGUF 文件与硬件上对比 llama.cpp 的同台评测。", k: "performance 性能 数字 吞吐 每秒 token" },
+  { t: "Apple Silicon：ggml_metal 对比 llama.cpp", p: "基准测试", u: "benchmarks.html#metal", s: "在 M5 Pro 上以相同 GGUF 与 llama-bench 对比 prefill 与 decode，找到的四处计算图构建差距，以及每一处的实际收益（单个单元最高 +12.6%，无任何单元回退）。", k: "metal apple silicon m5 macos ios llama-bench prefill decode pp512 pp2048 pp8192 tg128 融合 norm add qkv 滑动窗口 基准" },
   { t: "Muse-Glimmer 30B，带与不带 DFlash", p: "基准测试", u: "benchmarks.html#muse-glimmer", s: "在单张 RTX PRO 6000 Blackwell 上，DFlash 块级草稿器的 decode 与 llama.cpp 对比，提示长度从 60 到 124K token。", k: "muse glimmer dflash draft-model 投机 decode 贪心 基准 rtx pro 6000 blackwell" },
   { t: "GLM-5.2 744B：规模的另一端", p: "基准测试", u: "benchmarks.html#glm", s: "3x RTX PRO 6000 上，GLM-5.2-UD-IQ2_XXS 与 llama.cpp 背靠背对比：pp2048 从 763.1 到 918.9 t/s（TS_GLM_UBATCH=2048 时 1145.8），tg64 从 42.2 到 43.7，且在同一后端上逐 token 一致。", k: "glm 5.2 基准 llama.cpp pp2048 pp4096 tg64 ubatch 张量并行 n-cpu-moe 744b" },
   { t: "MiniMax-H3：视频与音频一次生成", p: "基准测试", u: "benchmarks.html#minimax-h3", s: "M5 Pro / ggml_metal，22 帧、8 步、同一随机种子，对比 stable-diffusion.cpp：256x256 为 20.9 秒对 49.3 秒（2.4 倍），640x384 为 63.1 秒对 108.5 秒（1.7 倍）。先调步数，再调分辨率，然后是帧数与参考数量——超过约四个参考之后，主导耗时的是 Qwen3-VL 文本编码器而不是去噪器。", k: "minimax h3 benchmark 基准 速度 stable-diffusion.cpp sd.cpp 视频 音频 步数 参考 去噪 metal m5" },

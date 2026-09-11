@@ -62,7 +62,15 @@ public class LiveCacheRewindTests
             lcp++;
 
         if (prompt.Count <= lcp)
-            return 0;
+        {
+            // The cache holds the whole prompt: keep all but its last token and
+            // rewind the rest, which is only possible for a model that can rewind.
+            if (!canTruncate)
+                return 0;
+            lcp = prompt.Count - 1;
+            if (lcp <= 0)
+                return 0;
+        }
         if (lcp == liveLen)
             return liveLen;
 
@@ -159,14 +167,15 @@ public class LiveCacheRewindTests
     }
 
     [Fact]
-    public void APromptWithNoNewSuffix_IsDeclined()
+    public void APromptWithNoNewSuffix_RewindsOneTokenSoThereIsSomethingToForward()
     {
-        // Nothing left to forward. Adopting would leave the sequence with no work and
-        // the caller expecting a token.
+        // Nothing left to forward as-is: the cache holds exactly this prompt. Adopting
+        // it whole would leave the sequence with no work and the caller expecting a
+        // token, so the last prompt token is given back to the model instead.
         List<int> live = Tokens(1000);
         List<int> prompt = Tokens(1000);
 
-        Assert.Equal(0, Decide(prompt, live, pooledCap: 512, canTruncate: true));
+        Assert.Equal(999, Decide(prompt, live, pooledCap: 512, canTruncate: true));
     }
 
     [Fact]
@@ -178,5 +187,33 @@ public class LiveCacheRewindTests
         List<int> prompt = Tokens(1000, seed: 7);
 
         Assert.Equal(0, Decide(prompt, live, pooledCap: 512, canTruncate: true));
+    }
+
+    [Fact]
+    public void APromptTheCacheAlreadyHoldsEntirely_RewindsToItsLastToken()
+    {
+        // The same question asked again in a new chat, or a regenerated turn: the
+        // cache holds the prompt AND the answer it produced. Everything up to the
+        // prompt's last token is kept; that token is re-forwarded for fresh logits.
+        var prompt = Tokens(1000);
+        var live = new List<int>(prompt) { 9001, 9002, 9003 };   // the answer
+        Assert.Equal(999, Decide(prompt, live, pooledCap: 512, canTruncate: true));
+    }
+
+    [Fact]
+    public void APromptTheCacheAlreadyHoldsEntirely_IsStillBoundedByTheRewindLimit()
+    {
+        var prompt = Tokens(1000);
+        var live = new List<int>(prompt);
+        live.AddRange(Tokens(40, seed: 7));   // a long answer: 41 tokens back is too far
+        Assert.Equal(0, Decide(prompt, live, pooledCap: 512, canTruncate: true));
+    }
+
+    [Fact]
+    public void AModelThatCannotRewind_DeclinesAPromptTheCacheAlreadyHoldsEntirely()
+    {
+        var prompt = Tokens(1000);
+        var live = new List<int>(prompt) { 9001 };
+        Assert.Equal(0, Decide(prompt, live, pooledCap: 0, canTruncate: false));
     }
 }

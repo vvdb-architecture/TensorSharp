@@ -31,7 +31,8 @@ namespace TensorSharp.Runtime.Scheduling
             SamplingConfig samplingConfig,
             object userTag = null,
             string mediaFingerprint = null,
-            IReadOnlyList<int> cacheBreakpoints = null)
+            IReadOnlyList<int> cacheBreakpoints = null,
+            int sharedPrefixTokens = 0)
         {
             if (promptTokens == null) throw new ArgumentNullException(nameof(promptTokens));
             if (promptTokens.Count == 0) throw new ArgumentException("Prompt must be non-empty.", nameof(promptTokens));
@@ -65,7 +66,23 @@ namespace TensorSharp.Runtime.Scheduling
             SubmittedAt = DateTime.UtcNow;
             UserTag = userTag;
             MediaFingerprint = string.IsNullOrEmpty(mediaFingerprint) ? null : mediaFingerprint;
+            // At least one prompt token has to follow the prefix, or there is nothing
+            // to forward from a clone of it.
+            SharedPrefixTokens = Math.Clamp(sharedPrefixTokens, 0, Math.Max(0, promptTokens.Count - 1));
         }
+
+        /// <summary>
+        /// How many leading prompt tokens are the prefix every conversation on this
+        /// host shares (system prompt, tool schemas, skill descriptions), or 0 when
+        /// the caller did not say. The executor takes a checkpoint of the model's
+        /// state at exactly this position and starts later requests with the same
+        /// prefix from a clone of it. See <c>IBatchedPagedModel.SupportsPrefixCheckpoints</c>.
+        /// </summary>
+        public int SharedPrefixTokens { get; }
+
+        /// <summary>Set once the executor has taken (or found) a checkpoint for this
+        /// sequence's shared prefix, so the prefill stops aligning to it.</summary>
+        internal bool PrefixCheckpointTaken { get; set; }
 
         /// <summary>Monotonic submission sequence number. Used as FCFS tiebreaker
         /// when multiple sequences share the same priority.</summary>
@@ -173,6 +190,11 @@ namespace TensorSharp.Runtime.Scheduling
         /// hits) at admission time. Diagnostic only.</summary>
         public int PrefixCacheReusedTokens { get; internal set; }
 
+        /// <summary>Whether the executor has reserved this request's K/V — prompt plus
+        /// generation budget — on the cache it runs in. Set by the FIRST prefill chunk,
+        /// which for a request continuing an adopted cache is not at token zero.</summary>
+        internal bool PrefillReservationTaken { get; set; }
+
         /// <summary>Cumulative NextN/MTP speculative-decoding counters for this
         /// request, attached by the executor when speculation arms. Null when
         /// the sequence never ran speculatively. Diagnostic only; the engine
@@ -235,6 +257,9 @@ namespace TensorSharp.Runtime.Scheduling
             // continuation claim is stale (its blocks were freed and the model's live
             // cache has since moved on), so drop it and let admission re-decide.
             UsesLiveCacheContinuation = false;
+            // And it reserves its K/V again on its first chunk back: the cache it ran in
+            // may have been released with it.
+            PrefillReservationTaken = false;
         }
 
         /// <summary>Abandon a planned live-cache continuation (see

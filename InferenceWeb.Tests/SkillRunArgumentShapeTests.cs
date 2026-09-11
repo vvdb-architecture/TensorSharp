@@ -72,6 +72,8 @@ public class SkillRunArgumentShapeTests : IDisposable
         // The tool's own description must mention args — a model that reads only the
         // summary line still has to learn that arguments are possible at all.
         Assert.Contains("args", run.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("do not call cd or shell", run.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("do not read or copy a bundled script", run.Description, StringComparison.OrdinalIgnoreCase);
 
         // And `path` must say what does NOT belong in it, because the natural mistake is
         // to paste the whole command line.

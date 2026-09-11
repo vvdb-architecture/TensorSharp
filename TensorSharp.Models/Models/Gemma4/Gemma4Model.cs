@@ -581,6 +581,75 @@ namespace TensorSharp.Models
             => !_stackedExpertMemberNames.Contains(weightName)
                && base.ShouldPreloadCudaQuantWeightToDevice(weightName);
 
+        /// <summary>
+        /// Whether the fused whole-model graphs may run with a block-quantized K/V
+        /// cache. The native Gemma 4 graphs are already dtype-generic
+        /// (ggml_ops_gemma4_decode.cpp builds the cache with
+        /// static_cast&lt;ggml_type&gt;(kv_cache_type), views it with
+        /// view_kv_cache_window(..., kv_cache_type) and sizes it with kv_cache_bytes),
+        /// and on Metal the KV write already takes the ggml_cpy path rather than
+        /// set_rows, for which kernel_cpy_f32_q8_0 / _q4_0 exist. Metal instantiates
+        /// flash_attn_ext_q8_0 and _q4_0 for both of Gemma 4's head dims (dk256 SWA,
+        /// dk512 global). Vulkan stays out: it takes the non-flash path, which
+        /// materializes K/V as F32 and would undo the saving.
+        /// </summary>
+        /// <summary>
+        /// Gemma 4 declines a block-quantized K/V cache, so ModelBase refuses it at LOAD
+        /// and uses f16 with a message instead of failing later.
+        ///
+        /// <para>
+        /// The FUSED graphs handle it (the native side is dtype-generic and Metal has the
+        /// kernels for both head dims). What cannot is the managed fallback, and Gemma 4
+        /// reaches it in ordinary use -- the 26B-A4B MoE takes it for a plain prompt.
+        /// Gemma 4's sliding-window layers use a CIRCULAR cache whose three managed
+        /// helpers all assume a float buffer: CopyToCacheCircular (the write, which threw
+        /// "Requires a Float32 tensor, but found Q8_0" out of GetFloatPtr),
+        /// AttentionDecodeCircular (the decode read) and the prefill gather near
+        /// TryGatherCircularHeadFirst. ModelBase's block-quant helpers cover the LINEAR
+        /// cache only, so none of them applies.
+        /// </para>
+        ///
+        /// <para>
+        /// Enabling this needs those three written for Q8_0/Q4_0. Each row is headDim
+        /// elements (256 SWA / 512 global), both multiples of the 32-element block, so a
+        /// row quantizes independently and the wrap-around is expressible -- it is real
+        /// work, not a blocked design. Until then Qwen3.5/3.6 get the memory win and
+        /// Gemma 4 stays on f16.
+        /// </para>
+        /// </summary>
+        protected override bool SupportsBlockQuantizedKvCache => false;
+
+        /// <summary>
+        /// Gemma 4 runs ffn_gate and ffn_up as two matmuls when they were not fused,
+        /// so the load-time fusion -- which is a COPY, because a GGUF writes a block's
+        /// tensors alphabetically and ffn_norm lands between gate and up -- can be
+        /// declined where memory matters more than one dispatch per layer per token.
+        ///
+        /// <para>
+        /// MEASURED on gemma-4-12b UD-Q4_K_XL: 48 layers x (1,554 MB gate + 1,554 MB up)
+        /// = <b>3.1 GB</b> of anonymous memory duplicating bytes already mapped from the
+        /// file. On a 12 GB iPhone that is charged against the jetsam limit in full,
+        /// and it is what killed TensorAgent on this model. The managed FFN already had
+        /// its split path (FFNGeluSeparate, reached through TryResolveSeparateGateUpWeights);
+        /// what was missing was the fused decode and verify GRAPHS, which bound one
+        /// gate_up weight per layer. Both now take the pair -- see the gate_arr/up_arr
+        /// parameters of TSGgml_Gemma4ModelDecode and TSGgml_Gemma4ModelVerify.
+        /// </para>
+        /// </summary>
+        /// <remarks>
+        /// Not under tensor parallelism: the sharder partitions the FUSED name
+        /// (ShardFusedGateUpColumnParallel), so declining would leave it nothing to
+        /// shard. TP is a multi-GPU desktop configuration and never a phone's.
+        /// </remarks>
+        protected override bool SupportsSplitGateUpFfn => !IsTensorParallel;
+
+        /// <summary>True when this model's FFN weights were left as separate gate/up.</summary>
+        private bool _gateUpSplit;
+
+        private bool FusedGraphRejectsKvDtype =>
+            _kvCacheDtype.IsBlockQuantized()
+            && !(_backend == BackendType.GgmlMetal || _backend == BackendType.GgmlCuda);
+
         private bool IsLocalLayer(int layer) =>
             _slidingWindowPattern != null && layer < _slidingWindowPattern.Length && _slidingWindowPattern[layer];
 
@@ -2493,6 +2562,12 @@ namespace TensorSharp.Models
             public int[] VType; public long[] VNe0, VNe1, VBytes;
             public int[] OType; public long[] ONe0, ONe1, OBytes;
             public int[] GuType; public long[] GuNe0, GuNe1, GuBytes;
+            // Set INSTEAD of Gu when the gate/up fusion was declined to save the
+            // anonymous copy it would have cost (see FuseGateUpWeights /
+            // AllowWeightFusionCopies). Null entries mean "this layer is fused".
+            public IntPtr[] Gate, Up;
+            public int[] GateType, UpType;
+            public long[] GateNe0, GateNe1, GateBytes, UpNe0, UpNe1, UpBytes;
             public int[] DownType; public long[] DownNe0, DownNe1, DownBytes;
             // PLE
             public IntPtr[] PleGate, PleProj, PlePostNorm;
@@ -2634,6 +2709,21 @@ namespace TensorSharp.Models
                     _canUseFusedFullModelDecode = false;
                     return;
                 }
+
+                // The FFN, same shape of question. A layer carries either the fused
+                // ffn_gate_up or the separate pair; a layer with neither has no FFN
+                // weight at all and nothing here can run.
+                bool guFused = _quantWeights.ContainsKey($"{prefix}.ffn_gate_up.weight");
+                bool guSeparate = _quantWeights.ContainsKey($"{prefix}.ffn_gate.weight")
+                    && _quantWeights.ContainsKey($"{prefix}.ffn_up.weight");
+                if (!guFused && !guSeparate)
+                {
+                    _canUseFusedDecode = false;
+                    _canUseFusedFullModelDecode = false;
+                    return;
+                }
+                if (!guFused)
+                    _gateUpSplit = true;
             }
 
             var a = new Gemma4DecodeArrays();
@@ -2649,6 +2739,10 @@ namespace TensorSharp.Models
             a.V = new IntPtr[n]; a.VType = new int[n]; a.VNe0 = new long[n]; a.VNe1 = new long[n]; a.VBytes = new long[n];
             a.OType = new int[n]; a.ONe0 = new long[n]; a.ONe1 = new long[n]; a.OBytes = new long[n];
             a.GuType = new int[n]; a.GuNe0 = new long[n]; a.GuNe1 = new long[n]; a.GuBytes = new long[n];
+            a.Gate = new IntPtr[n]; a.GateType = new int[n];
+            a.GateNe0 = new long[n]; a.GateNe1 = new long[n]; a.GateBytes = new long[n];
+            a.Up = new IntPtr[n]; a.UpType = new int[n];
+            a.UpNe0 = new long[n]; a.UpNe1 = new long[n]; a.UpBytes = new long[n];
             a.DownType = new int[n]; a.DownNe0 = new long[n]; a.DownNe1 = new long[n]; a.DownBytes = new long[n];
             a.PleGate = new IntPtr[n]; a.PleProj = new IntPtr[n]; a.PlePostNorm = new IntPtr[n];
             a.PleGateType = new int[n]; a.PleProjType = new int[n];
@@ -2764,6 +2858,25 @@ namespace TensorSharp.Models
                     a.GuNe0[l] = guW.Ne0;
                     a.GuNe1[l] = guW.Ne1;
                     a.GuBytes[l] = guW.RawBytes;
+                }
+                else if (_quantWeights.TryGetValue($"{prefix}.ffn_gate.weight", out var gateW)
+                         && _quantWeights.TryGetValue($"{prefix}.ffn_up.weight", out var upW))
+                {
+                    // The fusion was declined, so the graph runs two matmuls over the
+                    // mapped weights. Not fusing is the whole point: on gemma-4-12b
+                    // UD-Q4_K_XL joining them is a 3.1 GB copy of bytes already mapped
+                    // from the GGUF, which on a phone is charged against the jetsam
+                    // limit -- and it bought one dispatch per layer per token.
+                    a.Gate[l] = gateW.CacheKey;
+                    a.GateType[l] = gateW.GgmlType;
+                    a.GateNe0[l] = gateW.Ne0;
+                    a.GateNe1[l] = gateW.Ne1;
+                    a.GateBytes[l] = gateW.RawBytes;
+                    a.Up[l] = upW.CacheKey;
+                    a.UpType[l] = upW.GgmlType;
+                    a.UpNe0[l] = upW.Ne0;
+                    a.UpNe1[l] = upW.Ne1;
+                    a.UpBytes[l] = upW.RawBytes;
                 }
 
                 string downName = $"{prefix}.ffn_down.weight";
@@ -2961,7 +3074,11 @@ namespace TensorSharp.Models
                     pleTokenId: pleIdArg,
                     pleModelProjData: pleProjWData, pleModelProjType: pleProjWType,
                     pleModelProjNe0: pleProjWNe0, pleModelProjNe1: pleProjWNe1, pleModelProjBytes: pleProjWBytes,
-                    pleModelProjNormData: pleProjNormData);
+                    pleModelProjNormData: pleProjNormData,
+                    gateArr: a.Gate, gateTypeArr: a.GateType,
+                    gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
+                    upArr: a.Up, upTypeArr: a.UpType,
+                    upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes);
                 return false;
             }
 
@@ -2999,7 +3116,12 @@ namespace TensorSharp.Models
                     pleIdArg,
                     pleProjWData, pleProjWType,
                     pleProjWNe0, pleProjWNe1, pleProjWBytes,
-                    pleProjNormData);
+                    pleProjNormData,
+                    tpDegree: 1, tpPlanOut: null,
+                    gateArr: a.Gate, gateTypeArr: a.GateType,
+                    gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
+                    upArr: a.Up, upTypeArr: a.UpType,
+                    upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes);
             }
             return true;
         }
@@ -3065,6 +3187,13 @@ namespace TensorSharp.Models
 
             // Folded quantized lm_head (this kernel requires the fold).
             if (!_fdFoldLmHead) return false;
+            // The batched kernel takes only the FUSED gate_up weight. When the fusion
+            // was declined to save the copy (see BuildGemma4DecodeArrays) there is no
+            // such weight, so this path declines and the caller round-robins through
+            // the single-token decode, which does understand the split pair. Nothing
+            // on a phone reaches here -- N is 1 -- and nothing that does reaches it
+            // with the fusion declined, since the decline is an iOS default.
+            if (_gateUpSplit) return false;
             if (!_weights.TryGetValue("output_norm.weight", out var finalNormT)) return false;
             if (!_quantWeights.TryGetValue(_hasTiedOutput ? "token_embd.weight" : "output.weight", out var lmqw))
                 return false;
@@ -3193,6 +3322,10 @@ namespace TensorSharp.Models
                 Array.Copy(logitsBuf, (long)s * vocab, dst, 0, vocab);
                 outLogits[order[s]] = dst;
                 holders[order[s]].SeqLen = posSorted[s] + 1;
+                // The kernel wrote this holder's K/V on the device; a host-reading
+                // path that follows (a multimodal chunk, a truncation, a checkpoint)
+                // must sync first.
+                holders[order[s]].HostDirty = true;
             }
             return true;
         }
@@ -3207,11 +3340,48 @@ namespace TensorSharp.Models
         /// (caller falls back to the per-op path) when the native kernel declines ÔÇö
         /// e.g. total length exceeds the SWA window so the circular cache has wrapped.
         /// </summary>
+        /// <summary>True when the fused kernels can fold the output norm, the LM head
+        /// and the logit softcap into their graph: a quantized output weight (tied
+        /// token_embd or output.weight) plus the F32 output_norm, and the fold not
+        /// switched off.</summary>
+        private bool CanFoldLmHead
+            => _fdFoldLmHead
+               && _weights.ContainsKey("output_norm.weight")
+               && _quantWeights.TryGetValue(_hasTiedOutput ? "token_embd.weight" : "output.weight", out var lmqw)
+               && lmqw.CacheKey != IntPtr.Zero
+               && lmqw.Ne1 == Config.VocabSize          // the graph writes [vocab x N]
+               && lmqw.Scale == 1.0f;                   // the fold applies no weight scale sidecar
+
+        /// <param name="foldLogitsOut">When non-null and <see cref="CanFoldLmHead"/>,
+        /// the graph also runs the output norm + LM head (+ softcap) for EVERY row
+        /// and writes [n × vocab] logits here; <paramref name="hidden"/> then comes
+        /// back holding the post-output-norm rows instead of the layer-stack output.
+        /// The speculative verify uses this: its per-op tail (norm, a 262K-vocab
+        /// matmul over 8 rows, softcap, and the host round-trips between them) cost
+        /// 13 ms of a 58 ms verify on E4B, against ~2 ms inside the graph.</param>
         private unsafe bool NativeGemma4ModelVerify(Tensor hidden, int startPos, int n, Tensor perLayerInputs,
-            HashSet<int> exceptPositions = null, int[] pleTokenIds = null)
+            HashSet<int> exceptPositions = null, int[] pleTokenIds = null, float[] foldLogitsOut = null)
         {
             if (_decodeArrays == null) return false;
             var a = _decodeArrays;
+
+            bool fold = foldLogitsOut != null && CanFoldLmHead;
+            IntPtr lmHeadKey = IntPtr.Zero; int lmHeadType = 0; long lmHeadNe0 = 0, lmHeadNe1 = 0, lmHeadBytes = 0;
+            IntPtr finalNormPtr = IntPtr.Zero;
+            if (fold)
+            {
+                if ((long)foldLogitsOut.Length < (long)n * Config.VocabSize)
+                    throw new ArgumentException($"The fold logits buffer holds {foldLogitsOut.Length} floats but {n} rows need {(long)n * Config.VocabSize}.", nameof(foldLogitsOut));
+                var lmqw = _quantWeights[_hasTiedOutput ? "token_embd.weight" : "output.weight"];
+                lmHeadKey = lmqw.CacheKey;
+                lmHeadType = lmqw.GgmlType;
+                lmHeadNe0 = lmqw.Ne0;
+                lmHeadNe1 = lmqw.Ne1;
+                lmHeadBytes = lmqw.RawBytes;
+                finalNormPtr = (IntPtr)GetFloatPtr(_weights["output_norm.weight"]);
+                if (lmHeadKey == IntPtr.Zero || finalNormPtr == IntPtr.Zero)
+                    throw new InvalidOperationException("The verify's folded LM head was requested but its weights have no device address.");
+            }
 
             // Multimodal bidirectional-span mask (image/audio soft tokens). Only
             // valid at startPos==0 (the kernel maps view-index to logical position
@@ -3278,7 +3448,9 @@ namespace TensorSharp.Models
                 pleDataPtr = (IntPtr)GetFloatPtr(perLayerInputs);
             }
 
-            return GgmlBasicOps.Gemma4ModelVerify(
+            fixed (float* logitsPtr = foldLogitsOut)
+            {
+                return GgmlBasicOps.Gemma4ModelVerify(
                 (IntPtr)hiddenPtr, Config.HiddenSize, Config.NumLayers, n,
                 a.AttnNorm, a.Qkv, a.QNorm, a.KNorm,
                 a.O, a.PostAttnNorm,
@@ -3302,7 +3474,16 @@ namespace TensorSharp.Models
                 a.PlePostNorm,
                 isExcept,
                 pleTableData, pleTableType, pleTableNe0, pleTableNe1, pleTableBytes, pleIds,
-                pleProjWData, pleProjWType, pleProjWNe0, pleProjWNe1, pleProjWBytes, pleProjNormData);
+                pleProjWData, pleProjWType, pleProjWNe0, pleProjWNe1, pleProjWBytes, pleProjNormData,
+                tpDegree: 1, tpPlanOut: null,
+                gateArr: a.Gate, gateTypeArr: a.GateType,
+                gateNe0Arr: a.GateNe0, gateNe1Arr: a.GateNe1, gateBytesArr: a.GateBytes,
+                upArr: a.Up, upTypeArr: a.UpType,
+                upNe0Arr: a.UpNe0, upNe1Arr: a.UpNe1, upBytesArr: a.UpBytes,
+                logitsData: fold ? (IntPtr)logitsPtr : IntPtr.Zero, vocabSize: fold ? Config.VocabSize : 0,
+                lmHeadData: lmHeadKey, lmHeadType: lmHeadType, lmHeadNe0: lmHeadNe0, lmHeadNe1: lmHeadNe1, lmHeadBytes: lmHeadBytes,
+                finalNormData: finalNormPtr, logitSoftcap: _finalLogitSoftcap);
+            }
         }
 
         // Gates the whole-model multi-token prefill path. Default on; set
@@ -3355,7 +3536,12 @@ namespace TensorSharp.Models
             if (hasProj)
             {
                 // Only the quantized-proj + F32-norm form is wired in-kernel.
-                if (!_quantWeights.ContainsKey("per_layer_model_proj.weight")) return false;
+                if (!_quantWeights.TryGetValue("per_layer_model_proj.weight", out var projection)) return false;
+                // LinearForward applies a projection's sidecar scale before
+                // RMSNorm; the native PLE path has no scale parameter. Even a
+                // positive scale affects the norm's epsilon, and a negative
+                // scale reverses its sign, so keep those on ComputePLE.
+                if (projection.Scale != 1.0f) return false;
                 if (!_weights.ContainsKey("per_layer_proj_norm.weight")) return false;
             }
             return true;
@@ -3390,7 +3576,7 @@ namespace TensorSharp.Models
             // Later-turn multimodal chunks (startPos>0) keep the per-op path.
             if (exceptPositions != null && (!s_wholeModelMMPrefillEnabled || startPos != 0)) return false;
             if (_decodeArrays == null || !_canUseFusedFullModelDecode) return false; // dense only (no MoE)
-            if (_kvCacheDtype.IsBlockQuantized()) return false;
+            if (FusedGraphRejectsKvDtype) return false;
 
             long totalSeqLen = (long)startPos + seqLen;
             // The kernel's SWA paths attend the whole chunk's K/V with a sliding-window
@@ -3448,7 +3634,7 @@ namespace TensorSharp.Models
             // dense gate).
             if (exceptPositions != null && (!s_wholeModelMMPrefillEnabled || startPos != 0)) return false;
             if (_moeModelVerifyDisabled || !s_MoeModelDecodeEnabled) return false;
-            if (_kvCacheDtype.IsBlockQuantized()) return false;
+            if (FusedGraphRejectsKvDtype) return false;
 
             // Mirror the fused MoE decode eligibility (all-MoE, no PLE, no KV donor,
             // F32/F16 cache). Primes the lazy flag the verify/decode paths reuse.
@@ -3519,7 +3705,7 @@ namespace TensorSharp.Models
 
             // Block-quantized KV cache is written via ggml_cpy(F32->cacheType)
             // by the kernel; only F32/F16 caches are wired here.
-            if (_kvCacheDtype.IsBlockQuantized()) return false;
+            if (FusedGraphRejectsKvDtype) return false;
 
             var a = _decodeArrays;
             // Attention weights must be present in the precomputed arrays.
@@ -4295,18 +4481,15 @@ namespace TensorSharp.Models
         private Tensor TransformerBlock(Tensor hidden, int layer, int seqLen, int startPos,
             bool isShared, Tensor perLayerInput, HashSet<int> exceptPositions = null)
         {
-            // The C# managed prefill / decode path reads and writes the cache as a
-            // flat F32 (or F16) buffer. Block-quantized layouts (Q8_0) cannot be
-            // walked with raw pointer arithmetic, so we surface a clear error
-            // here rather than letting downstream pointer math silently corrupt
-            // the cache. Users should pick --kv-cache-dtype f16 for multimodal
-            // prompts or any setup that disables the native fused kernels.
-            if (_kvCacheDtype.IsBlockQuantized())
-                throw new InvalidOperationException(
-                    $"Q8_0 KV cache requires the fused native attention kernels. " +
-                    $"This call path (multimodal injection / fused-prefill bailout / non-fused decode) " +
-                    $"falls back to the C# managed attention helpers which only support F32/F16. " +
-                    $"Use --kv-cache-dtype f16 for this configuration.");
+            // The managed path CAN read and write a block-quantized cache: ModelBase
+            // dequantizes the active window on read (ExpandKVHeadsBlockQuant,
+            // ModelBase.KvCache.cs:139, and the decode analogue at
+            // ModelBase.CpuAttention.cs:104) and quantizes on write
+            // (CopyToCacheBlockQuant, ModelBase.KvCache.cs:48). This used to throw
+            // "Q8_0 KV cache requires the fused native attention kernels" on the
+            // premise that the helpers were F32/F16 only, which stopped being true
+            // when those helpers were added; the guard outlived its reason and turned
+            // a supported configuration into an exit-134 crash at warmup.
 
             string prefix = $"blk.{layer}";
 

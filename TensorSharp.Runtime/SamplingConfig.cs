@@ -74,6 +74,20 @@ namespace TensorSharp.Runtime
         public float FrequencyPenalty { get; set; } = 0f;
 
         /// <summary>
+        /// Let the engine's <c>RepetitionGuard</c> end THIS request when its output locks
+        /// into a loop. Default true.
+        ///
+        /// <para>
+        /// The host-wide switch is <c>SchedulerConfig.StopRepetition</c>; this is the
+        /// per-request one, for the caller that legitimately asks for a long constant run
+        /// — a zero-filled literal, a blank grid, N identical rows of test data — which is
+        /// exactly periodic and would otherwise be stopped after 128 tokens. Both must be
+        /// on for the guard to fire.
+        /// </para>
+        /// </summary>
+        public bool StopRepetition { get; set; } = true;
+
+        /// <summary>
         /// Random seed for reproducible sampling. -1 = non-deterministic (time-based seed).
         /// </summary>
         public int Seed { get; set; } = -1;
@@ -225,6 +239,7 @@ namespace TensorSharp.Runtime
                 TopK = TopK,
                 TopP = TopP,
                 MinP = MinP,
+                StopRepetition = StopRepetition,
                 RepetitionPenalty = RepetitionPenalty,
                 PenaltyLastN = PenaltyLastN,
                 PresencePenalty = PresencePenalty,

@@ -96,6 +96,19 @@ namespace tsg_q4earena
 
 namespace tsg
 {
+    // Qwen3.5 GatedDeltaNet normalizes each Q/K head with
+    //
+    //     x * rsqrt(sum(x^2) + eps)
+    //
+    // ggml_l2_norm uses a different epsilon convention. Express the exact
+    // operation through RMSNorm instead: RMSNorm(x, eps / n) / sqrt(n), where
+    // n is the head dimension (ne[0]). This mirrors llama.cpp's GDN helper.
+    inline ggml_tensor* build_gdn_l2_norm(ggml_context* ctx, ggml_tensor* x, float eps)
+    {
+        const float n = static_cast<float>(x->ne[0]);
+        return ggml_scale(ctx, ggml_rms_norm(ctx, x, eps / n), 1.0f / std::sqrt(n));
+    }
+
     // --- Tensor descriptor structs ---
 
     struct TensorView2DDesc
@@ -217,7 +230,15 @@ namespace tsg
     // --- Global state ---
 
     extern thread_local std::string g_last_error;
-    extern std::once_flag g_backend_init_once;
+    // A one-shot that can be UN-shot. This was a std::once_flag, which is exactly
+    // right for "initialise the backend once" and exactly wrong for the one thing
+    // that turned out to be needed: on Metal a refused command buffer latches
+    // has_error inside ggml-metal, and the ONLY way to clear it is to build the
+    // backend again. A once_flag cannot be reset, so recovery was impossible in
+    // process and an iPhone that had been sent to the background at the wrong
+    // moment stayed broken until it was force-quit. See TSGgml_RecreateBackend.
+    extern std::mutex g_backend_init_mutex;
+    extern bool g_backend_initialized;
     extern int g_backend_type;
 
     enum class CachedBufferMode
@@ -447,9 +468,8 @@ namespace tsg
     // These two drop-ins keep ggml's signatures and return values and add the one
     // thing missing: any error ggml logs while a compute or a drain is in flight
     // belongs to that command buffer, so latch it. The flag is sticky because the
-    // backend is — ggml-metal clears has_error only by being recreated, and
-    // TSGgml_Shutdown consumes this process's one-shot backend init, so nothing
-    // short of a restart recovers.
+    // backend is — ggml-metal clears has_error only by being recreated. That is what
+    // TSGgml_RecreateBackend exists for, and it is the only thing that clears this.
     inline ggml_status compute_graph(ggml_backend_t backend, ggml_cgraph* graph)
     {
         const std::uint64_t before = g_ggml_error_count.load(std::memory_order_acquire);
@@ -1167,7 +1187,9 @@ namespace tsg
     // next graph_compute (the per-layer prefill host_read_barrier guarantees
     // this). Returns false (caller should fall back to the stock allocator) if
     // the required size exceeds a single backend buffer's maximum.
-    bool alloc_ctx_tensors_reuse(ggml_context* ctx);
+    // Supplying the final graph lets Metal share only attention workspaces;
+    // ordinary activations/state retain unique slots in the same cached slab.
+    bool alloc_ctx_tensors_reuse(ggml_context* ctx, ggml_cgraph* graph = nullptr);
     // Free the cached reuse buffer (called from TSGgml_Shutdown).
     void free_reuse_compute_buffer();
 
@@ -1184,7 +1206,38 @@ namespace tsg
     bool alloc_graph_moe_stream_gallocr(ggml_cgraph* graph);
     // Run Metal's backend graph optimizer before any graph allocation. Direct
     // backend graph_compute calls do not invoke this hook themselves.
+    //
+    // The shared allocators (alloc_graph_reuse_gallocr / alloc_graph_moe_stream_gallocr)
+    // call this for every graph they place, so a whole-model kernel gets it for
+    // free. Paths that allocate with ggml_backend_alloc_ctx_tensors directly (the
+    // persistent captured graphs, the small-N bump-allocated ones) still have to
+    // call it themselves, before that allocation.
     void optimize_graph_for_metal(ggml_cgraph* graph);
+
+    // Some whole-model graphs are executed as ORDERED SLICES of their node array
+    // (ggml_graph_view): the host-MoE seams stop at a node INDEX to run an
+    // offloaded expert on the CPU, the tensor-parallel driver reduces at recorded
+    // cut points, and the vendor-conv runner pulls out CONV_2D nodes one at a
+    // time. Metal's graph_optimize PERMUTES gf->nodes[], so on such a graph it
+    // would move work across a seam whose position is an index — the host would
+    // then read an activation the GPU has not produced yet, which shows up as
+    // wrong numbers rather than a failure.
+    //
+    // A builder that will slice its graph holds one of these across the
+    // allocation (and across any explicit optimize_graph_for_metal call);
+    // the optimizer then leaves that graph's order alone. Construct with the
+    // condition itself — `SuppressGraphReorder keep_order(tp_mode || !host_moe.empty());`
+    // — so the guard reads as the reason it exists.
+    struct SuppressGraphReorder
+    {
+        explicit SuppressGraphReorder(bool active);
+        ~SuppressGraphReorder();
+        SuppressGraphReorder(const SuppressGraphReorder&) = delete;
+        SuppressGraphReorder& operator=(const SuppressGraphReorder&) = delete;
+
+    private:
+        bool active_;
+    };
     // Free the cached reuse gallocr (called from TSGgml_Shutdown / backend reset).
     void free_reuse_gallocr();
     // Free the calling thread's cached prefill-attention sessions (defined in

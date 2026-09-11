@@ -127,10 +127,12 @@ def _entry_url(value) -> Optional[str]:
 # Result directory + engine binaries / endpoints / media (env-overridable).
 RESULTS_DIR = _path(_paths.get("results_dir"), "BENCH_RESULTS") or (HERE / "results")
 
+# The server's entry point is TensorSharp.Server.Host; TensorSharp.Server is the
+# library it builds on and has no Main.
 TENSORSHARP_SERVER_DLL = (
     _path(_paths.get("tensorsharp_server_dll"), "BENCH_TS_SERVER_DLL")
-    or (REPO_ROOT / "TensorSharp.Server" / "bin" / "TensorSharp.Server.dll"))
-# TensorSharp.Server hard-codes its listen address to 0.0.0.0:5000.
+    or (REPO_ROOT / "TensorSharp.Server.Host" / "bin" / "TensorSharp.Server.Host.dll"))
+# TensorSharp.Server.Host hard-codes its listen address to 0.0.0.0:5000.
 TENSORSHARP_PORT = int(_env_or("BENCH_TS_PORT", _paths.get("tensorsharp_port", 5000)))
 
 LLAMA_SERVER_EXE = (

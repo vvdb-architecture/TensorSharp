@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include "ggml_ops_gptoss_kv.h"
 
@@ -752,7 +753,9 @@ static int gob_decode_batched_legacy(
     BufferHandle buffer(nullptr);
     if (!alloc_graph_reuse_gallocr(graph))
     {
-        buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+        buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
         if (buffer.value == nullptr)
         {
             set_last_error("GPT-OSS batched decode: failed to allocate backend buffer.");
@@ -1217,7 +1220,9 @@ static int gob_decode_batched_arena(
         // Everything unbound (inputs, arena, intermediates, logits) lands in
         // the entry's own buffer — nothing references the shared gallocr pool,
         // which is what lets this graph survive prefills.
-        e.buffer = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+        e.buffer = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, e.graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
         if (e.buffer == nullptr)
             return abort_build("alloc failed");
         // Zero it all: fattn reads (masked) arena rows that were never

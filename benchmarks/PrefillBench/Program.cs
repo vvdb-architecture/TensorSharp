@@ -9,7 +9,7 @@
 //
 // Env knobs:
 //   TS_PREFILL_MODEL    path to a .gguf (default Ministral-3-8B Q8_0)
-//   TS_PREFILL_BACKEND  ggml_cuda (default) | ggml_cpu | cpu | cuda
+//   TS_PREFILL_BACKEND  ggml_cuda (default) | ggml_metal | ggml_vulkan | ggml_cpu | cpu | cuda
 //   TS_PREFILL_LENS     comma list of prompt token counts (default 512,1024,2048,4096)
 //   TS_PREFILL_ITERS    timed iterations per length (default 3)
 //   TS_PREFILL_CONC     comma list of concurrency levels for a fixed 1024-token prompt (default 1,2,4)
@@ -51,6 +51,7 @@ string modelPath = Environment.GetEnvironmentVariable("TS_PREFILL_MODEL")
 BackendType backend = (Environment.GetEnvironmentVariable("TS_PREFILL_BACKEND") ?? "ggml_cuda").ToLowerInvariant() switch
 {
     "ggml_cuda" => BackendType.GgmlCuda,
+    "ggml_metal" => BackendType.GgmlMetal,
     "ggml_vulkan" => BackendType.GgmlVulkan,
     "ggml_cpu" => BackendType.GgmlCpu,
     "cpu" => BackendType.Cpu,
@@ -97,6 +98,7 @@ var cfg = new SchedulerConfig
     MaxNumBatchedTokens = EnvInt("TS_SCHED_MAX_BATCHED_TOKENS", 8192),
     MaxNumRunningSequences = 16,
     MaxPrefillChunkSize = EnvInt("TS_SCHED_PREFILL_CHUNK", 2048),
+    SoloPrefillChunkSize = EnvInt("TS_SCHED_SOLO_PREFILL_CHUNK", 8192),
     NumBlocks = EnvInt("TS_SCHED_NUM_BLOCKS", 512),
     BlockSize = blockSize,
     EnablePrefixCaching = false, // force full prefill every run

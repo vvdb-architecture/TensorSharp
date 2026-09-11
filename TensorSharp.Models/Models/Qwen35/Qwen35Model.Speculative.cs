@@ -26,8 +26,10 @@
 // further draft steps. This mirrors llama.cpp's graph_mtp (src/models/qwen35.cpp)
 // and vLLM's Qwen3_5MultiTokenPredictor (qwen3_5_mtp.py).
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using TensorSharp;
+using TensorSharp.Runtime;
 using TensorSharp.Runtime.Scheduling;
 
 using TensorSharp.Runtime.Speculative;
@@ -106,6 +108,56 @@ namespace TensorSharp.Models
         /// An operator who passes --spec-draft still gets exactly that number.
         /// </summary>
         public int SpecPreferredDraftWindow => HasAnyRecurrentLayer ? 3 : 0;
+
+        // Weight-free suffix matches can amortize a wider GEMM without paying
+        // twelve learned draft-head forwards. IQ4_XS uses independent Metal
+        // matvecs through eight verify rows; a twelve-token n-gram draft makes
+        // the thirteen-row GEMM useful. MTP/DFlash keep the existing preference.
+        public int SpecPreferredNGramDraftWindow
+        {
+            get
+            {
+                if (_backend != BackendType.GgmlMetal || _numExperts != 0 || IsTensorParallel || !HasAnyRecurrentLayer)
+                    return 0;
+                bool tiedOutput = _lmHeadQW != null
+                    ? ReferenceEquals(_lmHeadQW, _quantWeights.GetValueOrDefault("token_embd.weight"))
+                    : _lmHeadF32 != null && ReferenceEquals(_lmHeadF32, _weights.GetValueOrDefault("token_embd.weight"));
+                return SelectMetalNGramDraftWindow(_quantWeights, _weights, Config.NumLayers, tiedOutput);
+            }
+        }
+
+        internal static int SelectMetalNGramDraftWindow(
+            IReadOnlyDictionary<string, QuantizedWeight> quantWeights,
+            IReadOnlyDictionary<string, Tensor> weights, int trunkLayers, bool tiedOutput)
+        {
+            var (iq4Bytes, totalBytes) = MeasureMatmulWeightBytes(
+                quantWeights, weights, (int)GgmlTensorType.IQ4_XS, IsActiveMatrix);
+            return iq4Bytes > 0 && iq4Bytes >= totalBytes - iq4Bytes ? 12 : 0;
+
+            bool HasWeight(string name) => quantWeights.ContainsKey(name) || weights.ContainsKey(name);
+            bool IsActiveMatrix(string name)
+            {
+                if (name == "output.weight") return !tiedOutput;
+                if (name == "token_embd.weight") return tiedOutput;
+                if (!name.StartsWith("blk.", StringComparison.Ordinal)) return false;
+                int separator = name.IndexOf('.', 4);
+                if (separator < 0 || !int.TryParse(name.AsSpan(4, separator - 4), out int layer)
+                    || layer < 0 || layer >= trunkLayers)
+                    return false;
+                string suffix = name[(separator + 1)..];
+                string prefix = name[..(separator + 1)];
+                // The non-TP verifier reads the four original recurrent input
+                // projections, while the retained ssm_in_proj pack serves TP.
+                if (suffix is "ssm_in_proj.weight" or "ssm_conv1d.weight"
+                    || suffix.StartsWith("nextn.", StringComparison.Ordinal))
+                    return false;
+                if (suffix is "ffn_gate.weight" or "ffn_up.weight")
+                    return !HasWeight(prefix + "ffn_gate_up.weight");
+                if (suffix is "attn_q.weight" or "attn_k.weight" or "attn_v.weight")
+                    return !HasWeight(prefix + "attn_qkv.weight");
+                return true;
+            }
+        }
 
         private bool HasAnyRecurrentLayer
         {
@@ -484,8 +536,10 @@ namespace TensorSharp.Models
                 return;
             }
 
-            EnsureKvCacheHostSynchronized();
-            EnsureFusedDecodeStateHostSynchronized();
+            // A failed last-row-only verify may leave the only current recurrent
+            // state in the native ping-pong buffer. Cross through the shared
+            // device-to-host barrier before the per-op loop reads host mirrors.
+            PrepareHostPrefillFallback();
             for (int layer = 0; layer < Config.NumLayers; layer++)
             {
                 long tl = Stopwatch.GetTimestamp();
@@ -678,6 +732,14 @@ namespace TensorSharp.Models
 
         public void SpecSnapshotRecurrentState()
         {
+            // A parked run of plain steps goes through the fused decode, which keeps
+            // the recurrent state device-resident in ITS slot; the executor takes
+            // this snapshot before the verify forward that would sync it, so the
+            // host mirrors below could still hold the pre-park state. Settle it
+            // first, or a rollback that restores from this snapshot (the host-mode
+            // verify, the per-op fallback) would continue from stale state.
+            if (_fdStateResident)
+                InvalidateFullDecodeState();
             // Nothing to copy: the state the verify is about to run from lives in the
             // shared device slices, the verify writes its results elsewhere (the
             // *_state_out slices and the snapshot slots), and the only thing that ever
@@ -852,6 +914,30 @@ namespace TensorSharp.Models
         /// exists is the registry's question, not this one.
         /// </summary>
         public bool SpeculationProfitable => true;
+
+        /// <summary>
+        /// Every field the speculative trunk touches - attention K/V, the GDN conv and
+        /// delta state, the position, the residency latches - is what
+        /// BindSequenceCache swapped in, and a holder switch drains the verify's
+        /// device-live state into the outgoing holder's mirrors first
+        /// (LoadCacheHolder -> InvalidateVerifyCache). So the trunk forwards on the
+        /// BOUND holder, and TensorAgent's turns (all served from holders) can
+        /// speculate. What used to break was not the state but the capability:
+        /// see SupportsPerSequenceFusedForward.
+        /// </summary>
+        public bool SpecTrunkFollowsBoundCache => true;
+
+        /// <summary>
+        /// A parked plain step takes the fused whole-model decode (20.4 ms/token on
+        /// 9B IQ4_XS, Metal) instead of a one-row pass through the verify family
+        /// (25.6 ms): a governor that parks for 32-256 steps at a time made prose
+        /// 25% slower than plain decoding while drafting nothing. Ordinary plain
+        /// steps stay in the verify family - see SpecPlainStepCostsFamilySwitch.
+        /// </summary>
+        public bool SpecPlainStepUsesForward
+            => IsGgmlBackend && !IsTensorParallel && !HasDFlash && _fullDecodeEnabled && !_fdUnsupported;
+
+        public bool SpecPlainStepCostsFamilySwitch => true;
 
         /// <summary>Batched spec trunk needs the GGML batched paged path (the
         /// MLX backend keeps GDN state inside opaque per-slot MLX caches the

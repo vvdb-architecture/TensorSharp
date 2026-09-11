@@ -1629,6 +1629,55 @@ internal enum GgmlIndexReductionOp
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial int TSGgml_TransformerModelDecode(
+            IntPtr hiddenData, int hiddenSize, int numLayers,
+            IntPtr[] attnNormArr, IntPtr[] qkvArr, IntPtr[] qNormArr, IntPtr[] kNormArr,
+            IntPtr[] oArr, IntPtr[] ffnNormArr, IntPtr[] guArr, IntPtr[] downArr,
+            IntPtr[] kCacheArr, IntPtr[] vCacheArr,
+            IntPtr[] qkvBiasArr,
+            IntPtr[] qArr, IntPtr[] kArr, IntPtr[] vArr,
+            int[] splitTypeArr, long[] splitBytesArr,
+            int[] qkvTypeArr, long[] qkvBytesArr,
+            int[] oTypeArr, long[] oBytesArr,
+            int[] guTypeArr, long[] guBytesArr,
+            int[] downTypeArr, long[] downBytesArr,
+            int qkvType, long qkvNe0, long qkvNe1, long qkvBytes,
+            int oType, long oNe0, long oNe1, long oBytes,
+            int guType, long guNe0, long guNe1, long guBytes,
+            int downType, long downNe0, long downNe1, long downBytes,
+            int headDim, int numHeads, int numKvHeads,
+            int maxSeqLen, int position,
+            float eps, float ropeBase, float ropeFreqScale,
+            int intermediateSize, int ropeMode,
+            int kvCacheType,
+            int ropeOriginalContext,
+            float ropeExtFactor, float ropeAttnFactor,
+            float ropeBetaFast, float ropeBetaSlow);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial int TSGgml_TransformerLayerDecode(
+            IntPtr hiddenData, int hiddenSize,
+            IntPtr attnNormData,
+            IntPtr qkvData, int qkvType, long qkvNe0, long qkvNe1, long qkvBytes,
+            IntPtr qkvBiasData,
+            IntPtr qNormData, IntPtr kNormData, int headDim,
+            IntPtr oData, int oType, long oNe0, long oNe1, long oBytes,
+            IntPtr ffnNormData,
+            IntPtr guData, int guType, long guNe0, long guNe1, long guBytes,
+            IntPtr downData, int downType, long downNe0, long downNe1, long downBytes,
+            IntPtr kCacheData, IntPtr vCacheData,
+            int numHeads, int numKvHeads,
+            int maxSeqLen, int position,
+            float eps, float ropeBase, float ropeFreqScale,
+            int intermediateSize, int ropeMode,
+            int kvCacheType,
+            int ropeOriginalContext,
+            float ropeExtFactor, float ropeAttnFactor,
+            float ropeBetaFast, float ropeBetaSlow);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial IntPtr TSGgml_GetLastError();
 
         [LibraryImport(DllName)]
@@ -1638,6 +1687,10 @@ internal enum GgmlIndexReductionOp
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial IntPtr TSGgml_GetBackendFailureText();
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial int TSGgml_RecreateBackend();
 
         [LibraryImport(DllName, StringMarshalling = StringMarshalling.Utf8)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -2576,7 +2629,9 @@ internal enum GgmlIndexReductionOp
             IntPtr pleModelProjData, int pleModelProjType,
             long pleModelProjNe0, long pleModelProjNe1, long pleModelProjBytes,
             IntPtr pleModelProjNormData,
-            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut,
+            IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
+            IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr);
 
 
         [LibraryImport(DllName)]
@@ -2920,7 +2975,12 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjWData, int pleProjWType,
             long pleProjWNe0, long pleProjWNe1, long pleProjWBytes,
             IntPtr pleProjNormData,
-            int tpDegree, [In, Out] IntPtr[] tpPlanOut);
+            int tpDegree, [In, Out] IntPtr[] tpPlanOut,
+            IntPtr[] gateArr, int[] gateTypeArr, long[] gateNe0Arr, long[] gateNe1Arr, long[] gateBytesArr,
+            IntPtr[] upArr, int[] upTypeArr, long[] upNe0Arr, long[] upNe1Arr, long[] upBytesArr,
+            IntPtr logitsData, int vocabSize,
+            IntPtr lmHeadData, int lmHeadType, long lmHeadNe0, long lmHeadNe1, long lmHeadBytes,
+            IntPtr finalNormData, float logitSoftcap);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -3663,7 +3723,10 @@ internal enum GgmlIndexReductionOp
             long tokenEmbdNe0, long tokenEmbdNe1, long tokenEmbdBytes,
             IntPtr sampled, int wantLogits);
 
-        public static bool TryQwen35ArenaDecodeBatched(
+        /// <summary>Returns 1 on success, 0 on a safe pre-compute decline, and
+        /// -1 when graph execution may have partially mutated recurrent state.
+        /// A -1 must never be converted into serial fallback.</summary>
+        public static int Qwen35ArenaDecodeBatchedStatus(
             Qwen35LayerDecodeArgs[] layers, int numLayers, int nSeqs,
             int[] tokenIds, int[] positions,
             IntPtr[] kCaches, IntPtr[] vCaches,
@@ -3689,7 +3752,7 @@ internal enum GgmlIndexReductionOp
                 numExperts, numExpertsUsed, expertFf, sharedFf, normTopk, expertWeightsScale,
                 logits, vocabSize, lmHead, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes,
                 finalNorm, tokenEmbd, tokenEmbdType, tokenEmbdNe0, tokenEmbdNe1, tokenEmbdBytes,
-                sampled, wantLogits ? 1 : 0) != 0;
+                sampled, wantLogits ? 1 : 0);
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -3709,6 +3772,15 @@ internal enum GgmlIndexReductionOp
         /// path reads or replaces a holder's caches outside the hooked
         /// kernels (growth, host sync, snapshot extraction).</summary>
         public static void Qwen35ArenaFlushHostPointer(IntPtr hostPtr) => TSGgml_Qwen35ArenaFlushHostPointer(hostPtr);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial void TSGgml_Qwen35ArenaDiscardHostPointer(IntPtr hostPtr);
+
+        /// <summary>Retires the qwen35 arena slot registered for this host
+        /// pointer without flushing it (no-op when none). Use only when the
+        /// owning sequence is complete and its holder will be reset.</summary>
+        public static void Qwen35ArenaDiscardHostPointer(IntPtr hostPtr) => TSGgml_Qwen35ArenaDiscardHostPointer(hostPtr);
 
         public static void Qwen35ResetDecodeCache() => TSGgml_Qwen35ResetDecodeCache();
 
@@ -3745,6 +3817,13 @@ internal enum GgmlIndexReductionOp
         private static partial void TSGgml_Qwen35ResetVerifyCache();
 
         public static void Qwen35ResetVerifyCache() => TSGgml_Qwen35ResetVerifyCache();
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial void TSGgml_Qwen35ResetVerifyCacheOwner(long ownerId);
+
+        public static void Qwen35ResetVerifyCache(long ownerId)
+            => TSGgml_Qwen35ResetVerifyCacheOwner(ownerId);
 
         // Qwen3.5/3.6 TRUE token-batched fused decode: N sequences' decode tokens
         // (one per sequence) through the whole hybrid transformer in ONE graph,
@@ -3866,7 +3945,7 @@ internal enum GgmlIndexReductionOp
         // Returns 0 when it cannot handle the shape so the caller falls back to per-op.
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-        private static partial int TSGgml_Qwen35ModelVerify(
+        private static partial int TSGgml_Qwen35ModelVerifyOwned(
             [In] Qwen35LayerDecodeArgs[] layers, int numLayers,
             IntPtr hidden, int hiddenSize, int startPos, int numTokens,
             int numHeads, int numKvHeads, int headDim, int cacheSize,
@@ -3882,7 +3961,7 @@ internal enum GgmlIndexReductionOp
             int tpDegree, IntPtr[] tpPlanOut,
             IntPtr captureData, int[] captureLayers, int captureCount,
             int stateSnapshots, IntPtr stateSnapshotsUsed, int deviceStateCurrent,
-            int deferStateDownload);
+            int deferStateDownload, long ownerId);
 
         public static bool Qwen35ModelVerify(
             Qwen35LayerDecodeArgs[] layers, int numLayers,
@@ -3900,9 +3979,10 @@ internal enum GgmlIndexReductionOp
             int tpDegree = 1, IntPtr[] tpPlanOut = null,
             IntPtr captureData = default, int[] captureLayers = null, int captureCount = 0,
             int stateSnapshots = 1, IntPtr stateSnapshotsUsed = default,
-            bool deviceStateCurrent = false, bool deferStateDownload = false)
+            bool deviceStateCurrent = false, bool deferStateDownload = false,
+            long ownerId = 0)
         {
-            return TSGgml_Qwen35ModelVerify(
+            return TSGgml_Qwen35ModelVerifyOwned(
                 layers, numLayers, hidden, hiddenSize, startPos, numTokens,
                 numHeads, numKvHeads, headDim, cacheSize,
                 ropeNDims, ropeMode, kvCacheType,
@@ -3915,12 +3995,13 @@ internal enum GgmlIndexReductionOp
                 finalNorm, normedOut, nLogitRows, mropePos, mropeSections,
                 tpDegree, tpPlanOut, captureData, captureLayers, captureCount,
                 stateSnapshots, stateSnapshotsUsed, deviceStateCurrent ? 1 : 0,
-                deferStateDownload ? 1 : 0) != 0;
+                deferStateDownload ? 1 : 0, ownerId) != 0;
         }
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-        private static partial int TSGgml_Qwen35CommitStateSnapshot(int slot, int numRecurrentLayers);
+        private static partial int TSGgml_Qwen35CommitStateSnapshotOwned(
+            int slot, int numRecurrentLayers, long ownerId);
 
         /// <summary>
         /// Commit one recurrent-state snapshot into the live device state, without a
@@ -3931,23 +4012,27 @@ internal enum GgmlIndexReductionOp
         /// <paramref name="slot"/> counts back from the end of the verified batch;
         /// -1 means the post-window state, which is what a single-row step commits.
         /// </summary>
-        public static bool Qwen35CommitStateSnapshot(int slot, int numRecurrentLayers)
-            => TSGgml_Qwen35CommitStateSnapshot(slot, numRecurrentLayers) != 0;
+        public static bool Qwen35CommitStateSnapshot(
+            int slot, int numRecurrentLayers, long ownerId = 0)
+            => TSGgml_Qwen35CommitStateSnapshotOwned(slot, numRecurrentLayers, ownerId) != 0;
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-        private static partial int TSGgml_Qwen35DrainDeviceState(
-            IntPtr[] convOut, IntPtr[] deltaOut, int numRecurrentLayers);
+        private static partial int TSGgml_Qwen35DrainDeviceStateOwned(
+            IntPtr[] convOut, IntPtr[] deltaOut, int numRecurrentLayers, long ownerId);
 
         /// <summary>Read the live device recurrent state back into the host mirrors,
         /// for anything that has to run the op-by-op recurrent path.</summary>
-        public static bool Qwen35DrainDeviceState(IntPtr[] convOut, IntPtr[] deltaOut, int numRecurrentLayers)
-            => TSGgml_Qwen35DrainDeviceState(convOut, deltaOut, numRecurrentLayers) != 0;
+        public static bool Qwen35DrainDeviceState(IntPtr[] convOut, IntPtr[] deltaOut,
+            int numRecurrentLayers, long ownerId = 0)
+            => TSGgml_Qwen35DrainDeviceStateOwned(
+                convOut, deltaOut, numRecurrentLayers, ownerId) != 0;
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-        private static partial int TSGgml_Qwen35FetchStateSnapshot(
-            int slot, IntPtr[] convOut, IntPtr[] deltaOut, int numRecurrentLayers);
+        private static partial int TSGgml_Qwen35FetchStateSnapshotOwned(
+            int slot, IntPtr[] convOut, IntPtr[] deltaOut, int numRecurrentLayers,
+            long ownerId);
 
         /// <summary>
         /// Pull ONE per-token recurrent-state snapshot out of the verify that just
@@ -3957,8 +4042,9 @@ internal enum GgmlIndexReductionOp
         /// restore-and-re-forward path.
         /// </summary>
         public static bool Qwen35FetchStateSnapshot(int slot, IntPtr[] convOut, IntPtr[] deltaOut,
-            int numRecurrentLayers)
-            => TSGgml_Qwen35FetchStateSnapshot(slot, convOut, deltaOut, numRecurrentLayers) != 0;
+            int numRecurrentLayers, long ownerId = 0)
+            => TSGgml_Qwen35FetchStateSnapshotOwned(
+                slot, convOut, deltaOut, numRecurrentLayers, ownerId) != 0;
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -3967,6 +4053,16 @@ internal enum GgmlIndexReductionOp
         public static void Qwen35ReleaseVerifyTpGraphs()
         {
             try { TSGgml_Qwen35ReleaseVerifyTpGraphs(); }
+            catch (EntryPointNotFoundException) { }
+        }
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial void TSGgml_Qwen35ReleaseVerifyOwner(long ownerId);
+
+        public static void Qwen35ReleaseVerifyOwner(long ownerId)
+        {
+            try { TSGgml_Qwen35ReleaseVerifyOwner(ownerId); }
             catch (EntryPointNotFoundException) { }
         }
 
@@ -4361,6 +4457,14 @@ internal enum GgmlIndexReductionOp
 
         [LibraryImport(DllName)]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static unsafe partial int TSGgml_SyncHostBufferRanges(IntPtr ptr, long* offsets, long* lengths, int count);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static unsafe partial int TSGgml_UploadHostBufferRanges(IntPtr ptr, long* offsets, long* lengths, int count);
+
+        [LibraryImport(DllName)]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial long TSGgml_DeviceCopyCacheResidentBytes();
 
         [LibraryImport(DllName)]
@@ -4606,9 +4710,9 @@ internal enum GgmlIndexReductionOp
 
         public static void EnsureAvailable(GgmlBackendType backendType)
         {
-            if (backendType == GgmlBackendType.Metal && !OperatingSystem.IsMacOS())
+            if (backendType == GgmlBackendType.Metal && !IsApplePlatform())
             {
-                throw new PlatformNotSupportedException("The GGML Metal backend is available on macOS only.");
+                throw new PlatformNotSupportedException("The GGML Metal backend is available on Apple platforms (macOS, iOS/iPadOS, Mac Catalyst) only.");
             }
 
             if (backendType == GgmlBackendType.Cuda && !IsCudaPlatformSupported())
@@ -4652,7 +4756,7 @@ internal enum GgmlIndexReductionOp
 
         public static bool CanInitialize(GgmlBackendType backendType)
         {
-            if (backendType == GgmlBackendType.Metal && !OperatingSystem.IsMacOS())
+            if (backendType == GgmlBackendType.Metal && !IsApplePlatform())
             {
                 return false;
             }
@@ -5406,6 +5510,50 @@ internal enum GgmlIndexReductionOp
         /// device against the populated portion of the cache. Q, K, V, and the output buffer
         /// must point to F32 contiguous memory in (heads, head_dim) row-major layout.
         /// </summary>
+        /// <param name="qkvBiasData">
+        /// Optional fused Q|K|V bias vector (IntPtr.Zero when the architecture has none).
+        /// Qwen2 / Qwen2.5-VL carry a QKV bias and no QK norm; Qwen3 is the reverse.
+        /// <paramref name="qNormData"/>/<paramref name="kNormData"/> may likewise be Zero.
+        /// </param>
+        public static void TransformerLayerDecode(
+            IntPtr hiddenData, int hiddenSize,
+            IntPtr attnNormData,
+            IntPtr qkvData, int qkvType, long qkvNe0, long qkvNe1, long qkvBytes,
+            IntPtr qkvBiasData,
+            IntPtr qNormData, IntPtr kNormData, int headDim,
+            IntPtr oData, int oType, long oNe0, long oNe1, long oBytes,
+            IntPtr ffnNormData,
+            IntPtr guData, int guType, long guNe0, long guNe1, long guBytes,
+            IntPtr downData, int downType, long downNe0, long downNe1, long downBytes,
+            IntPtr kCacheData, IntPtr vCacheData,
+            int numHeads, int numKvHeads,
+            int maxSeqLen, int position,
+            float eps, float ropeBase, float ropeFreqScale,
+            int intermediateSize, int ropeMode,
+            int kvCacheType = 0,
+            int ropeOriginalContext = 0,
+            float ropeExtFactor = 0.0f, float ropeAttnFactor = 1.0f,
+            float ropeBetaFast = 0.0f, float ropeBetaSlow = 0.0f)
+        {
+            CheckResult(TSGgml_TransformerLayerDecode(
+                hiddenData, hiddenSize,
+                attnNormData,
+                qkvData, qkvType, qkvNe0, qkvNe1, qkvBytes,
+                qkvBiasData,
+                qNormData, kNormData, headDim,
+                oData, oType, oNe0, oNe1, oBytes,
+                ffnNormData,
+                guData, guType, guNe0, guNe1, guBytes,
+                downData, downType, downNe0, downNe1, downBytes,
+                kCacheData, vCacheData,
+                numHeads, numKvHeads,
+                maxSeqLen, position,
+                eps, ropeBase, ropeFreqScale,
+                intermediateSize, ropeMode, kvCacheType,
+                ropeOriginalContext, ropeExtFactor, ropeAttnFactor,
+                ropeBetaFast, ropeBetaSlow), "transformer_layer_decode");
+        }
+
         public static void FusedPrefillAttention(
             IntPtr qData, IntPtr kData, IntPtr vData, IntPtr outData,
             int numHeads, int numKvHeads, int headDim,
@@ -5725,6 +5873,55 @@ internal enum GgmlIndexReductionOp
                 eps, ropeBase, ropeFreqScale, ropeNDims, ropeMode, kvCacheType), "qwen35_attention_layer_decode");
         }
 
+        public static void TransformerModelDecode(
+            IntPtr hiddenData, int hiddenSize, int numLayers,
+            IntPtr[] attnNormArr, IntPtr[] qkvArr, IntPtr[] qNormArr, IntPtr[] kNormArr,
+            IntPtr[] oArr, IntPtr[] ffnNormArr, IntPtr[] guArr, IntPtr[] downArr,
+            IntPtr[] kCacheArr, IntPtr[] vCacheArr,
+            IntPtr[] qkvBiasArr,
+            IntPtr[] qArr, IntPtr[] kArr, IntPtr[] vArr,
+            int[] splitTypeArr, long[] splitBytesArr,
+            int[] qkvTypeArr, long[] qkvBytesArr,
+            int[] oTypeArr, long[] oBytesArr,
+            int[] guTypeArr, long[] guBytesArr,
+            int[] downTypeArr, long[] downBytesArr,
+            int qkvType, long qkvNe0, long qkvNe1, long qkvBytes,
+            int oType, long oNe0, long oNe1, long oBytes,
+            int guType, long guNe0, long guNe1, long guBytes,
+            int downType, long downNe0, long downNe1, long downBytes,
+            int headDim, int numHeads, int numKvHeads,
+            int maxSeqLen, int position,
+            float eps, float ropeBase, float ropeFreqScale,
+            int intermediateSize, int ropeMode,
+            int kvCacheType = 0,
+            int ropeOriginalContext = 0,
+            float ropeExtFactor = 0.0f, float ropeAttnFactor = 1.0f,
+            float ropeBetaFast = 0.0f, float ropeBetaSlow = 0.0f)
+        {
+            CheckResult(TSGgml_TransformerModelDecode(
+                hiddenData, hiddenSize, numLayers,
+                attnNormArr, qkvArr, qNormArr, kNormArr,
+                oArr, ffnNormArr, guArr, downArr,
+                kCacheArr, vCacheArr,
+                qkvBiasArr,
+                qArr, kArr, vArr,
+                splitTypeArr, splitBytesArr,
+                qkvTypeArr, qkvBytesArr,
+                oTypeArr, oBytesArr,
+                guTypeArr, guBytesArr,
+                downTypeArr, downBytesArr,
+                qkvType, qkvNe0, qkvNe1, qkvBytes,
+                oType, oNe0, oNe1, oBytes,
+                guType, guNe0, guNe1, guBytes,
+                downType, downNe0, downNe1, downBytes,
+                headDim, numHeads, numKvHeads,
+                maxSeqLen, position,
+                eps, ropeBase, ropeFreqScale,
+                intermediateSize, ropeMode, kvCacheType,
+                ropeOriginalContext, ropeExtFactor, ropeAttnFactor,
+                ropeBetaFast, ropeBetaSlow), "transformer_model_decode");
+        }
+
         public static void Gemma4ModelDecode(
             IntPtr hiddenData, int hiddenSize, int numLayers,
             IntPtr[] attnNormArr, IntPtr[] qkvArr, IntPtr[] qNormArr, IntPtr[] kNormArr,
@@ -5758,7 +5955,9 @@ internal enum GgmlIndexReductionOp
             IntPtr pleModelProjData = default, int pleModelProjType = 0,
             long pleModelProjNe0 = 0, long pleModelProjNe1 = 0, long pleModelProjBytes = 0,
             IntPtr pleModelProjNormData = default,
-            int tpDegree = 1, IntPtr[] tpPlanOut = null)
+            int tpDegree = 1, IntPtr[] tpPlanOut = null,
+            IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null)
         {
             if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             CheckResult(TSGgml_Gemma4ModelDecode(
@@ -5793,7 +5992,9 @@ internal enum GgmlIndexReductionOp
                 pleModelProjData, pleModelProjType,
                 pleModelProjNe0, pleModelProjNe1, pleModelProjBytes,
                 pleModelProjNormData,
-                tpDegree, tpPlanOut), "gemma4_model_decode");
+                tpDegree, tpPlanOut,
+                gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr), "gemma4_model_decode");
         }
 
         /// <summary>True token-batched dense decode: N concurrent sequences, one
@@ -5881,7 +6082,12 @@ internal enum GgmlIndexReductionOp
             IntPtr pleProjWData = default, int pleProjWType = 0,
             long pleProjWNe0 = 0, long pleProjWNe1 = 0, long pleProjWBytes = 0,
             IntPtr pleProjNormData = default,
-            int tpDegree = 1, IntPtr[] tpPlanOut = null)
+            int tpDegree = 1, IntPtr[] tpPlanOut = null,
+            IntPtr[] gateArr = null, int[] gateTypeArr = null, long[] gateNe0Arr = null, long[] gateNe1Arr = null, long[] gateBytesArr = null,
+            IntPtr[] upArr = null, int[] upTypeArr = null, long[] upNe0Arr = null, long[] upNe1Arr = null, long[] upBytesArr = null,
+            IntPtr logitsData = default, int vocabSize = 0,
+            IntPtr lmHeadData = default, int lmHeadType = 0, long lmHeadNe0 = 0, long lmHeadNe1 = 0, long lmHeadBytes = 0,
+            IntPtr finalNormData = default, float logitSoftcap = 0f)
         {
             if (tpPlanOut != null) tpPlanOut[0] = IntPtr.Zero;
             int r = TSGgml_Gemma4ModelVerify(
@@ -5913,7 +6119,12 @@ internal enum GgmlIndexReductionOp
                 pleProjWData, pleProjWType,
                 pleProjWNe0, pleProjWNe1, pleProjWBytes,
                 pleProjNormData,
-                tpDegree, tpPlanOut);
+                tpDegree, tpPlanOut,
+                gateArr, gateTypeArr, gateNe0Arr, gateNe1Arr, gateBytesArr,
+                upArr, upTypeArr, upNe0Arr, upNe1Arr, upBytesArr,
+                logitsData, vocabSize,
+                lmHeadData, lmHeadType, lmHeadNe0, lmHeadNe1, lmHeadBytes,
+                finalNormData, logitSoftcap);
             return r != 0;
         }
 
@@ -6155,6 +6366,39 @@ internal enum GgmlIndexReductionOp
                 return;
 
             CheckResult(TSGgml_SyncHostBuffer(ptr, byteCount), "sync_host_buffer");
+        }
+
+        /// <summary>
+        /// Pull only the given byte ranges of a cached tensor's device copy back
+        /// into its host memory (offsets are relative to <paramref name="ptr"/>).
+        /// A tensor with no device copy needs nothing and returns at once.
+        /// </summary>
+        public static unsafe void SyncHostBufferRanges(IntPtr ptr, ReadOnlySpan<long> offsets, ReadOnlySpan<long> lengths)
+        {
+            if (ptr == IntPtr.Zero || offsets.Length == 0)
+                return;
+            if (offsets.Length != lengths.Length)
+                throw new ArgumentException("offsets and lengths must have the same length.");
+            fixed (long* o = offsets)
+            fixed (long* l = lengths)
+                CheckResult(TSGgml_SyncHostBufferRanges(ptr, o, l, offsets.Length), "sync_host_buffer_ranges");
+        }
+
+        /// <summary>
+        /// Push only the given byte ranges of a tensor's host memory into its cached
+        /// device copy, leaving the copy resident (the whole-buffer alternative is
+        /// <see cref="InvalidateHostBuffer"/>, which re-uploads everything on the
+        /// next bind). A tensor with no device copy needs nothing.
+        /// </summary>
+        public static unsafe void UploadHostBufferRanges(IntPtr ptr, ReadOnlySpan<long> offsets, ReadOnlySpan<long> lengths)
+        {
+            if (ptr == IntPtr.Zero || offsets.Length == 0)
+                return;
+            if (offsets.Length != lengths.Length)
+                throw new ArgumentException("offsets and lengths must have the same length.");
+            fixed (long* o = offsets)
+            fixed (long* l = lengths)
+                CheckResult(TSGgml_UploadHostBufferRanges(ptr, o, l, offsets.Length), "upload_host_buffer_ranges");
         }
 
         /// <summary>
@@ -6424,6 +6668,15 @@ internal enum GgmlIndexReductionOp
                 return IntPtr.Zero;
             }
 
+            if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
+            {
+                // On iOS/iPadOS GgmlOps is a static archive linked into the app
+                // executable (GgmlOps.xcframework via NativeReference with
+                // ForceLoad), so every TSGgml_*/ggml_* symbol lives in the main
+                // program image - there is no separate library to probe for.
+                return NativeLibrary.GetMainProgramHandle();
+            }
+
             EnsureWindowsNativeDependencySearchPaths();
 
             foreach (string candidate in GetCandidatePaths(assembly))
@@ -6479,6 +6732,12 @@ internal enum GgmlIndexReductionOp
             yield return OperatingSystem.IsWindows() ? "GgmlOps.dll" :
                 OperatingSystem.IsMacOS() ? "libGgmlOps.dylib" :
                 "libGgmlOps.so";
+        }
+
+        private static bool IsApplePlatform()
+        {
+            // iOS covers iPadOS; Mac Catalyst reports itself distinctly.
+            return OperatingSystem.IsMacOS() || OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst();
         }
 
         private static bool IsCudaPlatformSupported()
@@ -6571,9 +6830,26 @@ internal enum GgmlIndexReductionOp
         /// is an unrelated op failing one or more forwards later, over results that
         /// were already undefined.
         ///
-        /// Sticky and unrecoverable in-process: see TSGgml_HasBackendFailure.
+        /// Sticky: cleared only by <see cref="RecreateBackend"/>.
         /// </summary>
         public static bool HasBackendFailure() => TSGgml_HasBackendFailure() != 0;
+
+        /// <summary>
+        /// Free the GPU backend and build a new one, in this process.
+        ///
+        /// <para>
+        /// The only way to clear ggml-metal's latched <c>has_error</c>, and therefore
+        /// the only recovery from a command buffer that was refused — which on iOS is
+        /// what happens to any GPU work an app submits while it is not frontmost.
+        /// </para>
+        /// <para>
+        /// THE LOADED MODEL MUST BE RELEASED FIRST. Its tensors live in buffers this
+        /// frees; releasing them afterwards is a crash rather than an error. The order
+        /// that works is unload, recreate, load again.
+        /// </para>
+        /// </summary>
+        /// <returns>Whether a working backend is standing afterwards.</returns>
+        public static bool RecreateBackend() => TSGgml_RecreateBackend() != 0;
 
         /// <summary>What ggml logged about the failure, or an empty string.</summary>
         public static string BackendFailureText()

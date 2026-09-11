@@ -71,7 +71,7 @@ MTP 演示。`--spec` 及其余 `--spec-*` 系列参数由同一个
 
 ```bash
 # 服务端
-dotnet run --project TensorSharp.Server -c Release -- --model models/qwen3.6-35b-a3b-mtp/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --backend ggml_cuda --spec
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/qwen3.6-35b-a3b-mtp/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --backend ggml_cuda --spec
 
 # CLI —— 投机在 --input、--input-jsonl、--multi-turn-jsonl 与 --interactive 上生效
 dotnet run --project TensorSharp.Cli -c Release -- --model models/qwen3.6-35b-a3b-mtp/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf --backend ggml_cuda --spec --spec-draft 4 --input prompt.txt --max-tokens 512

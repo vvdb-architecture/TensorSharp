@@ -29,6 +29,13 @@ namespace TensorSharp.Runtime.Speculative
         public double PlainMsPerToken { get; internal set; }
         public double SpecMsPerToken { get; internal set; }
 
+        /// <summary>The cost governor's verdicts during THIS request (the governor
+        /// itself is shared by every request an executor runs): rounds and held
+        /// wins that ended in a win / a loss, and steps spent parked.</summary>
+        public int GovernorWins { get; internal set; }
+        public int GovernorLosses { get; internal set; }
+        public int GovernorParkedSteps { get; internal set; }
+
         public double AcceptanceRate => TokensDrafted > 0 ? (double)TokensAccepted / TokensDrafted : 0;
 
         // Wall-clock phase breakdown (Stopwatch ticks) so a slow speculative

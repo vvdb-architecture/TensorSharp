@@ -545,13 +545,13 @@ class TensorSharpServer(ServerHandle):
 
     def start(self):
         spec = config.BACKENDS[self.backend]
-        # TensorSharp.Server hard-codes its listen address to 0.0.0.0:5000, so a
-        # squatted port cannot be worked around by moving — fail fast and clearly.
+        # TensorSharp.Server.Host hard-codes its listen address to 0.0.0.0:5000,
+        # so a squatted port cannot be worked around by moving — fail fast and clearly.
         if _port_open("127.0.0.1", self.port):
             pid = _pid_listening(self.port)
             raise RuntimeError(
                 f"port {self.port} is already in use by PID {pid} and "
-                f"TensorSharp.Server's listen address is hard-coded to "
+                f"TensorSharp.Server.Host's listen address is hard-coded to "
                 f"0.0.0.0:{self.port}. Stop that process (taskkill /F /PID {pid}); "
                 f"if it will not die (stuck in a GPU-driver call), reboot.")
         cmd = ["dotnet", str(config.TENSORSHARP_SERVER_DLL),

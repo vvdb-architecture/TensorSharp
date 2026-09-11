@@ -232,7 +232,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll \
     --backend ggml_cuda --n-cpu-moe 20 --spec --chat
 
 # Server
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model models/GLM-5.2-UD-IQ2_XXS-00001-of-00006.gguf \
     --backend ggml_cuda --n-cpu-moe 20 --spec
 ```

@@ -99,6 +99,19 @@ namespace TensorSharp.AgentHost.CodeExec
               .Append(ShellTools.ShellToolName)
               .Append("`; use the shell to run programs, and to move, copy and delete files.\n");
 
+            // Without this line a model given file tools treats the CONVERSATION as if
+            // it were a filesystem. Measured on gemma-4-E4B: asked a question about a
+            // 140-line log pasted into the message, it answered "I will use the
+            // read_file tool... I will assume it should be saved to a file first", then
+            // spent every one of its 512 output tokens copying the log back out to
+            // write it somewhere -- and never answered. The tools are not the problem
+            // and neither is the model; nothing had told it that text already in front
+            // of it is already read.
+            sb.Append("- Text that is already in this conversation is already available to you. "
+                    + "Never write it to a file in order to read it back, and never call `")
+              .Append(ShellTools.ReadToolName)
+              .Append("` for something the user pasted — answer from what you were given.\n");
+
             return sb.ToString();
         }
     }

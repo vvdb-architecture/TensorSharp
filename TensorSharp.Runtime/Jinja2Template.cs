@@ -1124,7 +1124,9 @@ namespace TensorSharp.Runtime
             return Convert.ToString(val, CultureInfo.InvariantCulture) ?? "";
         }
 
-        private static string ToJson(object? val)
+        /// <summary>The <c>tojson</c> filter's text: Python <c>json.dumps</c> spacing
+        /// (", " and ": "), which is what a GGUF template prints for a tool.</summary>
+        internal static string ToJson(object? val)
         {
             if (val == null) return "null";
             if (val is bool b) return b ? "true" : "false";

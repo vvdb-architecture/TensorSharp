@@ -119,6 +119,25 @@ namespace TensorSharp.Runtime
             });
 
             // ---- Qwen -------------------------------------------------------
+            Register(new ChatProtocol
+            {
+                Id = "qwen3",
+                Architectures = new[] { "qwen3" },
+                CreateOutputParser = () => new ChatMlOutputParser(),
+                // Qwen3 generation prompts place the reasoning boundary after the
+                // assistant marker. Thinking-capable templates open it; the Bonsai
+                // 8B template deliberately emits the closed/empty form every time.
+                // Past-turn rendering may omit that boundary, so raw-token replay
+                // must put back exactly what the live KV cache saw.
+                AssistantGenerationSuffix = thinking => thinking
+                    ? "<think>\n"
+                    : "<think>\n\n</think>\n\n",
+                EmitsEmptyThinkBlockForPastTurns = _ => true,
+                // Tool results are rendered solely from role=tool; the preceding
+                // structured call is not needed, making lossless raw replay safe.
+                ToolCallRawSplicing = ToolCallRawSplicing.Always,
+            });
+
             // Qwen2 / Qwen2.5(-VL): ChatML tool syntax without a thinking
             // channel. Without this entry the family fell through to the passthrough
             // parser, which can never read a tool call back — so skills and run_code
@@ -138,21 +157,28 @@ namespace TensorSharp.Runtime
                 Id = "qwen35",
                 Architectures = new[] { "qwen35", "qwen35moe", "qwen3next", "qwen3vl", "qwen3vlmoe" },
                 Render = r => ChatTemplate.RenderQwen35(r.Messages, r.AddGenerationPrompt, r.EnableThinking, r.Tools),
-                // With thinking ON the GGUF template is used as shipped; with it OFF the
-                // purpose-built renderer is the only one that suppresses the block
-                // correctly.
-                PreferOwnRenderer = r => !r.EnableThinking,
+                // The GGUF template is used as shipped in BOTH thinking modes. It used
+                // to be replaced by the purpose-built renderer with thinking off,
+                // because the Jinja context left `enable_thinking` undefined when false
+                // and the template then took its thinking-ON branch. That is fixed at
+                // the context (it is always defined now), and the two renderers had
+                // drifted apart — pretty-printed versus compact tool JSON — so a chat
+                // whose thinking toggle changed between turns re-prefilled everything
+                // from the first tool declaration on. One renderer, one prompt.
                 AppendMediaPlaceholders = AppendQwenVisionPads,
                 CreateOutputParser = () => new Qwen35OutputParser(),
-                // With thinking ENABLED the Jinja template emits `<think>\n` after the
-                // assistant role marker as part of the generation prompt, and does NOT
-                // re-emit `<think>...</think>` framing for PAST assistant messages.
-                // Without this the cache's `<think>` token has no counterpart in the
-                // next turn's render and every multi-turn request resets the cache.
-                // With thinking DISABLED the purpose-built renderer already emits
-                // `<think>\n\n</think>\n\n` for past turns, so nothing is needed.
-                AssistantGenerationSuffix = thinking => thinking ? "<think>\n" : null,
-                EmitsEmptyThinkBlockForPastTurns = thinking => thinking,
+                // The template frames the generation prompt as `<think>\n` (thinking on)
+                // or `<think>\n\n</think>\n\n` (off) after the assistant marker, and does
+                // NOT re-emit either for PAST assistant messages before the last user
+                // turn. The cache holds whichever one that turn was generated under, so
+                // the renderer puts it back in front of the turn's raw tokens — the
+                // turn's own recorded suffix when the transcript remembers it, this
+                // request's mode otherwise.
+                AssistantGenerationSuffix = thinking => thinking ? "<think>\n" : "<think>\n\n</think>\n\n",
+                // For the assistant turn AFTER the last user message the template does
+                // emit the empty block; it has to go before the recorded suffix is
+                // injected, or the cache's `<think>` meets `<think>\n\n</think>\n\n<think>`.
+                EmitsEmptyThinkBlockForPastTurns = _ => true,
                 // Its tool-result branch depends only on role=tool, never on the
                 // preceding assistant's structured tool_calls field. Keep the exact
                 // generated reasoning + call tokens so an agent round extends the live

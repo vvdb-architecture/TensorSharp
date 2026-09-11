@@ -25,7 +25,8 @@ using TensorSharp.GGML;
 using TensorSharp.MLX;
 
 namespace TensorSharp.Models
-{
+{
+
     // Reading weights out of the GGUF and getting them where the chosen backend
     // wants them: host quant buffers, CUDA / MLX / Metal / direct-CUDA device
     // preloads, gate+up fusion and requantization. All of it runs once, at load.
@@ -715,6 +716,14 @@ namespace TensorSharp.Models
             if (!IsGgmlBackend)
                 return false;
 
+            // Q1_0 is deliberately gathered from the mmap on the host. It is only
+            // used by embedding tables, so this moves a few KiB per prompt while
+            // avoiding backend-specific get_rows coverage gaps for the new format.
+            // The large Q1_0 projection matrices still stay device-resident and use
+            // the optimized mul_mat kernels.
+            if ((GgmlTensorType)ggmlType == GgmlTensorType.Q1_0)
+                return false;
+
             if (_backend != BackendType.GgmlCuda)
                 return true;
 
@@ -735,13 +744,94 @@ namespace TensorSharp.Models
             };
         }
 
+        /// <summary>
+        /// Bytes of anonymous memory NOT allocated because a fusion that needed a copy
+        /// was declined. Reported once per load so the trade is visible rather than
+        /// silent; see <see cref="AllowWeightFusionCopies"/>.
+        /// </summary>
+        protected long DeclinedFusionCopyBytes { get; private set; }
+
+        /// <summary>Fusions declined because joining the sources would have required a copy.</summary>
+        protected int DeclinedFusionCopyCount { get; private set; }
+
+        /// <summary>
+        /// Fuse unconditionally -- free view when the sources are adjacent, anonymous
+        /// copy when they are not. For the few consumers that have NO separate-weights
+        /// path and would simply fail without the fused tensor (gpt-oss's per-expert
+        /// gate_up, which ExpertFFN and the fused decode arrays index by name). Every
+        /// other site must use <see cref="TryCreateFusedQuantizedWeight"/>, which
+        /// declines the copy where memory matters more than the saved matmul.
+        /// </summary>
+        protected static QuantizedWeight CreateFusedQuantizedWeightRequired(params QuantizedWeight[] weights)
+        {
+            if (QuantizedWeight.TryCreateConcatenatedView(out QuantizedWeight view, weights))
+                return view;
+            return QuantizedWeight.ConcatOrCreateCopy(weights);
+        }
+
+        /// <summary>
+        /// Fuse for a caller that has NO separate-weights fallback: always produces a
+        /// tensor, by view when the sources are adjacent and by copy when they are not.
+        /// This is the default because declining without a fallback leaves the consumer
+        /// with no weight at all -- see the SupportsSplitGateUpFfn warning below, which
+        /// is what that failure looks like.
+        /// </summary>
         protected bool TryCreateFusedQuantizedWeight(out QuantizedWeight fused, params QuantizedWeight[] weights)
+            => TryCreateFusedQuantizedWeight(separatePathAvailable: false, out fused, weights);
+
+        /// <summary>
+        /// Fuse, optionally declining the anonymous copy when the caller can run the
+        /// sources separately instead.
+        /// </summary>
+        /// <param name="separatePathAvailable">
+        /// True only where the caller has been VERIFIED to work with the fused tensor
+        /// absent -- SeparateQkv in the fused decode kernels, SupportsSplitGateUpFfn for
+        /// the FFN, the four source weights for the recurrent pack. Where it is false the
+        /// copy is taken regardless of policy, because the alternative is a model that
+        /// loads and then generates nonsense.
+        /// </param>
+        protected bool TryCreateFusedQuantizedWeight(
+            bool separatePathAvailable, out QuantizedWeight fused, params QuantizedWeight[] weights)
         {
             if (CanUseFileMappedQuantizedWeights && QuantizedWeight.TryCreateConcatenatedView(out fused, weights))
                 return true;
 
+            // The free view was not available -- the sources are not adjacent in the
+            // mapping, or one of them is itself a copy. Building the fused tensor now
+            // means duplicating already-mapped bytes into anonymous memory, which on a
+            // phone is charged against the jetsam limit. Decline and let the caller use
+            // its separate-weights path.
+            if (separatePathAvailable && !AllowWeightFusionCopies)
+            {
+                long bytes = 0;
+                for (int i = 0; i < weights.Length; i++)
+                    bytes += weights[i].RawBytes;
+                DeclinedFusionCopyBytes += bytes;
+                DeclinedFusionCopyCount++;
+                fused = null;
+                return false;
+            }
+
             fused = QuantizedWeight.ConcatOrCreateCopy(weights);
             return true;
+        }
+
+        /// <summary>
+        /// Print the fusion copies this load declined, once, after all fusion has run.
+        /// Silent when none were declined (the desktop default).
+        /// </summary>
+        private bool _reportedDeclinedFusion;
+
+        protected void ReportDeclinedFusionCopies()
+        {
+            // Once per load, whichever fusion pass happens to run last for this family.
+            if (_reportedDeclinedFusion || DeclinedFusionCopyCount <= 0)
+                return;
+            _reportedDeclinedFusion = true;
+            Console.WriteLine(
+                $"  Kept separate to save memory: {DeclinedFusionCopyCount} fusions, " +
+                $"{DeclinedFusionCopyBytes / (1024.0 * 1024.0):0} MB of anonymous copies avoided " +
+                "(TS_WEIGHT_FUSION_COPIES=1 to fuse anyway)");
         }
 
         protected bool HasMlxHostFallbackQuantizedWeights()
@@ -957,8 +1047,17 @@ namespace TensorSharp.Models
                     // (gate/up not contiguous in the GGUF file), fall back to a
                     // copy. Cost is bounded — 2 tensors × per-layer, host memory
                     // released after the MLX device upload.
-                    if (!TryCreateFusedQuantizedWeight(out QuantizedWeight fusedWeight, gateSrc, upSrc))
-                        fusedWeight = QuantizedWeight.ConcatOrCreateCopy(gateSrc, upSrc);
+                    if (!TryCreateFusedQuantizedWeight(
+                            SupportsSplitGateUpFfn, out QuantizedWeight fusedWeight, gateSrc, upSrc))
+                    {
+                        // Only reachable when the copy was declined for memory (see
+                        // AllowWeightFusionCopies). Every family that reaches here runs
+                        // gate and up as two matmuls when guName is absent, so drop the
+                        // requantized temporary and leave the mapped sources in place.
+                        if (requant != null)
+                            requant.Dispose();
+                        continue;
+                    }
 
                     fusedWeight.Scale = gw.Scale;
                     _quantWeights[guName] = fusedWeight;
@@ -1017,6 +1116,7 @@ namespace TensorSharp.Models
                 }
                 Console.WriteLine($"    Layers: {string.Join(", ", splitLayers)}");
             }
+            ReportDeclinedFusionCopies();
         }
 
         /// <summary>
@@ -1123,6 +1223,7 @@ namespace TensorSharp.Models
             if (ex is AggregateException agg)
                 return agg.InnerExceptions.Count > 0 && agg.InnerExceptions.All(IsRequantizeUnavailable);
             return ex is DllNotFoundException or EntryPointNotFoundException or NotSupportedException;
-        }
+        }
+
     }
 }

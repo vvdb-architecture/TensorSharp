@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cstdio>
@@ -172,7 +173,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
             ggml_tensor* v_write = ggml_cont(ctx, v_perm);
 
             const int cachePos = isLocal ? (position % cacheSize) : position;
-            const int activeStart = isLocal ? ((totalSeqLen - attendLen) % cacheSize) : 0;
+            const int activeStart = swa_decode_window_start(isLocal, totalSeqLen, attendLen, cacheSize);
             const int attnKvLen = flash_attn_kv_length(attendLen, cacheSize, hd);
             const std::size_t kv_byte_offset = static_cast<std::size_t>(cachePos) * k_cached_t->nb[1];
             ggml_tensor* k_dst = ggml_view_3d(ctx, k_cached_t, hd, 1, kvH, k_cached_t->nb[1], k_cached_t->nb[2], kv_byte_offset);
@@ -195,7 +196,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
             ggml_tensor* q_3d = ggml_reshape_3d(ctx, q_normed, hd, nH, 1);
             q_rope = ggml_rope_ext(ctx, q_3d, pos_tensor, rope_ff, rope_dims, 2, 0, d->rope_base, 1.0f, 0, 1, 0, 0);
 
-            const int activeStart = isLocal ? ((totalSeqLen - attendLen) % cacheSize) : 0;
+            const int activeStart = swa_decode_window_start(isLocal, totalSeqLen, attendLen, cacheSize);
             const int attnKvLen = flash_attn_kv_length(attendLen, cacheSize, hd);
             if (flash_attn_requires_masked_padding(hd))
             {
@@ -218,7 +219,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
         ggml_tensor* attn_flat = ggml_reshape_2d(ctx, attn_out, qDim, 1);
         ggml_tensor* o_flat = ggml_reshape_1d(ctx, ggml_mul_mat(ctx, o_w, attn_flat), H);
         ggml_tensor* post_attn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, o_flat, eps), post_attn_norm_w);
-        ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn_normed);
+        ggml_tensor* residual1 = ggml_add(ctx, post_attn_normed, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
         // ===================== Dense shared FFN =====================
         ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), ffn_norm_w);
@@ -313,7 +314,7 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
 
         // ===================== Final residual + layer scale =====================
         ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), post_ffw_norm_w);
-        ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+        ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
         if (std::fabs(d->layer_output_scale - 1.0f) > 1e-9f)
             result = ggml_scale(ctx, result, d->layer_output_scale);
 
@@ -405,9 +406,11 @@ TSG_EXPORT int TSGgml_Gemma4MoELayerDecode(const TSGgmlGemma4MoELayerDesc* d)
 
         // Allocate intermediates (reuse persistent compute buffer across tokens).
         BufferHandle buffer(nullptr);
-        if (!alloc_ctx_tensors_reuse(ctx))
+        if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Gemma4 MoE layer decode: failed to allocate backend buffer.");
@@ -1023,7 +1026,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
             else
             {
                 const int cachePos = isLocal ? (position % cacheSize) : position;
-                const int activeStart = isLocal ? ((totalSeqLen - attendLen) % cacheSize) : 0;
+                const int activeStart = swa_decode_window_start(isLocal, totalSeqLen, attendLen, cacheSize);
                 const int attnKvLen = flash_attn_kv_length(attendLen, cacheSize, hd);
                 const std::size_t kv_byte_offset = static_cast<std::size_t>(cachePos) * t.k_cached_t->nb[1];
                 ggml_tensor* k_dst = ggml_view_3d(ctx, t.k_cached_t, hd, 1, kvH, t.k_cached_t->nb[1], t.k_cached_t->nb[2], kv_byte_offset);
@@ -1053,7 +1056,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
             ggml_tensor* o_flat = ggml_reshape_1d(ctx, o_mm, H);
             if (tp_mode) { tp_partial.push_back(o_mm); tp_boundary.push_back(o_flat); }
             ggml_tensor* post_attn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, o_flat, eps), t.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn_normed);
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn_normed, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // ===== Dense shared FFN =====
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), t.ffn_norm_w);
@@ -1182,7 +1185,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
 
             // ===== Final residual + layer scale =====
             ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), t.post_ffw_norm_w);
-            ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+            ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
             if (std::fabs(d.layer_output_scale - 1.0f) > 1e-9f)
                 result = ggml_scale(ctx, result, d.layer_output_scale);
 
@@ -1347,7 +1350,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
         // (shared with the MoE verify): the bump allocator's footprint is the SUM of
         // every intermediate (~870 MB on the 26B-A4B), which on top of the ~16 GB
         // resident weights/KV would OOM; gallocr packs by tensor LIFETIME (peak).
-        // Persist: stable tensor addresses (every intermediate its own slot) so the
+        // Persist: stable tensor addresses, with Metal attention workspace reuse, so the
         // built graph + KV buffers keep fixed addresses for CUDA-graph capture; the
         // ctx/graph/buffer are kept alive in g_g4moe. The N=1 padded-window decode's
         // intermediate footprint is small (a few MB), unlike the verify's. Non-
@@ -1356,7 +1359,9 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Gemma4 MoE model decode: failed to allocate persist backend buffer.");
@@ -1366,7 +1371,9 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecode(
         }
         else if (!alloc_graph_reuse_gallocr(graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Gemma4 MoE model decode: failed to allocate backend buffer.");
@@ -2211,7 +2218,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelVerify(
                 mlp = ggml_add(ctx, mlp, moe_normed);
                 // final residual + layer scale
                 ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), t.post_ffw_norm_w);
-                ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+                ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
                 if (std::fabs(d.layer_output_scale - 1.0f) > 1e-9f)
                     result = ggml_scale(ctx, result, d.layer_output_scale);
                 return result;
@@ -2299,7 +2306,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelVerify(
                     ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_tile, eps), t.post_attn_norm_w);
                     ggml_tensor* hidden_tile = ggml_view_2d(ctx, hidden, H, qLen,
                         hidden->nb[1], static_cast<std::size_t>(qs) * hidden->nb[1]);
-                    ggml_tensor* residual1 = ggml_add(ctx, hidden_tile, post_attn);        // [H, qLen]
+                    ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden_tile);        // [H, qLen]
                     ggml_tensor* result_tile = layer_tail(residual1, qLen);                // [H, qLen]
                     result_acc = (result_acc == nullptr) ? result_tile : ggml_concat(ctx, result_acc, result_tile, 1);  // [H, qe]
                 }
@@ -2330,7 +2337,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelVerify(
                 ggml_tensor* o_out = ggml_mul_mat(ctx, t.o_w, attn_flat);                  // [H, N]
                 if (tp_mode) tp_partial.push_back(o_out);
                 ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), t.post_attn_norm_w);
-                ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);                // [H, N]
+                ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);                // [H, N]
                 result = layer_tail(residual1, N);                                         // [H, N]
             }
 

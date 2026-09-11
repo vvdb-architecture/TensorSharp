@@ -289,6 +289,35 @@ namespace TensorSharp.AgentHost.CodeExec
             return false;
         }
 
+        /// <summary>
+        /// The download URL for one artifact, built the SAME way wherever a pointer is
+        /// made.
+        ///
+        /// <para>
+        /// Each path SEGMENT is escaped and the separators are not, because
+        /// <see cref="Uri.EscapeDataString"/> escapes <c>/</c> itself: escaping the whole
+        /// relative path turned <c>out/report.pdf</c> into <c>out%2Freport.pdf</c>, which
+        /// this store's own route then refuses. The two producers -- a shell command's
+        /// captured output and a skill script's -- built this string separately and only
+        /// one of them escaped anything, so a file with a space, a <c>#</c> or a <c>%</c>
+        /// in its name was reachable from one of them and a 404 from the other.
+        /// </para>
+        /// </summary>
+        public static string UrlFor(string uriPrefix, string runId, string relativePath)
+        {
+            ArgumentNullException.ThrowIfNull(uriPrefix);
+            string relative = (relativePath ?? string.Empty).Replace('\\', '/');
+            var sb = new System.Text.StringBuilder(uriPrefix.TrimEnd('/'));
+            sb.Append('/').Append(Uri.EscapeDataString(runId ?? string.Empty));
+            foreach (string segment in relative.Split('/'))
+            {
+                if (segment.Length == 0)
+                    continue;
+                sb.Append('/').Append(Uri.EscapeDataString(segment));
+            }
+            return sb.ToString();
+        }
+
         /// <summary>Resolve one artifact for download, refusing anything outside the store.</summary>
         public bool TryResolve(string runId, string relativePath, out string? fullPath, out string? error)
         {

@@ -269,6 +269,7 @@ internal static class CodeRepairCorpus
             {
                 ["path"] = RelativePath,
                 ["content"] = after,
+                ["overwrite"] = true,
             }),
             ToolPayload(ShellTools.EditToolName, new Dictionary<string, object?>
             {

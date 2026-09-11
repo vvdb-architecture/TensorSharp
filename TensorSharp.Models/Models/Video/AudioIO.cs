@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.IO;
 using NLayer;
 using NVorbis;
+using TensorSharp.Models.Media;
 
 namespace TensorSharp.Models.Video
 {
@@ -30,7 +31,8 @@ namespace TensorSharp.Models.Video
         public double DurationSeconds => SampleRate > 0 ? SampleCount / (double)SampleRate : 0;
     }
 
-    /// <summary>Reads WAV, MP3 and Ogg Vorbis into planar float PCM.</summary>
+    /// <summary>Reads WAV, MP3 and Ogg Vorbis into planar float PCM; anything else goes to
+    /// the platform audio decoder on <see cref="MediaCodecs.Audio"/>.</summary>
     public static class AudioIO
     {
         /// <summary>Decode an audio file, resampled to <paramref name="targetRate"/> and
@@ -45,16 +47,36 @@ namespace TensorSharp.Models.Video
             if (targetRate <= 0) throw new ArgumentOutOfRangeException(nameof(targetRate));
             if (targetChannels <= 0) throw new ArgumentOutOfRangeException(nameof(targetChannels));
 
+            DecodedAudio raw = TryDecodeManaged(path) ?? MediaCodecs.Audio.Decode(path);
+            return Conform(raw, targetRate, targetChannels);
+        }
+
+        /// <summary>The managed decoders' formats, by extension: WAV (own reader), MP3
+        /// (NLayer) and Ogg Vorbis (NVorbis). Null for anything else, so the caller can hand
+        /// the file to the platform decoder; the format dispatch is by extension because
+        /// that is what every caller has always keyed on.</summary>
+        internal static DecodedAudio TryDecodeManaged(string path)
+        {
             string ext = Path.GetExtension(path).ToLowerInvariant();
-            DecodedAudio raw = ext switch
+            return ext switch
             {
                 ".wav" or ".wave" => DecodeWav(File.ReadAllBytes(path)),
                 ".mp3" => DecodeMp3(path),
                 ".ogg" or ".oga" => DecodeOgg(path),
-                _ => throw new NotSupportedException(
-                    $"audio format '{ext}' is not supported; use .wav, .mp3 or .ogg."),
+                _ => null,
             };
-            return Conform(raw, targetRate, targetChannels);
+        }
+
+        /// <summary>What <see cref="ManagedMediaProvider"/> serves: the managed formats, or a
+        /// <see cref="NotSupportedException"/> that says which provider would read the file.</summary>
+        internal static DecodedAudio DecodeManaged(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentNullException(nameof(path));
+            if (!File.Exists(path)) throw new FileNotFoundException($"audio file not found: {path}", path);
+            return TryDecodeManaged(path) ?? throw new NotSupportedException(
+                $"audio format '{Path.GetExtension(path)}' has no managed decoder (the managed media provider reads " +
+                ".wav, .mp3 and .ogg). Register a platform IAudioDecoder on MediaCodecs.Audio — AVFoundation " +
+                "(AVAudioFile) on iOS — to read .m4a, .aac, .caf, .flac and the rest.");
         }
 
         /// <summary>Resample and re-channel already-decoded PCM.</summary>

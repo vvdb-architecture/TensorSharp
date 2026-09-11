@@ -19,6 +19,24 @@ using TensorSharp.AgentHost.Skills;
 namespace TensorSharp.AgentHost.CodeExec
 {
     /// <summary>
+    /// What the host asks after a write: do these files still parse. <see cref="SyntaxCheck"/>
+    /// answers with the installed interpreters; a host with embedded ones supplies its
+    /// own through <see cref="ShellRunner"/>.
+    /// </summary>
+    public interface ISyntaxVerifier
+    {
+        /// <summary>
+        /// Check every checkable file among <paramref name="relativePaths"/> and describe
+        /// what no longer parses, or return null when everything does — or when nothing
+        /// could be checked, which is a diagnostic staying quiet, never a verdict.
+        /// </summary>
+        /// <param name="relativePaths">Paths relative to the work directory, as the model knows them.</param>
+        /// <param name="workspace">The session workspace the paths belong to.</param>
+        /// <param name="ranIn">The directory the paths are relative to; defaults to the work directory.</param>
+        string? Verify(IReadOnlyList<string> relativePaths, SessionWorkspace workspace, string? ranIn = null);
+    }
+
+    /// <summary>
     /// After a file is written or patched, check that it still parses — and say so when
     /// it does not.
     ///
@@ -58,10 +76,9 @@ namespace TensorSharp.AgentHost.CodeExec
     /// checkable was touched, which is the common case.
     /// </para>
     /// </summary>
-    public sealed class SyntaxCheck
+    public sealed class SyntaxCheck : ISyntaxVerifier
     {
-        private readonly CodeExecOptions _options;
-        private readonly ISkillSandbox? _sandbox;
+        private readonly IShellBackend _backend;
 
         /// <summary>Most files checked per language. A patch that touches more has bigger problems.</summary>
         private const int MaxFiles = 24;
@@ -70,9 +87,18 @@ namespace TensorSharp.AgentHost.CodeExec
 
         /// <summary>Create a checker running under the same terms as the run it follows.</summary>
         public SyntaxCheck(CodeExecOptions options, ISkillSandbox? sandbox)
+            : this(new ProcessShellBackend(
+                sandbox,
+                (options ?? throw new ArgumentNullException(nameof(options))).Unconfined
+                    ? SkillSandboxMode.Preferred
+                    : options.Sandbox))
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
-            _sandbox = sandbox;
+        }
+
+        /// <summary>Create a checker that launches its interpreters through <paramref name="backend"/>.</summary>
+        public SyntaxCheck(IShellBackend backend)
+        {
+            _backend = backend ?? throw new ArgumentNullException(nameof(backend));
         }
 
         /// <summary>
@@ -272,18 +298,18 @@ namespace TensorSharp.AgentHost.CodeExec
                 return Array.Empty<string>();
             }
 
-            var arguments = new List<string>
+            var argv = new List<string>
             {
+                interpreter,
                 language == CodeLanguage.Python ? "-c" : "-e",
                 checker,
             };
-            arguments.AddRange(files);
+            argv.AddRange(files);
 
-            ConfinedResult result = ConfinedProcess.Run(
-                new ConfinedLaunch
+            ConfinedResult result = _backend.Run(
+                new ShellLaunch
                 {
-                    Interpreter = interpreter,
-                    Arguments = arguments,
+                    Argv = argv,
                     WriteDirectory = workspace.TempDirectory,
                     WorkingDirectory = from,
                     ReadOnlyDirectory = workspace.Root,
@@ -291,7 +317,7 @@ namespace TensorSharp.AgentHost.CodeExec
                     AllowNetwork = false,
                     Timeout = Deadline,
                     MaxOutputBytes = 16 * 1024,
-                    EnvironmentVariables = new Dictionary<string, string>(StringComparer.Ordinal)
+                    Environment = new Dictionary<string, string>(StringComparer.Ordinal)
                     {
                         ["HOME"] = workspace.WorkDirectory,
                         ["TMPDIR"] = workspace.TempDirectory,
@@ -301,9 +327,8 @@ namespace TensorSharp.AgentHost.CodeExec
                         ["PYTHONUNBUFFERED"] = "1",
                         ["NO_COLOR"] = "1",
                     },
-                },
-                _sandbox,
-                _options.Unconfined ? SkillSandboxMode.Preferred : _options.Sandbox);
+                    Purpose = ShellLaunch.Purposes.SyntaxCheck,
+                });
 
             // A checker that could not run says nothing. It is a diagnostic, and a
             // diagnostic that invents a problem is worse than one that stays quiet.

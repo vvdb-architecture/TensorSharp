@@ -46,11 +46,15 @@ public class Qwen35BatchedCorrectnessTests
     // accumulated enough to flip the argmax). We assert at least 4 of the
     // first 8 tokens match — relaxes for accumulating FP drift while still
     // catching structural divergence (which would diverge at token 0).
-    [ModelFact("TS_TEST_MODEL_DIR", "27b")]
+    [ModelFact("TS_TEST_MODEL_DIR", Qwen35Gguf)]
     public async Task Qwen35_Greedy_LegacyAndBatchedAgree()
     {
         var modelPath = FindQwen35();
-        if (modelPath == null) { _output.WriteLine("[qwen35-corr] no model; skipping"); return; }
+        // The gate and this loader share Qwen35Gguf, so null here means they have
+        // drifted apart again. Fail loudly rather than return into a green tick.
+        Assert.True(modelPath != null,
+            $"[ModelFact] admitted this test but no '{Qwen35Gguf}' GGUF was found under {EnvModelDir}; "
+            + "the gate and the loader have drifted apart.");
         _output.WriteLine($"[qwen35-corr] loading {Path.GetFileName(modelPath)}");
 
         using var ctx = new CorrCtx(modelPath);
@@ -140,16 +144,25 @@ public class Qwen35BatchedCorrectnessTests
         => string.IsNullOrEmpty(s) ? string.Empty
            : (s.Length <= len ? s : s.Substring(0, len) + "...").Replace("\n", "\\n");
 
+    /// <summary>
+    /// The ONE pattern the [ModelFact] gate and the loader below both use.
+    ///
+    /// <para>
+    /// They used to differ: the gate asked for "27b" while the loader accepted
+    /// only "qwen3.6-27b" or "qwen3.5-27b". With Qwen3.8-27B on disk the gate
+    /// matched, the loader did not, and the body took its `return` — which xUnit
+    /// records as PASSED, not skipped. The correctness net for the qwen35 batched
+    /// path was reporting green on a machine where it had loaded nothing. One
+    /// pattern, shared, is the only arrangement that cannot drift.
+    /// </para>
+    /// </summary>
+    private const string Qwen35Gguf = "qwen3.5-27b|qwen3.6-27b|qwen3.8-27b";
+
     private static string FindQwen35()
     {
         string dir = Environment.GetEnvironmentVariable(EnvModelDir);
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
-        return Directory.GetFiles(dir, "*.gguf").Where(p =>
-        {
-            var n = Path.GetFileName(p).ToLowerInvariant();
-            return (n.Contains("qwen3.6-27b") || n.Contains("qwen3.5-27b"))
-                && !n.Contains("mmproj");
-        }).OrderBy(p => Path.GetFileName(p)).FirstOrDefault();
+        return TestGates.FindSmallestGguf(dir, Qwen35Gguf);
     }
 
     private sealed class CorrCtx : IDisposable
@@ -161,8 +174,19 @@ public class Qwen35BatchedCorrectnessTests
 
         public CorrCtx(string modelPath)
         {
-            BackendType backend = OperatingSystem.IsMacOS()
-                ? BackendType.GgmlMetal : BackendType.GgmlCpu;
+            // The assembly pins ONE process-global GGML backend up front
+            // (GgmlBackendTestInitializer), so picking Metal here purely because
+            // the host is a Mac fought that pin and threw "a different GGML
+            // backend was already initialized in this process" before a single
+            // token was generated. Read the same switch the initializer reads.
+            BackendType backend =
+                (Environment.GetEnvironmentVariable("TS_TEST_GGML_BACKEND") ?? "cpu").Trim().ToLowerInvariant() switch
+                {
+                    "metal" => BackendType.GgmlMetal,
+                    "cuda" => BackendType.GgmlCuda,
+                    "vulkan" => BackendType.GgmlVulkan,
+                    _ => BackendType.GgmlCpu,
+                };
             Model = TensorSharp.Models.ModelBase.Create(modelPath, backend);
             Renderer = new KVCachePromptRenderer(new GgufPromptRenderer());
             BlockSize = 256;

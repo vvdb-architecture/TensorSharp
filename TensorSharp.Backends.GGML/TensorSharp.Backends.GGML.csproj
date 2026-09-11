@@ -124,7 +124,7 @@
   </Target>
   <Target Name="BuildGgmlNativeUnix" BeforeTargets="BeforeBuild"
           DependsOnTargets="_PrepareGgmlNativeIncremental"
-          Condition="!$([MSBuild]::IsOSPlatform('Windows')) And '$(GgmlNativeBuildScript)' != '' And '$(TensorSharpSkipGgmlNative)' != 'true' And '$(TENSORSHARP_GGML_NATIVE_SKIP)' != 'true'"
+          Condition="!$([MSBuild]::IsOSPlatform('Windows')) And '$(GgmlNativeBuildScript)' != '' And '$(TensorSharpSkipGgmlNative)' != 'true' And '$(TENSORSHARP_GGML_NATIVE_SKIP)' != 'true' And '$(TargetPlatformIdentifier)' != 'ios'"
           Inputs="@(GgmlNativeSource);$(IntermediateOutputPath)$(GgmlNativeConfigStampName)"
           Outputs="$(IntermediateOutputPath)$(GgmlNativeBuildStampName)">
     <Message Importance="high" Text="Building GGML native library (incremental); CMake recompiles only changed sources." />
@@ -132,7 +132,10 @@
     <MakeDir Directories="$(IntermediateOutputPath)" />
     <Touch Files="$(IntermediateOutputPath)$(GgmlNativeBuildStampName)" AlwaysCreate="true" />
   </Target>
-  <Target Name="CopyGgmlNativeBinary" AfterTargets="Build" Condition="'$(GgmlNativeBinaryName)' != ''">
+  <!-- iOS links GgmlOps statically from GgmlOps.xcframework (built by
+       TensorSharp.GGML.Native/build-ios.sh and referenced by the app head via
+       NativeReference), so there is no loose binary to build or copy here. -->
+  <Target Name="CopyGgmlNativeBinary" AfterTargets="Build" Condition="'$(GgmlNativeBinaryName)' != '' And '$(TargetPlatformIdentifier)' != 'ios'">
     <ItemGroup>
       <GgmlNativeBinary Include="$(GgmlNativeBuildDir)/$(GgmlNativeBinaryName)" Condition="Exists('$(GgmlNativeBuildDir)/$(GgmlNativeBinaryName)')" />
       <GgmlNativeBinary Include="$(GgmlNativeBuildDir)/Release/$(GgmlNativeBinaryName)" Condition="Exists('$(GgmlNativeBuildDir)/Release/$(GgmlNativeBinaryName)')" />

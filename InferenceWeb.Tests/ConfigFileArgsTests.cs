@@ -131,6 +131,7 @@ public class ConfigFileArgsTests : IDisposable
     private static readonly HashSet<string> ServerRecognizedConfigKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "model", "mmproj", "backend", "max-tokens", "host", "port", "urls", "no-webui",
+        "no-prefix-cache",
         "temperature", "top-k", "top-p", "min-p", "seed", "stop", "sampling-precedence",
         "repeat-penalty", "repeat-last-n", "presence-penalty", "frequency-penalty",
         "continuous-batching", "no-continuous-batching", "paged-batching", "no-paged-batching",
@@ -147,6 +148,15 @@ public class ConfigFileArgsTests : IDisposable
         "upload-max-mb", "upload-quota-mb", "upload-ttl-hours",
         "skills-dir", "skill", "list-skills", "no-skills", "skills-no-discovery",
         "skills-allow-exec", "skills-max-rounds", "skills-sandbox", "skills-allow-network",
+        // Code execution. The server reads these because Program.cs strips them with
+        // CodeExecOptions.Parse and ServerOptionsBuilder consumes CodeExecOptions'
+        // SwitchFlags/ValueFlags before the unknown-argument trap, so a config may
+        // carry them -- but nothing here knew that until config/agent-*.json needed
+        // it. Both hosts share the one table in CodeExecOptions, so the CLI spells
+        // every one of these the same way.
+        "code-exec", "code-exec-allow-install", "code-exec-allow-network", "code-exec-unconfined",
+        "code-exec-timeout", "code-exec-temperature", "code-exec-install-domains",
+        "code-exec-install-index", "code-exec-shell", "code-exec-packages", "code-exec-max-output",
     };
 
     [Fact]

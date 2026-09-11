@@ -350,6 +350,42 @@ namespace tsg
     // reads this window DIRECTLY, 0 if no flash-attention op does (the window
     // feeds a cpy/concat/soft_max chain instead). Defaults to 1 - the shape every
     // single-token decode graph has, and the only one ggml-cuda's vec kernel (the
+    // Start row for a SINGLE-QUERY (decode) read of a sliding-window layer's
+    // circular KV cache.
+    //
+    // Once the window is saturated -- total_seq_len >= cache_size, i.e. the cache
+    // holds exactly the sliding window and nothing else -- the rotated window and
+    // the raw buffer contain the SAME SET of keys, and softmax is permutation-
+    // invariant over keys, so reading the buffer flat from slot 0 is exact. (RoPE
+    // is applied before the write, so a key carries its own position; and with one
+    // query at the newest position every cached slot is in-window, so no ordering
+    // is needed for masking either. This is only true for a single query -- a
+    // multi-token chunk still needs the causal order.)
+    //
+    // Reading flat is worth caring about because the rotated read is expensive:
+    // it straddles the buffer seam, so view_kv_cache_window below has to split it
+    // and rejoin the halves with ggml_concat, whose GPU kernels are F32-only --
+    // which means both F16 halves are converted first, and flash attention then
+    // reads an F32 window instead of the F16 cache. On gemma-4-E4B (35 sliding-
+    // window layers, window 512) that was 4 copies + 2 concats per layer per token
+    // and a 9% decode cliff the moment a prompt passed 512 tokens: 46.3 tok/s at
+    // depth 1 against 42.0 from depth 512 on. Reading flat holds 46.2 at every
+    // depth, with byte-identical output.
+    //
+    // TS_SWA_DECODE_FLAT=0 restores the rotated read for A/B comparison.
+    inline int swa_decode_window_start(bool is_local, int total_seq_len, int attend_len, int cache_size)
+    {
+        if (!is_local || cache_size <= 0)
+            return 0;
+        static const bool s_flat = []{
+            const char* e = std::getenv("TS_SWA_DECODE_FLAT");
+            return !(e != nullptr && e[0] == '0');
+        }();
+        if (s_flat && attend_len >= cache_size)
+            return 0;               // saturated: the whole buffer IS the window
+        return ((total_seq_len - attend_len) % cache_size + cache_size) % cache_size;
+    }
+
     // one that misreads truncated views; see kv_window_needs_cuda_flash_attn_copy)
     // can be selected for with an F16/F32 cache.
     inline ggml_tensor* view_kv_cache_window(

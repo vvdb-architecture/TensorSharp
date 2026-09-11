@@ -163,7 +163,7 @@
       <tr><td><code>TS_SCHED_DISABLE_BATCHED</code></td><td><code>1</code> forces per-sequence KV-swap (= <code>--no-continuous-batching</code>).</td></tr>
       <tr><td><code>TS_SCHED_MAX_BATCHED_TOKENS</code></td><td>Per-step token budget (4096).</td></tr>
       <tr><td><code>TS_SCHED_MAX_RUNNING_SEQS</code></td><td>Max in-flight sequences (16).</td></tr>
-      <tr><td><code>TS_SCHED_PREFILL_CHUNK</code></td><td>Max prefill tokens per step (1024).</td></tr>
+      <tr><td><code>TS_SCHED_PREFILL_CHUNK</code></td><td>Per-request mixed-step prefill cap (256); prefill-only steps fill the batch budget.</td></tr>
       <tr><td><code>TS_SCHED_SOLO_PREFILL_CHUNK</code></td><td>Prefill chunk for a solo / uncontended request (8192).</td></tr>
       <tr><td><code>TS_SCHED_DECODE_QUANTUM</code></td><td>Decode tokens before a sequence switch (256 = block size).</td></tr>
       <tr><td><code>TS_SCHED_NUM_BLOCKS / TS_SCHED_BLOCK_SIZE</code></td><td>Engine block-pool size (256) / tokens per block (256).</td></tr>

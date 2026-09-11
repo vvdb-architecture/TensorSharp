@@ -166,6 +166,7 @@ namespace TensorSharp.Runtime
                 AudioPaths = msg.AudioPaths != null ? new List<string>(msg.AudioPaths) : null,
                 TextFilePaths = msg.TextFilePaths != null ? new List<string>(msg.TextFilePaths) : null,
                 TextFileNames = msg.TextFileNames != null ? new List<string>(msg.TextFileNames) : null,
+                HasFileBackedTextAttachments = msg.HasFileBackedTextAttachments,
                 IsVideo = msg.IsVideo,
                 ToolCalls = msg.ToolCalls != null ? new List<ToolCall>(msg.ToolCalls) : null,
                 ToolCallId = msg.ToolCallId,

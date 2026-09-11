@@ -34,6 +34,13 @@ namespace TensorSharp.Models
         public int NonWhitespaceCharCount { get; init; }
 
         /// <summary>
+        /// Whether extraction stopped because its caller's character budget was reached.
+        /// This is distinct from <see cref="ExtractedPageCount"/>: the latter also reflects
+        /// a page limit or an unreadable page.
+        /// </summary>
+        public bool TextTruncated { get; init; }
+
+        /// <summary>
         /// True when the document has (almost) no selectable text — the tell-tale of a
         /// scanned or image-only PDF (each page is a picture with no embedded text layer).
         /// Such a PDF cannot be handed to a text model as-is; its pages must instead be
@@ -75,13 +82,32 @@ namespace TensorSharp.Models
         /// <param name="password">Optional password for an encrypted PDF.</param>
         public static PdfTextResult ExtractFromFile(string pdfPath, int maxPages = 0, string password = null)
         {
+            return ExtractFromFile(pdfPath, maxPages, password, maxTextCharacters: 0);
+        }
+
+        /// <summary>
+        /// Extracts text from a PDF on disk without first copying the complete file into
+        /// a managed byte array. A positive <paramref name="maxTextCharacters"/> bounds
+        /// the aggregate string built while pages are visited; zero preserves the legacy
+        /// unlimited-text contract.
+        /// </summary>
+        public static PdfTextResult ExtractFromFile(
+            string pdfPath, int maxPages, string password, int maxTextCharacters)
+        {
             if (string.IsNullOrEmpty(pdfPath))
                 throw new ArgumentNullException(nameof(pdfPath));
             if (!File.Exists(pdfPath))
                 throw new FileNotFoundException("PDF file not found.", pdfPath);
+            if (maxTextCharacters < 0)
+                throw new ArgumentOutOfRangeException(nameof(maxTextCharacters));
 
-            byte[] bytes = File.ReadAllBytes(pdfPath);
-            return ExtractFromBytes(bytes, maxPages, password);
+            // PdfPig accepts a seekable stream and does not take ownership of it. Keeping
+            // that stream alive for the document lifetime avoids the previous 128 MiB file
+            // -> 128 MiB byte[] duplication on a memory-constrained phone.
+            using var stream = new FileStream(
+                pdfPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 64 * 1024, options: FileOptions.SequentialScan);
+            return ExtractFromStream(stream, maxPages, password, maxTextCharacters);
         }
 
         /// <summary>
@@ -95,8 +121,31 @@ namespace TensorSharp.Models
         /// </exception>
         public static PdfTextResult ExtractFromBytes(byte[] pdfBytes, int maxPages = 0, string password = null)
         {
+            return ExtractFromBytes(pdfBytes, maxPages, password, maxTextCharacters: 0);
+        }
+
+        /// <summary>
+        /// Byte-array extraction with an optional aggregate text bound. The input bytes
+        /// already belong to the caller; unlike <see cref="ExtractFromFile(string,int,string,int)"/>,
+        /// this overload does not make another copy of them.
+        /// </summary>
+        public static PdfTextResult ExtractFromBytes(
+            byte[] pdfBytes, int maxPages, string password, int maxTextCharacters)
+        {
             if (pdfBytes == null || pdfBytes.Length == 0)
                 throw new ArgumentException("Empty PDF data.", nameof(pdfBytes));
+            if (maxTextCharacters < 0)
+                throw new ArgumentOutOfRangeException(nameof(maxTextCharacters));
+
+            using var stream = new MemoryStream(pdfBytes, writable: false);
+            return ExtractFromStream(stream, maxPages, password, maxTextCharacters);
+        }
+
+        private static PdfTextResult ExtractFromStream(
+            Stream pdfStream, int maxPages, string password, int maxTextCharacters)
+        {
+            if (pdfStream == null)
+                throw new ArgumentNullException(nameof(pdfStream));
 
             // Lenient parsing lets PdfPig recover from the many real-world PDFs with a
             // broken xref table or minor spec violations. SkipMissingFonts keeps a page
@@ -112,7 +161,7 @@ namespace TensorSharp.Models
             PdfDocument document;
             try
             {
-                document = PdfDocument.Open(pdfBytes, options);
+                document = PdfDocument.Open(pdfStream, options);
             }
             catch (Exception ex)
             {
@@ -126,8 +175,12 @@ namespace TensorSharp.Models
                 int total = document.NumberOfPages;
                 int limit = maxPages > 0 ? Math.Min(maxPages, total) : total;
 
-                var sb = new StringBuilder();
+                var sb = maxTextCharacters > 0
+                    ? new StringBuilder(Math.Min(maxTextCharacters, 16 * 1024))
+                    : new StringBuilder();
                 int extracted = 0;
+                int nonWhitespace = 0;
+                bool textTruncated = false;
                 for (int i = 1; i <= limit; i++)
                 {
                     string pageText;
@@ -149,18 +202,53 @@ namespace TensorSharp.Models
                     if (string.IsNullOrWhiteSpace(pageText))
                         continue;
 
-                    if (sb.Length > 0)
+                    // Avoid pageText.TrimEnd(): on a pathological single page it creates
+                    // another full-size string before the aggregate bound can help.
+                    int pageLength = pageText.Length;
+                    while (pageLength > 0 && char.IsWhiteSpace(pageText[pageLength - 1]))
+                        pageLength--;
+                    if (pageLength == 0)
+                        continue;
+
+                    for (int c = 0; c < pageLength; c++)
+                    {
+                        if (!char.IsWhiteSpace(pageText[c]))
+                            nonWhitespace++;
+                    }
+
+                    if (maxTextCharacters <= 0)
+                    {
+                        if (sb.Length > 0)
+                            sb.Append("\n\n");
+                        sb.Append(pageText, 0, pageLength);
+                        continue;
+                    }
+
+                    int separatorLength = sb.Length > 0 ? 2 : 0;
+                    int remaining = maxTextCharacters - sb.Length - separatorLength;
+                    if (remaining <= 0)
+                    {
+                        textTruncated = true;
+                        break;
+                    }
+
+                    if (separatorLength > 0)
                         sb.Append("\n\n");
-                    sb.Append(pageText.TrimEnd());
+                    int take = Math.Min(pageLength, remaining);
+                    // Never leave an isolated high surrogate at the end of the bounded
+                    // result. The next page/file layer can safely add its truncation note.
+                    if (take > 0 && take < pageLength && char.IsHighSurrogate(pageText[take - 1]))
+                        take--;
+                    if (take > 0)
+                        sb.Append(pageText, 0, take);
+                    if (take < pageLength)
+                    {
+                        textTruncated = true;
+                        break;
+                    }
                 }
 
                 string text = sb.ToString();
-                int nonWhitespace = 0;
-                for (int c = 0; c < text.Length; c++)
-                {
-                    if (!char.IsWhiteSpace(text[c]))
-                        nonWhitespace++;
-                }
 
                 return new PdfTextResult
                 {
@@ -168,6 +256,7 @@ namespace TensorSharp.Models
                     PageCount = total,
                     ExtractedPageCount = extracted,
                     NonWhitespaceCharCount = nonWhitespace,
+                    TextTruncated = textTruncated,
                 };
             }
         }

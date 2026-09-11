@@ -112,6 +112,18 @@ namespace TensorSharp.AgentHost.CodeExec
         {
             ArgumentNullException.ThrowIfNull(request);
 
+            // No child processes at all on these platforms: posix_spawn is refused by
+            // the kernel and System.Diagnostics.Process throws. Answered here, once, as
+            // a plain fact rather than as an exception out of ForkWatchdog — everything
+            // that runs code on such a host goes through an in-process IShellBackend.
+            if (OperatingSystem.IsIOS() || OperatingSystem.IsTvOS())
+            {
+                process = null;
+                error = $"'{request.FileName}' cannot be started: this platform cannot start programs, "
+                      + "so anything that runs here must run inside the host's own process";
+                return false;
+            }
+
             return PosixSpawn.IsSupported
                 ? TryStartSpawned(request, out process, out error)
                 : TryStartManaged(request, out process, out error);

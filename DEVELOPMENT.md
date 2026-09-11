@@ -50,7 +50,7 @@ The solution build defaults to the `Any CPU` platform (`Directory.Solution.props
 dotnet build TensorSharp.Cli/TensorSharp.Cli.csproj
 
 # Web application
-dotnet build TensorSharp.Server/TensorSharp.Server.csproj
+dotnet build TensorSharp.Server.Host/TensorSharp.Server.Host.csproj
 ```
 
 ### Build the native GGML library
@@ -294,26 +294,29 @@ TensorSharp/
 │   ├── ggml_ops_wan.cpp                   # Wan 2.1/2.2 whole-graph entry points: UMT5-XXL text encoder, per-step DiT velocity prediction (persistent per shape for CUDA-graph capture), causal 3D video VAE encode + decode
 │   ├── ggml_ops_training.cpp              # Training-only kernels (unused at runtime)
 │   └── tests/                              # Native unit + smoke tests
+├── TensorSharp.Chat/            # Host-neutral chat pipeline shared by the Server, the CLI and the iOS app (no ASP.NET Core, no Distributed)
+│   ├── ModelService.cs          # Facade over model load/unload, the InferenceEngineHost and the generation pipeline (TensorParallelGroupFactory, SchedulerConfigOverride, UnloadModel)
+│   ├── ModelLifecycleService.cs # Model load/dispose and backend selection; the tensor-parallel group is handed in by the host
+│   ├── InferenceEngineHost.cs   # Per-model InferenceEngine singleton (continuous batching entry point)
+│   ├── ChatGenerationPipeline.cs # Prompt rendering, submits to InferenceEngine, streams tokens, stop handling
+│   ├── ChatHistoryPreparer.cs   # History normalization, raw-token splice helpers, multimodal order helpers
+│   ├── ChatSession.cs / SessionManager.cs # Per-conversation tracked history and the thread-safe session registry
+│   ├── WebUiChatService.cs      # The Web UI request/stream contract (sessions, models, upload, image edit, video, chat frames) with the transport taken out
+│   ├── SkillsService.cs         # The /api/skills and /v1/skills management surface, transport-free
+│   ├── BackendCatalog.cs        # Backend vocabulary and canonical names; the availability probes stay in the Server
+│   ├── Skills/                  # SkillRequestPlan, SkillChatLoop, RequestWorkspaceLease: the in-process disclosure loop over the pipeline
+│   ├── Hosting/                 # ServerHostingOptions, sampling defaults, upload storage/content policy, hosted-model guard, startup loader
+│   ├── RequestParsers/          # JSON request parsing (chat messages, sampling, tool functions, skills, video params, upload references)
+│   ├── ResponseSerializers/     # WebUiSseEvents (the Web UI frame shapes) + shared JSON options
+│   └── ProtocolAdapters/        # ChatStreamCollector + FinishReasonMapper (pipeline vocabulary -> protocol vocabulary)
 ├── TensorSharp.Server/          # Web chatbot + API server (ASP.NET Core)
 │   ├── Program.cs               # Slim bootstrap: DI wiring, middleware, endpoint mapping, paged-KV + continuous-batching CLI translation
-│   ├── ModelService.cs          # Facade that keeps the public server inference API stable; owns the InferenceEngineHost
-│   ├── ModelLifecycleService.cs # Model load/dispose and backend selection (CPU / CUDA / MLX / GGML CPU/Metal/CUDA/Vulkan)
-│   ├── InferenceEngineHost.cs   # DI-registered per-model InferenceEngine singleton (continuous batching entry point)
-│   ├── ChatGenerationPipeline.cs # Prompt rendering, submits to InferenceEngine, streams tokens, stop handling
-│   ├── InferenceTelemetry.cs    # Prompt/eval timing, TTFT, tokens/sec, bounded input summaries + output logs
-│   ├── ChatHistoryPreparer.cs   # History normalization, raw-token splice helpers, multimodal order helpers
-│   ├── ChatSession.cs           # Per-conversation tracked history + raw assistant tokens
-│   ├── SessionManager.cs        # Thread-safe session registry (default + per-tab sessions)
-│   ├── InferenceQueue.cs        # Backward-compatible queue-status surface (engine itself handles concurrency)
-│   ├── BackendCatalog.cs        # Discovery of available compute backends (CPU / CUDA / MLX / GGML*)
-│   ├── TextUploadHelper.cs      # Lossless text-upload normalization
-│   ├── WebUiChatPolicy.cs       # Web UI chat request validation
+│   ├── BackendCatalogProbes.cs  # CUDA / MLX / GGML availability probes behind TensorSharp.Chat's BackendCatalog
 │   ├── OpenAIResponseFormatParser.cs  # OpenAI response_format (json_object / json_schema) parsing
-│   ├── Hosting/                 # Startup-time concerns: options builder (ServerOptionsBuilder), backend resolution, logging, web root, paged-KV / continuous-batching CLI translation
-│   ├── RequestParsers/          # JSON request parsing (sampling, chat messages, tool functions)
-│   ├── ResponseSerializers/     # Per-protocol response shape factories (Ollama, OpenAI, Web UI)
+│   ├── Hosting/                 # Startup-time concerns: options builder (ServerOptionsBuilder), startup banner, logging, web root, /uploads static files, the multi-node tensor-parallel factory, paged-KV / continuous-batching CLI translation
+│   ├── ResponseSerializers/     # Per-protocol response shape factories (Ollama, OpenAI)
 │   ├── StreamingWriters/        # SSE + NDJSON wire-format helpers
-│   ├── ProtocolAdapters/        # Per-protocol request handlers (WebUiAdapter, OllamaAdapter, OpenAIChatAdapter)
+│   ├── ProtocolAdapters/        # Per-protocol request handlers (OllamaAdapter, OpenAIChatAdapter, OpenAIResponsesAdapter; WebUiAdapter and SkillsAdapter are thin HTTP shells over TensorSharp.Chat)
 │   ├── Endpoints/               # ASP.NET Core endpoint mapping (one extension method per protocol)
 │   ├── Logging/                 # Request logging middleware + low-noise path support
 │   ├── wwwroot/index.html       # Chat UI
@@ -321,6 +324,16 @@ TensorSharp/
 │   └── API_EXAMPLES.md          # Detailed API documentation
 ├── TensorSharp.Cli/             # CLI application (one-shot generation, interactive REPL, batch JSONL, benchmarks)
 ├── TensorSharp.TestMatrix/      # Test / benchmark matrix runner, default prompts, env-var sweeps, and per-host baselines
+├── TensorAgent/                 # iPhone / iPad app: the Server's Web UI chat, running entirely on the device
+│   ├── src/TensorAgent.Core/    # Platform-neutral: the model catalog and store, resumable downloads, saved conversations, settings, the loopback server and its route table, and AgentAppHost, which assembles all of it (built here rather than in the iOS head so it can be started, driven over HTTP and torn down by a test)
+│   │   ├── Shell/               # An in-process POSIX shell -- pipelines, redirections, heredocs, globs, functions, and the coreutils a coding model reaches for, awk included -- plus the IShellBackend that lets the agent host run code where Process.Start is unsupported
+│   │   ├── Sandbox/             # ExecutionPolicy and ConfinedPaths: the one set of rules the shell, Python and JavaScript all enforce, since there is no OS sandbox to lean on
+│   │   ├── Python/              # CPython 3.13 embedded by P/Invoke, its audit-hook sandbox, and a pure-wheel installer
+│   │   ├── JavaScript/          # JavaScriptCore over its C API, with Node-shaped console/process/require/fs/timers
+│   │   └── WebUi/               # The one script appended to the Server's index.html, so the page itself is never forked
+│   ├── src/TensorAgent.Maui/    # The net10.0-ios head: WebView + attachments + dictation, the models / chats / settings pages, and where the files live on this device
+│   ├── skills/                  # The skills that were verified to work here, with verdicts.json recording why each one is in or out
+│   └── scripts/                 # build / run / verify for the simulator, prepare-python.sh, build-lxml-ios.sh, verify-skills.py
 ├── InferenceWeb.Tests/          # xUnit unit tests covering ops, KV cache, paged scheduler, batched-model correctness, web/server helpers
 ├── AdvUtils/                    # Utility library (logger)
 ├── docs/                        # Developer reference
@@ -335,11 +348,18 @@ TensorSharp/
 
 ## Project / NuGet Package Boundaries
 
-The repository is split along package boundaries so consumers can depend on only the layers they actually need. **Status verified 2026-09-01:** [NuGet.org](https://www.nuget.org/profiles/TensorSharp) lists version **3.1.2** of `TensorSharp.Tensors`, `TensorSharp.Runtime`, `TensorSharp.Models`, `TensorSharp.Backends.GGML`, `TensorSharp.Backends.Cuda`, `TensorSharp.Backends.MLX`, `TensorSharp.Server`, and `TensorSharp.Cli`. Those packages lag the current source and v3.3.0.0 application release. `TensorSharp.AgentHost` and `TensorSharp.Distributed` remain buildable package projects but are not yet published, so consumers of those layers need project references from a source checkout.
+The repository is split along package boundaries so consumers can depend on only the layers they actually need.
+
+**Status verified 2026-09-08.** The publish set is **thirteen** packages — every row of the table below. `eng/verify-packages.ps1` is the authoritative list, and it gates the publish workflow, so adding a `ProjectReference` between two packable projects without updating that script fails the release.
+
+What is on [NuGet.org](https://www.nuget.org/profiles/TensorSharp) today is a subset: **eight** ids at version **3.1.2**, published 2026-07-21 — `TensorSharp.Tensors`, `TensorSharp.Runtime`, `TensorSharp.Models`, `TensorSharp.Backends.GGML`, `TensorSharp.Backends.Cuda`, `TensorSharp.Backends.MLX`, `TensorSharp.Server`, and `TensorSharp.Cli`. Those packages lag the current source and the v3.3.0.0 application release; in particular the published `TensorSharp.Server` predates the logging and chat splits, so it does not match the layering described here.
+
+The remaining five — `TensorSharp.Runtime.Logging`, `TensorSharp.AgentHost`, `TensorSharp.Chat`, `TensorSharp.Server.Host`, and `TensorSharp.Distributed` — are packable and verified but have never been pushed; they ship with the next version tag. Until then, consumers of those layers need project references from a source checkout.
 
 | Project | NuGet package | Public namespace | Responsibility |
 |---|---|---|---|
 | `TensorSharp.Core` | `TensorSharp.Tensors` | `TensorSharp` | Tensor primitives, ops, allocators, storage, and device abstraction |
+| `TensorSharp.Runtime.Logging` | `TensorSharp.Runtime.Logging` | `TensorSharp.Runtime.Logging` | Logging abstractions and sinks shared by every host, factored out so the engine layers do not carry a host's logging stack |
 | `TensorSharp.Runtime` | `TensorSharp.Runtime` | `TensorSharp.Runtime` | GGUF parsing, tokenizers, prompt rendering, sampling, output protocol parsing, paged KV cache, continuous-batching scheduler |
 | `TensorSharp.AgentHost` | `TensorSharp.AgentHost` | `TensorSharp.AgentHost` | Agent Skills and code execution (`read_file` + `edit_file` + `write_file` + `shell` + `apply_patch`) with OS sandboxing, per-Web/CLI-session and per-HTTP-request workspaces, and host-classified package installs — built on `TensorSharp.Runtime` |
 | `TensorSharp.Models` | `TensorSharp.Models` | `TensorSharp.Models` | `ModelBase`, architecture implementations, multimodal encoders, batched / paged forward passes, and model-side execution helpers |
@@ -347,10 +367,14 @@ The repository is split along package boundaries so consumers can depend on only
 | `TensorSharp.Backends.Cuda` | `TensorSharp.Backends.Cuda` | `TensorSharp.Cuda` | Direct CUDA allocator, storage, cuBLAS GEMM, PTX kernels, and quantized CUDA ops |
 | `TensorSharp.Backends.MLX` | `TensorSharp.Backends.MLX` | `TensorSharp.MLX` | Apple Silicon MLX backend (mlx-c / Metal) with quantized / fused / compiled kernels and MoE expert offload |
 | `TensorSharp.Distributed` | `TensorSharp.Distributed` | `TensorSharp.Distributed` | Peer-to-peer TCP coordination for multi-node tensor parallelism |
-| `TensorSharp.Server` | `TensorSharp.Server` | `TensorSharp.Server` | ASP.NET Core server, OpenAI/Ollama adapters, inference engine host, web UI |
+| `TensorSharp.Chat` | `TensorSharp.Chat` | `TensorSharp.Chat` (new types); the moved pipeline keeps its `TensorSharp.Server.*` namespaces | Host-neutral chat pipeline: `ModelService`, sessions, generation, the skills loop and the Web UI request/stream contract (`WebUiChatService`, `SkillsService`) — no ASP.NET Core, no `TensorSharp.Distributed`; shared by the Server, the CLI and the iOS app |
+| `TensorSharp.Server` | `TensorSharp.Server` | `TensorSharp.Server` | ASP.NET Core server, OpenAI/Ollama adapters, HTTP transport over TensorSharp.Chat, web UI |
+| `TensorSharp.Server.Host` | `TensorSharp.Server.Host` | `TensorSharp.Server.Host` | The **runnable** web application: `Program.cs`, host wiring, `wwwroot/`, and the command line. `TensorSharp.Server` is the library it builds on — building or running `TensorSharp.Server` alone produces no executable |
 | `TensorSharp.Cli` | `TensorSharp.Cli` | `TensorSharp.Cli` | Console host and debugging / batch tooling |
 
 This split keeps engine users off the web stack, keeps API-layer changes from leaking into core/runtime packages, and makes future benchmark or eval-harness projects easier to publish independently.
+
+`TensorSharp.Chat` is the seam between the pipeline and its hosts. Everything that used to sit inside `TensorSharp.Server` without touching ASP.NET Core — `ModelService`, `ModelLifecycleService`, `InferenceEngineHost`, `ChatGenerationPipeline`, sessions, the skills loop, the request parsers and the Web UI frame builders — moved there verbatim (same namespaces), and the Web UI handlers became `WebUiChatService` / `SkillsService`: JSON payload objects in and out, refusals thrown as `WebUiRequestRejectedException(StatusCode, Payload)`, streams as `IAsyncEnumerable<object>` of frames. The Server's `WebUiAdapter` and `SkillsAdapter` are now a few lines per route (read the `HttpContext`, call the service, write status + JSON or `data:` events), so an in-process loopback server or a native view model drives the identical contract. Two things the library deliberately does not reference: `TensorSharp.Distributed` (it references the CUDA backend, which an iOS build cannot link — the Server hands multi-node tensor parallelism in through `ModelService.TensorParallelGroupFactory`) and the CUDA/MLX backend probes (`BackendCatalogProbes` stays in the Server). Hosts without a shell size the KV pool through `ModelService.SchedulerConfigOverride` and free a model without disposing the service through `ModelService.UnloadModel()`. `ChatLayeringTests` fails if any of that direction inverts.
 
 > **Note:** the core layer ships as **`TensorSharp.Tensors`**, not `TensorSharp.Core`. The `TensorSharp.Core` id on NuGet.org is registered to an unrelated, abandoned project (all versions unlisted, source repo deleted), so pushing to it returns 403. Only the NuGet id differs — the project, assembly, and `TensorSharp` namespace are unchanged, so `using` statements are unaffected and only the `dotnet add package` line differs.
 
@@ -413,7 +437,7 @@ TensorSharp is structured as a layered system:
 
 6. **TensorSharp.Backends.MLX** is the Apple Silicon MLX path. It wraps [mlx-c](https://github.com/ml-explore/mlx-c) (`libmlxc`) with allocator, storage, async worker dispatch, quantized + fused + compiled kernels, MoE expert offload, and a CPU fallback layer for ops that aren't yet wired up.
 
-7. **TensorSharp.Server** is the HTTP/application layer. It provides Ollama-compatible and OpenAI-compatible REST APIs, the browser-based chat UI, upload handling, an `InferenceEngineHost` that owns the per-model continuous-batching engine for autoregressive models, a `DiffusionBatchScheduler` for DiffusionGemma Web UI turns, and a thin queue-status surface for backward compatibility.
+7. **TensorSharp.Server** is the HTTP/application layer: Ollama-compatible and OpenAI-compatible REST APIs, the browser-based chat UI, multipart upload handling, middleware and SSE writers. The pipeline it serves lives in **TensorSharp.Chat** — the `ModelService`, the `InferenceEngineHost` that owns the per-model continuous-batching engine for autoregressive models, the `DiffusionBatchScheduler` for DiffusionGemma Web UI turns, sessions, the skills loop and the Web UI request/stream contract (`WebUiChatService`, `SkillsService`) — so the CLI and the iOS app drive the same code without ASP.NET Core; a thin queue-status surface is kept for backward compatibility.
 
 8. **TensorSharp.Cli** is the console/application layer for local prompts, multimodal experiments, prompt inspection, JSONL batch workflows, the interactive REPL, and the built-in prefill / decode benchmarks.
 
@@ -562,7 +586,7 @@ python3 TensorSharp.Server/testdata/test_multiturn.py
 bash TensorSharp.Server/testdata/test_multiturn.sh
 ```
 
-See [TensorSharp.Server/testdata/README.md](TensorSharp.Server/testdata/README.md) for the full test matrix.
+See [TensorSharp.Server.Host/testdata/README.md](TensorSharp.Server.Host/testdata/README.md) for the full test matrix.
 
 ### Inference matrix runner
 

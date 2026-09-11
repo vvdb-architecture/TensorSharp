@@ -94,7 +94,7 @@ namespace TensorSharp.Runtime
         /// Returns an empty string for architectures whose chat templates already emit
         /// the suffix as part of the standard assistant-message framing.
         /// </summary>
-        internal static string GetAssistantGenerationSuffix(string architecture, bool enableThinking)
+        public static string GetAssistantGenerationSuffix(string architecture, bool enableThinking)
         {
             if (string.IsNullOrEmpty(architecture))
                 return string.Empty;
@@ -425,6 +425,7 @@ namespace TensorSharp.Runtime
             List<ChatMessage>? renderedMessages = null;
             List<List<int>>? rawTokensByPlaceholderIndex = null;
             List<string?>? rawBoundaryWhitespaceByPlaceholderIndex = null;
+            List<string?>? rawGenerationSuffixByPlaceholderIndex = null;
             List<int>? rawToolCallReplayPlaceholderIndices = null;
             List<ToolResultProof>? toolResultProofs = null;
             var toolCallRoundsLeftToTemplate = new List<UnsplicedToolCallRound>();
@@ -519,6 +520,7 @@ namespace TensorSharp.Runtime
                         renderedMessages.Add(messages[j]);
                     rawTokensByPlaceholderIndex = new List<List<int>>();
                     rawBoundaryWhitespaceByPlaceholderIndex = new List<string?>();
+                    rawGenerationSuffixByPlaceholderIndex = new List<string?>();
                 }
 
                 string newContent = msg!.Content ?? "";
@@ -544,6 +546,7 @@ namespace TensorSharp.Runtime
                     }
                     rawTokensByPlaceholderIndex!.Add(msg.RawOutputTokens!);
                     rawBoundaryWhitespaceByPlaceholderIndex!.Add(msg.RawPromptTrailingWhitespace);
+                    rawGenerationSuffixByPlaceholderIndex!.Add(msg.RawGenerationSuffix);
                     placeholderCount++;
                 }
 
@@ -620,6 +623,7 @@ namespace TensorSharp.Runtime
                     // Kept for the Jinja context's narrowly scoped Gemma 4 replay.
                     RawOutputTokens = msg.RawOutputTokens,
                     RawPromptTrailingWhitespace = msg.RawPromptTrailingWhitespace,
+                    RawGenerationSuffix = msg.RawGenerationSuffix,
                     RawToolCallReplayPlaceholder = rawToolCallReplayPlaceholder,
                 });
             }
@@ -690,9 +694,17 @@ namespace TensorSharp.Runtime
                 text = StripEmptyThinkBlockBeforePlaceholders(text);
             }
 
+            // What this request's generation prompt would end with is the fallback;
+            // a turn the transcript tracked knows what ITS prompt ended with, and that
+            // is what the cache holds in front of its raw tokens.
             string suffix = GetAssistantGenerationSuffix(architecture, enableThinking);
-            if (!string.IsNullOrEmpty(suffix))
-                text = InjectSuffixBeforePlaceholders(text, suffix);
+            IReadOnlyList<string?> recordedSuffixes =
+                rawGenerationSuffixByPlaceholderIndex ?? (IReadOnlyList<string?>)Array.Empty<string?>();
+            bool anyRecordedSuffix = false;
+            for (int i = 0; i < recordedSuffixes.Count && !anyRecordedSuffix; i++)
+                anyRecordedSuffix = !string.IsNullOrEmpty(recordedSuffixes[i]);
+            if (!string.IsNullOrEmpty(suffix) || anyRecordedSuffix)
+                text = InjectSuffixBeforePlaceholders(text, suffix, recordedSuffixes);
 
             // The mirror image of the suffix injection: some templates emit MORE assistant
             // framing for a past turn than the generation prompt did, and the raw tokens
@@ -1257,10 +1269,17 @@ namespace TensorSharp.Runtime
             return start == text.Length ? string.Empty : text.Substring(start);
         }
 
-        private static string InjectSuffixBeforePlaceholders(string text, string suffix)
+        /// <summary>
+        /// Put the generation framing back in front of each spliced raw run: the run's
+        /// own recorded suffix where the transcript has one (<paramref name="recordedSuffixes"/>,
+        /// indexed in placeholder order), <paramref name="defaultSuffix"/> otherwise.
+        /// </summary>
+        private static string InjectSuffixBeforePlaceholders(
+            string text, string defaultSuffix, IReadOnlyList<string?> recordedSuffixes)
         {
-            var sb = new System.Text.StringBuilder(text.Length + suffix.Length * 4);
+            var sb = new System.Text.StringBuilder(text.Length + defaultSuffix.Length * 4);
             int searchPos = 0;
+            int placeholderIndex = 0;
             while (searchPos < text.Length)
             {
                 int sentinel = text.IndexOf(PlaceholderSentinel, searchPos);
@@ -1269,6 +1288,13 @@ namespace TensorSharp.Runtime
                     sb.Append(text, searchPos, text.Length - searchPos);
                     break;
                 }
+                // A recorded empty string is a statement — that prompt ended on no
+                // suffix at all — and is honoured; only null means "unknown, use the
+                // family's default for this request".
+                string suffix = placeholderIndex < recordedSuffixes.Count && recordedSuffixes[placeholderIndex] != null
+                    ? recordedSuffixes[placeholderIndex]!
+                    : defaultSuffix;
+                placeholderIndex++;
                 int decorationsStart = FindBreakpointRunStart(text, searchPos, sentinel);
                 sb.Append(text, searchPos, decorationsStart - searchPos);
                 sb.Append(suffix);

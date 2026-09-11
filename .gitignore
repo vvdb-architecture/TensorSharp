@@ -43,6 +43,8 @@ ExternalProjects/ggml/
 ExternalProjects/vulkan-toolchain/
 # cuDNN redistributable provisioned by eng/fetch-cudnn (~1.1 GB, headers + DLLs).
 ExternalProjects/cudnn/
+# CPython for iOS (BeeWare Python-Apple-support), fetched by eng/fetch-python-ios.sh
+ExternalProjects/python-ios/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
@@ -78,15 +80,19 @@ nunit-*.xml
 # Visual Studio generates per-user debug profiles on F5; they are machine-local.
 launchSettings.json
 
+# Bytecode left behind by running a skill's or a tool's Python scripts. It must
+# never reach the app bundle: a .pyc built by one CPython is dead weight to
+# another, and the bundled interpreter compiles from source anyway.
+__pycache__/
+
 # Benchmark tooling artifacts
-benchmarks/engine_comparison/__pycache__/
 benchmarks/engine_comparison/results/
 /.vs
 /TensorSharp.Server/Properties/launchSettings.json
 
 # Local model weights. GGUF/safetensors checkpoints are multi-GB and are
 # downloaded per-machine, never committed.
-models/
+/models/
 *.gguf
 *.safetensors
 
@@ -95,3 +101,9 @@ models/
 
 # Local scratch prompts used when driving the CLI by hand.
 prompt.txt
+
+# Staged embedded-Python bundle layout produced by TensorAgent/scripts/prepare-python.sh
+TensorAgent/python-runtime/
+
+# Claude Code session state and agent worktrees
+.claude/

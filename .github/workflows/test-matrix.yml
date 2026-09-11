@@ -119,8 +119,10 @@ jobs:
       - name: Build TensorSharp native GGML library (CUDA)
         run: bash TensorSharp.GGML.Native/build-linux.sh --cuda
 
-      - name: Build TensorSharp.Server
-        run: dotnet build TensorSharp.Server/TensorSharp.Server.csproj -c Release
+      - name: Build TensorSharp.Server.Host
+        # The benchmark harness launches the server by DLL, so build the host
+        # application (TensorSharp.Server is the library it references).
+        run: dotnet build TensorSharp.Server.Host/TensorSharp.Server.Host.csproj -c Release
 
       # ----- 1. Clone and build llama.cpp, set up its environment -----------
       - name: Clone / update llama.cpp

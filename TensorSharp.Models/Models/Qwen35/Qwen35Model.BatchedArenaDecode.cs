@@ -15,8 +15,8 @@
 // attention KV lives in persistent per-layer arenas written by one set_rows
 // and read by one batched flash-attention, and the GDN conv/delta recurrent
 // state lives in per-slot device arenas updated in-graph — no per-step host
-// round trips, so the graph is CUDA-graph capturable and request churn
-// replays one captured graph.
+// round trips. CUDA can capture the graph, while Metal retains and replays the
+// same slot-stable graph across request churn.
 //
 // The engine drives this through the same three IBatchedPagedModel hooks
 // GPT-OSS implements: TryForwardBatchedFusedDecode (host logits),
@@ -35,6 +35,20 @@ namespace TensorSharp.Models
     {
         private string _lastArenaDeclineLogged;
         private float[] _arenaLogitsStaging;
+
+        /// <summary>
+        /// How many batched arena decode steps this model has actually served.
+        ///
+        /// <para>
+        /// A decline is loud (it prints a reason) but a fallback is not
+        /// distinguishable from success by looking at the answer: the round-robin
+        /// path produces correct tokens too. A test that widens the arena's
+        /// admission rules therefore cannot prove it changed anything without a
+        /// positive signal, so this counter is the signal.
+        /// </para>
+        /// </summary>
+        internal long ArenaBatchedDecodeSteps => _arenaBatchedDecodeSteps;
+        private long _arenaBatchedDecodeSteps;
         private static readonly bool ArenaPrefillVerifyEnabled =
             Environment.GetEnvironmentVariable("TS_QWEN35_PREFILL_VERIFY") != "0";
 
@@ -101,10 +115,15 @@ namespace TensorSharp.Models
             IReadOnlyList<string> requestIds, int[] tokens, int[] positions,
             float[][] outLogits, int[] outNextTokens)
         {
-            if (_backend != BackendType.GgmlCuda || IsTensorParallel || _fusedHolders == null)
+            // The native graph is shared by CUDA and Metal. Its recurrent-slot
+            // aggregation carries explicit dataflow dependencies, so Metal's
+            // concurrent graph scheduler cannot race the column producers.
+            if ((_backend != BackendType.GgmlCuda && _backend != BackendType.GgmlMetal)
+                || IsTensorParallel || _fusedHolders == null)
                 return false;
-            if (!_fullDecodeEnabled || _fdUnsupported || _fdSpecSessionActive)
+            if (!_fullDecodeEnabled || _fdUnsupported)
                 return false;
+            ExitSpecSession();   // a batched decode outside the speculative session ends it
             int n = requestIds.Count;
             if (n < 2 || tokens.Length != n || positions.Length != n)
                 return false;
@@ -130,8 +149,21 @@ namespace TensorSharp.Models
             if (!ArenaPrefillVerifyEnabled)
                 return ArenaDecline("TS_QWEN35_PREFILL_VERIFY=0 (unhooked prefill path)");
             DType kvDt = _kvCacheDtype.ToDType();
-            if (kvDt != DType.Float32 && kvDt != DType.Float16)
-                return ArenaDecline($"KV cache dtype {_kvCacheDtype} (arena supports F32/F16)");
+            // One predicate for every fused graph, including this one. The arena used
+            // to hardcode F32/F16 here while the solo whole-model graph had already
+            // been widened to block-quantized K/V on CUDA and Metal. The arena kernel
+            // itself was never the obstacle - it builds its arenas with the caller's
+            // ggml_type and strides every copy by ggml_row_size - so the gate alone
+            // turned a q8_0 KV cache (what the agent configs pin, to halve KV on a
+            // Mac where Metal charges it twice) into a permanent decline: every
+            // concurrent decode step fell back to round-robin, one full weight sweep
+            // per sequence per token, and aggregate throughput stayed at 1x.
+            // The native side still has the last word - it checks backend_supports_op
+            // on the arena's set_rows and flash_attn shapes and aborts the build if
+            // either is missing, which lands back here as exactly today's decline.
+            if (!IsFusedGraphKvCacheDType(kvDt))
+                return ArenaDecline(
+                    $"KV cache dtype {_kvCacheDtype} is not supported by the fused graphs on {_backend}");
             if (_headKDim != _headVDim || _convKernel <= 1)
                 return ArenaDecline("unsupported GDN geometry");
 
@@ -140,7 +172,7 @@ namespace TensorSharp.Models
             if (_quantWeights.TryGetValue("token_embd.weight", out QuantizedWeight tokenQw))
             {
                 if (!CanUseGgmlQuantizedGetRows(tokenQw.GgmlType))
-                    return ArenaDecline($"token embedding type {tokenQw.GgmlType} lacks CUDA get_rows");
+                    return ArenaDecline($"token embedding type {tokenQw.GgmlType} lacks backend get_rows support");
                 emb = ResolveW(tokenQw, null);
             }
             else if (_weights.TryGetValue("token_embd.weight", out Tensor tokenF32))
@@ -164,6 +196,12 @@ namespace TensorSharp.Models
             // writing CacheSeqLen through a stale object rolls recurrent state
             // back / desyncs positions.
             RestorePrimaryCache();
+
+            // Torn down underneath a step (the engine is disposed before a model is
+            // released, but this is the same guard every sibling hook carries): decline
+            // rather than dereference a dictionary that no longer exists.
+            if (_fusedHolders == null)
+                return false;
 
             var holders = new Qwen35KvCacheHolder[n];
             for (int i = 0; i < n; i++)
@@ -250,11 +288,11 @@ namespace TensorSharp.Models
             var logitsBuf = _arenaLogitsStaging;
             var sampledSorted = outNextTokens != null ? new int[n] : null;
 
-            bool ok;
+            int arenaStatus;
             fixed (float* lp = logitsBuf)
             fixed (int* sp = sampledSorted)
             {
-                ok = GgmlBasicOps.TryQwen35ArenaDecodeBatched(
+                arenaStatus = GgmlBasicOps.Qwen35ArenaDecodeBatchedStatus(
                     _fdLayers, numLayers, n,
                     tokSorted, posSorted,
                     kPtrs, vPtrs, convPtrs, deltaPtrs,
@@ -272,9 +310,10 @@ namespace TensorSharp.Models
                     emb.ptr, emb.type, emb.ne0, emb.ne1, emb.bytes,
                     (IntPtr)sp, wantLogits);
             }
-            if (!ok)
+            if (arenaStatus != 1)
             {
                 string err = GgmlBasicOps.LastNativeError();
+                ThrowIfArenaDecodeStateUnrecoverable(arenaStatus, err);
                 if (err != _lastArenaDeclineLogged)
                 {
                     _lastArenaDeclineLogged = err;
@@ -299,8 +338,28 @@ namespace TensorSharp.Models
                 h.CacheSeqLen = posSorted[i] + 1;
                 h.KvHostDirty = true;
                 h.GdnHostDirty = true;
+                h.ArenaStateResident = true;
             }
+            _arenaBatchedDecodeSteps++;
             return true;
+        }
+
+        /// <summary>Interpret the native arena's tri-state result. A graph that
+        /// started execution can leave only a subset of recurrent layers advanced;
+        /// there is no correct serial fallback without a pre-step state checkpoint,
+        /// so fail the affected requests and let normal error cleanup recycle their
+        /// holders. Zero remains an ordinary pre-compute decline.</summary>
+        internal static void ThrowIfArenaDecodeStateUnrecoverable(int status, string nativeError)
+        {
+            if (status >= 0)
+                return;
+
+            throw new InvalidOperationException(
+                (string.IsNullOrWhiteSpace(nativeError)
+                    ? "Qwen3.5 arena batched decode graph execution failed."
+                    : nativeError) +
+                " The graph may have partially advanced recurrent state; the affected " +
+                "sequences were failed because serial fallback would use stale host state.");
         }
     }
 }

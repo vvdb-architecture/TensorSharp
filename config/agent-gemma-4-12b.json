@@ -1,0 +1,131 @@
+{
+  // Gemma-4 12B (QAT UD-Q4_K_XL) as an AGENT -- the lightest of these four
+  // (6.3 GB of weights) and the only one with speculative decoding turned on.
+  // Skills, skill scripts, network, code generation / editing / execution and
+  // package installs are all enabled.
+  //
+  //   TensorSharp.Cli    --config config/agent-gemma-4-12b.json --chat
+  //   TensorSharp.Server --config config/agent-gemma-4-12b.json
+  //
+  // Every key here is read by BOTH hosts; CLI-only keys (--think, --tools,
+  // --system, --input, --output, --penalty-last-n) are left out because the
+  // server refuses to start on an unknown option while the CLI silently drops
+  // one. Comments are the only way to annotate a config -- any non-reserved
+  // key becomes a command-line flag.
+  "variables": {
+    "modelRoot": "${TENSORSHARP_MODELS:-/Users/zhongkaifu/work/models}",
+    "root": "${modelRoot}/gemma_mtp/qat",
+    "skillsRoot": "${TENSORSHARP_SKILLS:-/Users/zhongkaifu/work/TensorSharp/TensorAgent/skills}"
+  },
+
+  "backend": "ggml_metal",
+
+  // Generation cap, NOT the context window, and it sizes the up-front KV
+  // reservation (prompt + max_new_tokens). The window is env-only:
+  //   MAX_CONTEXT=131072 TensorSharp.Server --config config/agent-gemma-4-12b.json
+  "max-tokens": 16384,
+  "continuous-batching": true,
+
+  // Pinned deliberately, or the two hosts disagree: the CLI's chat path
+  // overlays this QAT GGUF's own general.sampling.temp = 1.0 onto every field
+  // left unset, while the server ignores that metadata and falls to its
+  // built-in 0.8. --code-exec-temperature is not a fix either -- it rewrites a
+  // temperature only while it still sits at that built-in 0.8, which
+  // 1.0 is not. 0.3 with Gemma's own nucleus shape keeps tool-call JSON and
+  // generated code reliable.
+  "temperature": 0.3,
+  "top-k": 64,
+  "top-p": 0.95,
+
+  // 1.0 = no repetition penalty, pinned so both hosts agree on every turn: the
+  // server starts at 1.1 and strips it only on turns that offer tools, while
+  // the CLI's chat path does not default it at all. A penalty window fights
+  // the indentation and closing delimiters of generated code.
+  "repeat-penalty": 1.0,
+
+  "model": "${root}/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
+
+  // MTP speculative decoding, lossless, and a measured win on Metal for
+  // Gemma-4: 46 -> 92 tok/s at draft window 7, measured on the E4B Q8_0
+  // checkpoint (M5 Pro, Metal) and recorded in
+  // Gemma4Model.Speculative.SpecPreferredDraftWindow. This checkpoint is not
+  // the one that was measured, but it arms at the same auto window 7. Naming the draft file IS the
+  // request: no "spec": true is needed beside it, and "spec": false would be
+  // dead text because a JSON false emits no flag at all -- the key that turns
+  // speculation off is "no-spec": true. Do not add "spec-draft": the auto
+  // window is already the measured-optimal 7, and 8 falls off a cliff
+  // (69 tok/s against 92) as a ninth verify row tips the verify graph onto
+  // ggml's large-batch path. Both hosts honour this.
+  "draft-model": "${root}/gemma-4-12B-it-Q4_0-MTP.gguf",
+
+  // ---- Agent Skills -------------------------------------------------------
+  // Without this the agent has zero skills: the default root beside the binary
+  // is empty. A path that does not exist is a fatal startup error.
+  "skills-dir": "${skillsRoot}",
+
+  // Run a skill's bundled scripts. Treat every enabled script as untrusted
+  // code: only known interpreters launch, without a shell, under Seatbelt,
+  // with the skill mounted read-only.
+  "skills-allow-exec": true,
+
+  // Separate from the code-exec network switch below -- neither implies the
+  // other. This is the one the research and market-data skills need.
+  "skills-allow-network": true,
+
+  // The default; macOS has sandbox-exec so "required" confines rather than
+  // refuses. TS_SKILLS_SANDBOX overwrites this key rather than layering under
+  // it, so a stale export silently wins.
+  "skills-sandbox": "required",
+
+  // One shared budget for skill lookups AND shell/code rounds. Naming it
+  // cancels the automatic raise to 24, so it must be set above 24, not below.
+  "skills-max-rounds": 32,
+
+  // ---- Code generation, editing and execution -----------------------------
+  // shell, read_file, edit_file, write_file and apply_patch in one bounded
+  // model-to-tool loop, under Seatbelt. Do NOT add "code-exec-unconfined" on
+  // this Mac: it downgrades confinement to best-effort and lets a failed
+  // sandbox wrap fall back to a raw process. Writes are confined to the
+  // session workspace and the home directory is unreadable, so the agent works
+  // in its workspace rather than in this repo.
+  "code-exec": true,
+
+  // Host-performed pip/npm installs into the session workspace, wheels only,
+  // install scripts disabled. Fixed 120 s install timeout with no operator
+  // lever, so large wheel sets will not land. Does not grant networking.
+  "code-exec-allow-install": true,
+
+  // Unrestricted host IP networking for every model-authored command --
+  // the broadest permission in this file. Do not use this config on a server
+  // reachable by people you do not trust.
+  "code-exec-allow-network": true,
+
+  // Raises the per-call DEFAULT from 120 s, at which a build or a full test run
+  // is killed mid-flight and the model retries blind. It does not widen the
+  // ceiling: a call may already ask for up to 600 s through timeout_ms, and
+  // only a value above 600 would move that.
+  "code-exec-timeout": 600,
+
+  // Truncated from the middle, head and tail kept -- the end of a test run is
+  // where the failure is.
+  "code-exec-max-output": 65536
+
+  // Not set, deliberately:
+  //   "kv-cache-dtype" -- the two Qwen agent configs use q8_0 to halve a KV
+  //     cache Metal charges twice, but NO Gemma-4 config can: Gemma4Model
+  //     overrides SupportsBlockQuantizedKvCache to false because its circular
+  //     sliding-window cache helpers are float-only, so an explicit q8_0 is
+  //     downgraded to f16 at load with a note on stderr rather than honoured.
+  //     MAX_CONTEXT is the only lever on KV size here.
+  //   "mmproj" -- the projector loads eagerly at every startup, 175 MB here,
+  //     even for a pure-text run. Add
+  //     "mmproj": "${root}/gemma-4-12B-mmproj-BF16.gguf" if the agent needs to
+  //     read images; the CLI also auto-detects it when --image is passed.
+  //   "code-exec-packages" / "code-exec-install-domains" -- defaults already
+  //     allow any package from the three default registry hosts (pypi.org,
+  //     files.pythonhosted.org, registry.npmjs.org), and installs go to PyPI
+  //     unless "code-exec-install-index" names another. If set, each must be
+  //     ONE COMMA-SEPARATED STRING; a JSON array keeps only its last entry.
+  //   "code-exec-shell" -- this Mac has only bash 3.2.57, so bash 4+ syntax
+  //     fails. "/bin/zsh" is the zero-install alternative.
+}

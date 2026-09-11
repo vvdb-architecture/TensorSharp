@@ -171,6 +171,7 @@ namespace TensorSharp.AgentHost.CodeExec
             IDisposable? cleanup = null;
             string sandboxName = "none";
             string? attachFailure = null;
+            string? wrapFailure = null;
 
             if (sandbox != null)
             {
@@ -199,6 +200,12 @@ namespace TensorSharp.AgentHost.CodeExec
                 {
                     failure = Failed($"the sandbox could not be prepared ({wrapError})");
                     return false;
+                }
+                else
+                {
+                    // Preferred: the run goes ahead RAW, and the reason travels with the
+                    // job so the caller can say so rather than merely reporting "none".
+                    wrapFailure = wrapError;
                 }
             }
 
@@ -289,6 +296,7 @@ namespace TensorSharp.AgentHost.CodeExec
                     process, cleanup, violations, violationsFrom, stdout, stderr, sw, sandboxName, launch)
                 {
                     AttachFailure = attachFailure,
+                    WrapFailure = wrapFailure,
                 };
                 return true;
             }
@@ -504,6 +512,13 @@ namespace TensorSharp.AgentHost.CodeExec
         /// </summary>
         public string? AttachFailure { get; init; }
 
+        /// <summary>
+        /// Why the sandbox could not WRAP this launch, when it could not and the mode
+        /// allowed the process to start raw instead. Null on every ordinary run and in
+        /// <see cref="SkillSandboxMode.Required"/>, where the failure is fatal.
+        /// </summary>
+        public string? WrapFailure { get; init; }
+
         private readonly SpawnedProcess _process;
         private readonly IDisposable? _cleanup;
         private readonly SandboxViolationMonitor? _violations;
@@ -602,6 +617,9 @@ namespace TensorSharp.AgentHost.CodeExec
                 return ConfinedProcess.Failed(ex.Message);
             }
         }
+
+        /// <summary>Stop the process tree without releasing anything. Safe on a process that has already exited.</summary>
+        public void Kill() => ConfinedProcess.TryKill(_process);
 
         /// <summary>Kill it and release the sandbox's scratch. Safe to call twice.</summary>
         public void Dispose()

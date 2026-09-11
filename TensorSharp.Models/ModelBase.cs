@@ -211,6 +211,19 @@ namespace TensorSharp.Models
         /// Default no-op; models with a grow-on-demand KV cache override to pre-size it.</summary>
         public virtual void PrepareForPrefill(int requiredContextTokens) { }
 
+        /// <summary>
+        /// Release what only makes the NEXT request faster: the host memory pool's
+        /// unused blocks here, and whatever a model parks for reuse in its override.
+        /// The engine calls this between steps when the host reports memory pressure,
+        /// so no forward is in flight. Never touches a live cache.
+        /// </summary>
+        public virtual void TrimIdleMemory()
+        {
+            long released = _ggmlContext?.ReleasePooledMemory() ?? 0;
+            if (released > 0)
+                Console.WriteLine($"[memory] released {released / (1024 * 1024)} MB of pooled host buffers to the system");
+        }
+
         // Timing
         protected long _linearTicks;
         protected long _attnTicks;
@@ -471,24 +484,35 @@ namespace TensorSharp.Models
         protected int ResolveConfiguredContextLength(int fallback = 4096)
         {
             int? explicitOverride = null;
-            string source;
             string ctxEnv = Environment.GetEnvironmentVariable("MAX_CONTEXT");
             if (!string.IsNullOrWhiteSpace(ctxEnv) && int.TryParse(ctxEnv, out int envCtx) && envCtx > 0)
                 explicitOverride = envCtx;
 
-            int resolved = ResolveConfiguredContextLength(
-                Config?.Architecture ?? _gguf.GetString("general.architecture") ?? string.Empty,
-                _gguf.Metadata,
-                fallback,
-                explicitOverride,
-                out source);
+            string architecture = Config?.Architecture
+                ?? _gguf.GetString("general.architecture")
+                ?? string.Empty;
+            int modelContextLength = ResolveModelContextLength(
+                architecture, _gguf.Metadata, fallback, out string modelSource);
+
+            // Retain what the artifact declares even when the host deliberately
+            // serves a smaller window. MaxContextLength is the effective runtime
+            // bound; Config.DeclaredContextLength is reporting metadata and must not
+            // be used for allocation or prompt budgeting.
+            if (Config != null)
+                Config.DeclaredContextLength = modelSource == "fallback" ? 0 : modelContextLength;
+
+            int resolved = explicitOverride ?? modelContextLength;
 
             if (explicitOverride.HasValue)
-                Console.WriteLine($"Context length: using MAX_CONTEXT={resolved}.");
-            else if (source == "fallback")
+                Console.WriteLine(
+                    $"Context length: using MAX_CONTEXT={resolved}; model declares "
+                    + (modelSource == "fallback"
+                        ? "no context metadata."
+                        : $"{modelSource}={modelContextLength}."));
+            else if (modelSource == "fallback")
                 Console.WriteLine($"Context length: metadata missing, falling back to {resolved} tokens.");
             else
-                Console.WriteLine($"Context length: using GGUF metadata {source}={resolved}.");
+                Console.WriteLine($"Context length: using GGUF metadata {modelSource}={resolved}.");
 
             return resolved;
         }
@@ -639,6 +663,19 @@ namespace TensorSharp.Models
                 !string.IsNullOrWhiteSpace(maxContextOverride) &&
                 int.TryParse(maxContextOverride, out int explicitContext) &&
                 explicitContext > 0;
+
+            // An explicit initial size beats both policies below. It exists for the
+            // device where memory, not latency, is the limit: the phone sets MAX_CONTEXT
+            // as the ceiling it can afford and this as what to commit before a request
+            // says what it needs, because every cache the engine keeps (the primary,
+            // each retained conversation, each parked holder) is paid at this size in
+            // host memory and again in its device mirror, whether a token was ever
+            // written to it or not. The cache still grows on demand and a request still
+            // reserves prompt + generation budget up front (PrepareForPrefill).
+            int initialOverride = Runtime.Scheduling.ExecutionOptions.FromEnvironment().KvInitialTokens;
+            if (initialOverride > 0)
+                return Math.Max(1, Math.Min(requestedContextLength, initialOverride));
+
             if (isGpuBackend && !hasValidExplicitContext)
             {
                 // Direct GPU backends benefit from a smaller initial KV allocation so
@@ -802,6 +839,20 @@ namespace TensorSharp.Models
                 return explicitOverride.Value;
             }
 
+            return ResolveModelContextLength(architecture, metadata, fallback, out source);
+        }
+
+        /// <summary>
+        /// Resolve the model artifact's declared context window without applying a
+        /// host override. Reporting code uses this value to avoid presenting a
+        /// memory-policy limit as if it were the model's own capability.
+        /// </summary>
+        internal static int ResolveModelContextLength(
+            string architecture,
+            IReadOnlyDictionary<string, object> metadata,
+            int fallback,
+            out string source)
+        {
             foreach (string key in GetContextLengthMetadataKeys(architecture))
             {
                 if (TryGetPositiveInt(metadata, key, out int contextLength))
@@ -944,6 +995,12 @@ namespace TensorSharp.Models
             "<eos>",
             "<turn|>",
             "<|tool_response>",
+            // llama.cpp treats the FIM padding/repository/separator controls as
+            // EOG too. Qwen3/Bonsai exposes the Qwen spellings even though the
+            // GGUF only declares <|im_end|> as eos_token_id.
+            "<|fim_pad|>",
+            "<|repo_name|>",
+            "<|file_sep|>",
             "<｜end▁of▁sentence｜>",
         };
 
@@ -1179,6 +1236,63 @@ namespace TensorSharp.Models
         /// host pointer is needed once at preload time so the device copy is performed via
         /// <see cref="PrepareCudaQuantizedWeightsForInference"/> from the file-backed view.
         /// </summary>
+        /// <summary>
+        /// Whether load-time fusion may allocate a NEW buffer when the sources it
+        /// wants to join are not already adjacent in the mapping.
+        ///
+        /// Every quantized tensor is normally a zero-cost view into the GGUF mmap, and
+        /// mapped file pages cost a Darwin process no physical footprint at all. A fused
+        /// tensor that has to be COPIED is the opposite: fresh anonymous memory, charged
+        /// in full against the iOS jetsam limit, duplicating bytes that are already
+        /// mapped. GGUF writers emit tensors in alphabetical order within a block, so
+        /// the pairs worth fusing are almost never adjacent -- attn_output sits between
+        /// attn_norm and attn_q, attn_q_norm between attn_q and attn_v, ffn_norm between
+        /// ffn_gate and ffn_up -- and the copy is taken nearly every time.
+        ///
+        /// Measured at load, all weights otherwise 100% file-backed:
+        ///   Qwen3.5-9B  Q8_0    356 MB QKV + 1290 MB recurrent packs = 1.53 GiB
+        ///   gemma-4-E4B Q8_0    409 MB QKV +  2339 MB gate/up        = 2.56 GiB
+        ///   gpt-oss-20b Q8_0    376 MB QKV +  6768 MB expert gate/up = 6.65 GiB
+        /// llama.cpp's figure for all three is zero: it never synthesizes a weight
+        /// tensor the file does not already contain, issuing separate matmuls instead
+        /// and recovering most of the difference at the scheduler level, where ggml's
+        /// Metal backend reorders independent nodes into one concurrent encoder.
+        ///
+        /// So the copy is a speed-for-memory trade, and the right answer differs by
+        /// platform. A desktop with tens of gigabytes should keep taking it. A phone
+        /// should not: TensorAgent running Qwen3.5 9B on a 12 GB iPhone was killed by
+        /// jetsam, and 1.53 GiB of this is duplicate. Every fusion site already has a
+        /// separate-weights path (SeparateQkv in the fused decode kernels,
+        /// SupportsSplitGateUpFfn for the FFN, the four source weights for the
+        /// recurrent pack), so declining costs correctness nothing.
+        ///
+        /// TS_WEIGHT_FUSION_COPIES=1 forces the copies back on, =0 forces them off.
+        /// </summary>
+        /// <remarks>
+        /// Read per call rather than cached in a static initializer. It is consulted a
+        /// few dozen times per model LOAD and never during inference, so the cost is
+        /// nil -- and caching it made the policy untestable in-process: a test cannot
+        /// load the same model both ways when the first load freezes the answer for
+        /// the life of the runner.
+        /// </remarks>
+        protected static bool AllowWeightFusionCopies => ResolveAllowWeightFusionCopies();
+
+        private static bool ResolveAllowWeightFusionCopies()
+        {
+            string env = Environment.GetEnvironmentVariable("TS_WEIGHT_FUSION_COPIES");
+            if (!string.IsNullOrWhiteSpace(env))
+            {
+                if (env == "0" || env.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    return false;
+                if (env == "1" || env.Equals("true", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            // iOS/iPadOS only. Mac Catalyst and the simulator run on a desktop-sized
+            // memory budget, and macOS is not jetsam-limited the way a phone is.
+            return !OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst();
+        }
+
         protected bool CanUseFileMappedQuantizedWeights
             => _backend == BackendType.GgmlCuda
             || _backend == BackendType.GgmlVulkan
@@ -1859,6 +1973,82 @@ namespace TensorSharp.Models
         }
 
         /// <summary>
+        /// Copy one whole cache tensor's bytes into another of the same shape and
+        /// dtype, on the host. The only whole-tensor copy that is right for every K/V
+        /// dtype: a quantized storage has no legal element address but its first
+        /// (<c>PtrAtElement(0)</c>), and <c>Ops.Copy</c> is an F32 path on the GGML
+        /// backends. The caller synchronizes the source's device copy to the host
+        /// first and invalidates the destination's device copy afterwards.
+        /// </summary>
+        /// <summary>
+        /// Copy the first <paramref name="rows"/> positions of every head from one
+        /// <c>[heads, capacity, headDim]</c> cache tensor into another whose capacity may
+        /// differ. Row bytes are derived from the storage size, so this is right for
+        /// block-quantized K/V as long as a row is a whole number of blocks (a 256-wide
+        /// head is eight q8_0/q4_0 blocks). Rows past <paramref name="rows"/> in the
+        /// destination are left as allocated (zero), which the fused kernels' padded
+        /// window requires to be finite.
+        /// </summary>
+        protected static unsafe void CopyCacheRows(Tensor source, Tensor destination, int rows)
+        {
+            if (source == null || destination == null)
+                throw new ArgumentNullException(source == null ? nameof(source) : nameof(destination));
+            if (source.ElementType != destination.ElementType)
+                throw new InvalidOperationException($"cache tensors differ in dtype: {source.ElementType} vs {destination.ElementType}");
+            long heads = source.Sizes[0];
+            long sourceCap = source.Sizes[1];
+            long destCap = destination.Sizes[1];
+            if (heads != destination.Sizes[0] || source.Sizes[2] != destination.Sizes[2])
+                throw new InvalidOperationException("cache tensors differ in head count or head width");
+            if (rows < 0 || rows > sourceCap || rows > destCap)
+                throw new ArgumentOutOfRangeException(nameof(rows), $"{rows} rows exceed a capacity of {Math.Min(sourceCap, destCap)}");
+            if (rows == 0 || heads == 0)
+                return;
+            long rowBytes = source.Storage.ByteLength / (heads * sourceCap);
+            if (rowBytes * heads * destCap != destination.Storage.ByteLength)
+                throw new InvalidOperationException("cache tensors differ in bytes per row");
+            source.Storage.EnsureHostReadable();
+            destination.Storage.EnsureHostReadable();
+            byte* src = (byte*)source.Storage.PtrAtElement(0);
+            byte* dst = (byte*)destination.Storage.PtrAtElement(0);
+            long perHead = rows * rowBytes;
+            for (long h = 0; h < heads; h++)
+            {
+                Buffer.MemoryCopy(
+                    src + h * sourceCap * rowBytes,
+                    dst + h * destCap * rowBytes,
+                    destination.Storage.ByteLength - h * destCap * rowBytes,
+                    perHead);
+            }
+        }
+
+        /// <summary>A capacity that holds <paramref name="rows"/> with one 256-row
+        /// window of finite padding beyond them, on a 256 boundary.</summary>
+        protected static int CacheCapacityFor(int rows)
+            => checked(((Math.Max(rows, 0) + 255) / 256) * 256 + 256);
+
+        protected static unsafe void CopyCacheTensorBytes(Tensor source, Tensor destination)
+        {
+            if (source == null || destination == null)
+                throw new ArgumentNullException(source == null ? nameof(source) : nameof(destination));
+            long bytes = source.Storage.ByteLength;
+            if (bytes != destination.Storage.ByteLength || source.ElementType != destination.ElementType)
+            {
+                throw new InvalidOperationException(
+                    $"cache tensors differ: {source.ElementType}/{bytes} bytes vs " +
+                    $"{destination.ElementType}/{destination.Storage.ByteLength} bytes");
+            }
+            if (bytes == 0)
+                return;
+            source.Storage.EnsureHostReadable();
+            destination.Storage.EnsureHostReadable();
+            Buffer.MemoryCopy(
+                (void*)source.Storage.PtrAtElement(0),
+                (void*)destination.Storage.PtrAtElement(0),
+                bytes, bytes);
+        }
+
+        /// <summary>
         /// Drop THIS model's device-resident weight copies while keeping the model itself
         /// usable: the GGUF mmap, the parsed weight table and the tokenizer all stay, so the
         /// next forward re-uploads from host memory instead of re-reading and re-parsing the
@@ -2349,6 +2539,22 @@ namespace TensorSharp.Models
                 // mmap below is disposed). ClearHostBufferCache then frees the
                 // MTLBuffer wrappers; the LRU state goes with it.
                 GgmlBasicOps.ClearOffloadableState();
+                // The persistent per-graph compute buffer and reuse gallocr are
+                // this model's graph scratch, sized to its widest prefill, and
+                // neither ClearOffloadableState nor ClearHostBufferCache touches
+                // them. The two diffusion pipelines release the scratch by hand
+                // between stages (QwenImagePipeline, WanVideoPipeline) precisely
+                // because nothing else does; a model that only ever loaded and
+                // unloaded had no such call anywhere, and left them allocated.
+                // On Metal each carries an
+                // MTLResidencySet registered with the device: the ggml-metal
+                // device singleton is a C++ static whose deleter asserts that
+                // collection is empty, so a process that had ever generated on
+                // Metal aborted at exit
+                // (GGML_ASSERT([rsets->data count] == 0)) after unloading
+                // perfectly cleanly. It is also close to a gigabyte a phone
+                // does not get back when the user switches models.
+                GgmlBasicOps.ReleaseReuseComputeBuffers();
                 GgmlBasicOps.ClearHostBufferCache();
             }
 

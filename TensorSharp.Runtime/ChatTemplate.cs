@@ -29,11 +29,12 @@ namespace TensorSharp.Runtime
         /// </summary>
         public List<string>? AudioPaths { get; set; }
         /// <summary>
-        /// Optional list of plain-text file paths whose contents have been inlined into
-        /// <see cref="Content"/> (e.g. uploaded .txt / .md / .csv attachments). The paths
-        /// themselves are not consumed by the model - they exist purely so the per-turn
-        /// audit log can record which uploaded files belong to this message even though
-        /// their contents have been folded into the prompt text.
+        /// Optional list of plain-text file paths. Their contents are normally inlined
+        /// into <see cref="Content"/> (for example .txt and .md); when
+        /// <see cref="HasFileBackedTextAttachments"/> is true, the service first stages
+        /// the complete file for tools or restores that inline representation. The paths
+        /// themselves are not directly consumed by the model and also let the per-turn
+        /// audit log identify the uploads belonging to this message.
         /// </summary>
         public List<string>? TextFilePaths { get; set; }
         /// <summary>
@@ -44,6 +45,36 @@ namespace TensorSharp.Runtime
         /// file name stands in.
         /// </summary>
         public List<string>? TextFileNames { get; set; }
+        /// <summary>
+        /// True when the client deliberately kept an attached text file out of
+        /// <see cref="Content"/> because the complete upload is meant to be staged for
+        /// file/code tools. The Web UI service clears this on its inference clone after
+        /// staging, or restores the complete inline text when no readable workspace is
+        /// available, so the model is never asked to reason about unseen file contents.
+        /// </summary>
+        public bool HasFileBackedTextAttachments { get; set; }
+        /// <summary>
+        /// Every file the user attached to this message, by the stored upload name — the
+        /// images and the audio as well as the documents, and only the files the user
+        /// actually attached (never a frame extracted from one).
+        ///
+        /// <para>
+        /// <see cref="TextFilePaths"/> answers a narrower question: which uploads had
+        /// their text folded into <see cref="Content"/>. That made it the wrong list to
+        /// stage into a program's working directory, and the gap was not academic — asked
+        /// to turn a photo into a PDF, a model was handed a picture it could see and no
+        /// file it could open, and spent the turn inventing paths. This list is what a
+        /// tool stages, so "the file you were shown is in your working directory" is true
+        /// of every attachment rather than only of the text ones.
+        /// </para>
+        /// </summary>
+        public List<string>? AttachmentPaths { get; set; }
+        /// <summary>
+        /// The names the user knows <see cref="AttachmentPaths"/> by, in the same order.
+        /// Uploads are stored under generated names, and a model told to open
+        /// "3f2c…d1.png" has been told nothing.
+        /// </summary>
+        public List<string>? AttachmentNames { get; set; }
         /// <summary>
         /// True if ImagePaths represent video frames (inserts &lt;|video&gt; before frame &lt;|image&gt; tokens).
         /// </summary>
@@ -96,6 +127,18 @@ namespace TensorSharp.Runtime
         /// the final character of a later, structurally different render.
         /// </summary>
         public string? RawPromptTrailingWhitespace { get; set; }
+
+        /// <summary>
+        /// The architecture-specific text the generation prompt ended with when
+        /// <see cref="RawOutputTokens"/> were produced — Qwen 3.5's <c>&lt;think&gt;\n</c>
+        /// or <c>&lt;think&gt;\n\n&lt;/think&gt;\n\n</c>, Gemma 4's empty thought block — or
+        /// null for history that was not tracked by this host. The chat template does
+        /// not re-emit that framing for a past turn, so the KV renderer puts it back in
+        /// front of the raw tokens; it has to be THIS turn's framing, not the current
+        /// request's, or a chat whose thinking toggle changed between turns diverges
+        /// from the cache at every earlier answer.
+        /// </summary>
+        public string? RawGenerationSuffix { get; set; }
         /// <summary>
         /// Render-only placeholder used by the Gemma 4 GGUF template adapter to put a
         /// cached raw tool-calling round at the template's tool-call position while
@@ -388,17 +431,13 @@ namespace TensorSharp.Runtime
                 foreach (var tool in tools)
                 {
                     sb.Append("\n");
-                    var toolObj = new Dictionary<string, object>
-                    {
-                        ["type"] = "function",
-                        ["function"] = new Dictionary<string, object>
-                        {
-                            ["name"] = tool.Name,
-                            ["description"] = tool.Description ?? "",
-                            ["parameters"] = BuildToolParamsDict(tool)
-                        }
-                    };
-                    sb.Append(JsonSerializer.Serialize(toolObj, new JsonSerializerOptions { WriteIndented = true }));
+                    // Exactly what the GGUF template's `{{ tool | tojson }}` prints, from
+                    // the same declaration dictionary the Jinja context is built from.
+                    // This renderer used to pretty-print with System.Text.Json instead,
+                    // so a prompt rendered here (thinking off) and one rendered by the
+                    // template (thinking on) differed from the first tool onwards, and
+                    // the KV cache could share nothing past that point between them.
+                    sb.Append(Jinja2Template.ToJson(BuildToolDeclaration(tool)));
                 }
                 sb.Append("\n</tools>\n\n");
                 sb.Append("If you choose to call a function ONLY reply in the following format with NO suffix:\n\n");
@@ -532,11 +571,19 @@ namespace TensorSharp.Runtime
         }
 
         private static Dictionary<string, object> BuildToolParamsDict(ToolFunction tool)
+            => (Dictionary<string, object>)((Dictionary<string, object>)BuildToolDeclaration(tool)["function"])["parameters"];
+
+        /// <summary>
+        /// The OpenAI-shaped declaration of one tool, as the Jinja context hands it to a
+        /// GGUF template and as the hardcoded renderers print it. One builder, so a
+        /// template path and a hardcoded path cannot describe the same tool differently.
+        /// </summary>
+        internal static Dictionary<string, object> BuildToolDeclaration(ToolFunction t)
         {
             var props = new Dictionary<string, object>();
-            if (tool.Parameters != null)
+            if (t.Parameters != null)
             {
-                foreach (var kv in tool.Parameters)
+                foreach (var kv in t.Parameters)
                 {
                     var pDict = new Dictionary<string, object> { ["type"] = kv.Value.Type ?? "string" };
                     if (!string.IsNullOrEmpty(kv.Value.Description))
@@ -546,14 +593,28 @@ namespace TensorSharp.Runtime
                     props[kv.Key] = pDict;
                 }
             }
+
             var paramsDict = new Dictionary<string, object>
             {
                 ["type"] = "object",
                 ["properties"] = props,
             };
-            if (tool.Required != null && tool.Required.Count > 0)
-                paramsDict["required"] = tool.Required;
-            return paramsDict;
+
+            if (t.Required != null && t.Required.Count > 0)
+                paramsDict["required"] = new List<object>(t.Required.Select(r => (object)r));
+            else if (t.Parameters != null && t.Parameters.Count > 0)
+                paramsDict["required"] = new List<object>(t.Parameters.Keys.Select(k => (object)k));
+
+            return new Dictionary<string, object>
+            {
+                ["type"] = "function",
+                ["function"] = new Dictionary<string, object>
+                {
+                    ["name"] = t.Name,
+                    ["description"] = t.Description ?? "",
+                    ["parameters"] = paramsDict
+                }
+            };
         }
 
         private static string FormatQwen35ToolCallArg(object value)
@@ -627,8 +688,10 @@ namespace TensorSharp.Runtime
                                         : EnsureGemma4ThinkingBlock(result);
                                 }
                             }
-                            else if (IsQwen35Family(architecture) && addGenerationPrompt && enableThinking)
-                                result = EnsureQwen35ThinkOpen(result);
+                            else if (IsQwen35Family(architecture) && addGenerationPrompt)
+                                result = enableThinking
+                                    ? EnsureQwen35ThinkOpen(result)
+                                    : EnsureQwen35ThinkClosed(result);
                             Console.Error.WriteLine($"[ChatTemplate] Jinja2 rendering succeeded for '{architecture}', prompt length={result.Length}");
                             return result;
                         }
@@ -1116,37 +1179,88 @@ namespace TensorSharp.Runtime
             "{%- set ns.prev_message_type = 'tool_call' -%}" +
             "{%- elif message['tool_calls'] -%}";
 
+        // The second generation of the Gemma 4 template (shipped with the E2B/E4B
+        // GGUFs of mid-2026). Same structure, three differences that the recognizer
+        // has to know: the tool-call branch reads `message.get('tool_calls')`, the
+        // per-message state namespace carries a second field, and the reasoning gate
+        // has its own `preserve_thinking` switch for tool-call turns —
+        //   thinking_gate = (loop.index0 > ns_turn.last_user_idx)
+        //                   or (preserve_thinking and message.get('tool_calls'))
+        // which is exactly the cached-round bypass the first generation had to be
+        // patched for. Without recognizing it, every agentic turn on these models
+        // re-prefilled the whole conversation at its first tool call: the raw round
+        // could not be replayed, and the structural re-render dropped the empty thought
+        // block the generation prompt had put in front of the call.
+        private const string Gemma4V2ToolCallsBranch =
+            "{%- if message.get('tool_calls') -%}";
+        private const string Gemma4V2MessageStateNamespace =
+            "{%- set ns = namespace(prev_message_type=None, prev_non_tool_role=None) -%}";
+        private const string Gemma4V2CurrentTurnReasoningGate =
+            "(preserve_thinking and message.get('tool_calls'))";
+        private const string Gemma4V2CachedToolReasoningGate =
+            "((preserve_thinking or message.get('" + Gemma4CachedToolReasoningMarker + "')) " +
+            "and message.get('tool_calls'))";
+        private const string Gemma4V2RawToolReplayBranch =
+            "{%- if message.get('" + Gemma4RawToolCallReplayMarker + "') -%}" +
+            "{{- message.get('" + Gemma4RawToolCallReplayMarker + "') -}}" +
+            "{%- set ns.prev_message_type = 'tool_call' -%}" +
+            "{%- elif message.get('tool_calls') -%}";
+
         private sealed class Gemma4ReplayTemplateVariants
         {
             public Gemma4ReplayTemplateVariants(string template)
             {
-                int first = template.IndexOf(Gemma4ToolCallsBranch, StringComparison.Ordinal);
-                SupportsRawToolCallReplay = first >= 0
-                    && template.IndexOf(
-                        Gemma4ToolCallsBranch,
-                        first + Gemma4ToolCallsBranch.Length,
-                        StringComparison.Ordinal) < 0
-                    && template.Contains(Gemma4CurrentTurnReasoningCondition, StringComparison.Ordinal)
-                    && template.Contains(Gemma4ToolResponseMacro, StringComparison.Ordinal)
-                    && template.Contains(Gemma4MessageStateNamespace, StringComparison.Ordinal)
+                bool shared =
+                    template.Contains(Gemma4ToolResponseMacro, StringComparison.Ordinal)
                     && template.Contains(Gemma4ToolCallStateAssignment, StringComparison.Ordinal)
                     && template.Contains(Gemma4LoopMessagesIteration, StringComparison.Ordinal)
                     && template.Contains(Gemma4NonToolBranch, StringComparison.Ordinal)
                     && template.Contains(Gemma4ForwardToolCallBranch, StringComparison.Ordinal)
                     && template.Contains(Gemma4ForwardToolResultScan, StringComparison.Ordinal);
 
-                CachedReasoning = SupportsRawToolCallReplay
-                    ? template.Replace(
+                if (shared
+                    && OccursExactlyOnce(template, Gemma4ToolCallsBranch)
+                    && template.Contains(Gemma4CurrentTurnReasoningCondition, StringComparison.Ordinal)
+                    && template.Contains(Gemma4MessageStateNamespace, StringComparison.Ordinal))
+                {
+                    SupportsRawToolCallReplay = true;
+                    CachedReasoning = template.Replace(
                         Gemma4CurrentTurnReasoningCondition,
                         Gemma4CachedToolReasoningCondition,
-                        StringComparison.Ordinal)
-                    : template;
-                RawToolCallReplay = SupportsRawToolCallReplay
-                    ? CachedReasoning.Replace(
+                        StringComparison.Ordinal);
+                    RawToolCallReplay = CachedReasoning.Replace(
                         Gemma4ToolCallsBranch,
                         Gemma4RawToolReplayBranch,
-                        StringComparison.Ordinal)
-                    : template;
+                        StringComparison.Ordinal);
+                }
+                else if (shared
+                    && OccursExactlyOnce(template, Gemma4V2ToolCallsBranch)
+                    && OccursExactlyOnce(template, Gemma4V2CurrentTurnReasoningGate)
+                    && template.Contains(Gemma4V2MessageStateNamespace, StringComparison.Ordinal))
+                {
+                    SupportsRawToolCallReplay = true;
+                    CachedReasoning = template.Replace(
+                        Gemma4V2CurrentTurnReasoningGate,
+                        Gemma4V2CachedToolReasoningGate,
+                        StringComparison.Ordinal);
+                    RawToolCallReplay = CachedReasoning.Replace(
+                        Gemma4V2ToolCallsBranch,
+                        Gemma4V2RawToolReplayBranch,
+                        StringComparison.Ordinal);
+                }
+                else
+                {
+                    SupportsRawToolCallReplay = false;
+                    CachedReasoning = template;
+                    RawToolCallReplay = template;
+                }
+            }
+
+            private static bool OccursExactlyOnce(string template, string needle)
+            {
+                int first = template.IndexOf(needle, StringComparison.Ordinal);
+                return first >= 0
+                    && template.IndexOf(needle, first + needle.Length, StringComparison.Ordinal) < 0;
             }
 
             public bool SupportsRawToolCallReplay { get; }
@@ -1320,50 +1434,23 @@ namespace TensorSharp.Runtime
                 ["eos_token"] = "",
             };
 
-            if (enableThinking)
-                ctx["enable_thinking"] = true;
+            // Always defined, whichever way it is set. Templates written against
+            // HF's apply_chat_template(enable_thinking=...) test the flag with
+            // `enable_thinking is defined and enable_thinking is false` (Qwen 3 and
+            // 3.5 among them): leaving it out when false took the ELSE branch, which
+            // is thinking ON, so a request with thinking off rendered exactly the
+            // same prompt as one with it on and the model reasoned anyway. The
+            // purpose-built Qwen 3.5 renderer had to be substituted for the off case
+            // to work around that, and its prompt differed from the template's — so
+            // toggling thinking between two turns of one chat diverged the prompt at
+            // the tool block and re-prefilled the whole conversation.
+            ctx["enable_thinking"] = enableThinking;
 
             if (tools != null && tools.Count > 0)
             {
                 var toolList = new List<object>();
                 foreach (var t in tools)
-                {
-                    var props = new Dictionary<string, object>();
-                    if (t.Parameters != null)
-                    {
-                        foreach (var kv in t.Parameters)
-                        {
-                            var pDict = new Dictionary<string, object> { ["type"] = kv.Value.Type ?? "string" };
-                            if (!string.IsNullOrEmpty(kv.Value.Description))
-                                pDict["description"] = kv.Value.Description;
-                            if (kv.Value.Enum != null && kv.Value.Enum.Count > 0)
-                                pDict["enum"] = new List<object>(kv.Value.Enum.Select(e => (object)e));
-                            props[kv.Key] = pDict;
-                        }
-                    }
-
-                    var paramsDict = new Dictionary<string, object>
-                    {
-                        ["type"] = "object",
-                        ["properties"] = props,
-                    };
-
-                    if (t.Required != null && t.Required.Count > 0)
-                        paramsDict["required"] = new List<object>(t.Required.Select(r => (object)r));
-                    else if (t.Parameters != null && t.Parameters.Count > 0)
-                        paramsDict["required"] = new List<object>(t.Parameters.Keys.Select(k => (object)k));
-
-                    toolList.Add(new Dictionary<string, object>
-                    {
-                        ["type"] = "function",
-                        ["function"] = new Dictionary<string, object>
-                        {
-                            ["name"] = t.Name,
-                            ["description"] = t.Description ?? "",
-                            ["parameters"] = paramsDict
-                        }
-                    });
-                }
+                    toolList.Add(BuildToolDeclaration(t));
                 ctx["tools"] = toolList;
             }
 
@@ -1409,6 +1496,7 @@ namespace TensorSharp.Runtime
                     AudioPaths = msg.AudioPaths,
                     TextFilePaths = msg.TextFilePaths,
                     TextFileNames = msg.TextFileNames,
+                    HasFileBackedTextAttachments = msg.HasFileBackedTextAttachments,
                     IsVideo = msg.IsVideo,
                     ToolCalls = msg.ToolCalls,
                     ToolCallId = msg.ToolCallId,
@@ -1926,6 +2014,21 @@ namespace TensorSharp.Runtime
             const string openThink = "<think>";
             if (result.EndsWith(openThink))
                 result += "\n";
+            return result;
+        }
+
+        /// <summary>
+        /// Ensure a thinking-disabled Qwen 3.5/3.6 generation prompt ends with the
+        /// CLOSED, empty block "&lt;think&gt;\n\n&lt;/think&gt;\n\n" the model's own template
+        /// emits. The blanket <c>Render(...).TrimEnd()</c> strips the two trailing
+        /// newlines; without them the cache holds a different token run from the one
+        /// the purpose-built renderer (and the model's training data) end on.
+        /// </summary>
+        private static string EnsureQwen35ThinkClosed(string result)
+        {
+            const string closedThink = "<think>\n\n</think>";
+            if (result.EndsWith(closedThink, StringComparison.Ordinal))
+                result += "\n\n";
             return result;
         }
 

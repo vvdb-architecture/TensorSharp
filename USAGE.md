@@ -25,7 +25,7 @@ Both `TensorSharp.Cli` and `TensorSharp.Server` can read their options from a JS
 file passed with `--config`, instead of (or in addition to) a long command line:
 
 ```bash
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basic.json
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/server-basic.json
 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll       --config config/cli-basic.json
 ```
 
@@ -289,7 +289,7 @@ quietly. Measured on gemma-4-26B-A4B (`--cpu-moe`, peak VRAM): `ggml_cuda`
 | `--skills-sandbox <off\|preferred\|required>` | How hard to insist on OS isolation for a skill's scripts. `required` (the default) refuses to run them on a host with no safe sandbox rather than running them unconfined; `preferred` explicitly accepts weaker isolation; `off` keeps only the runner's interpreter, environment, time and output limits. macOS uses `sandbox-exec`; Linux requires `bwrap` 0.12.0 or newer (older releases have a known setup-time symlink escape). Windows Job Objects bound only the process tree, not filesystem or network access, so `required` refuses there and `preferred` is the explicit weaker-isolation opt-in. Env: `TS_SKILLS_SANDBOX`. |
 | `--skills-allow-network` | Let a sandboxed skill script reach the network. Denied by default. Env: `TS_SKILLS_ALLOW_NETWORK`. |
 | `--code-exec` | Offer the model a `shell` tool: it types a real command line, the host runs it in an OS sandbox, and the model reads back the exit code and everything the command printed, stdout and stderr merged. This is how the model RUNS things and looks around — run a program, `rg` for a pattern, move and delete files, install what it needs, check its own output — which is the shape OpenAI Codex and Claude Code use. Reading and changing files is the file tools' job, below. Arguments: `command` (required), `workdir` (that one call only), `timeout_ms`, and `run_in_background` for something meant to keep running, whose result names a log file to read later with an ordinary command. Four more tools come with it, and they are where file work actually happens. `read_file` (`path`, `offset`, `limit`) shows a file's current bytes with line numbers rendered `   42 \| text`, and re-reading an unchanged file says so instead of repeating it. `edit_file` (`path`, `old_string`, `new_string`, `replace_all`) replaces one exact string in one file — Claude Code's `Edit`, parameter for parameter, and the shape Anthropic publishes as `str_replace_based_edit_tool`. It must match exactly and exactly once; if it matches twice the call is refused and the matches are located for you, and if it matches nothing you are shown the file's real numbered lines around the closest thing to what you asked for. `write_file` (`path`, `content`) creates a file or deliberately replaces one whole — and when it replaces one, the host counts how many of the lines came back byte-identical and says so. `apply_patch`, Codex's `*** Begin Patch` envelope, creates, updates, deletes and renames several files in one all-or-nothing call, and is reachable two ways — as a tool call, and by typing it into the shell as a heredoc, which the host intercepts and never executes. The split follows the two references rather than inventing a format: string replacement for the common one-file change, an atomic envelope for the multi-file one. All of them exist beside a shell that could rewrite any file with a heredoc because a heredoc re-emits the *whole* file: a three-line fix costs every already-correct line and re-rolls each of them. And because the **host** places the bytes, from text it either finds or refuses to guess at, rather than the model retyping a file it half-remembers. `apply_patch`'s matcher is a line-for-line port of the reference V4A applier: exact match, else trailing-whitespace-insensitive, else leading-and-trailing-insensitive, else fail — no similarity scoring, no nearest match. `edit_file`'s ladder is the union of what both references tolerate — exact, then typographic quotes and dashes folded to their ASCII forms, then a literal `\uXXXX` decoded, then line-number prefixes stripped — every rung above the first reported on the result, and the replacement written back in the file's own punctuation so tolerance never silently changes bytes nobody asked about. All five tools share a Web/CLI session workspace or an isolated OpenAI/Ollama request workspace across its internal rounds. Only direct callers that provide no workspace receive the shell alone. Every tool is answered in process; none is ever handed back to the client. Off by default. Env: `TS_CODE_EXEC` (anything but `0` counts as on). |
-| `--code-exec-allow-install` | Let the model install the packages it needs (pip / npm) into the active Web/CLI-session or HTTP-request workspace, so later commands — and skill scripts — can import them within that workspace's lifetime; requires `--code-exec`. This permission does **not** give a model-authored command network access. The host reads each recognised install for its tool and package names, validates them, and performs the install itself with an argument vector it built, wheels only (`--only-binary=:all:` / `--ignore-scripts`). It substitutes that command with `true` or `false`, preserving `&&`, `||`, pipelines and loops; in `pip install x && python y.py`, `y.py` follows the command network policy (offline by default, unrestricted only with `--code-exec-allow-network`). Source-changing options such as `--index-url`, `-i`, `--find-links`, `--registry`, URL requirements, and installers the host cannot perform (`uv`, `poetry`, `gem`, `cargo`, `go`) are refused; `-r requirements.txt` is read and validated line by line. Env: `TS_CODE_EXEC_ALLOW_INSTALL`. |
+| `--code-exec-allow-install` | Let the model install the packages it needs (pip / npm) into the active Web/CLI-session or HTTP-request workspace, so later commands — and skill scripts — can import them within that workspace's lifetime; requires `--code-exec`. This permission does **not** give a model-authored command network access. The host reads each recognised install for its tool and package names, validates them, and performs the install itself with an argument vector it built, wheels only (`--only-binary=:all:` / `--ignore-scripts`). It substitutes that command with `true` or `false`, preserving `&&`, `\|\|`, pipelines and loops; in `pip install x && python y.py`, `y.py` follows the command network policy (offline by default, unrestricted only with `--code-exec-allow-network`). Source-changing options such as `--index-url`, `-i`, `--find-links`, `--registry`, URL requirements, and installers the host cannot perform (`uv`, `poetry`, `gem`, `cargo`, `go`) are refused; `-r requirements.txt` is read and validated line by line. Env: `TS_CODE_EXEC_ALLOW_INSTALL`. |
 | `--code-exec-allow-network` | Give every model-authored command unrestricted host IP-network access: generated code can resolve DNS, fetch URLs, follow redirects, call remote APIs, reach LAN/loopback services and open IP listening sockets. **Off by default** and requires `--code-exec`. Write and home-read confinement remain active on macOS and Linux. Linux additionally bounds descendants with a PID namespace. On macOS, children inherit Seatbelt and ordinary process groups are stopped, but a deliberately detached child can outlive the request; every result reports that gap. macOS denies common `/private/tmp/com.apple.launchd*` pathname sockets while permitting runtime-required Mach lookup and the exact mDNSResponder pathname socket required for DNS, and Linux hides common `/run` endpoints, but this is not a complete local Unix-IPC boundary: macOS retains shared-temporary-directory Unix IPC for compatibility, and Linux's host network namespace may expose abstract sockets and pathname sockets outside `/run`. Other host-readable files and IP services may therefore be reached and exfiltrated; remote prompt injection and untrusted downloads are additional risks. Credential-free host HTTP/SOCKS proxy settings are passed only in this mode. Configured custom-CA bundles up to 16 MiB are read once; only validated public certificates are copied into a read-only per-session snapshot, so the host source path and adjacent data are not exposed. Authenticated proxies need a credential-free host-side forwarder. Package/install-domain allow-lists constrain only the recognised host installer; unrestricted generated code can fetch or execute artifacts directly. This is independent of package installs and of `--skills-allow-network`, which controls `skills_run`. On Windows, `--code-exec-unconfined` is still required. Env: `TS_CODE_EXEC_ALLOW_NETWORK` (anything but `0` counts as on). |
 | `--code-exec-packages <list>` | Restrict installs to these package names, comma-separated; anything else is refused and the model is told which names are allowed (default: empty, meaning any package — and at most 16 packages in one install either way). Matching is on the bare name, so a version the model pins (`numpy==2.1.0`) still matches the entry `numpy`. It was retired when the tool surface became a shell, because a model typing its own `pip install` could spell the request in ways a name list could not see; it is back because the **host** performs every install again — it reads the names out of the model's command rather than running that command, and builds the installer's argument vector itself, so the list applies to recognised requests however they were spelled (`pip`, `pip3`, `python -m pip`, a requirements file). Only meaningful with `--code-exec-allow-install`. With `--code-exec-allow-network`, this list is not a security boundary: generated code can fetch or execute artifacts without using the host installer. |
 | `--code-exec-install-index <url>` | Point host-performed installs at an operator-selected package index instead of the installer's default. A model-authored `--index-url` is still refused. The index host is added to the install egress allow-list automatically; add any separate download hosts with `--code-exec-install-domains`. Requires `--code-exec-allow-install`. Default: unset. Env: `TS_CODE_EXEC_INSTALL_INDEX`. |
@@ -490,10 +490,10 @@ Run these commands from the repository root after building:
 
 ```bash
 # Start the server with the exact hosted model
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --backend ggml_metal
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --backend ggml_metal
 
 # Linux + NVIDIA GPU
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --backend ggml_cuda
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --backend ggml_cuda
 
 # Web research through model-authored code. Network access is deliberately a
 # separate opt-in; --skills-allow-network would control bundled skill scripts instead.
@@ -502,23 +502,23 @@ dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf
     --code-exec-allow-install --code-exec-allow-network --max-tokens 256000
 
 # Multimodal models: host an explicit projector too
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --mmproj ./models/mmproj.gguf --backend ggml_cuda
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --mmproj ./models/mmproj.gguf --backend ggml_cuda
 
 # MiniMax-H3: video and its 32 kHz stereo soundtrack generated together. Size,
 # steps and frame count are startup flags because the Web UI sends no numbers of
 # its own; 640x384 is the documented starting point. Each run writes an .mp4 plus
 # a sidecar .wav. See "Video generation with audio (MiniMax-H3)" below.
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model ./models/minimax_h3_fl2va_pruned-Q4_K.gguf --backend ggml_cuda \
     --video-width 640 --video-height 384 --video-steps 20 --video-frames 22
 
 # The same host from a shipped config (config/minimax-h3-ref2va.json swaps in the
 # reference checkpoint; only the denoiser differs, so nothing re-downloads).
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/minimax-h3-fl2va.json
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/minimax-h3-fl2va.json
 
 # Wan video generation, video only: use 121 frames at 24 fps (about five seconds)
 # whenever the Web UI or an API request does not supply its own frames / fps value.
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/Wan2.2-TI2V-5B.gguf --backend ggml_cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/Wan2.2-TI2V-5B.gguf --backend ggml_cuda \
     --video-frames 121 --fps 24
 
 # 121 frames at the TI2V-5B native area is 27k DiT tokens, and self-attention is
@@ -531,15 +531,15 @@ dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/Wan2.2-TI2
 
 # Configure server-wide default sampling parameters
 # (used whenever a request does not override the value itself)
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model ./models/model.gguf --backend ggml_metal \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model ./models/model.gguf --backend ggml_metal \
     --temperature 0.7 --top-p 0.9 --top-k 40 --repeat-penalty 1.1 \
     --presence-penalty 0.0 --frequency-penalty 0.0 --seed 42 \
     --stop "</s>" --stop "<|endoftext|>"
 
 # Read all of the above from a reusable JSON file (auto-downloads the model on
 # first run). See the Configuration file section and config/ for examples.
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basic.json
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --config config/server-basic.json --backend ggml_cpu
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/server-basic.json
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --config config/server-basic.json --backend ggml_cpu
 ```
 
 Open `http://localhost:5000` in your browser — the root URL serves the chat UI (`GET /health` is the liveness endpoint). The web interface supports:
@@ -664,7 +664,7 @@ of quietly losing a setting.
 | `--cpu-moe-threads <N>` | Worker threads for the host-side expert matmul. Default: half the usable CPU parallelism (`hardware_concurrency` clamped by the affinity mask and the cgroup CPU quota) on hosts with more than 8 cores. The server needs the other half for Kestrel, the scheduler and the accelerator submission threads; sizing this near the quota collapses throughput rather than degrading (20.7 tok/s at 64 threads vs 8.2 at 71 on a 95-CPU quota). Env: `TS_CPU_MOE_THREADS`. |
 | `--kv-cache-dtype <type>` | KV cache precision for the hosted model: `f32`, `f16`, `q8_0`, or `q4_0` (quantized caches trade small numerical drift for memory; see the CLI table above for the tier trade-offs). Default: auto — the backend/model pick. Env: `KV_CACHE_DTYPE`. |
 | `--continuous-batching` / `--no-continuous-batching` | Enable (default) or disable iteration-level paged-batching. When enabled the server admits / preempts sequences mid-batch and packs them into one forward pass on models that implement `IBatchedPagedModel`. `--no-continuous-batching` falls back to per-sequence KV-swap for every model. Alias: `--paged-batching` / `--no-paged-batching`. |
-| `--prefill-chunk-size <N>` | Chunked-prefill granularity under contention — the maximum prefill tokens scheduled per step while other requests are running, so parallel decodes get frequent turns at the GPU (default: `1024`). Env: `TS_SCHED_PREFILL_CHUNK`. |
+| `--prefill-chunk-size <N>` | Maximum prefill tokens per request in a mixed prefill+decode step, so active streams get frequent GPU turns (default: `256`). Prefill-only batches still divide and consume the full device token budget. Env: `TS_SCHED_PREFILL_CHUNK`. |
 | `--spec` / `--no-spec` | Enable speculative decoding (default off). `--spec` is the explicit opt-in for drafters embedded in the trunk checkpoint (Qwen 3.6's and GLM 5.2's NextN blocks), because loading them pages extra weights into VRAM; a drafter that ships as its own GGUF is enabled by `--draft-model` alone, and an explicit `--no-spec` vetoes either. Engages for solo (non-concurrent) sequences: the draft head proposes up to `--spec-draft` tokens per step and the trunk verifies them in one batched forward, with the request's own sampler (penalties included) driving both drafting and verification, so output matches standard decode. Engaged automatically only where profitable: Qwen 3.6 reports its embedded NextN block profitable on every backend, while Gemma 4's separate draft head engages on the ggml backends and on the direct `cuda` backend only. CPU / GGML CPU / MLX serve standard decode. Env: `TS_SPEC` (legacy `TS_MTP_SPEC`). |
 | `--spec-type <name>` | Speculation algorithm: `auto` (default) / `draft-head` / `block` / `ngram`. `ngram` needs no trained weights and works on every model — it drafts by finding where the last few tokens occurred earlier in the context and proposing what followed, so it is strong wherever the answer quotes its input. Env: `TS_SPEC_TYPE`. |
 | `--spec-draft <N>` | Maximum tokens drafted per speculative step (default `8`; a block drafter clamps it to its trained block size, which is also its default there). Env: `TS_SPEC_DRAFT` (or `TS_MTP_DRAFT`). |
@@ -744,12 +744,20 @@ These can be set with either the `--paged-kv*` / `--continuous-batching` CLI fla
 | `TS_SCHED_DISABLE_BATCHED` | `1` forces the per-sequence KV-swap fallback even when a model implements `IBatchedPagedModel`. The CLI shortcut is `--no-continuous-batching`. |
 | `TS_SCHED_MAX_BATCHED_TOKENS` | Scheduler per-step token budget (default: `4096`). |
 | `TS_SCHED_MAX_RUNNING_SEQS` | Maximum in-flight sequences (default: `16`). |
-| `TS_SCHED_PREFILL_CHUNK` | Maximum prefill tokens per step when requests contend (default: `1024`). |
+| `TS_SCHED_PREFILL_CHUNK` | Per-request prefill cap in a mixed prefill+decode step (default: `256`); prefill-only steps fairly consume the full batched-token budget. |
 | `TS_SCHED_SOLO_PREFILL_CHUNK` | Prefill chunk size for the fresh (start_pos = 0) part of a SOLO prompt — one uncontended request gets big fused-prefill chunks (default: `8192`). |
 | `TS_SCHED_NUM_BLOCKS` | Physical blocks in the engine block pool (default: `256`). |
 | `TS_SCHED_BLOCK_SIZE` | Tokens per block on the engine side (default: `256`). |
 | `TS_SCHED_PREFIX_CACHE` | `0` disables block-hash prefix sharing across requests. |
+| `TS_SCHED_STOP_REPETITION` | `0` lets a generation that has locked into a loop run to its token limit instead of being stopped. |
 | `TS_SCHED_DECODE_QUANTUM` | Tokens before a sequence-switch is allowed (default: block size). |
+| `TS_RETAINED_FUSED_CACHE` | `1` (default) retains a finished request's fused holder so an exact-prefix continuation skips re-prefilling it, on models that advertise support (Gemma 4 K/V; Qwen 3.5/3.6 attention K/V plus GatedDeltaNet recurrent state). `0` disables it (VRAM cap / A-B). |
+| `TS_RETAINED_FUSED_CACHE_MAX` | LRU budget of retained fused holders (default: `4`); each pins a complete per-request continuation state. |
+| `TS_PREFIX_CHECKPOINTS` | `1` (default) checkpoints the model state at the end of the prompt every conversation shares — system prompt, tools, skills — and starts each **new** chat from a clone of it, so a new chat re-prefills only its own message. Gemma 4 and Qwen 3.5/3.6 on the GGML backends. `0` disables. |
+| `TS_PREFIX_CHECKPOINTS_MAX` | How many distinct shared prefixes stay checkpointed at once, LRU (default: `2`). Each holds one copy of that prefix's K/V and, on Qwen, its recurrent state. |
+| `TS_KV_INITIAL_TOKENS` | Tokens of K/V a cache is given when it is created — the primary cache at load and every per-request holder — before any request declares a budget. `0` (default) keeps the engine policy: the whole window when `MAX_CONTEXT` is explicit, otherwise a backend default. The cache still grows on demand, so a memory-constrained device sets this small because every kept holder is paid at this size, host copy and device mirror both. |
+| `TS_KV_GENERATION_RESERVE_MAX` | Caps the generation share of the K/V a request reserves up front (prompt + `max_new_tokens`). Without it, a reply limit at or above the context window reserves the whole window per request. Past the cap the cache grows on demand. `0` (default) = uncapped. |
+| `TS_KV_HOLDER_POOL_MAX` | How many released per-request holders a model may park for reuse instead of freeing (default: `64`). Each parked holder costs its whole K/V allocation while parked. |
 | `TS_QWEN35_BATCHED` | Set to `0` to force the Qwen 3.5/3.6 family onto the legacy per-sequence KV-swap path (default: batched/paged). Also implicitly disabled by `--no-continuous-batching`. |
 | `TS_QWEN35_BATCHED_GDN_NATIVE` | Use the native batched GatedDeltaNet kernel inside Qwen 3.5/3.6 batched path. |
 | `TS_GEMMA4_BATCHED` | Set to `0` to force Gemma 4 onto the legacy per-sequence KV-swap path (default: batched/paged). |
@@ -1192,7 +1200,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/Wan2_2-TI2V-5B-Tur
     --prompt "the cat runs toward the camera, cinematic tracking shot" \
     --video-frames 121 --fps 24
 
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/Wan2_2-TI2V-5B-Turbo-Q8_0.gguf \
     --backend ggml_metal --video-frames 121 --fps 24
 ```
 
@@ -1535,7 +1543,7 @@ reconverges the hidden state after each row-parallel projection.
 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model <model.gguf> --backend cuda --tp 2
 
 # Server: same flag (TENSORSHARP_TP_DEGREE=2 env var also works)
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll \
     --model <model.gguf> --backend cuda --tp 2
 
 # Config JSON
@@ -1565,7 +1573,7 @@ dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model <model.gguf> --backend cu
 # with the same model, backend, and peer list. The TENSORSHARP_TP_* env vars
 # work as well.
 # Node 0 (server / driver):
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model <model.gguf> --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model <model.gguf> --backend cuda \
     --tp 2 --tp-node-id 0 --tp-peers "192.168.1.10:9500,192.168.1.11:9500"
 
 # Node 1 (CLI worker):
@@ -1706,11 +1714,11 @@ store to Redis, enabling cross-session KV reuse and durable response storage:
 
 ```bash
 # Enable Redis for both KV cache and Responses API
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model <model.gguf> --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model <model.gguf> --backend cuda \
     --redis-url localhost:6379
 
 # KV cache tier only, with a 12-hour TTL
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model <model.gguf> --backend cuda \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model <model.gguf> --backend cuda \
     --paged-kv-redis-url localhost:6379 --paged-kv-redis-ttl 720
 ```
 
@@ -2002,7 +2010,7 @@ inline (e.g. `187 tokens · 2.1s · 87.2 tok/s · KV 420/512 (82%)`).
 
 ## HTTP APIs
 
-TensorSharp.Server exposes three API styles. See [API_EXAMPLES.md](TensorSharp.Server/API_EXAMPLES.md) for full documentation with curl and Python examples.
+TensorSharp.Server exposes three API styles. See [API_EXAMPLES.md](TensorSharp.Server.Host/API_EXAMPLES.md) for full documentation with curl and Python examples.
 
 **Ollama-compatible API:**
 

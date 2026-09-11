@@ -103,7 +103,7 @@
     <li><strong>浏览器聊天 UI</strong> —— 多轮对话、最大 500 MB 文件上传（图像、视频、音频、PDF、文本/代码）、思考开关、工具调用、消息编辑与实时流式。→ <a href="server_zh-cn.html#webui">Web UI</a></li>
     <li><strong>交互式 REPL</strong> —— 逐轮控制台聊天，带斜杠命令、可热切换的模型 / 后端 / 投影器，以及实时采样调参。→ <a href="cli_zh-cn.html#repl">REPL</a></li>
     <li><strong>批处理</strong> —— 控制台应用的 JSONL 输入，外加内置的 prefill/decode 基准测试。</li>
-    <li><strong>源码项目嵌入</strong> —— 只引用需要的层，将推理嵌入自己的 .NET 应用。既有包 ID 已在 NuGet.org 发布到 <code>3.1.2</code>，但落后于当前源码 / Release；AgentHost 与 Distributed 仍仅能从源码引用。→ <a href="code-api_zh-cn.html">C# 库</a></li>
+    <li><strong>源码项目嵌入</strong> —— 只引用需要的层，将推理嵌入自己的 .NET 应用。已有 8 个包 ID 在 NuGet.org 发布到 <code>3.1.2</code>，但落后于当前源码 / Release；Runtime.Logging、AgentHost、Chat、Server.Host 与 Distributed 已可打包并通过校验但尚未发布，仍只能从源码引用。→ <a href="code-api_zh-cn.html">C# 库</a></li>
     <li><strong>逐轮可观测性</strong> —— 结构化有界输入摘要、模型原始输出日志与 KV 缓存命中率，并通过每个 API 暴露（<code>prompt_cache_hit_*</code>、<code>cached_tokens</code>、<code>kvReused*</code>）。上传文档正文不会写入日志，但仍保留附件元数据与用户指令。</li>
   </ul>
 

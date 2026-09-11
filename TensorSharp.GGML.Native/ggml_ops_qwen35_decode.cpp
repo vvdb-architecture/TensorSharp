@@ -8,11 +8,13 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cmath>
 #include <cstring>
 #include <cstdio>
+#include <mutex>
 
 using namespace tsg;
 
@@ -43,6 +45,18 @@ using namespace tsg;
 // ============================================================================
 namespace
 {
+    // The managed compute lock is per model, but these retained decode pools and
+    // their raw graph/buffer pointers are process-global.  Serialize every pool
+    // lookup/build/replay and teardown so a second model cannot reset or evict an
+    // entry while the first model is still using it.  Recursive is intentional:
+    // the arena coherence hook can retire a solo graph through
+    // tsg_q35_drop_decode_graphs_for_kv on the same thread.
+    std::recursive_mutex& q35_decode_mutex()
+    {
+        static std::recursive_mutex mutex;
+        return mutex;
+    }
+
     int qwen35_attn_layer_decode_impl(
         float* residual_data, int hidden_size,
         float* attn_norm_data,
@@ -311,7 +325,9 @@ namespace
                 residual_out_zero_copy = false;
         }
 
-        BufferHandle buffer(ggml_backend_alloc_ctx_tensors(ctx, g_backend));
+        BufferHandle buffer((g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend)));
         if (buffer.value == nullptr)
         {
             set_last_error("Failed to allocate backend buffer for Qwen3.5 attention layer decode.");
@@ -361,6 +377,7 @@ TSG_EXPORT int TSGgml_Qwen35AttentionLayerDecode(
 {
     try
     {
+        std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());
         return qwen35_attn_layer_decode_impl(
             residual_data, hidden_size,
             attn_norm_data,
@@ -623,6 +640,13 @@ namespace
             tsg_q35arena::on_external_touch(layers[l].conv_state_in);
             tsg_q35arena::on_external_touch(layers[l].delta_state_in);
         }
+        // Keep the arena -> solo-pool lock order used by the arena flush path:
+        // qab_flush_and_drop_slot holds qab_mutex while it calls the recursive
+        // drop hook below.  Taking this lock after the external-touch prelude
+        // avoids the inverse solo-pool -> arena order across two threads, while
+        // still covering every retained-pool access and the complete graph
+        // build/replay/download lifetime.
+        std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());
         // gated_delta_net requires S_k == S_v (state is [S_v, S_v, H]).
         // Reject unsupported geometry before ggml graph construction can assert.
         if (head_k_dim != head_v_dim)
@@ -1427,7 +1451,7 @@ namespace
 
                 // split q/k/v
                 // These head views already have dense rows and are accepted directly
-                // by l2_norm / gated_delta_net, as in llama.cpp. Materializing each
+                // by GDN L2 normalization / gated_delta_net, as in llama.cpp. Materializing each
                 // one added three Metal copy dispatches per recurrent layer.
                 ggml_tensor* q_c = ggml_view_2d(ctx, conv_out_1d, head_k_dim, num_k_heads,
                     static_cast<std::size_t>(head_k_dim) * sizeof(float), 0);
@@ -1436,8 +1460,8 @@ namespace
                 ggml_tensor* v_c = ggml_view_2d(ctx, conv_out_1d, head_v_dim, num_v_heads,
                     static_cast<std::size_t>(head_v_dim) * sizeof(float), static_cast<std::size_t>(2 * key_dim) * sizeof(float));
 
-                q_c = ggml_l2_norm(ctx, q_c, eps);
-                k_c = ggml_l2_norm(ctx, k_c, eps);
+                q_c = build_gdn_l2_norm(ctx, q_c, eps);
+                k_c = build_gdn_l2_norm(ctx, k_c, eps);
 
                 // q/k keep num_k_heads heads: the fused gated_delta_net kernel broadcasts
                 // each v-head h to k-head (h % num_k_heads) internally, so the explicit
@@ -1945,17 +1969,24 @@ namespace
                 static_cast<std::size_t>(token_embd_bytes), true);
         }
 
+        // The TP driver and the host-MoE seams execute this graph as ordered slices
+        // of its node array; a reorder would move work across a seam whose position
+        // is a node index. Covers the explicit reorder below and the one inside
+        // alloc_graph_reuse_gallocr.
+        SuppressGraphReorder keep_order(tp_mode || !host_moe.empty());
         optimize_graph_for_metal(graph);
 
         BufferHandle buffer(nullptr);
         ggml_backend_buffer_t persist_buf = nullptr;
         if (persist)
         {
-            // Stable unique slots are faster than lifetime-packed scratch for
-            // this replayed Metal graph and retain capture-safe addresses on
-            // CUDA/Vulkan.
+            // Keep unique activation/state slots to protect the recurrent in-place
+            // writes. Metal reuses only non-overlapping attention workspaces;
+            // CUDA/Vulkan retain their existing capture-safe allocations.
             vram_log_ctx_breakdown("q35-decode-persist", ctx, 12);
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Qwen3.5 model decode: failed to allocate persist backend buffer.");
@@ -1979,7 +2010,9 @@ namespace
             // scratch is small so the alloc costs only ~4 ms/token (still ~5x faster
             // than the op-by-op path). The dense Gemma4 decode is unaffected (it has
             // no in-place recurrent state) and keeps the reuse gallocr.
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Qwen3.5 model decode: failed to allocate backend buffer.");
@@ -2333,11 +2366,13 @@ TSG_EXPORT int TSGgml_Qwen35ModelDecodeToken(
 // that holder's resident cacheable buffers).
 void tsg_q35_drop_decode_graphs_for_kv(const void* k_cache0)
 {
+    std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());
     q35dc_drop_by_kv(k_cache0);
 }
 
 TSG_EXPORT void TSGgml_Qwen35ResetDecodeCache()
 {
+    std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());
     g_q35dc_pool.reset_all();
 }
 
@@ -2746,8 +2781,8 @@ namespace
                     ggml_tensor* q_c = ggml_cont(ctx, ggml_view_2d(ctx, conv_out_1d, head_k_dim, num_k_heads, static_cast<std::size_t>(head_k_dim) * sizeof(float), 0));
                     ggml_tensor* k_c = ggml_cont(ctx, ggml_view_2d(ctx, conv_out_1d, head_k_dim, num_k_heads, static_cast<std::size_t>(head_k_dim) * sizeof(float), static_cast<std::size_t>(key_dim) * sizeof(float)));
                     ggml_tensor* v_c = ggml_cont(ctx, ggml_view_2d(ctx, conv_out_1d, head_v_dim, num_v_heads, static_cast<std::size_t>(head_v_dim) * sizeof(float), static_cast<std::size_t>(2 * key_dim) * sizeof(float)));
-                    q_c = ggml_l2_norm(ctx, q_c, eps);
-                    k_c = ggml_l2_norm(ctx, k_c, eps);
+                    q_c = build_gdn_l2_norm(ctx, q_c, eps);
+                    k_c = build_gdn_l2_norm(ctx, k_c, eps);
                     ggml_tensor* q_tl = q_c; ggml_tensor* k_tl = k_c;
                     for (int r = 1; r < head_tile; r++) { q_tl = ggml_concat(ctx, q_tl, q_c, 1); k_tl = ggml_concat(ctx, k_tl, k_c, 1); }
                     ggml_tensor* q4 = ggml_reshape_4d(ctx, ggml_cont(ctx, q_tl), head_k_dim, num_v_heads, 1, 1);
@@ -2969,15 +3004,17 @@ namespace
             }
         }
 
-        // Allocate the graph tensors. Persist uses alloc_ctx_tensors (each tensor
-        // its own slot = STABLE addresses, required for CUDA-graph capture); non-
-        // persist tries gallocr lifetime-packing first.
+        // Allocate the graph tensors. Persist keeps stable addresses for capture;
+        // Metal shares completed attention workspaces while ordinary tensors
+        // keep unique slots. Non-persist tries gallocr lifetime-packing first.
         BufferHandle buffer(nullptr);
         ggml_backend_buffer_t persist_buf = nullptr;
         if (persist)
         {
             vram_log_ctx_breakdown("q35-batched-decode-persist", ctx, 12);
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Qwen3.5 batched decode: failed to allocate persist backend buffer.");
@@ -2989,7 +3026,9 @@ namespace
         }
         else if (!alloc_graph_reuse_gallocr(graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Qwen3.5 batched decode: failed to allocate backend buffer.");
@@ -3094,6 +3133,7 @@ TSG_EXPORT int TSGgml_Qwen35ModelDecodeBatched(
 {
     try
     {
+        std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());
         int r = qwen35_model_decode_batched_impl(
             layers, num_layers, hidden_data, hidden_size, n_tokens, n_seqs,
             positions, slot_mapping, gather_idx, seq_lens, pad_kv, total_slots,
@@ -3113,5 +3153,6 @@ TSG_EXPORT int TSGgml_Qwen35ModelDecodeBatched(
 // pins those device addresses).
 TSG_EXPORT void TSGgml_Qwen35ResetBatchedDecodeCache()
 {
+    std::lock_guard<std::recursive_mutex> lock(q35_decode_mutex());
     g_q35bdc.reset();
 }

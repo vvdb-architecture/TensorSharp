@@ -119,7 +119,7 @@ namespace TensorSharp.Runtime.Scheduling
                             ExecutionPathKind.SpeculativePerSequence, "pending multimodal embeddings need Forward's inject hook"));
                     else if (fusedResident)
                         rejections.Add(new ExecutionPathRejection(
-                            ExecutionPathKind.SpeculativePerSequence, "sequence lives in a per-request fused cache"));
+                            ExecutionPathKind.SpeculativePerSequence, "sequence lives in a per-request fused cache (the fused path speculates on it itself when the trunk follows the bound holder)"));
                     else
                     {
                         candidates.Add(ExecutionPathKind.SpeculativePerSequence); // terminal
@@ -295,8 +295,10 @@ namespace TensorSharp.Runtime.Scheduling
                 sb.Append("available (unbounded prefix reuse)");
 
             sb.Append("\nretained fused-cache continuation: ");
-            if (!caps.SupportsPerSequenceFusedForward || caps.MaxReusablePrefixTokens == int.MaxValue)
+            if (!caps.SupportsPerSequenceFusedForward)
                 sb.Append("n/a for this model");
+            else if (!caps.SupportsRetainedFusedCache)
+                sb.Append("unavailable (model does not support retained holders)");
             else if (!options.RetainedFusedCacheEnabled)
                 sb.Append("disabled (TS_RETAINED_FUSED_CACHE=0)");
             else

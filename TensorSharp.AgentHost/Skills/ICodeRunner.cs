@@ -62,6 +62,21 @@ namespace TensorSharp.AgentHost.Skills
         /// <summary>Whether this host will actually run code right now.</summary>
         bool CanRun { get; }
 
+        /// <summary>
+        /// What actually executes a launch here, or null on a host that has not said.
+        ///
+        /// <para>
+        /// It is on the interface because a SKILL's bundled script has to run the same
+        /// way the model's own program does, and until this existed it did not: the
+        /// request planner built its script runner with no backend, which falls back to
+        /// launching a child process. On a desktop that quietly ran a DIFFERENT
+        /// interpreter — the system python3, without the packages the app staged — and
+        /// on iOS, where no process can be started at all, it could not run anything.
+        /// One host, one way of running code.
+        /// </para>
+        /// </summary>
+        CodeExec.IShellBackend? Backend => null;
+
         /// <summary>Why <see cref="CanRun"/> is false, or null.</summary>
         string? UnavailableReason { get; }
 
@@ -144,6 +159,12 @@ namespace TensorSharp.AgentHost.Skills
         /// the host's install switch, not a per-call judgement.
         /// </summary>
         bool CanInstallPackages => false;
+
+        /// <summary>
+        /// Whether packages for <paramref name="language"/> can be installed. Hosts that
+        /// support every language may rely on the aggregate default.
+        /// </summary>
+        bool CanInstallPackagesFor(string language) => CanInstallPackages;
 
         /// <summary>
         /// Install <paramref name="packages"/> into <paramref name="workspace"/>'s

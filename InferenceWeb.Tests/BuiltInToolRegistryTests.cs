@@ -263,6 +263,45 @@ public class BuiltInToolRegistryTests : IDisposable
         Assert.Equal(junk, CodeArtifactStore.IsRuntimeJunk(path));
     }
 
+    /// <summary>
+    /// A skill name called as if it were a tool is one call away from working, and the
+    /// generic answer sends it the other way.
+    ///
+    /// <para>
+    /// Measured on a phone: shown `research` in the catalog, the model picked it
+    /// correctly — "the most relevant tool for gathering current, external information" —
+    /// then called a tool named `research`. Told only "there is no tool called
+    /// 'research'. The tools you have are: …", it concluded the skill was unavailable and
+    /// answered without it. A list of tools does not answer the question it was asking,
+    /// which is how to reach the thing it had already chosen.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void DescribeUnknownTool_ThatIsASkillName_SaysHowToReachIt()
+    {
+        string message = SkillTools.DescribeUnknownTool(
+            "research", Declared(), new[] { "documents", "research" });
+
+        Assert.Contains("is a SKILL, not a tool", message, StringComparison.Ordinal);
+        Assert.Contains("skills_read", message, StringComparison.Ordinal);
+        Assert.Contains("skills_run", message, StringComparison.Ordinal);
+        Assert.Contains("It is available", message, StringComparison.Ordinal);
+        // And it must not end on the sentence that made the model give up.
+        Assert.DoesNotContain("answer the user directly with what you already know",
+            message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A name that is not a skill keeps the ordinary answer.</summary>
+    [Fact]
+    public void DescribeUnknownTool_ThatIsNotASkillName_KeepsTheOrdinaryAnswer()
+    {
+        string message = SkillTools.DescribeUnknownTool(
+            "frobnicate", Declared(), new[] { "documents", "research" });
+
+        Assert.DoesNotContain("is a SKILL", message, StringComparison.Ordinal);
+        Assert.Contains("no tool called 'frobnicate'", message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void DescribeUnknownTool_NamesTheToolsThatDoExist()
     {

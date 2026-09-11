@@ -88,6 +88,24 @@ public class SkillToolsTests : IDisposable
     /// </summary>
     private static JsonElement Json(string raw) => JsonSerializer.Deserialize<JsonElement>(raw);
 
+    private sealed class RecordingScriptRunner : ISkillScriptRunner
+    {
+        public string[]? Arguments { get; private set; }
+        public string? RelativePath { get; private set; }
+
+        public SkillToolResult Run(
+            Skill skill,
+            string relativePath,
+            IReadOnlyList<string> arguments,
+            Action<string>? onOutput = null,
+            IReadOnlyList<string>? packages = null)
+        {
+            Arguments = arguments.ToArray();
+            RelativePath = relativePath;
+            return new SkillToolResult(true, "ok", skill.Id, relativePath);
+        }
+    }
+
     // ---- declarations ------------------------------------------------------
 
     [Fact]
@@ -393,6 +411,68 @@ public class SkillToolsTests : IDisposable
         Assert.False(result.Ok);
         Assert.Contains("disabled on this host", result.Content, StringComparison.Ordinal);
         Assert.Contains(SkillTools.ReadToolName, result.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Execute_Run_UsesAUsableArgumentsAliasWhenCanonicalArgsIsAnEmptyArray()
+    {
+        WriteSkill("pdf", "does pdfs");
+        SkillToolContext discovered = Context();
+        var runner = new RecordingScriptRunner();
+        var context = new SkillToolContext(discovered.Reachable) { ScriptRunner = runner };
+
+        SkillToolResult result = SkillTools.Execute(
+            Call(
+                SkillTools.RunToolName,
+                ("skill", "pdf"),
+                ("path", "scripts/render.py"),
+                ("args", Json("[]")),
+                ("arguments", Json("[\"--out\", \"alias report.pptx\"]"))),
+            context);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Equal(new[] { "--out", "alias report.pptx" }, runner.Arguments);
+    }
+
+    [Fact]
+    public void Execute_Run_KeepsNonEmptyCanonicalArgsAheadOfTheAlias()
+    {
+        WriteSkill("pdf", "does pdfs");
+        SkillToolContext discovered = Context();
+        var runner = new RecordingScriptRunner();
+        var context = new SkillToolContext(discovered.Reachable) { ScriptRunner = runner };
+
+        SkillToolResult result = SkillTools.Execute(
+            Call(
+                SkillTools.RunToolName,
+                ("skill", "pdf"),
+                ("path", "scripts/render.py"),
+                ("args", Json("[\"--canonical\"]")),
+                ("arguments", Json("[\"--alias\"]"))),
+            context);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Equal(new[] { "--canonical" }, runner.Arguments);
+    }
+
+    [Fact]
+    public void Execute_Run_NormalizesQualifiedAndDotPrefixedSkillPath()
+    {
+        WriteSkill("research", "does research");
+        SkillToolContext discovered = Context();
+        var runner = new RecordingScriptRunner();
+        var context = new SkillToolContext(discovered.Reachable) { ScriptRunner = runner };
+
+        SkillToolResult result = SkillTools.Execute(
+            Call(
+                SkillTools.RunToolName,
+                ("skill", "research"),
+                ("path", "./research/scripts/research.py")),
+            context);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Equal("scripts/research.py", runner.RelativePath);
+        Assert.Equal("scripts/research.py", result.ResourcePath);
     }
 
     // ---- dispatch and context -----------------------------------------------

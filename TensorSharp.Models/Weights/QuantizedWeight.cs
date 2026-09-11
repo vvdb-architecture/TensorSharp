@@ -313,7 +313,10 @@ namespace TensorSharp.Models
         {
             if (data == IntPtr.Zero || byteCount <= 0)
                 return;
-            if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux())
+            // Darwin (macOS/iOS/iPadOS/Mac Catalyst) and Linux share the madvise
+            // entry point; MADV_DONTNEED = 4 is correct on both.
+            if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux()
+                && !OperatingSystem.IsIOS() && !OperatingSystem.IsMacCatalyst())
                 return;
 
             long pageSize = Environment.SystemPageSize;

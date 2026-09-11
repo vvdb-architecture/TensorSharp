@@ -1,0 +1,254 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- TensorAgent iOS head: a .NET MAUI app that statically links TensorSharp's
+       GgmlOps.xcframework and hosts the TensorSharp.Server Web UI in a WKWebView
+       behind an in-process loopback HTTP server. Build only with the user-local
+       SDK that carries the maui-ios workload (see ../../README.md). -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TensorAgent.Maui</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+
+    <ApplicationTitle>TensorAgent</ApplicationTitle>
+    <ApplicationId>ai.tensorsharp.tensoragent</ApplicationId>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- 17.0 matches build-ios.sh's deployment target for the xcframework; the
+         static archive would refuse to link into an app that claims to run on
+         an older OS than the archive was built for. -->
+    <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
+
+    <!-- Trimming is mandatory on iOS. partial (= MtouchLink SdkOnly) trims the
+         BCL/framework only and copies every TensorSharp assembly whole; the
+         engine's op registries and model loaders are reflection-heavy and the
+         TrimmerRootAssembly items below keep them rooted even if a later change
+         moves to full trimming. -->
+    <TrimMode>partial</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+
+    <!-- GgmlOps is linked statically from the xcframework (NativeReference
+         below); the desktop CMake builds in the backend projects must not run
+         for an iOS head. These properties are also forwarded to the referenced
+         projects as global properties (AdditionalProperties on each
+         ProjectReference) because a plain csproj property never flows across a
+         ProjectReference on its own. -->
+    <TensorSharpSkipGgmlNative>true</TensorSharpSkipGgmlNative>
+    <TensorSharpSkipMlxNative>true</TensorSharpSkipMlxNative>
+    <!-- TensorSharp.Models builds a net10.0-ios slice only when asked, because the
+         desktop hosts must not pay for an iOS target they cannot use. That slice is
+         where the AVFoundation/ImageIO media provider lives, which is what lets the
+         app decode a HEIC photo straight off the camera. -->
+    <TensorSharpIosTargets>true</TensorSharpIosTargets>
+    <TensorSharpNativeSkipProperties>TensorSharpSkipGgmlNative=true;TensorSharpSkipMlxNative=true;TensorSharpIosTargets=true</TensorSharpNativeSkipProperties>
+
+    <!-- LLVM codegen for device Release builds so the AdvSimd/Vector128 paths in
+         TensorSharp.Core get real vector code; ignored for the simulator. -->
+    <MtouchUseLlvm Condition="'$(Configuration)' == 'Release'">true</MtouchUseLlvm>
+
+    <!-- NOT MtouchNoSymbolStrip. The engine is reached by dlsym through
+         NativeLibrary.GetMainProgramHandle(), and Release strips the symbols back out
+         after the link exports them:
+             xcrun clang++ ... -Wl,-exported_symbol,_TSGgml_*      (exports them)
+             xcrun strip -i -s <obj>/mtouch-symbols.list <exe>     (keeps ONLY that list)
+         Turning the strip off with MtouchNoSymbolStrip=true DOES restore the exports
+         (339/0 to 1730/248) and the engine comes up, but the executable grows from
+         78 MB to 190 MB and the app then dies at startup: SIGABRT inside load_aot_module
+         during mono_jit_init, before any managed code runs. MEASURED on device. So that
+         is not the fix; the symbols have to be kept individually instead (the
+         ReferenceNativeSymbol item group the iOS SDK exposes), which is still to do.
+         Until then a Release device build has no engine and Debug is the working
+         device configuration. -->
+
+    <!-- Simulator bundles are ad-hoc signed ("-"); device builds need a real
+         identity + profile passed on the command line (-p:CodesignKey=...). -->
+    <CodesignKey Condition="$(RuntimeIdentifier.Contains('simulator'))">-</CodesignKey>
+
+    <!-- The extension can be disabled for a build that intentionally wants the old
+         app-only bundle. When enabled, its App Group is mandatory: custom URL schemes
+         are neither private nor durable enough to carry user-shared content. -->
+    <TensorAgentShareExtension Condition="'$(TensorAgentShareExtension)' == ''">true</TensorAgentShareExtension>
+
+    <!-- The jetsam-budget entitlements are device-only: the simulator has no
+         memory limit. CodesignEntitlements takes precedence over CustomEntitlements
+         in the device build, so the sharing variant must carry the App Group itself;
+         otherwise the build looks correct in XML but GetContainerUrl returns null on
+         a phone. The app-only escape hatch keeps using the legacy profile. -->
+    <CodesignEntitlements Condition="'$(RuntimeIdentifier)' == 'ios-arm64' AND '$(TensorAgentShareExtension)' == 'true'">Platforms/iOS/Entitlements.Share.plist</CodesignEntitlements>
+    <CodesignEntitlements Condition="'$(RuntimeIdentifier)' == 'ios-arm64' AND '$(TensorAgentShareExtension)' != 'true'">Platforms/iOS/Entitlements.plist</CodesignEntitlements>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TensorAgentShareExtension)' == 'true'">
+    <CustomEntitlements Include="com.apple.security.application-groups"
+                        Type="StringArray"
+                        Value="group.ai.tensorsharp.tensoragent" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TensorAgentShareExtension)' == 'true'">
+    <!-- IsAppExtension metadata makes the iOS SDK build and embed an .appex instead
+         of treating this as a managed assembly reference. The extension needs its own
+         provisioning profile on device; never pass the containing app's exact profile. -->
+    <ProjectReference Include="../TensorAgent.ShareExtension/TensorAgent.ShareExtension.csproj">
+      <IsAppExtension>true</IsAppExtension>
+      <AdditionalProperties>CodesignProvision=$(TensorAgentShareProvision)</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" ForegroundFile="Resources/AppIcon/appiconfg.svg" Color="#0b1220" />
+    <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#0b1220" BaseSize="128,128" />
+
+    <!-- The project banner at the top of the About page. It is the repository's own
+         imgs/banner_1.png rather than a copy of it: the file is already 2 MB in git
+         and a second one would drift from the first. A bitmap MauiImage with no
+         BaseSize is copied into the bundle, not rescaled, so the app gets the single
+         1253x836 original - more pixels than the ~1050 a 3x phone needs across the
+         page's content width. -->
+    <MauiImage Include="../../../imgs/banner_1.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Web UI is TensorAgent's OWN page, not TensorSharp.Server's. The desktop
+         page is laid out for a mouse, a wide window and an operator who started a
+         server with arguments; this one is laid out for a thumb. Both talk to the
+         same loopback API, so no capability is lost by not sharing a page. At runtime
+         LoopbackWebHost serves this bundled page from <bundle>/webui/. -->
+    <BundleResource Include="wwwroot/**/*"
+                    Link="webui/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Static link of the whole engine: GgmlOps + ggml + ggml-cpu (+ ggml-metal
+         with embedded shader source in the device slice). ForceLoad keeps every
+         object file even though nothing in the app references the symbols
+         directly (they are reached by dlsym through
+         NativeLibrary.GetMainProgramHandle(), see GgmlNative.ImportResolver),
+         and the exported_symbol flags keep the TSGgml_*/ggml_* symbols in the
+         dynamic symbol table of the stripped executable so that dlsym can find
+         them. -->
+    <NativeReference Include="../../../TensorSharp.GGML.Native/build-ios/GgmlOps.xcframework"
+                     Kind="Static"
+                     ForceLoad="True"
+                     SmartLink="False"
+                     IsCxx="True"
+                     Frameworks="Foundation Metal MetalKit MetalPerformanceShaders MetalPerformanceShadersGraph Accelerate"
+                     LinkerFlags="-lc++ -Wl,-exported_symbol,_TSGgml_* -Wl,-exported_symbol,_ggml_*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CPython 3.13, from BeeWare's Python-Apple-support build, linked as a dynamic
+         framework and embedded in the bundle. It has to be a real link rather than a
+         runtime dlopen: the interpreter's P/Invokes bind through
+         NativeLibrary.GetMainProgramHandle(), which resolves against the main
+         executable and everything already loaded with it.
+
+         The slice is chosen by RuntimeIdentifier because the device and simulator
+         builds are different binaries, and staged by scripts/prepare-python.sh, which
+         must be run before an app build (the runtime is not in git). -->
+    <NativeReference Condition="'$(RuntimeIdentifier)' == 'ios-arm64' AND Exists('../../python-runtime/device/Frameworks/Python.framework')"
+                     Include="../../python-runtime/device/Frameworks/Python.framework"
+                     Kind="Framework" />
+    <NativeReference Condition="$(RuntimeIdentifier.Contains('simulator')) AND Exists('../../python-runtime/simulator/Frameworks/Python.framework')"
+                     Include="../../python-runtime/simulator/Frameworks/Python.framework"
+                     Kind="Framework" />
+  </ItemGroup>
+
+  <!-- CPython's compiled extension modules — binascii, _socket, _ssl, numpy's core,
+       Pillow's imaging, 76 of them — cannot be plain files inside the bundle: iOS
+       refuses to dlopen a Mach-O that is not in a signed framework, which is why
+       Python-Apple-support ships each .so as its own framework and leaves a .fwork
+       placeholder where the .so used to be. The placeholders are already staged with
+       the standard library; without the frameworks beside them every `import binascii`
+       fails at dlopen and most of the standard library goes with it.
+
+       They are embedded rather than linked. Nothing references their symbols at build
+       time — Python resolves them by dlopen at import — and force-loading 76 dylibs
+       at launch would cost startup time for modules a given script never imports. -->
+  <ItemGroup>
+    <_TensorAgentPythonSlice Include="device" Condition="'$(RuntimeIdentifier)' == 'ios-arm64'" />
+    <_TensorAgentPythonSlice Include="simulator" Condition="$(RuntimeIdentifier.Contains('simulator'))" />
+  </ItemGroup>
+
+  <Target Name="TensorAgentEmbedPythonExtensions"
+          BeforeTargets="_CollectBundleResources;_CopyResourcesToBundle"
+          Condition="'@(_TensorAgentPythonSlice)' != ''">
+    <ItemGroup>
+      <_TensorAgentPythonExtension
+          Include="../../python-runtime/%(_TensorAgentPythonSlice.Identity)/Frameworks/**/*"
+          Exclude="../../python-runtime/%(_TensorAgentPythonSlice.Identity)/Frameworks/Python.framework/**/*" />
+      <BundleResource Include="@(_TensorAgentPythonExtension)"
+                      Link="Frameworks/%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+    <Message Importance="normal"
+             Text="TensorAgent: embedding @(_TensorAgentPythonExtension->Count()) Python extension files" />
+  </Target>
+
+  <ItemGroup>
+    <!-- The skills that were verified to work inside this app, under
+         <bundle>/skills/, which is one of the two roots the registry scans (the
+         other is the writable directory the user installs into). The selection is
+         not a judgement call in this file: scripts/verify-skills.py checks every
+         script's imports against the staged interpreter and refuses anything that
+         reaches for a process, a browser or a package that is not there, and
+         skills/verdicts.json records what it decided and why.
+
+         Bytecode is excluded on purpose: running a skill's scripts on a
+         development machine leaves __pycache__ beside them, and a .pyc compiled
+         by a different CPython than the one in this bundle is either ignored or
+         wrong. The interpreter compiles from source at run time instead. -->
+    <BundleResource Include="../../skills/**/*"
+                    Exclude="../../skills/verdicts.json;../../skills/**/__pycache__/**/*"
+                    Link="skills/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The standard library and the pure-Python packages, verbatim, under
+         <bundle>/python/. EmbeddedPython points PyConfig.module_search_paths here. -->
+    <BundleResource Condition="'$(RuntimeIdentifier)' == 'ios-arm64'"
+                    Include="../../python-runtime/device/python/**/*"
+                    Link="python/%(RecursiveDir)%(Filename)%(Extension)" />
+    <BundleResource Condition="$(RuntimeIdentifier.Contains('simulator'))"
+                    Include="../../python-runtime/simulator/python/**/*"
+                    Link="python/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../TensorSharp.Core/TensorSharp.Core.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Runtime/TensorSharp.Runtime.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Runtime.Logging/TensorSharp.Runtime.Logging.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Models/TensorSharp.Models.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Backends.GGML/TensorSharp.Backends.GGML.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.AgentHost/TensorSharp.AgentHost.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../../../TensorSharp.Chat/TensorSharp.Chat.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../TensorAgent.Core/TensorAgent.Core.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+    <ProjectReference Include="../TensorAgent.Sharing/TensorAgent.Sharing.csproj" AdditionalProperties="$(TensorSharpNativeSkipProperties)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <TrimmerRootAssembly Include="TensorSharp.Core" />
+    <TrimmerRootAssembly Include="TensorSharp.Runtime" />
+    <TrimmerRootAssembly Include="TensorSharp.Runtime.Logging" />
+    <TrimmerRootAssembly Include="TensorSharp.Models" />
+    <TrimmerRootAssembly Include="TensorSharp.Backends.GGML" />
+    <TrimmerRootAssembly Include="TensorSharp.AgentHost" />
+    <TrimmerRootAssembly Include="TensorSharp.Chat" />
+    <TrimmerRootAssembly Include="TensorAgent.Core" />
+    <TrimmerRootAssembly Include="TensorAgent.Sharing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <!-- The only place a phone can log to is stdout, which the simulator's launch
+         console shows and a device log capture picks up. -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
+  </ItemGroup>
+
+  <Import Project="GgmlExportedSymbols.targets" />
+
+</Project>

@@ -68,7 +68,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet build TensorSharp.slnx -c Release 
 printf '%s\n' '用一句简短的话回答：TensorSharp 是什么？' > prompt.txt
 dotnet TensorSharp.Cli/bin/TensorSharp.Cli.dll --model models/gemma-4-E4B-it-Q8_0.gguf \
   --input prompt.txt --max-tokens 64 --backend ggml_cuda
-dotnet TensorSharp.Server/bin/TensorSharp.Server.dll --model models/gemma-4-E4B-it-Q8_0.gguf \
+dotnet TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll --model models/gemma-4-E4B-it-Q8_0.gguf \
   --backend ggml_cuda --max-tokens 128
 ```
 
@@ -110,7 +110,7 @@ dotnet run --project TensorSharp.Cli -c Release -- --model models/gemma-4-E4B-it
 
 ```bash
 # 服务端
-dotnet run --project TensorSharp.Server -c Release -- --model models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/gemma-4-12B-it-qat-UD-Q4_K_XL.gguf \
   --backend ggml_cuda --draft-model models/mtp-gemma-4-12B-it.gguf
 
 # CLI —— 投机在 --input、--input-jsonl、--multi-turn-jsonl 与 --interactive 下均会启用
@@ -599,7 +599,7 @@ KV 缓存，并对每个起草 token 复用相同位置（递归只通过 `h` �
 草稿的输出 backbone 维度（`{arch}.embedding_length_out`）**必须等于目标的隐藏维度**——
 12B 目标配 12B 草稿，而非 26B-A4B 草稿。当给了 `--draft-model` 但草稿无法激活（文件缺失、
 隐藏维不匹配、或缺少必要的草稿张量）时，服务端会在启动时**立即失败**并给出修复提示
-（[`SpeculationStartupValidation`](../../TensorSharp.Server/Hosting/SpeculationStartupValidation.cs)），
+（[`SpeculationStartupValidation`](../../TensorSharp.Chat/Hosting/SpeculationStartupValidation.cs)），
 而不是静默地不做投机继续运行。
 
 ### 12.3 后端收益与融合内核

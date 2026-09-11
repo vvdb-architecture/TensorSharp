@@ -133,30 +133,86 @@ public class StructuredOutputTests
     }
 
 
-    [Fact]
-    public void Qwen35NoThinkingTemplateKeepsPriorAnswerAsNextTurnPrefix()
-    {
-        const string jinjaTemplate = "{{ 'from-jinja' }}";
+    /// <summary>
+    /// The generation-prompt logic of the Qwen 3.5 GGUF template, verbatim: the
+    /// closed empty block when thinking is explicitly off, the open one otherwise.
+    /// </summary>
+    private const string Qwen35GenerationPromptTemplate =
+        "{%- for message in messages %}" +
+        "{{- '<|im_start|>' + message.role + '\\n' + message.content + '<|im_end|>\\n' }}" +
+        "{%- endfor %}" +
+        "{%- if add_generation_prompt %}" +
+        "{{- '<|im_start|>assistant\\n' }}" +
+        "{%- if enable_thinking is defined and enable_thinking is false %}" +
+        "{{- '<think>\\n\\n</think>\\n\\n' }}" +
+        "{%- else %}" +
+        "{{- '<think>\\n' }}" +
+        "{%- endif %}" +
+        "{%- endif %}";
 
-        var turn1 = new List<ChatMessage>
+    [Fact]
+    public void Qwen35ThinkingOffRendersTheShippedTemplatesClosedBlock()
+    {
+        // The template tests `enable_thinking is defined and enable_thinking is
+        // false`. With the flag left undefined when false, the ELSE branch rendered
+        // thinking ON for a request that asked for it off — which is why the hardcoded
+        // renderer used to be substituted, with a prompt that differed from the
+        // template's from the first tool declaration on.
+        var turn = new List<ChatMessage>
         {
             new() { Role = "user", Content = "What is the tallest mountain in the world?" }
         };
-        string renderedTurn1 = ChatTemplate.RenderFromGgufTemplate(
-            jinjaTemplate, turn1, addGenerationPrompt: true, architecture: "qwen35", enableThinking: false);
+        string off = ChatTemplate.RenderFromGgufTemplate(
+            Qwen35GenerationPromptTemplate, turn, addGenerationPrompt: true, architecture: "qwen35", enableThinking: false);
+        string on = ChatTemplate.RenderFromGgufTemplate(
+            Qwen35GenerationPromptTemplate, turn, addGenerationPrompt: true, architecture: "qwen35", enableThinking: true);
 
-        const string answer = "Mount Everest";
-        var turn2 = new List<ChatMessage>
+        Assert.EndsWith("<|im_start|>assistant\n<think>\n\n</think>\n\n", off, StringComparison.Ordinal);
+        Assert.EndsWith("<|im_start|>assistant\n<think>\n", on, StringComparison.Ordinal);
+        // Everything before the generation prompt is one and the same prompt, so the
+        // KV cache serves both modes of the same conversation.
+        Assert.Equal(
+            off[..off.IndexOf("<|im_start|>assistant", StringComparison.Ordinal)],
+            on[..on.IndexOf("<|im_start|>assistant", StringComparison.Ordinal)]);
+    }
+
+    [Fact]
+    public void Qwen35HardcodedRendererPrintsToolsExactlyAsTheTemplatesToJsonDoes()
+    {
+        // The hardcoded renderer is the fallback for a GGUF without a template. It
+        // used to pretty-print the tool declarations where the template prints them
+        // compact, so the two could never share a cached prefix.
+        var tools = new List<ToolFunction>
         {
-            new() { Role = "user", Content = "What is the tallest mountain in the world?" },
-            new() { Role = "assistant", Content = answer },
-            new() { Role = "user", Content = "How tall is it in meters?" }
+            new()
+            {
+                Name = "shell",
+                Description = "Run a command.",
+                Parameters = new Dictionary<string, ToolParameter>
+                {
+                    ["command"] = new() { Type = "string", Description = "The command line." },
+                    ["timeout"] = new() { Type = "integer", Description = "Seconds." },
+                },
+                Required = new List<string> { "command" },
+            },
         };
-        string renderedTurn2 = ChatTemplate.RenderFromGgufTemplate(
-            jinjaTemplate, turn2, addGenerationPrompt: true, architecture: "qwen35", enableThinking: false);
+        // The user text is rendered too, or the dropped-user-message guard abandons
+        // the template for the hardcoded renderer and this would compare it to itself.
+        const string toolsTemplate =
+            "{%- for m in messages %}{{ m.content }}{%- endfor %}{{ '|SEP|' }}{%- for tool in tools %}{{ tool | tojson }}{%- endfor %}";
+        string rendered = ChatTemplate.RenderFromGgufTemplate(
+            toolsTemplate,
+            new List<ChatMessage> { new() { Role = "user", Content = "x" } },
+            addGenerationPrompt: false, architecture: null, tools: tools, enableThinking: false);
+        string fromTemplate = rendered[(rendered.IndexOf("|SEP|", StringComparison.Ordinal) + 5)..];
+        string hardcoded = ChatTemplate.RenderQwen35(
+            new List<ChatMessage> { new() { Role = "user", Content = "x" } },
+            addGenerationPrompt: true, enableThinking: false, tools: tools);
 
-        Assert.DoesNotContain("from-jinja", renderedTurn1, StringComparison.Ordinal);
-        Assert.StartsWith(renderedTurn1 + answer, renderedTurn2, StringComparison.Ordinal);
+        // The hardcoded renderer opens its own system turn for the tools and prints
+        // each declaration on its own line; the text of the declaration is the point.
+        Assert.Contains("<tools>\n" + fromTemplate + "\n</tools>", hardcoded, StringComparison.Ordinal);
+        Assert.StartsWith("{\"type\": \"function\", \"function\": {\"name\": \"shell\"", fromTemplate, StringComparison.Ordinal);
     }
 
     [Fact]

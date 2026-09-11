@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -168,12 +169,36 @@ namespace TensorSharp.AgentHost.Skills
         /// reliably than on declarations they read thousands of tokens ago.
         /// </para>
         /// </summary>
-        public static string DescribeUnknownTool(string? name, IReadOnlyList<ToolFunction>? declaredTools)
+        public static string DescribeUnknownTool(
+            string? name,
+            IReadOnlyList<ToolFunction>? declaredTools,
+            IReadOnlyList<string>? knownSkillIds = null)
         {
             var sb = new StringBuilder();
             sb.Append("Error: there is no tool called '")
               .Append(string.IsNullOrEmpty(name) ? "(unnamed)" : name)
               .Append("', so nothing was run.");
+
+            // The name of a skill it was just shown, called as if it were a tool. This
+            // is the most useful thing an unknown name can turn out to be, and the
+            // generic answer is actively harmful: told only "there is no tool called
+            // 'research'. The tools you have are: …", a model concluded the skill did not
+            // exist and answered the question without it. It had chosen correctly and was
+            // one call away; what it needed was the calling convention, not the list.
+            if (!string.IsNullOrEmpty(name) && knownSkillIds != null)
+            {
+                foreach (string id in knownSkillIds)
+                {
+                    if (!string.Equals(id, name, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    sb.Append(" '").Append(id).Append("' is a SKILL, not a tool: skills are not called by "
+                        + "name. Read it first with ").Append(ReadToolName).Append("(skill: \"").Append(id)
+                      .Append("\", path: \"SKILL.md\"), do what it says, and run any script it ships with ")
+                      .Append(RunToolName).Append(". It is available — this is the wrong way to reach it, "
+                        + "not a missing capability.");
+                    return sb.ToString();
+                }
+            }
 
             var names = new List<string>();
             if (declaredTools != null)
@@ -269,7 +294,8 @@ namespace TensorSharp.AgentHost.Skills
                 {
                     Name = ReadToolName,
                     Description =
-                        "Read one file from a skill. Use path \"SKILL.md\" for the skill's own instructions, "
+                        "Read one file from a skill whose description matches the user's current request. "
+                        + "Do not read an unrelated skill as a preliminary step. Use path \"SKILL.md\" for the skill's own instructions, "
                         + "or a path relative to the skill directory such as \"references/api.md\" or "
                         + "\"scripts/extract.py\" for a file it bundles. Long files come back in pages: if the "
                         + "result says it was truncated, call again with offset set to the next offset it reports.",
@@ -313,9 +339,14 @@ namespace TensorSharp.AgentHost.Skills
                     Name = RunToolName,
                     Description =
                         "Run one of a skill's bundled scripts on this machine and return what it printed. "
+                        + "Use only a skill whose description matches the user's current request, after reading "
+                        + "its SKILL.md. Use a script path documented there; do not invent a script for an unrelated task. "
                         + "Pass the script's path in 'path' and everything you would have typed after it on "
                         + "the command line in 'args'. Only files inside the skill's own directory can be "
-                        + "run. Read the script first if you are unsure what it does.",
+                        + "run. A SKILL.md may show `cd <skill>/scripts` followed by `python3 tool.py ...` as a "
+                        + "terminal example; do not call cd or shell and do not include python3 here—make one "
+                        + "skills_run call with path=`scripts/tool.py` and only `...` in args. Follow SKILL.md; "
+                        + "do not read or copy a bundled script unless a traceback proves that script is broken.",
                     Parameters = new Dictionary<string, ToolParameter>
                     {
                         ["skill"] = new()
@@ -436,6 +467,12 @@ namespace TensorSharp.AgentHost.Skills
 
             try
             {
+                // Attachment availability is a property of the whole built-in tool
+                // surface, not just shell. In particular, skills_run launches through
+                // its own runner and would otherwise bypass CodeRunnerAdapter entirely.
+                if (context.Workspace != null && IsBuiltInTool(call.Name))
+                    CodeInputFileStager.Stage(context.CodeInputFiles, context.Workspace);
+
                 return call.Name switch
                 {
                     ListToolName => ExecuteList(context),
@@ -601,8 +638,15 @@ namespace TensorSharp.AgentHost.Skills
 
             string? skillName = ReadString(call, "skill");
             string? path = ReadString(call, "path") ?? ReadString(call, "script");
-            IReadOnlyList<string> args = ReadArgumentList(call, "args") ?? ReadArgumentList(call, "arguments")
-                                         ?? Array.Empty<string>();
+            IReadOnlyList<string>? canonicalArgs =
+                ReadRunArgumentList(call, "args", context.CodeInputFiles);
+            IReadOnlyList<string>? aliasedArgs =
+                ReadRunArgumentList(call, "arguments", context.CodeInputFiles);
+            IReadOnlyList<string> args = canonicalArgs is { Count: > 0 }
+                ? canonicalArgs
+                : aliasedArgs is { Count: > 0 }
+                    ? aliasedArgs
+                    : canonicalArgs ?? aliasedArgs ?? Array.Empty<string>();
 
             if (string.IsNullOrWhiteSpace(skillName) || string.IsNullOrWhiteSpace(path))
                 return SkillToolResult.Failure($"{RunToolName} needs both a 'skill' and a 'path' argument.");
@@ -612,6 +656,45 @@ namespace TensorSharp.AgentHost.Skills
 
             path = StripSkillPrefix(path!, skill!.Id);
             return context.ScriptRunner.Run(skill, path, args, onOutput, ReadPackagesArgument(call));
+        }
+
+        /// <summary>
+        /// Read a script argument vector, with one deliberately narrow repair for an
+        /// attached filename. A scalar normally has shell-style tokenization, but local
+        /// models also emit <c>args="my results.csv"</c> after copying the exact name
+        /// from the attachment prompt. When the whole scalar is exactly one known input
+        /// name, it is unambiguously one argument even though the model omitted quotes.
+        /// </summary>
+        /// <remarks>
+        /// Do not apply this to an array: its item boundaries are already explicit. Do
+        /// not search within a larger command line either; options and ordinary scalar
+        /// arguments must retain <see cref="SkillScriptRunner.SplitArguments"/> semantics.
+        /// </remarks>
+        private static IReadOnlyList<string>? ReadRunArgumentList(
+            ToolCall call, string name, IReadOnlyList<CodeInputFile> inputFiles)
+        {
+            if (call.Arguments == null || !call.Arguments.TryGetValue(name, out object? value) || value == null)
+                return null;
+
+            string? scalar = value switch
+            {
+                string text => text,
+                JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(),
+                _ => null,
+            };
+
+            if (scalar != null && inputFiles != null)
+            {
+                string candidate = scalar.Trim();
+                foreach (CodeInputFile input in inputFiles)
+                {
+                    string attachedName = Path.GetFileName(input.Name ?? string.Empty);
+                    if (attachedName.Length > 0 && string.Equals(candidate, attachedName, StringComparison.Ordinal))
+                        return new[] { attachedName };
+                }
+            }
+
+            return ReadArgumentList(call, name);
         }
 
         /// <summary>

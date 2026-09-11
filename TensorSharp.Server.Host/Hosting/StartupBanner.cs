@@ -56,7 +56,7 @@ namespace TensorSharp.Server.Host.Hosting
 
             // Why a probed backend is missing from the list above: the probe threw and
             // the exception was swallowed into "unavailable" during discovery.
-            foreach (string probeFailure in BackendCatalog.DescribeProbeFailures())
+            foreach (string probeFailure in BackendCatalogProbes.DescribeProbeFailures())
             {
                 logger.LogInformation(LogEventIds.BackendUnavailable,
                     "Backend probe failed, so that backend is not offered: {ProbeFailure}", probeFailure);

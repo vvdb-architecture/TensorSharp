@@ -12,6 +12,9 @@
 #   TENSORSHARP_GGML_GIT_REF   branch/tag/commit      (default: master, the ggml default branch)
 #   TENSORSHARP_GGML_NO_UPDATE if set to 1/ON/true and a checkout already exists,
 #                              skip the network fetch and use what is on disk.
+#
+# The upstream checkout is consumed unchanged; TensorSharp-specific behavior belongs
+# in TensorSharp.GGML.Native, not in patches applied during dependency fetching.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

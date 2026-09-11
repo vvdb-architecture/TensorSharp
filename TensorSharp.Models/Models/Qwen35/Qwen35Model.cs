@@ -15,6 +15,7 @@ using System.Numerics;
 using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using TensorSharp;
 using TensorSharp.Cuda;
@@ -34,6 +35,22 @@ namespace TensorSharp.Models
     /// </summary>
     public partial class Qwen35Model : ModelBase
     {
+        private static long _nextVerifyOwnerId;
+        private static readonly object _verifyTpPlanLock = new();
+        private readonly long _verifyOwnerId = AllocateVerifyOwnerId();
+
+        /// <summary>A process-unique native recurrent-state owner. Zero is reserved
+        /// for backward-compatible direct interop callers that do not supply one.</summary>
+        internal static long AllocateVerifyOwnerId()
+        {
+            long id = Interlocked.Increment(ref _nextVerifyOwnerId);
+            if (id <= 0)
+                throw new InvalidOperationException("Qwen3.5 verify owner id space was exhausted.");
+            return id;
+        }
+
+        internal long VerifyOwnerId => _verifyOwnerId;
+
         private bool[] _isRecurrent;
         private int _fullAttentionInterval;
 
@@ -561,7 +578,9 @@ namespace TensorSharp.Models
             if (fused > 0)
                 Console.WriteLine($"  Fused projections: {fused} Q+K+V");
             if (keptSeparate > 0)
-                Console.WriteLine($"  Separate projections: {keptSeparate} mixed-quant Q/K/V sets preserved");
+                Console.WriteLine(
+                    "  Separate projections: " +
+                    $"{keptSeparate} Q/K/V sets preserved (mixed quant types, or the fused copy was declined)");
         }
 
         private unsafe void FuseRecurrentInputWeights()
@@ -603,6 +622,14 @@ namespace TensorSharp.Models
                 Console.WriteLine($"  Fused projections: {fused} recurrent input packs");
             if (fusedF32 > 0)
                 Console.WriteLine($"  Fused projections: {fusedF32} recurrent input packs (dequantized to F32 for TP; mixed source quant types)");
+            int keptSeparate = Config.NumLayers - fused - fusedF32;
+            for (int layer = 0; layer < Config.NumLayers; layer++)
+                if (!_isRecurrent[layer])
+                    keptSeparate--;
+            if (keptSeparate > 0)
+                Console.WriteLine(
+                    $"  Separate projections: {keptSeparate} recurrent input sets preserved " +
+                    "(GatedDeltaNet runs the four source weights directly)");
         }
 
         /// <summary>
@@ -717,7 +744,14 @@ namespace TensorSharp.Models
                     totalNe1 += qw.Ne1;
                 }
 
-                if (!TryCreateFusedQuantizedWeight(out QuantizedWeight fusedWeight, quantWeights))
+                // Both callers can run without the fused tensor: the attention pack has
+                // the SeparateQkv contract in the managed and native decode paths, and
+                // the recurrent pack keeps its four sources (keepSources: true) which
+                // GatedDeltaNet uses directly when ssm_in_proj is absent. So this is a
+                // site that may decline the anonymous copy -- 1.53 GiB of it on
+                // Qwen3.5 9B Q8_0. See ModelBase.AllowWeightFusionCopies.
+                if (!TryCreateFusedQuantizedWeight(
+                        separatePathAvailable: true, out QuantizedWeight fusedWeight, quantWeights))
                     return false;
 
                 fusedWeight.Scale = quantWeights[0].Scale;
@@ -1289,6 +1323,7 @@ namespace TensorSharp.Models
             // and release all native bindings before touching their host tensors.
             _kvCacheHostDirty = false;
             _gdnStateHostDirty = false;
+            _fvDeviceStateCurrent = false;
             InvalidateFullDecodeState();
             InvalidateVerifyCache();
 
@@ -1675,6 +1710,24 @@ namespace TensorSharp.Models
             string env = Environment.GetEnvironmentVariable("TS_PREFILL_CHUNK");
             if (!string.IsNullOrEmpty(env) && int.TryParse(env, out int v) && v > 0)
                 return v;
+            // llama.cpp's Metal scheduler uses a 512-token ubatch for the 27B hybrid
+            // geometry. The same width is the throughput sweet spot here: Bonsai-27B
+            // Q1_0 improves pp2048 from ~391 to ~418 tok/s, while the device-state
+            // ping-pong below avoids recurrent-state transfers between chunks. Scope
+            // the default narrowly: smaller/different Qwen3.5 variants have not been
+            // re-benchmarked and retain the memory-budget-derived choice below.
+            // TS_PREFILL_CHUNK remains the explicit override for future devices.
+            if (ShouldUseBonsai27BMetalPrefillChunk(
+                    _backend,
+                    Config.NumLayers,
+                    Config.HiddenSize,
+                    Config.NumHeads,
+                    Config.NumKVHeads,
+                    _headKDim,
+                    _headVDim,
+                    _numKHeads,
+                    _numVHeads))
+                return 512;
             // Vulkan VRAM cliff: a fused-verify graph wider than ~768 tokens pushes the
             // MoE activation peak past a 16 GB card's VRAM, and WDDM then PERMANENTLY
             // demotes the reuse-gallocr to shared system memory -> pp2048 collapses from
@@ -1717,6 +1770,26 @@ namespace TensorSharp.Models
             long bytesPerToken = 4L * (2L * Config.IntermediateSize + 8L * Config.HiddenSize);
             return GpuMemoryBudget.FitTokens(spare, bytesPerToken, desired, minTokens: 1024, granularity: 512);
         }
+
+        internal static bool ShouldUseBonsai27BMetalPrefillChunk(
+            BackendType backend,
+            int numLayers,
+            int hiddenSize,
+            int numHeads,
+            int numKvHeads,
+            int headKDim,
+            int headVDim,
+            int numKHeads,
+            int numVHeads)
+            => backend == BackendType.GgmlMetal
+                && numLayers == 64
+                && hiddenSize == 5120
+                && numHeads == 24
+                && numKvHeads == 4
+                && headKDim == 128
+                && headVDim == 128
+                && numKHeads == 16
+                && numVHeads == 48;
 
         // Gates the whole-model fused prefill path (TSGgml_Qwen35ModelVerify, one
         // GGML graph for all layers). Default on; TS_QWEN35_PREFILL_VERIFY=0 forces
@@ -2152,7 +2225,6 @@ namespace TensorSharp.Models
             // remap them per-chunk. Fall back to single Forward when any are pending.
             bool hasMultimodal = _visionEmbeddingsList.Count > 0;
             int chunkSize = ResolvePrefillChunkSize();
-            int lastIdx = tokens.Length - 1;
 
             if (hasMultimodal || tokens.Length <= chunkSize)
                 return ForwardCore(tokens);
@@ -2164,17 +2236,69 @@ namespace TensorSharp.Models
             // graph (as this did) drew the first logits from a structurally
             // different kernel than the rest of the prompt, and than the
             // corresponding llama.cpp ubatch.
-            for (int pos = 0; pos < tokens.Length; pos += chunkSize)
+            for (int pos = 0; pos < tokens.Length;)
             {
-                int chunkLen = Math.Min(chunkSize, tokens.Length - pos);
+                int remaining = tokens.Length - pos;
+                int chunkLen = ComputeRefillChunkLength(remaining, chunkSize);
                 var chunk = new int[chunkLen];
                 Array.Copy(tokens, pos, chunk, 0, chunkLen);
                 if (pos + chunkLen >= tokens.Length)
                     return ForwardCore(chunk);
                 PrefillWithoutLogits(chunk);
+                pos += chunkLen;
             }
 
             throw new InvalidOperationException("Chunked prefill produced no logits.");
+        }
+
+        internal static int ComputeRefillChunkLength(int remaining, int chunkSize)
+        {
+            if (remaining <= 0)
+                throw new ArgumentOutOfRangeException(nameof(remaining));
+            if (chunkSize <= 0)
+                throw new ArgumentOutOfRangeException(nameof(chunkSize));
+
+            int chunkLen = Math.Min(chunkSize, remaining);
+            // Never strand one final token when the configured chunk is wider
+            // than one. A one-token ForwardCore selects the persistent decode
+            // graph, whose recurrent-state bindings differ from the non-persist
+            // prefill ping-pong buffer. Leaving two tokens keeps the final call
+            // on the fused prefill graph and lets it consume + download the
+            // chained state directly. (The decode path still drains defensively.)
+            if (chunkLen > 1 && remaining - chunkLen == 1)
+                chunkLen--;
+            return chunkLen;
+        }
+
+        private void PrepareHostPrefillFallback()
+        {
+            PrepareHostPrefillFallback(
+                DrainDeviceRecurrentState,
+                EnsureKvCacheHostSynchronized,
+                EnsureFusedDecodeStateHostSynchronized,
+                () => InvalidateFullDecodeState(hardBindings: true));
+        }
+
+        /// <summary>
+        /// Crosses from a fused prefill attempt to the host/per-op recurrent path.
+        /// The device-state drain must remain first: an interior Metal chunk may have
+        /// left the only current GDN state in the verify ping-pong buffer.
+        /// </summary>
+        internal static void PrepareHostPrefillFallback(
+            Action drainDeviceRecurrentState,
+            Action synchronizeKvCache,
+            Action synchronizeFusedDecodeState,
+            Action invalidateDecodeBindings)
+        {
+            ArgumentNullException.ThrowIfNull(drainDeviceRecurrentState);
+            ArgumentNullException.ThrowIfNull(synchronizeKvCache);
+            ArgumentNullException.ThrowIfNull(synchronizeFusedDecodeState);
+            ArgumentNullException.ThrowIfNull(invalidateDecodeBindings);
+
+            drainDeviceRecurrentState();
+            synchronizeKvCache();
+            synchronizeFusedDecodeState();
+            invalidateDecodeBindings();
         }
 
         private void PrefillWithoutLogits(int[] tokens)
@@ -2201,7 +2325,8 @@ namespace TensorSharp.Models
             {
                 if (_logitsBuffer == null || _logitsBuffer.Length != Config.VocabSize)
                     _logitsBuffer = new float[Config.VocabSize];
-                if (TryFullModelVerify(hidden, startPos, seqLen, normedOut: null, logitsOut: _logitsBuffer, nLogitRows: 1))
+                if (TryFullModelVerify(hidden, startPos, seqLen, normedOut: null,
+                    logitsOut: _logitsBuffer, nLogitRows: 1, keepDeviceState: true))
                 {
                     hidden.Dispose();
                     _cacheSeqLen += seqLen;
@@ -2211,13 +2336,11 @@ namespace TensorSharp.Models
                 }
             }
 
-            EnsureKvCacheHostSynchronized();
-            EnsureFusedDecodeStateHostSynchronized();
             // The per-op recurrent kernels below invalidate and replace their
             // host-keyed delta-state device buffers. A retained Metal decode
             // graph still binds those buffers, so drop that graph before the
             // fallback mutates the cache entries.
-            InvalidateFullDecodeState(hardBindings: true);
+            PrepareHostPrefillFallback();
             hidden = RunCudaPrefillLayerLoop(hidden, seqLen, startPos);
 
             hidden.Dispose();
@@ -2336,12 +2459,10 @@ namespace TensorSharp.Models
             {
             // Per-op path runs the recurrent state on the host, so the fused
             // decode's device-resident GDN state must be re-seeded next time.
-            EnsureKvCacheHostSynchronized();
-            EnsureFusedDecodeStateHostSynchronized();
             // RecurrentBlock may invalidate the host-keyed delta-state device
             // buffers. Retaining a Metal graph across that transition would
             // leave it holding freed buffer bindings.
-            InvalidateFullDecodeState(hardBindings: true);
+            PrepareHostPrefillFallback();
             hidden = RunCudaPrefillLayerLoop(hidden, seqLen, startPos);
             }
 
@@ -6217,9 +6338,38 @@ namespace TensorSharp.Models
             InvalidateFullDecodeState(hardBindings: true);
             InvalidateVerifyCache();
             GgmlBasicOps.Qwen35ResetBatchedDecodeCache();
-            GgmlBasicOps.Qwen35ReleaseVerifyTpGraphs();
+            GgmlBasicOps.Qwen35ReleaseVerifyOwner(_verifyOwnerId);
             GgmlBasicOps.Qwen35ReleaseAttentionTpGraphs();
             GgmlBasicOps.Qwen35GdnDropTpGraphs();
+        }
+
+        private void DiscardVerifyStateForDispose()
+        {
+            DiscardVerifyStateForDispose(
+                () =>
+                {
+                    // Disposal intentionally abandons recurrent state. Clear both
+                    // managed residency latches before destroying the native state;
+                    // later holder cleanup calls InvalidateVerifyCache(), which must
+                    // not try to drain a verify buffer that no longer exists.
+                    _fvDeviceStateCurrent = false;
+                    _fvStateResident = false;
+                },
+                () => GgmlBasicOps.Qwen35ResetVerifyCache(_verifyOwnerId));
+        }
+
+        internal static void DiscardVerifyStateForDispose(
+            Action discardManagedState,
+            Action resetNativeVerifyState)
+        {
+            ArgumentNullException.ThrowIfNull(discardManagedState);
+            ArgumentNullException.ThrowIfNull(resetNativeVerifyState);
+
+            // Keep this order even when the native reset throws: subsequent/finally
+            // cleanup must see that the device-only state was intentionally discarded
+            // and must never attempt to download it from a partially reset graph.
+            discardManagedState();
+            resetNativeVerifyState();
         }
 
         public override void Dispose()
@@ -6235,9 +6385,9 @@ namespace TensorSharp.Models
                 // design; drop it (with a dirty-slot flush) at teardown or its
                 // per-entry buffers keep their VRAM until process exit.
                 GgmlBasicOps.Qwen35ArenaResetBatchedDecodeCache();
-                GgmlBasicOps.Qwen35ResetVerifyCache();
+                DiscardVerifyStateForDispose();
                 GgmlBasicOps.Qwen35ResetBatchedDecodeCache();
-                GgmlBasicOps.Qwen35ReleaseVerifyTpGraphs();
+                GgmlBasicOps.Qwen35ReleaseVerifyOwner(_verifyOwnerId);
                 GgmlBasicOps.Qwen35ReleaseAttentionTpGraphs();
                 GgmlBasicOps.Qwen35GdnDropTpGraphs();
             }

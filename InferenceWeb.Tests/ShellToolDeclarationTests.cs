@@ -154,6 +154,44 @@ public class ShellToolDeclarationTests : IDisposable
     }
 
     [Fact]
+    public void AHostSpecificInstallDescription_ReplacesTheDesktopNpmAdvice_ButKeepsTheAllowList()
+    {
+        // Mobile and otherwise in-process hosts do not necessarily have the desktop
+        // pip/npm installer. The host owns that capability text, while DeclareShell
+        // still owns common policy facts such as the allow-list. Pin the adapter path as
+        // well as both workspace modes: stateless endpoints used to be assembled through
+        // a separate declaration call and can otherwise silently lose the override.
+        var options = new CodeExecOptions
+        {
+            Enabled = true,
+            AllowInstall = true,
+            AllowedPackages = new[] { "six", "pandas" },
+        };
+        const string hostInstructions =
+            "HOST-SPECIFIC-INSTALLER: Python wheels tagged `none-any` only.";
+        var adapter = new CodeRunnerAdapter(
+            _runner, options, packageInstallInstructions: hostInstructions);
+
+        ToolFunction persistent = adapter.DeclareTools(persists: true)
+            .Single(tool => tool.Name == ShellTools.ShellToolName);
+        ToolFunction stateless = Assert.Single(adapter.DeclareTools(persists: false));
+
+        foreach (ToolFunction shell in new[] { persistent, stateless })
+        {
+            Assert.Contains(hostInstructions, shell.Description, StringComparison.Ordinal);
+            Assert.Contains(
+                "This host allows only these packages: six, pandas.",
+                shell.Description,
+                StringComparison.Ordinal);
+            Assert.DoesNotContain("npm install pptxgenjs", shell.Description, StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                "Node packages are installed with install scripts disabled",
+                shell.Description,
+                StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void TheDeclaration_WithInstallsOff_SaysSoPlainly_AndDescribesNoInstallPhase()
     {
         // A host that cannot install must not describe a phase it does not have, or the
@@ -180,6 +218,38 @@ public class ShellToolDeclarationTests : IDisposable
         Assert.Contains("Package installation is still not authorized", shell.Description,
             StringComparison.Ordinal);
         Assert.DoesNotContain("Internet/IP network access: BLOCKED", shell.Description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HostNetworkGuidanceAppearsOnlyWhileNetworkAccessIsEnabled()
+    {
+        const string guidance = "HOST-NETWORK-GUIDANCE";
+        var options = new CodeExecOptions { Enabled = true, AllowNetwork = false };
+        IReadOnlyList<string> hosts = Array.Empty<string>();
+        bool guidanceSourceAllowed = true;
+        var adapter = new CodeRunnerAdapter(
+            _runner, options,
+            networkExecutionInstructions: guidance,
+            networkInstructionsAvailable: () => guidanceSourceAllowed,
+            networkHosts: () => hosts);
+
+        Assert.DoesNotContain(guidance, adapter.Declare().Description, StringComparison.Ordinal);
+
+        // The adapter holds the live options object. A settings toggle must update the
+        // declaration without rebuilding the app, and package installation remains an
+        // independent capability.
+        options.AllowNetwork = true;
+        options.AllowInstall = false;
+
+        Assert.Contains(guidance, adapter.Declare().Description, StringComparison.Ordinal);
+
+        hosts = new[] { "pypi.org" };
+        guidanceSourceAllowed = false;
+        string restricted = adapter.Declare().Description;
+        Assert.DoesNotContain(guidance, restricted, StringComparison.Ordinal);
+        Assert.Contains("ENABLED only for these host suffixes: pypi.org", restricted,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("ENABLED and unrestricted", restricted, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -377,9 +447,10 @@ public class ShellToolDeclarationTests : IDisposable
 
         ToolFunction write = ShellTools.DeclareWrite();
         Assert.Equal(
-            new[] { "content", "path" },
+            new[] { "content", "overwrite", "path" },
             write.Parameters.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray());
         Assert.Equal(new[] { "path", "content" }, write.Required.ToArray());
+        Assert.Equal("boolean", write.Parameters["overwrite"].Type);
     }
 
     [Fact]
@@ -699,6 +770,178 @@ public class ShellToolDeclarationTests : IDisposable
             Assert.DoesNotContain(
                 "is not a tool this host answers", result.Content ?? string.Empty, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void AnAttachedCsvIsStagedBeforeTheFirstReadFileCall()
+    {
+        // The large-CSV prompt path replaces the inlined rows with a reference to this
+        // display name. A model commonly reaches for read_file before shell, so that
+        // first call must stage the upload too; staging only on the shell path leaves
+        // the model with a compact prompt and a file that does not exist.
+        const int bytesInReportedUpload = 105 * 1024;
+        const string firstRows = "row,value\n1,FIRST_TOOL_READ_SEES_ME\n";
+        const string lastRow = "\n59086,LAST_ROW_IS_STILL_ON_DISK\n";
+        byte[] upload = System.Text.Encoding.UTF8.GetBytes(
+            firstRows
+            + new string('x', bytesInReportedUpload - firstRows.Length - lastRow.Length)
+            + lastRow);
+        Assert.Equal(bytesInReportedUpload, upload.Length);
+
+        string source = Path.Combine(_base, "stored-upload.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("large-csv");
+        var call = new ToolCall
+        {
+            Name = SkillToolNames.ReadFile,
+            Arguments = new Dictionary<string, object>
+            {
+                ["path"] = "form.csv",
+                ["limit"] = 2,
+            },
+        };
+
+        SkillToolResult result = _adapter.Execute(
+            call,
+            new[] { new CodeInputFile("form.csv", source) },
+            workspace: workspace);
+
+        Assert.True(result.Ok, result.Content);
+        Assert.Contains("FIRST_TOOL_READ_SEES_ME", result.Content, StringComparison.Ordinal);
+        string staged = Path.Combine(workspace.WorkDirectory, "form.csv");
+        Assert.True(File.Exists(staged), "read_file ran before the attached CSV was staged");
+        Assert.Equal(upload, File.ReadAllBytes(staged));
+    }
+
+    [Fact]
+    public void AWindows1252CsvIsUtf8InTheExecutionWorkspace_WithoutChangingTheUpload()
+    {
+        // Real election/spreadsheet exports still commonly use a legacy Windows code
+        // page. The model quite reasonably writes open(..., encoding='utf-8'), and the
+        // bundled table tools make the same assumption; failing only when they reach a
+        // candidate's accented name turns a valid table into a wasted repair loop.
+        string expected = "candidate,votes\r\nSam Méndez,4639\r\nRuth Pérez,2191\r\n";
+        byte[] upload = System.Text.Encoding.ASCII.GetBytes(
+            "candidate,votes\r\nSam M?ndez,4639\r\nRuth P?rez,2191\r\n");
+        upload["candidate,votes\r\nSam M".Length] = 0xE9;
+        upload["candidate,votes\r\nSam M?ndez,4639\r\nRuth P".Length] = 0xE9;
+
+        string source = Path.Combine(_base, "stored-election.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "legacy-csv-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("legacy-csv");
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("election results.csv", source) }, workspace);
+
+        Assert.Contains("election results.csv", available);
+        string staged = Path.Combine(workspace.WorkDirectory, "election results.csv");
+        var strictUtf8 = new System.Text.UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        Assert.Equal(expected, File.ReadAllText(staged, strictUtf8));
+        Assert.False(File.ReadAllBytes(staged).AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }));
+
+        // The served/downloadable upload is evidence and must remain the exact file the
+        // user supplied; only the private copy programs work on is normalised.
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AMalformedBomMarkedCsvIsNotStagedWithReplacementCharacters()
+    {
+        // StreamReader's built-in BOM detection replaces a caller-supplied strict
+        // UTF-8 decoder with a permissive one. Pin the stronger contract here: a bad
+        // byte after a real BOM makes the attachment unavailable instead of changing
+        // evidence into U+FFFD and handing plausible-but-corrupt data to the model.
+        byte[] upload = [0xEF, 0xBB, 0xBF, (byte)'a', (byte)',', 0xC3, (byte)'(', (byte)'\n'];
+        string source = Path.Combine(_base, "malformed.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "malformed-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("malformed-csv");
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("malformed.csv", source) }, workspace);
+
+        Assert.DoesNotContain("malformed.csv", available);
+        Assert.False(File.Exists(Path.Combine(workspace.WorkDirectory, "malformed.csv")));
+        Assert.Empty(Directory.GetFiles(workspace.WorkDirectory, ".tensorsharp-stage-*.tmp"));
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AFailedCsvRefreshDoesNotLeaveTheOlderAttachmentReadable()
+    {
+        byte[] upload = [0xEF, 0xBB, 0xBF, (byte)'a', (byte)',', 0xC3, (byte)'(', (byte)'\n'];
+        string source = Path.Combine(_base, "new-malformed.csv");
+        File.WriteAllBytes(source, upload);
+        File.SetLastWriteTimeUtc(source, DateTime.UtcNow);
+
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "stale-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("stale-csv");
+        string staged = Path.Combine(workspace.WorkDirectory, "form.csv");
+        File.WriteAllText(staged, "row,value\n1,STALE_UPLOAD_MUST_NOT_BE_READ\n");
+        File.SetLastWriteTimeUtc(staged, DateTime.UtcNow.AddHours(-2));
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("form.csv", source) }, workspace);
+
+        Assert.DoesNotContain("form.csv", available);
+        Assert.False(File.Exists(staged));
+        Assert.Empty(Directory.GetFiles(workspace.WorkDirectory, ".tensorsharp-stage-*.tmp"));
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AUtf16CsvBomIsRemovedFromTheUtf8ExecutionCopy()
+    {
+        const string expected = "candidate,votes\r\nZoë,7\r\nRenée,9\r\n";
+        byte[] upload = [.. System.Text.Encoding.Unicode.GetPreamble(),
+                         .. System.Text.Encoding.Unicode.GetBytes(expected)];
+        string source = Path.Combine(_base, "unicode-upload.csv");
+        File.WriteAllBytes(source, upload);
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "unicode-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("unicode-csv");
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("unicode results.csv", source) }, workspace);
+
+        Assert.Contains("unicode results.csv", available);
+        byte[] staged = File.ReadAllBytes(Path.Combine(workspace.WorkDirectory, "unicode results.csv"));
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(expected), staged);
+        Assert.Equal(upload, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void AttachmentStagingDoesNotFollowAnExistingDestinationSymlinkOutsideTheWorkspace()
+    {
+        const string witness = "OUTSIDE_WITNESS_MUST_NOT_CHANGE\n";
+        string outside = Path.Combine(_base, "outside-witness.csv");
+        File.WriteAllText(outside, witness);
+        File.SetLastWriteTimeUtc(outside, DateTime.UtcNow.AddHours(-2));
+
+        string source = Path.Combine(_base, "new-upload.csv");
+        File.WriteAllText(source, "row,value\n1,ATTACKER_CONTROLLED_REPLACEMENT\n");
+        File.SetLastWriteTimeUtc(source, DateTime.UtcNow);
+
+        var workspaces = new SessionWorkspaceManager(Path.Combine(_base, "symlink-workspaces"));
+        SessionWorkspace workspace = workspaces.GetOrCreate("staging-link");
+        string linkedName = Path.Combine(workspace.WorkDirectory, "form.csv");
+        try
+        {
+            File.CreateSymbolicLink(linkedName, outside);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                      or PlatformNotSupportedException)
+        {
+            return; // This host cannot create the attack shape (notably Windows without Developer Mode).
+        }
+
+        IReadOnlySet<string> available = CodeInputFileStager.Stage(
+            new[] { new CodeInputFile("form.csv", source) }, workspace);
+
+        Assert.DoesNotContain("form.csv", available);
+        Assert.Equal(witness, File.ReadAllText(outside));
     }
 
     [Theory]

@@ -10,11 +10,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -55,6 +57,7 @@ namespace TensorSharp.AgentHost.Skills
     {
         private readonly SkillScriptRunnerOptions _options;
         private readonly ILogger _logger;
+        private readonly IShellBackend _backend;
         private readonly ISkillSandbox? _sandbox;
 
         /// <summary>
@@ -68,11 +71,20 @@ namespace TensorSharp.AgentHost.Skills
         {
             _options = options ?? new SkillScriptRunnerOptions();
             _logger = logger ?? NullLogger.Instance;
-            _sandbox = _options.Sandbox == SkillSandboxMode.Off ? null : SkillSandboxFactory.Detect();
+            // The same seam the shell tool launches through. The default is today's
+            // confined child process under the detected OS sandbox; a host that cannot
+            // start processes supplies its own backend, and the confinement questions
+            // below are answered from THAT backend's sandbox — which is what lets an
+            // in-process runtime with honest capabilities satisfy `required`.
+            _backend = _options.Backend ?? ProcessShellBackend.Detect(_options.Sandbox, _logger);
+            _sandbox = _options.Sandbox == SkillSandboxMode.Off ? null : _backend.Sandbox;
         }
 
         /// <summary>The sandbox in force, or null when running unconfined.</summary>
         public ISkillSandbox? Sandbox => _sandbox;
+
+        /// <summary>What runs each script: a confined child process, or the host's own runtime.</summary>
+        public IShellBackend Backend => _backend;
 
         /// <summary>
         /// True when this runner will actually run anything. False when the host
@@ -133,6 +145,15 @@ namespace TensorSharp.AgentHost.Skills
                         + " - pass --skills-sandbox preferred to accept that and run them anyway";
                 }
 
+                // iOS has no OS sandbox to look for: code runs inside the app, and what
+                // is missing is a backend presenting an in-process runtime that confines.
+                if (OperatingSystem.IsIOS())
+                {
+                    return "this host runs skill scripts in an in-process runtime, and no backend presenting "
+                        + "one that confines writes and the network was supplied, and skill scripts are "
+                        + "configured to run only when they can be confined";
+                }
+
                 return "this host provides no OS sandbox (checked: "
                     + (OperatingSystem.IsMacOS() ? "sandbox-exec"
                        : OperatingSystem.IsLinux() ? "bubblewrap 0.12.0 or newer (install/update bwrap to enable it)"
@@ -148,6 +169,11 @@ namespace TensorSharp.AgentHost.Skills
             Action<string>? onOutput = null, IReadOnlyList<string>? packages = null)
         {
             ArgumentNullException.ThrowIfNull(skill);
+
+            // The same workspace also backs model-written shell calls. Keep the whole
+            // dependency/setup/run cycle atomic with respect to a replacement turn; the
+            // lease is re-entrant when auto-install calls the code runner below.
+            using IDisposable? execution = _options.Workspace?.EnterExecution();
 
             if (!CanRun)
                 return SkillToolResult.Failure(UnavailableReason!);
@@ -170,6 +196,10 @@ namespace TensorSharp.AgentHost.Skills
             bool perCallScratch = _options.Workspace == null;
             try
             {
+                // The whole layout, not just the work directory: installs land in env/ and
+                // repair overlays in state/, and a workspace removed from underneath a live
+                // conversation takes all three. See SessionWorkspace.EnsureDirectories.
+                _options.Workspace?.EnsureDirectories();
                 workDirectory = _options.Workspace?.WorkDirectory
                     ?? Path.Combine(
                         _options.ScratchDirectory ?? Path.GetTempPath(),
@@ -182,12 +212,20 @@ namespace TensorSharp.AgentHost.Skills
             }
 
             var setupNotes = new List<string>();
+
+            // If something removed this conversation's working directory, the script is
+            // about to look for inputs that are no longer there. Say so once, wherever the
+            // model looks next — the latch means the shell tool and this one cannot both
+            // claim it, and neither repeats it.
+            if (_options.Workspace?.ConsumeRebuiltNotice() == true)
+                setupNotes.Add(SessionWorkspace.RebuiltNote);
+
             string? installLanguage = InstallLanguageFor(extension);
 
             // Dependencies the model named up front, and any requirements.txt the skill
             // ships (root or the script's own directory, once per session): both go into
             // the session environment BEFORE the first attempt.
-            if (installLanguage != null && CanAutoInstall)
+            if (installLanguage != null && CanAutoInstall(installLanguage))
             {
                 if (packages is { Count: > 0 })
                     InstallInto(installLanguage, packages, setupNotes, onOutput, "requested");
@@ -213,9 +251,10 @@ namespace TensorSharp.AgentHost.Skills
             }
         }
 
-        private bool CanAutoInstall =>
+        private bool CanAutoInstall(string language) =>
             _options.Workspace != null
-            && _options.PackageInstaller is { CanInstallPackages: true };
+            && _options.PackageInstaller is { } installer
+            && installer.CanInstallPackagesFor(language);
 
         /// <summary>The install language for a script extension, or null.</summary>
         private static string? InstallLanguageFor(string extension) =>
@@ -294,7 +333,7 @@ namespace TensorSharp.AgentHost.Skills
                 result = RunConfined(skill, normalized, scriptPath, interpreter, arguments,
                     workDirectory, onOutput, out string stderrText);
 
-                if (result.Ok || installLanguage == null || !CanAutoInstall
+                if (result.Ok || installLanguage == null || !CanAutoInstall(installLanguage)
                     || attempted.Count >= Math.Max(1, _options.MaxAutoInstallAttempts))
                     break;
 
@@ -338,14 +377,12 @@ namespace TensorSharp.AgentHost.Skills
             out string stderrText)
         {
             stderrText = string.Empty;
-            var scriptArgs = new List<string> { scriptPath };
-            if (arguments != null)
-                scriptArgs.AddRange(arguments);
 
-            string fileName = interpreter;
-            IReadOnlyList<string> argv = scriptArgs;
-            IDisposable? cleanup = null;
-            string sandboxName = "none";
+            // No shell: the interpreter and the script path lead the argument vector, so
+            // a path or an argument containing ; | > $ ` is data, not syntax.
+            var argv = new List<string> { interpreter, scriptPath };
+            if (arguments != null)
+                argv.AddRange(arguments);
 
             // The session's package environment must be readable inside the sandbox, or
             // PYTHONPATH points at a directory the seatbelt profile denies.
@@ -361,42 +398,11 @@ namespace TensorSharp.AgentHost.Skills
             Dictionary<string, (long Length, DateTime WriteTime)>? preRun =
                 _options.Workspace?.SnapshotWorkFiles();
 
-            if (_sandbox != null)
-            {
-                var request = new SkillSandboxRequest(
-                    interpreter,
-                    scriptArgs,
-                    skill.RootDirectory,
-                    workDirectory,
-                    _options.AllowNetwork,
-                    readablePaths);
-
-                if (_sandbox.TryWrap(request, out string wrappedFile, out IReadOnlyList<string> wrappedArgs,
-                        out IDisposable wrappedCleanup, out string wrapError))
-                {
-                    fileName = wrappedFile;
-                    argv = wrappedArgs;
-                    cleanup = wrappedCleanup;
-                    sandboxName = _sandbox.Name;
-                }
-                else if (_options.Sandbox == SkillSandboxMode.Required)
-                {
-                    return SkillToolResult.Failure(
-                        $"'{normalized}' was not run: the sandbox could not be prepared ({wrapError}), and skill "
-                        + "scripts are configured to run only when they can be confined.");
-                }
-                else
-                {
-                    _logger.LogWarning(LogEventIds.SkillScriptExecuted,
-                        "skills.script.unconfined skill={SkillId} script={Script} reason={Reason}",
-                        skill.Id, normalized, wrapError);
-                }
-            }
-            else if (_options.Sandbox == SkillSandboxMode.Preferred
+            if (_sandbox == null && _options.Sandbox == SkillSandboxMode.Preferred
                 && Interlocked.Exchange(ref s_unconfinedHostWarned, 1) == 0)
             {
                 // `preferred` quietly degrades to no confinement when the host has no
-                // sandbox at all — the one case the TryWrap-failure warning above never
+                // sandbox at all — the one case the degraded-run warning below never
                 // sees, because there is nothing to wrap with.
                 _logger.LogWarning(LogEventIds.SkillScriptExecuted,
                     "skills.script.unconfined host={Host}: --skills-sandbox preferred found no OS sandbox, so skill scripts " +
@@ -405,214 +411,915 @@ namespace TensorSharp.AgentHost.Skills
                     SkillSandboxFactory.DescribeHost());
             }
 
-            var stdout = new BoundedWriter(_options.MaxOutputBytes);
-            var stderr = new BoundedWriter(_options.MaxOutputBytes);
-            var sw = Stopwatch.StartNew();
+            var launch = new ShellLaunch
+            {
+                Argv = argv,
+                WorkingDirectory = workDirectory,
+                WriteDirectory = workDirectory,
+                ReadOnlyDirectory = skill.RootDirectory,
+                ReadablePaths = readablePaths,
+                AllowNetwork = _options.AllowNetwork,
+                Timeout = _options.Timeout,
+                MaxOutputBytes = _options.MaxOutputBytes,
+                Environment = BuildEnvironment(workDirectory, skill.RootDirectory),
+                OnOutputLine = line => Tap(onOutput, line),
+                Purpose = ShellLaunch.Purposes.Script,
+            };
 
+            ConfinedResult result;
             try
             {
-                // No shell: the arguments are passed as a vector, so a path or an
-                // argument containing ; | > $ ` is data, not syntax.
-                var request = new SpawnRequest
+                if (!_backend.TryStart(launch, out IShellJob? job, out ConfinedResult failure))
                 {
-                    FileName = fileName,
-                    Arguments = argv,
-                    WorkingDirectory = workDirectory,
-                    Environment = BuildEnvironment(workDirectory, skill.RootDirectory),
-                    OnStdoutLine = line => { stdout.AppendLine(line); Tap(onOutput, line); },
-                    OnStderrLine = line => { stderr.AppendLine(line); Tap(onOutput, line); },
-                };
-
-                if (!SpawnedProcess.TryStart(request, out SpawnedProcess? started, out string startError)
-                    || started == null)
-                {
-                    return SkillToolResult.Failure(startError.Length > 0
-                        ? $"'{normalized}' could not be started: {startError}"
-                        : $"'{fileName}' could not be started.");
-                }
-
-                using var process = started;
-
-                // A job-object style sandbox attaches to a process that is already
-                // running. If it cannot, the child is killed rather than left running
-                // outside the confinement the caller asked for.
-                if (_sandbox != null && !_sandbox.TryAttach(process, out string attachError))
-                {
-                    TryKill(process);
-                    if (_options.Sandbox == SkillSandboxMode.Required)
+                    string why = failure.Error ?? $"'{interpreter}' could not be started";
+                    // A confinement that could not be set up in `required` mode is the
+                    // refusal the mode exists for, and is phrased as one; anything else
+                    // is the interpreter not starting.
+                    if (why.StartsWith("the sandbox could not be applied", StringComparison.Ordinal))
                     {
                         return SkillToolResult.Failure(
-                            $"'{normalized}' was stopped: the sandbox could not be applied to the process "
-                            + $"({attachError}), and skill scripts are configured to run only when they can be confined.");
+                            $"'{normalized}' was stopped: {why}, and skill scripts are configured to run "
+                            + "only when they can be confined.");
                     }
-                    _logger.LogWarning(LogEventIds.SkillScriptExecuted,
-                        "skills.script.attach-failed skill={SkillId} script={Script} reason={Reason}",
-                        skill.Id, normalized, attachError);
-                }
-
-                // Reading the pipes and closing stdin happen as part of starting: a script
-                // that reads stdin fails fast instead of blocking until the deadline, and a
-                // child whose output nobody drains blocks on a full pipe.
-                bool exited = process.WaitForExit((int)_options.Timeout.TotalMilliseconds);
-                if (!exited)
-                {
-                    TryKill(process);
-                    _logger.LogWarning(LogEventIds.SkillScriptExecuted,
-                        "skills.script.timeout skill={SkillId} script={Script} sandbox={Sandbox} timeoutMs={TimeoutMs}",
-                        skill.Id, normalized, sandboxName, (int)_options.Timeout.TotalMilliseconds);
-                    return SkillToolResult.Failure(
-                        $"'{normalized}' did not finish within "
-                        + $"{_options.Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s and was stopped."
-                        + Describe(stdout, stderr, workDirectory, preRun, _options.Workspace));
-                }
-
-                // Waiting for exit can return before the output pipes have drained, so the
-                // drain is waited for separately — and BOUNDED. This used to be an
-                // unbounded wait, which is the same shape that hung the shell tool: a pipe
-                // stays open while anything still holds the inherited handle, so a script
-                // that leaves a background process behind never reaches EOF. The tree is
-                // killed on dispose regardless; the only question was whether this returns.
-                process.WaitForDrain(DrainMilliseconds);
-                sw.Stop();
-                stderrText = stderr.ToStringWithNotice();
-
-                _logger.LogInformation(LogEventIds.SkillScriptExecuted,
-                    "skills.script.ran skill={SkillId} script={Script} sandbox={Sandbox} exit={ExitCode} ms={ElapsedMs} stdout={StdoutBytes}",
-                    skill.Id, normalized, sandboxName, process.ExitCode, (long)sw.Elapsed.TotalMilliseconds, stdout.Length);
-
-                var sb = new StringBuilder();
-                sb.Append("Ran ").Append(normalized).Append(" (exit code ")
-                  .Append(process.ExitCode.ToString(CultureInfo.InvariantCulture)).Append(", sandbox: ")
-                  .Append(sandboxName).Append(")\n");
-
-                // Say what the sandbox did NOT confine. The model is deciding what to do
-                // with this script's output, and on a platform where the script could
-                // have reached the network or the wider filesystem that is a materially
-                // different situation from one where it could not.
-                IReadOnlyList<string> gaps = _sandbox?.Capabilities.Gaps() ?? AllGaps;
-                if (gaps.Count > 0)
-                    sb.Append("Not confined on this host: ").Append(string.Join("; ", gaps)).Append(".\n");
-
-                sb.Append(Describe(stdout, stderr, workDirectory, preRun, _options.Workspace));
-
-                // A script that died on a missing import is the single most common way a
-                // skill's tooling fails on a fresh host, and the fix is one call away:
-                // the session's environment is shared, so the shell can install what the
-                // script needs. Without this the model re-runs the script unchanged.
-                // A `match` statement on Apple's frozen python3 (3.9) dies as a bare
-                // "SyntaxError: invalid syntax" — which reads as a broken script when
-                // the actual problem is the host's interpreter. Name it.
-                if (process.ExitCode != 0
-                    && (stderr.ToStringWithNotice().Contains("SyntaxError", StringComparison.Ordinal)
-                        || stderr.ToStringWithNotice().Contains("unsupported operand type(s) for |: 'type'", StringComparison.Ordinal))
-                    && interpreter.Contains("python", StringComparison.OrdinalIgnoreCase)
-                    && CodeExec.CodeEnvironment.PythonVersionOf(interpreter) is { } version
-                    && version < new Version(3, 10))
-                {
-                    sb.Append("\nNote: this host's Python is ").Append(version)
-                      .Append(", and skill scripts commonly need 3.10+ (the 'match' statement). If the ")
-                      .Append("script looks correct, the fix is on the host: install a newer Python ")
-                      .Append("(e.g. `brew install python@3.12`) and restart the server — it is picked up automatically.\n");
-                }
-
-                if (process.ExitCode != 0
-                    && CodeExec.CodeDiagnostics.MissingModule(CodeExec.CodeLanguage.Python, stderr.ToStringWithNotice()) is { } missing)
-                {
-                    // A module that is a DIRECTORY OF THIS SKILL is never a package to
-                    // install, and saying so was actively dangerous. skill-creator's entry
-                    // points import `scripts.quick_validate`; the advice this produced was
-                    // "pip install scripts", and `scripts` is a real name on PyPI owned by
-                    // nobody in particular - the host was telling the model to pull a
-                    // stranger's package to satisfy an import of a file sitting beside the
-                    // script. The import itself is now made to work (the skill root goes on
-                    // PYTHONPATH in BuildEnvironment); this is the second half, so that if
-                    // one ever fails again it fails honestly.
-                    string top = missing.Split('.')[0];
-                    bool insideSkill =
-                        File.Exists(Path.Combine(skill.RootDirectory, top + ".py"))
-                        || Directory.Exists(Path.Combine(skill.RootDirectory, top));
-
-                    if (insideSkill)
+                    if (why.StartsWith("the sandbox could not be", StringComparison.Ordinal))
                     {
-                        sb.Append("\n'").Append(missing)
-                          .Append("' is part of this skill, not a package to install - do NOT try to ")
-                          .Append("install it. It failed to import because of how the script was ")
-                          .Append("invoked, not because anything is missing. Run it from the shell ")
-                          .Append("instead, with the skill's own directory on PYTHONPATH.\n");
+                        return SkillToolResult.Failure(
+                            $"'{normalized}' was not run: {why}, and skill scripts are configured to run "
+                            + "only when they can be confined.");
                     }
-                    else
-                    {
-                        string install = CodeExec.CodeDiagnostics.InstallNameFor(CodeExec.CodeLanguage.Python, missing);
-                        sb.Append("\nThe module '").Append(missing)
-                          .Append("' is not installed in this session's environment. Install it from the shell ")
-                          .Append("and run this script again:\n  pip install ").Append(install)
-                          .Append("\nThe shell and skill scripts share one environment, so what you install ")
-                          .Append("there is visible here.\n");
-                    }
+                    return SkillToolResult.Failure($"'{normalized}' could not be started: {why}");
                 }
 
-                // A skill script that fails for any reason OTHER than a missing import
-                // used to end the task. The skill directory is read-only by
-                // construction — correctly, since a skill is untrusted content that
-                // must not rewrite itself and outlive the conversation — so the model
-                // had nothing to fix and no way to fix it, and would either retry the
-                // identical script or give up.
-                //
-                // The way out is a session-local COPY. Staged into the workspace on
-                // failure, it becomes an ordinary file the shell already handles: read it
-                // with sed or cat, change it with apply_patch, run it. The skill on disk
-                // is untouched, so the next conversation still gets the original.
-                if (process.ExitCode != 0 && _options.Workspace is { } fixWorkspace)
+                using (job)
                 {
-                    string overlay = "skill_" + skill.Id + "_"
-                        + Path.GetFileName(normalized).Replace(Path.DirectorySeparatorChar, '_');
-                    try
+                    // Said, not swallowed: a run that went ahead without the confinement
+                    // that was detected is a materially different run, and the operator
+                    // reading the log should see why it happened.
+                    if (_sandbox != null && job!.DegradedReason is { } degraded)
                     {
-                        string sourceText = File.ReadAllText(scriptPath);
-                        if (fixWorkspace.TryWriteFile(overlay, sourceText, out _))
-                        {
-                            sb.Append("\nA copy of this script is now in your working directory as '")
-                              .Append(overlay)
-                              .Append("'. If the script itself is wrong, fix THAT copy: read it from the "
-                                      + "shell, change it with apply_patch, and run it from the shell. "
-                                      + "The skill's own copy is read-only and unchanged.\n");
-                        }
+                        _logger.LogWarning(LogEventIds.SkillScriptExecuted,
+                            "skills.script.unconfined skill={SkillId} script={Script} reason={Reason}",
+                            skill.Id, normalized, degraded);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        // Staging is a convenience; a failure to stage must not replace
-                        // the script's own error with a filesystem one.
-                    }
+                    result = job!.WaitForExit(_options.Timeout);
                 }
-
-                // The files this script produced, kept for the user to download. Same
-                // contract as the shell tool: the model gets ready-made markdown links.
-                IReadOnlyList<SkillProducedFile> files = Array.Empty<SkillProducedFile>();
-                if (_options.CaptureProducedFiles != null && _options.Workspace is { } ws)
-                {
-                    files = _options.CaptureProducedFiles(
-                        workDirectory,
-                        preRun == null ? null : relative => ws.IsUnchangedSince(preRun, relative));
-                    if (files.Count > 0)
-                    {
-                        sb.Append("\nFiles produced. The user downloads them through these links - copy the ")
-                          .Append("markdown links below into your answer verbatim when the user asked for the file:\n");
-                        foreach (SkillProducedFile file in files)
-                            sb.Append("- [").Append(file.Name).Append("](").Append(file.Url).Append(")\n");
-                    }
-                }
-
-                return new SkillToolResult(process.ExitCode == 0, sb.ToString(), skill.Id, normalized)
-                { Files = files };
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
             {
                 return SkillToolResult.Failure($"'{normalized}' could not be run: {ex.Message}");
             }
+
+            if (!result.Started)
+                return SkillToolResult.Failure($"'{normalized}' could not be run: {result.Error ?? "it did not start"}");
+
+            string sandboxName = result.SandboxName;
+            if (result.TimedOut)
+            {
+                _logger.LogWarning(LogEventIds.SkillScriptExecuted,
+                    "skills.script.timeout skill={SkillId} script={Script} sandbox={Sandbox} timeoutMs={TimeoutMs}",
+                    skill.Id, normalized, sandboxName, (int)_options.Timeout.TotalMilliseconds);
+                return SkillToolResult.Failure(
+                    $"'{normalized}' did not finish within "
+                    + $"{_options.Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s and was stopped."
+                    + Describe(result.Stdout, result.Stderr, workDirectory, preRun, _options.Workspace));
+            }
+
+            stderrText = result.Stderr;
+
+            _logger.LogInformation(LogEventIds.SkillScriptExecuted,
+                "skills.script.ran skill={SkillId} script={Script} sandbox={Sandbox} exit={ExitCode} ms={ElapsedMs} stdout={StdoutBytes}",
+                skill.Id, normalized, sandboxName, result.ExitCode, (long)result.Elapsed.TotalMilliseconds, result.Stdout.Length);
+
+            var sb = new StringBuilder();
+            sb.Append("Ran ").Append(normalized).Append(" (exit code ")
+              .Append(result.ExitCode.ToString(CultureInfo.InvariantCulture)).Append(", sandbox: ")
+              .Append(sandboxName).Append(")\n");
+
+            // Say what the sandbox did NOT confine. The model is deciding what to do
+            // with this script's output, and on a platform where the script could
+            // have reached the network or the wider filesystem that is a materially
+            // different situation from one where it could not.
+            IReadOnlyList<string> gaps = _sandbox?.Capabilities.Gaps() ?? AllGaps;
+            if (gaps.Count > 0)
+                sb.Append("Not confined on this host: ").Append(string.Join("; ", gaps)).Append(".\n");
+
+            sb.Append(Describe(result.Stdout, result.Stderr, workDirectory, preRun, _options.Workspace));
+
+            // A script that died on a missing import is the single most common way a
+            // skill's tooling fails on a fresh host, and the fix is one call away:
+            // the session's environment is shared, so the shell can install what the
+            // script needs. Without this the model re-runs the script unchanged.
+            // A `match` statement on Apple's frozen python3 (3.9) dies as a bare
+            // "SyntaxError: invalid syntax" — which reads as a broken script when
+            // the actual problem is the host's interpreter. Name it.
+            if (result.ExitCode != 0
+                && interpreter.Contains("python", StringComparison.OrdinalIgnoreCase)
+                && CodeExec.CodeDiagnostics.LooksLikeOldInterpreter(
+                    result.Stderr,
+                    CodeExec.CodeLanguage.Python,
+                    interpreter)
+                && CodeExec.CodeEnvironment.PythonVersionOf(interpreter) is { } version
+                && version < new Version(3, 10))
+            {
+                sb.Append("\nNote: this host's Python is ").Append(version)
+                  .Append(", and skill scripts commonly need 3.10+ (the 'match' statement). If the ")
+                  .Append("script looks correct, the fix is on the host: install a newer Python ")
+                  .Append("(e.g. `brew install python@3.12`) and restart the server — it is picked up automatically.\n");
+            }
+
+            if (result.ExitCode != 0
+                && CodeExec.CodeDiagnostics.MissingModule(CodeExec.CodeLanguage.Python, result.Stderr) is { } missing)
+            {
+                // A module that is a DIRECTORY OF THIS SKILL is never a package to
+                // install, and saying so was actively dangerous. skill-creator's entry
+                // points import `scripts.quick_validate`; the advice this produced was
+                // "pip install scripts", and `scripts` is a real name on PyPI owned by
+                // nobody in particular - the host was telling the model to pull a
+                // stranger's package to satisfy an import of a file sitting beside the
+                // script. The import itself is now made to work (the skill root goes on
+                // PYTHONPATH in BuildEnvironment); this is the second half, so that if
+                // one ever fails again it fails honestly.
+                string top = missing.Split('.')[0];
+                bool insideSkill =
+                    File.Exists(Path.Combine(skill.RootDirectory, top + ".py"))
+                    || Directory.Exists(Path.Combine(skill.RootDirectory, top));
+
+                if (insideSkill)
+                {
+                    sb.Append("\n'").Append(missing)
+                      .Append("' is part of this skill, not a package to install - do NOT try to ")
+                      .Append("install it. It failed to import because of how the script was ")
+                      .Append("invoked, not because anything is missing. Run it from the shell ")
+                      .Append("instead, with the skill's own directory on PYTHONPATH.\n");
+                }
+                else
+                {
+                    string install = CodeExec.CodeDiagnostics.InstallNameFor(CodeExec.CodeLanguage.Python, missing);
+                    sb.Append("\nThe module '").Append(missing)
+                      .Append("' is not installed in this session's environment. Install it from the shell ")
+                      .Append("and run this script again:\n  pip install ").Append(install)
+                      .Append("\nThe shell and skill scripts share one environment, so what you install ")
+                      .Append("there is visible here.\n");
+                }
+            }
+
+            // A document writer's program and its INPUT are two different repair
+            // targets.  The bundled writers deliberately turn malformed JSON into a
+            // short "the spec is not valid JSON" diagnostic, without a traceback.  A
+            // blanket script-overlay response therefore points at make_pptx.py even
+            // though the only broken bytes are in the workspace spec the model just
+            // wrote.  Resolve that argument under the workspace, parse it ourselves to
+            // recover the exact line, and show only the nearby editable text.
+            string? inputRepair = result.ExitCode != 0 && _options.Workspace is { } inputWorkspace
+                ? InvalidJsonSpecRepairHint(arguments, result.Stderr, inputWorkspace, workDirectory)
+                : null;
+            if (inputRepair != null)
+                sb.Append(inputRepair);
+
+            // A failure while running a skill is not proof that the skill SCRIPT is
+            // wrong. Argument errors, missing inputs and missing packages are much more
+            // common, and staging the entry point for all of them points the model at
+            // trusted code that cannot fix the problem. Only a traceback/error location
+            // whose deepest relevant frame is this exact entry script earns an overlay.
+            //
+            // That overlay is session-local. It becomes an ordinary file the shell can
+            // edit and run while the skill on disk remains untouched.
+            if (result.ExitCode != 0 && inputRepair == null
+                && _options.Workspace is { } fixWorkspace
+                && CanStageRepairOverlay(normalized)
+                && FailurePointsToBundledScript(result.Stderr, scriptPath, interpreter))
+            {
+                try
+                {
+                    byte[] sourceBytes = File.ReadAllBytes(scriptPath);
+                    if (TryGetOrStageRepairOverlay(
+                        fixWorkspace,
+                        skill,
+                        normalized,
+                        scriptPath,
+                        sourceBytes,
+                        out string? overlay,
+                        out string? repairLauncher,
+                        out bool overlayAlreadyExists))
+                    {
+                        string runAdvice = repairLauncher == null
+                            ? "run it from the shell. "
+                            : "run the same arguments through its compatibility launcher '"
+                              + repairLauncher
+                              + "' from the shell. Do not edit the launcher: it makes sibling imports and "
+                              + "resources resolved through __file__ behave exactly as they did in the skill. ";
+                        if (overlayAlreadyExists)
+                        {
+                            sb.Append("\nThe traceback points to this bundled script. Its editable repair copy already exists in your working directory as '")
+                              .Append(overlay)
+                              .Append("'. It was not overwritten, so any repair already made there is intact. "
+                                      + "Continue with that copy: use read_file for only the relevant region, "
+                                      + "change the exact broken text with edit_file, and ")
+                              .Append(runAdvice)
+                              .Append("Do not rewrite the complete file. The skill's own copy is read-only "
+                                      + "and unchanged.\n");
+                        }
+                        else
+                        {
+                            sb.Append("\nThe traceback points to this bundled script. A copy of this script is now in your working directory as '")
+                              .Append(overlay)
+                              .Append("'. Fix THAT copy: use read_file for only the relevant region, "
+                                      + "change the exact broken text with edit_file, and ")
+                              .Append(runAdvice)
+                              .Append("Do not rewrite the complete file. "
+                                      + "The skill's own copy is read-only and unchanged.\n");
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Staging is a convenience; a failure to stage must not replace
+                    // the script's own error with a filesystem one.
+                }
+            }
+
+            // The files this script produced, kept for the user to download. Same
+            // contract as the shell tool: the model gets ready-made markdown links.
+            IReadOnlyList<SkillProducedFile> files = Array.Empty<SkillProducedFile>();
+            if (_options.CaptureProducedFiles != null && _options.Workspace is { } ws)
+            {
+                files = _options.CaptureProducedFiles(
+                    workDirectory,
+                    relative => ws.IsHostRepairArtifact(relative)
+                        || (preRun != null && ws.IsUnchangedSince(preRun, relative)));
+                if (files.Count > 0)
+                {
+                    sb.Append("\nFiles produced. The user downloads them through these links - copy the ")
+                      .Append("markdown links below into your answer verbatim when the user asked for the file:\n");
+                    foreach (SkillProducedFile file in files)
+                        sb.Append("- [").Append(file.Name).Append("](").Append(file.Url).Append(")\n");
+                }
+            }
+
+            return new SkillToolResult(result.ExitCode == 0, sb.ToString(), skill.Id, normalized)
+            { Files = files };
+        }
+
+        private const int MaxRepairInputBytes = 1024 * 1024;
+
+        private static readonly Regex PythonFrame = new(
+            "^\\s*File \\\"(?<path>[^\\\"]+)\\\", line [0-9]+(?:, in .*)?\\s*$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        private const string RepairOverlayDirectory = "skill-repairs";
+
+        private const string RepairLauncherSuffix = ".tensorsharp-runner";
+
+        /// <summary>
+        /// Moving an entry point changes language-specific resolution rules. The Python
+        /// launcher below restores its original sibling imports, argv[0] and __file__.
+        /// We do not have an equivalent proven wrapper for CommonJS, ESM or shell
+        /// scripts (where __dirname/import.meta.url/$0 all matter), so do not offer a
+        /// repair copy that would behave differently from the bundled program.
+        /// </summary>
+        private static bool CanStageRepairOverlay(string normalized) =>
+            string.Equals(Path.GetExtension(normalized), ".py", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Reuse an edited repair copy only when host-owned state proves which bundled
+        /// script it came from. The visible path retains the complete skill-relative
+        /// path, so two scripts called <c>tool.py</c> cannot silently share a copy.
+        /// </summary>
+        private static bool TryGetOrStageRepairOverlay(
+            SessionWorkspace workspace,
+            Skill skill,
+            string normalized,
+            string scriptPath,
+            byte[] sourceBytes,
+            out string? overlay,
+            out string? launcher,
+            out bool alreadyStaged)
+        {
+            overlay = null;
+            launcher = null;
+            alreadyStaged = false;
+
+            string repairRoot = RepairOverlayDirectory + "/" + skill.Id;
+            string identity = RepairOverlayIdentity(scriptPath, sourceBytes);
+            string markerDirectory = Path.Combine(workspace.StateDirectory, "skill-repair-overlays");
+            string markerPath = Path.Combine(markerDirectory, identity + ".path");
+
+            if (TryReadRepairOverlayMarker(
+                workspace, markerPath, repairRoot, out string? priorOverlay))
+            {
+                if (!TryGetOrStageRepairLauncher(
+                    workspace, skill, normalized, scriptPath, priorOverlay!,
+                    acceptExisting: true, out launcher, out _))
+                {
+                    return false;
+                }
+                overlay = priorOverlay;
+                alreadyStaged = true;
+                workspace.MarkHostRepairArtifacts(overlay!, launcher!);
+                return true;
+            }
+
+            string baseOverlay = repairRoot + "/" + normalized;
+            for (int attempt = 0; attempt < 8; attempt++)
+            {
+                string candidate = attempt == 0
+                    ? baseOverlay
+                    : RepairOverlayWithIdentitySuffix(baseOverlay, identity, attempt);
+                if (workspace.TryCreateFile(
+                    candidate, sourceBytes, out bool collision, out _))
+                {
+                    if (!TryGetOrStageRepairLauncher(
+                        workspace, skill, normalized, scriptPath, candidate,
+                        acceptExisting: false, out launcher, out bool launcherCollision))
+                    {
+                        // candidate is known host-created even when a pre-existing
+                        // launcher prevents this pair from being usable.
+                        workspace.MarkHostRepairArtifacts(candidate);
+                        if (launcherCollision)
+                            continue;
+                        return false;
+                    }
+
+                    if (!TryPublishRepairOverlayMarker(
+                        workspace,
+                        markerDirectory,
+                        markerPath,
+                        repairRoot,
+                        candidate,
+                        out string? canonical))
+                    {
+                        workspace.MarkHostRepairArtifacts(candidate, launcher!);
+                        return false;
+                    }
+
+                    if (!string.Equals(canonical, candidate, SkillPathGuard.PathComparison))
+                    {
+                        // Another host publisher won. Keep its immutable provenance. The
+                        // losing pair is still proven host-created and is hidden exactly,
+                        // without a racy delete that could remove a path replaced between
+                        // verification and unlinking.
+                        workspace.MarkHostRepairArtifacts(candidate, launcher!);
+                        if (!TryGetOrStageRepairLauncher(
+                            workspace, skill, normalized, scriptPath, canonical!,
+                            acceptExisting: true, out launcher, out _))
+                        {
+                            return false;
+                        }
+                        alreadyStaged = true;
+                    }
+
+                    overlay = canonical;
+                    workspace.MarkHostRepairArtifacts(overlay!, launcher!);
+                    return true;
+                }
+                if (!collision)
+                    return false;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// A copied Python entry point no longer sits beside the modules and resources it
+        /// was written against. This tiny launcher executes the edited bytes but gives
+        /// them the original entry point's <c>sys.path</c>, <c>sys.argv[0]</c> and
+        /// <c>__file__</c>. Thus <c>import specs</c> and
+        /// <c>Path(__file__).with_name(...)</c> keep working without copying a skill's
+        /// whole resource tree into the writable workspace.
+        /// </summary>
+        private static bool TryGetOrStageRepairLauncher(
+            SessionWorkspace workspace,
+            Skill skill,
+            string normalized,
+            string scriptPath,
+            string overlay,
+            bool acceptExisting,
+            out string? launcher,
+            out bool collision)
+        {
+            launcher = null;
+            collision = false;
+            if (!string.Equals(Path.GetExtension(normalized), ".py", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            launcher = overlay + RepairLauncherSuffix;
+            if (!workspace.TryResolve(overlay, out string overlayPath, out _))
+                return false;
+
+            string source = PythonRepairLauncher(
+                overlayPath, scriptPath, skill.RootDirectory, workspace.EnvDirectory);
+            if (workspace.TryCreateFile(launcher, source, out collision, out _))
+                return true;
+
+            if (!collision || !acceptExisting
+                || !workspace.TryResolve(launcher, out string existing, out _)
+                || !File.Exists(existing))
+            {
+                return false;
+            }
+
+            // A provenance marker is written only after this launcher and the repair
+            // copy were staged together. Still verify the host-authored launcher bytes:
+            // the repair copy is intentionally editable, while this compatibility
+            // wrapper is not, and running a modified wrapper would no longer preserve
+            // the bundled script's semantics.
+            try
+            {
+                return string.Equals(
+                    File.ReadAllText(existing), source, StringComparison.Ordinal);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        private static string PythonRepairLauncher(
+            string overlayPath, string scriptPath, string skillRoot, string environmentRoot)
+        {
+            string overlay = JsonSerializer.Serialize(Path.GetFullPath(overlayPath));
+            string original = JsonSerializer.Serialize(Path.GetFullPath(scriptPath));
+            string root = JsonSerializer.Serialize(Path.GetFullPath(skillRoot));
+            string environment = JsonSerializer.Serialize(Path.GetFullPath(environmentRoot));
+            return "# Host-created launcher for an editable skill repair; do not edit.\n"
+                 + "import os as _os\n"
+                 + "import sys as _sys\n"
+                 + "_overlay = " + overlay + "\n"
+                 + "_original = " + original + "\n"
+                 + "_skill_root = " + root + "\n"
+                 + "_environment_root = " + environment + "\n"
+                 + "_script_dir = _os.path.dirname(_original)\n"
+                 + "if _sys.path:\n"
+                 + "    _sys.path[0] = _script_dir\n"
+                 + "else:\n"
+                 + "    _sys.path.append(_script_dir)\n"
+                 + "try:\n"
+                 + "    _root_index = next(i for i, p in enumerate(_sys.path) "
+                 + "if _os.path.abspath(p) == _os.path.abspath(_environment_root)) + 1\n"
+                 + "except StopIteration:\n"
+                 + "    _root_index = 1\n"
+                 + "if _skill_root not in _sys.path:\n"
+                 + "    _sys.path.insert(_root_index, _skill_root)\n"
+                 + "_sys.argv[0] = _original\n"
+                 + "_globals = {'__name__': '__main__', '__file__': _original, "
+                 + "'__package__': None, '__cached__': None, '__spec__': None}\n"
+                 + "with open(_overlay, 'rb') as _handle:\n"
+                 + "    _source = _handle.read()\n"
+                 + "exec(compile(_source, _overlay, 'exec'), _globals, _globals)\n";
+        }
+
+        private static string RepairOverlayIdentity(string scriptPath, byte[] sourceBytes)
+        {
+            string sourceHash = Convert.ToHexString(SHA256.HashData(sourceBytes));
+            string sourceIdentity = Path.GetFullPath(scriptPath) + "\n" + sourceHash;
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceIdentity)))
+                .ToLowerInvariant();
+        }
+
+        private static string RepairOverlayWithIdentitySuffix(
+            string baseOverlay, string identity, int attempt)
+        {
+            string extension = Path.GetExtension(baseOverlay);
+            string withoutExtension = extension.Length == 0
+                ? baseOverlay
+                : baseOverlay.Substring(0, baseOverlay.Length - extension.Length);
+            string ordinal = attempt == 1
+                ? string.Empty
+                : "-" + attempt.ToString(CultureInfo.InvariantCulture);
+            return withoutExtension + ".repair-" + identity.Substring(0, 12) + ordinal + extension;
+        }
+
+        private static bool TryReadRepairOverlayMarker(
+            SessionWorkspace workspace,
+            string markerPath,
+            string repairRoot,
+            out string? overlay)
+        {
+            overlay = null;
+            try
+            {
+                if (!File.Exists(markerPath))
+                    return false;
+
+                string candidate = File.ReadAllText(markerPath).Trim().Replace('\\', '/');
+                if (candidate.IndexOfAny(new[] { '\r', '\n' }) >= 0
+                    || !candidate.StartsWith(repairRoot + "/", StringComparison.Ordinal)
+                    || !workspace.TryResolve(candidate, out string full, out _)
+                    || !File.Exists(full))
+                {
+                    return false;
+                }
+
+                overlay = candidate;
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        private static bool TryPublishRepairOverlayMarker(
+            SessionWorkspace workspace,
+            string markerDirectory,
+            string markerPath,
+            string repairRoot,
+            string overlay,
+            out string? canonical)
+        {
+            canonical = null;
+            string? temporary = null;
+            try
+            {
+                Directory.CreateDirectory(markerDirectory);
+                temporary = Path.Combine(
+                    markerDirectory,
+                    ".overlay-" + Guid.NewGuid().ToString("N") + ".tmp");
+                File.WriteAllText(
+                    temporary,
+                    overlay,
+                    new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                File.Move(temporary, markerPath);
+                temporary = null;
+                canonical = overlay;
+                return true;
+            }
+            catch (IOException) when (File.Exists(markerPath))
+            {
+                // Immutable create-only publication makes concurrent provenance writers
+                // converge on the winner instead of replacing one another's mapping.
+                return TryReadRepairOverlayMarker(
+                    workspace, markerPath, repairRoot, out canonical);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
             finally
             {
-                cleanup?.Dispose();
+                if (!string.IsNullOrEmpty(temporary))
+                {
+                    try { File.Delete(temporary); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                }
             }
+        }
+
+        /// <summary>
+        /// True only when a code-shaped failure locates its deepest relevant frame in
+        /// the exact bundled entry point. Merely failing while that script was running
+        /// is deliberately insufficient: package, CLI and input failures belong to the
+        /// environment or arguments and cannot be repaired by copying the script.
+        /// </summary>
+        private static bool FailurePointsToBundledScript(
+            string? stderr,
+            string scriptPath,
+            string interpreter)
+        {
+            if (string.IsNullOrWhiteSpace(stderr) || string.IsNullOrWhiteSpace(scriptPath))
+                return false;
+
+            string extension = Path.GetExtension(scriptPath);
+            if (!string.Equals(extension, ".py", StringComparison.OrdinalIgnoreCase))
+                return false;
+            CodeExec.CodeLanguage language = CodeExec.CodeLanguage.Python;
+
+            // Classify with network confinement enabled because this method emits no
+            // policy claim; it only refuses to blame code for DNS/socket failures.
+            if (CodeExec.CodeDiagnostics.ClassifyFailure(
+                    stderr,
+                    language,
+                    networkConfined: true,
+                    pythonInterpreter: interpreter).Source
+                == CodeExec.CodeDiagnostics.FailureSource.Environment
+                || LooksLikeArgumentOrInputFailure(stderr))
+            {
+                return false;
+            }
+
+            bool traceback = stderr.IndexOf(
+                "Traceback (most recent call last):", StringComparison.Ordinal) >= 0;
+            bool syntaxDiagnostic = stderr.IndexOf("SyntaxError", StringComparison.Ordinal) >= 0
+                || stderr.IndexOf("IndentationError", StringComparison.Ordinal) >= 0
+                || stderr.IndexOf("TabError", StringComparison.Ordinal) >= 0;
+            if (!traceback && !syntaxDiagnostic)
+                return false;
+
+            // Locating the deepest frame in the entry point proves where an
+            // exception surfaced, not why it surfaced. Validation/data exceptions
+            // such as KeyError, ValueError and Pillow's UnidentifiedImageError are
+            // normally repaired in the workspace input. Stage trusted code only for
+            // syntax faults and a deliberately small set of programmer-fault shapes.
+            if (!syntaxDiagnostic && !HasRepairablePythonTerminalException(stderr))
+                return false;
+
+            return TryGetAttributedPythonFrame(stderr, syntaxDiagnostic, out string? frame)
+                && SameDiagnosticPath(frame, scriptPath);
+        }
+
+        private static bool HasRepairablePythonTerminalException(string stderr)
+        {
+            string terminal = stderr.Replace("\r\n", "\n", StringComparison.Ordinal)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .LastOrDefault()?.Trim() ?? string.Empty;
+            foreach (string exception in new[]
+                     {
+                         "RuntimeError", "NameError", "UnboundLocalError", "NotImplementedError",
+                     })
+            {
+                if (terminal.StartsWith(exception + ":", StringComparison.Ordinal)
+                    || string.Equals(terminal, exception, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Extract a location only from Python's structured diagnostic block. Searching
+        /// every frame-shaped substring in stderr lets an exception message or echoed
+        /// workspace input append <c>File "...", line 1</c> after the real traceback and
+        /// forge attribution to the bundled entry point.
+        /// </summary>
+        private static bool TryGetAttributedPythonFrame(
+            string stderr,
+            bool syntaxDiagnostic,
+            out string? path)
+        {
+            path = null;
+            string[] lines = stderr.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
+            if (syntaxDiagnostic)
+            {
+                int terminal = -1;
+                for (int index = lines.Length - 1; index >= 0; index--)
+                {
+                    string value = lines[index].TrimStart();
+                    if (value.StartsWith("SyntaxError", StringComparison.Ordinal)
+                        || value.StartsWith("IndentationError", StringComparison.Ordinal)
+                        || value.StartsWith("TabError", StringComparison.Ordinal))
+                    {
+                        terminal = index;
+                        break;
+                    }
+                }
+                if (terminal < 0)
+                    return false;
+
+                // A compile diagnostic puts the File line directly above its source
+                // excerpt and caret. Do not borrow a frame from an earlier traceback.
+                for (int index = terminal - 1; index >= 0; index--)
+                {
+                    string trimmed = lines[index].Trim();
+                    if (string.Equals(trimmed, "Traceback (most recent call last):", StringComparison.Ordinal)
+                        || IsPythonTerminalLine(trimmed))
+                    {
+                        break;
+                    }
+
+                    Match frame = PythonFrame.Match(lines[index]);
+                    if (frame.Success)
+                    {
+                        path = frame.Groups["path"].Value;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            int header = -1;
+            for (int index = lines.Length - 1; index >= 0; index--)
+            {
+                if (string.Equals(
+                    lines[index].Trim(),
+                    "Traceback (most recent call last):",
+                    StringComparison.Ordinal))
+                {
+                    header = index;
+                    break;
+                }
+            }
+            if (header < 0)
+                return false;
+
+            string? deepest = null;
+            for (int index = header + 1; index < lines.Length; index++)
+            {
+                string trimmed = lines[index].Trim();
+                if (IsPythonTerminalLine(trimmed))
+                    break;
+
+                Match frame = PythonFrame.Match(lines[index]);
+                if (frame.Success)
+                    deepest = frame.Groups["path"].Value;
+            }
+
+            path = deepest;
+            return path != null;
+        }
+
+        private static bool IsPythonTerminalLine(string value)
+        {
+            int colon = value.IndexOf(':');
+            string name = colon >= 0 ? value.Substring(0, colon) : value;
+            return name.EndsWith("Error", StringComparison.Ordinal)
+                || name.EndsWith("Exception", StringComparison.Ordinal);
+        }
+
+        private static bool LooksLikeArgumentOrInputFailure(string stderr)
+        {
+            bool argparse = stderr.IndexOf("usage:", StringComparison.OrdinalIgnoreCase) >= 0
+                && (stderr.IndexOf(": error:", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("unrecognized arguments", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("the following arguments are required", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("expected one argument", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("invalid choice", StringComparison.OrdinalIgnoreCase) >= 0);
+            if (argparse)
+                return true;
+
+            foreach (string marker in new[]
+                     {
+                         "FileNotFoundError", "NotADirectoryError", "IsADirectoryError", "PermissionError",
+                         "UnicodeDecodeError", "JSONDecodeError", "EOFError", "SystemExit",
+                         "No such file or directory", "Permission denied", "not valid JSON",
+                     })
+            {
+                if (stderr.IndexOf(marker, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool SameDiagnosticPath(string? candidate, string actual)
+        {
+            if (!TryNormalizeDiagnosticPath(candidate, out string? normalized))
+                return false;
+            try
+            {
+                return string.Equals(
+                    Path.GetFullPath(normalized!), Path.GetFullPath(actual), SkillPathGuard.PathComparison);
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return false;
+            }
+        }
+
+        private static bool TryNormalizeDiagnosticPath(string? value, out string? normalized)
+        {
+            normalized = value?.Trim();
+            if (string.IsNullOrEmpty(normalized))
+                return false;
+
+            // Do not peel text after the last '('. Python's quoted frame already
+            // supplies the literal filename, and directories such as "TensorAgent
+            // (dev)" are valid.
+            if (normalized.StartsWith("at ", StringComparison.Ordinal))
+                normalized = normalized.Substring(3).TrimStart();
+
+            if (normalized.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!Uri.TryCreate(normalized, UriKind.Absolute, out Uri? uri) || !uri.IsFile)
+                    return false;
+                normalized = uri.LocalPath;
+            }
+
+            return Path.IsPathFullyQualified(normalized);
+        }
+
+        /// <summary>
+        /// Describe a malformed workspace JSON file passed through <c>--spec</c>, or
+        /// return null when this failure does not prove that that input is the problem.
+        /// The returned excerpt is also entered in the file ledger: an immediately
+        /// following <c>edit_file</c> call may use the shown text without spending a
+        /// separate read round.
+        /// </summary>
+        private static string? InvalidJsonSpecRepairHint(
+            IReadOnlyList<string>? arguments,
+            string? stderr,
+            SessionWorkspace workspace,
+            string currentDirectory)
+        {
+            if (!LooksLikeMalformedJson(stderr))
+            {
+                return null;
+            }
+
+            string? relative = SpecArgument(arguments);
+            if (string.IsNullOrWhiteSpace(relative) || relative == "-"
+                || !relative.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                || !workspace.TryResolveFrom(currentDirectory, relative, out string full, out _)
+                || !ShellSession.TryReadBoundedRegularTextUnderRoot(
+                    workspace.WorkDirectory, full, MaxRepairInputBytes, out string source))
+            {
+                return null;
+            }
+
+            int line;
+            long byteInLine;
+            try
+            {
+                using JsonDocument _ = JsonDocument.Parse(source);
+                return null; // The stderr named JSON, but this workspace input is valid.
+            }
+            catch (JsonException ex)
+            {
+                long zeroBasedLine = Math.Max(0, ex.LineNumber ?? 0);
+                line = (int)Math.Min(int.MaxValue, zeroBasedLine + 1);
+                byteInLine = Math.Max(0, ex.BytePositionInLine ?? 0) + 1;
+            }
+
+            IReadOnlyList<string> lines = NumberedListing.SplitLines(source);
+            int total = NumberedListing.RealLineCount(lines);
+            if (total < 1 || NumberedListing.LooksBinary(lines))
+                return null;
+
+            line = Math.Clamp(line, 1, total);
+            int first = Math.Max(1, line - 3);
+            int last = Math.Min(total, line + 3);
+            var excerpt = new StringBuilder();
+            NumberedListing.Append(
+                excerpt,
+                lines,
+                first - 1,
+                last - 1,
+                NumberedListing.MaxExcerptChars,
+                NumberedListing.MaxExcerptLineChars,
+                out int lastShownIndex);
+
+            // Only authorize bytes that were shown completely.  A clipped minified
+            // JSON line must be read explicitly before it can be used as an exact edit
+            // anchor; claiming otherwise would defeat the ledger's safety contract.
+            bool exact = lastShownIndex >= first - 1;
+            for (int index = first - 1; exact && index <= lastShownIndex; index++)
+                exact = lines[index].Length <= NumberedListing.MaxExcerptLineChars;
+            if (exact)
+            {
+                workspace.Reads.Record(
+                    full,
+                    source.Replace("\r\n", "\n", StringComparison.Ordinal),
+                    first,
+                    lastShownIndex + 1,
+                    complete: first == 1 && lastShownIndex + 1 == total);
+            }
+
+            string display = Path.GetRelativePath(workspace.WorkDirectory, full)
+                .Replace(Path.DirectorySeparatorChar, '/');
+            if (Path.AltDirectorySeparatorChar != Path.DirectorySeparatorChar)
+                display = display.Replace(Path.AltDirectorySeparatorChar, '/');
+
+            var sb = new StringBuilder();
+            sb.Append("\nThis failure came from the input file '").Append(display)
+              .Append("', not from the bundled skill script. Its invalid JSON around line ")
+              .Append(line.ToString(CultureInfo.InvariantCulture)).Append(", UTF-8 byte offset ")
+              .Append(byteInLine.ToString(CultureInfo.InvariantCulture)).Append(" is:\n")
+              .Append(excerpt)
+              .Append("Fix the smallest incorrect region in '").Append(display).Append("' with `")
+              .Append(ShellTools.EditToolName)
+              .Append("`, then run the same skill call again. Do not use `")
+              .Append(ShellTools.WriteToolName)
+              .Append("` or re-type the whole spec, and do not edit or copy the bundled skill script. ")
+              .Append("If the exact edit no longer matches, read that region and retry against its current text.\n");
+            return sb.ToString();
+        }
+
+        private static bool LooksLikeMalformedJson(string? stderr)
+        {
+            if (string.IsNullOrEmpty(stderr))
+                return false;
+            if (stderr.IndexOf("not valid JSON", StringComparison.OrdinalIgnoreCase) >= 0
+                || stderr.IndexOf("JSONDecodeError", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            // Node/V8 uses several version-dependent spellings, for example
+            // "Unexpected token } in JSON at position 42" and "Unexpected end of
+            // JSON input" followed by an `at JSON.parse` frame. Requiring both a
+            // SyntaxError and JSON context avoids treating an ordinary JavaScript
+            // syntax defect as a malformed workspace spec.
+            return stderr.IndexOf("SyntaxError", StringComparison.OrdinalIgnoreCase) >= 0
+                && (stderr.IndexOf(" in JSON at position", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("JSON input", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("JSON.parse", StringComparison.OrdinalIgnoreCase) >= 0
+                    || stderr.IndexOf("JSON Parse error", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static string? SpecArgument(IReadOnlyList<string>? arguments)
+        {
+            if (arguments == null)
+                return null;
+
+            for (int index = 0; index < arguments.Count; index++)
+            {
+                string? argument = arguments[index];
+                if (string.Equals(argument, "--spec", StringComparison.Ordinal))
+                    return index + 1 < arguments.Count ? arguments[index + 1] : null;
+                if (argument != null && argument.StartsWith("--spec=", StringComparison.Ordinal))
+                    return argument.Substring("--spec=".Length);
+            }
+            return null;
         }
 
         /// <summary>
@@ -711,15 +1418,15 @@ namespace TensorSharp.AgentHost.Skills
         /// useful: the model can name the file in its answer, and the caller can find it.
         /// </summary>
         private static string Describe(
-            BoundedWriter stdout, BoundedWriter stderr, string workDirectory,
+            string stdout, string stderr, string workDirectory,
             Dictionary<string, (long Length, DateTime WriteTime)>? preRun = null,
             SessionWorkspace? workspace = null)
         {
             var sb = new StringBuilder();
             if (stdout.Length > 0)
-                sb.Append("\nstdout:\n").Append(stdout.ToStringWithNotice());
+                sb.Append("\nstdout:\n").Append(stdout);
             if (stderr.Length > 0)
-                sb.Append("\nstderr:\n").Append(stderr.ToStringWithNotice());
+                sb.Append("\nstderr:\n").Append(stderr);
 
             string[] produced = ListProducedFiles(workDirectory, preRun, workspace);
             if (produced.Length > 0)
@@ -771,24 +1478,6 @@ namespace TensorSharp.AgentHost.Skills
             if (tap == null) return;
             try { tap(line); }
             catch (Exception) { /* the tap is best-effort observability */ }
-        }
-
-        /// <summary>
-        /// How long to wait for the output pipes to drain AFTER the script itself has
-        /// exited. Bounded because a pipe held open by a process the script left running
-        /// never reaches EOF.
-        /// </summary>
-        private const int DrainMilliseconds = 2000;
-
-        private static void TryKill(SpawnedProcess process)
-        {
-            try { process.Kill(); }
-            catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or System.ComponentModel.Win32Exception)
-            {
-                // Already exited, or the platform will not walk the tree. Either way
-                // there is nothing further to do and the caller is already reporting a
-                // timeout.
-            }
         }
 
         private static void TryDeleteDirectory(string directory)
@@ -958,40 +1647,6 @@ namespace TensorSharp.AgentHost.Skills
         private static readonly IReadOnlyList<string> AllGaps =
             new SkillSandboxCapabilities(false, false, false, false).Gaps();
 
-        /// <summary>Accumulates process output up to a ceiling, then counts what it drops.</summary>
-        private sealed class BoundedWriter
-        {
-            private readonly int _limit;
-            private readonly StringBuilder _text = new();
-            private long _dropped;
-
-            public BoundedWriter(int limit) => _limit = Math.Max(1024, limit);
-
-            public int Length => _text.Length;
-
-            public void AppendLine(string line)
-            {
-                lock (_text)
-                {
-                    if (_text.Length + line.Length + 1 > _limit)
-                    {
-                        _dropped += line.Length + 1;
-                        return;
-                    }
-                    _text.Append(line).Append('\n');
-                }
-            }
-
-            public string ToStringWithNotice()
-            {
-                lock (_text)
-                {
-                    return _dropped == 0
-                        ? _text.ToString()
-                        : _text.ToString() + $"\n[{_dropped.ToString(CultureInfo.InvariantCulture)} further bytes of output were dropped.]\n";
-                }
-            }
-        }
     }
 
     /// <summary>Bounds, isolation policy and interpreter mapping for <see cref="SkillScriptRunner"/>.</summary>
@@ -1003,6 +1658,15 @@ namespace TensorSharp.AgentHost.Skills
         /// rather than run it unconfined.
         /// </summary>
         public SkillSandboxMode Sandbox { get; init; } = SkillSandboxMode.Required;
+
+        /// <summary>
+        /// What runs each script. Null is today's desktop behaviour: a confined child
+        /// process under the OS sandbox detected for <see cref="Sandbox"/>. A host that
+        /// cannot start processes supplies an in-process backend here; its
+        /// <see cref="IShellBackend.Sandbox"/> is then what <c>required</c> is judged
+        /// against.
+        /// </summary>
+        public IShellBackend? Backend { get; init; }
 
         /// <summary>Let the script reach the network. Off by default — the sandbox blocks it.</summary>
         public bool AllowNetwork { get; init; }

@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 #include <chrono>
 #include <cstdio>
@@ -494,7 +495,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
 
             // 8. post-attn norm + residual
             ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), lt.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             // 9. FFN
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), lt.ffn_norm_w);
@@ -508,7 +509,7 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
 
             // 10. post-FFN norm + residual
             ggml_tensor* post_ffn = ggml_mul(ctx, ggml_rms_norm(ctx, down_out, eps), lt.post_ffn_norm_w);
-            ggml_tensor* residual2 = ggml_add(ctx, residual1, post_ffn);
+            ggml_tensor* residual2 = ggml_add(ctx, post_ffn, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
 
             float scalar = layer_scalar_arr[l];
             if (std::fabs(scalar - 1.0f) > 1e-6f)
@@ -613,13 +614,15 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
         bind_or_mark(lm_head_t, const_cast<void*>(lm_head_data), static_cast<std::size_t>(lm_head_bytes), true);
         bind_or_mark(final_norm_t, const_cast<void*>(final_norm_data), static_cast<std::size_t>(hidden_size) * sizeof(float), true);
 
-        // Persist: every tensor gets its own slot (stable addresses for capture),
+        // Persist: stable addresses for capture; Metal shares completed attention workspaces,
         // kept alive in the pool. Non-persist: reuse the pooled compute buffer.
         BufferHandle buffer(nullptr);
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr)
             {
                 set_last_error("Gemma4 batched decode: failed to allocate persist buffer.");
@@ -627,9 +630,11 @@ TSG_EXPORT int TSGgml_Gemma4ModelDecodeBatched(
                 return 0;
             }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr)
             {
                 set_last_error("Gemma4 batched decode: failed to allocate backend buffer.");
@@ -951,7 +956,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecodeBatched(
             }
             ggml_tensor* o_out = ggml_mul_mat(ctx, t.o_w, attn_2d);
             ggml_tensor* post_attn = ggml_mul(ctx, ggml_rms_norm(ctx, o_out, eps), t.post_attn_norm_w);
-            ggml_tensor* residual1 = ggml_add(ctx, hidden, post_attn);   // [H, N]
+            ggml_tensor* residual1 = ggml_add(ctx, post_attn, hidden);   // [H, N]
 
             // ---- dense shared FFN (N tokens) ----
             ggml_tensor* ffn_normed = ggml_mul(ctx, ggml_rms_norm(ctx, residual1, eps), t.ffn_norm_w);
@@ -1001,7 +1006,7 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecodeBatched(
             mlp = ggml_add(ctx, mlp, moe_normed);
 
             ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), t.post_ffw_norm_w);
-            ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+            ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
             if (std::fabs(d.layer_output_scale - 1.0f) > 1e-9f) result = ggml_scale(ctx, result, d.layer_output_scale);
             hidden = result;
         }
@@ -1099,12 +1104,16 @@ TSG_EXPORT int TSGgml_Gemma4MoEModelDecodeBatched(
         ggml_backend_buffer_t persist_buf = nullptr;
         if (can_persist)
         {
-            persist_buf = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            persist_buf = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (persist_buf == nullptr) { set_last_error("Gemma4 MoE batched decode: persist alloc failed."); ggml_free(ctx); return 0; }
         }
-        else if (!alloc_ctx_tensors_reuse(ctx))
+        else if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
-            buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            buffer.value = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (buffer.value == nullptr) { set_last_error("Gemma4 MoE batched decode: buffer alloc failed."); return 0; }
         }
 

@@ -48,7 +48,7 @@ dotnet run --project TensorSharp.Cli -c Release -- --model models/mistralai_Mist
 Server (Web UI + OpenAI/Ollama-compatible APIs on `http://localhost:5000`):
 
 ```bash
-dotnet run --project TensorSharp.Server -c Release -- --model models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf \
+dotnet run --project TensorSharp.Server.Host -c Release -- --model models/mistralai_Mistral-Small-3.1-24B-Instruct-2503-Q4_K_M.gguf \
   --mmproj models/mmproj-mistralai_Mistral-Small-3.1-24B-Instruct-2503-f16.gguf \
   --backend ggml_cuda --max-tokens 4096
 ```

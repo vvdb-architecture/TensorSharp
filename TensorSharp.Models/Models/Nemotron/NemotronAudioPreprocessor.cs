@@ -49,9 +49,35 @@ namespace TensorSharp.Models
                 ".wav" => DecodeWAV(File.ReadAllBytes(path)),
                 ".mp3" => DecodeMp3(path),
                 ".ogg" => DecodeOgg(path),
-                _ => throw new NotSupportedException(
-                    $"Audio format '{ext}' is not supported by Nemotron Omni. Supported: .wav, .mp3, .ogg")
+                _ => DecodeViaPlatform(path),
             };
+        }
+
+        /// <summary>
+        /// Extensions the managed decoders above do not handle (.m4a / .aac / .caf / .flac, ...)
+        /// go to the platform audio decoder on <see cref="TensorSharp.Models.Media.MediaCodecs.Audio"/>,
+        /// which returns native-rate planar PCM; the mono fold and the 16 kHz resample are the
+        /// same <see cref="ToMono16k"/> the MP3/OGG paths use, so the mel front-end is unchanged.
+        /// With no platform decoder registered this throws the provider's
+        /// <see cref="NotSupportedException"/>, which names what to register.
+        /// </summary>
+        private static float[] DecodeViaPlatform(string path)
+        {
+            TensorSharp.Models.Video.DecodedAudio raw = TensorSharp.Models.Media.MediaCodecs.Audio.Decode(path);
+            if (raw is not { ChannelCount: > 0, SampleCount: > 0 })
+                throw new InvalidDataException($"The platform audio decoder returned no samples for '{path}'.");
+
+            // ToMono16k takes the interleaved layout the stream decoders produce.
+            int channels = raw.ChannelCount;
+            int frames = raw.SampleCount;
+            float[] interleaved = new float[(long)frames * channels];
+            for (int ch = 0; ch < channels; ch++)
+            {
+                float[] plane = raw.Channels[ch];
+                for (int i = 0; i < frames; i++)
+                    interleaved[(long)i * channels + ch] = plane[i];
+            }
+            return ToMono16k(interleaved, raw.SampleRate, channels);
         }
 
         public static float[] DecodeMp3(string path)

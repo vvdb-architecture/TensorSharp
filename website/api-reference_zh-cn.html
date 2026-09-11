@@ -163,7 +163,7 @@
       <tr><td><code>TS_SCHED_DISABLE_BATCHED</code></td><td><code>1</code> 强制逐序列 KV 交换（= <code>--no-continuous-batching</code>）。</td></tr>
       <tr><td><code>TS_SCHED_MAX_BATCHED_TOKENS</code></td><td>每步 token 预算（4096）。</td></tr>
       <tr><td><code>TS_SCHED_MAX_RUNNING_SEQS</code></td><td>最大在飞序列数（16）。</td></tr>
-      <tr><td><code>TS_SCHED_PREFILL_CHUNK</code></td><td>每步最大 prefill token 数（1024）。</td></tr>
+      <tr><td><code>TS_SCHED_PREFILL_CHUNK</code></td><td>混合步骤中每请求的 prefill 上限（256）；仅 prefill 时用满批预算。</td></tr>
       <tr><td><code>TS_SCHED_SOLO_PREFILL_CHUNK</code></td><td>独占 / 无竞争请求的 prefill 分块（8192）。</td></tr>
       <tr><td><code>TS_SCHED_DECODE_QUANTUM</code></td><td>切换序列前的 decode token 数（256 = 块大小）。</td></tr>
       <tr><td><code>TS_SCHED_NUM_BLOCKS / TS_SCHED_BLOCK_SIZE</code></td><td>引擎块池大小（256） / 每块 token 数（256）。</td></tr>

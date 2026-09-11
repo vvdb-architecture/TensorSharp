@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp.Runtime.Paged;
+using TensorSharp.Runtime.Speculative;
 
 namespace TensorSharp.Runtime.Scheduling
 {
@@ -31,11 +32,16 @@ namespace TensorSharp.Runtime.Scheduling
     {
         private readonly IModelArchitecture _model;
         private readonly ILogger _logger;
+        private readonly bool _stopRepetition;
         private readonly BlockPool _pool;
         private readonly ContinuousBatchScheduler _scheduler;
         private readonly BatchExecutor _executor;
 
         private readonly ConcurrentDictionary<string, InferenceRequestHandle> _handles = new();
+        // SubmitRequest is callable from multiple client threads. Serialize the
+        // short admission critical section so an in-flight RequestId is reserved
+        // before another submit can construct/queue a replacement handle.
+        private readonly object _submissionGate = new();
         private readonly Channel<EngineCommand> _commands = Channel.CreateUnbounded<EngineCommand>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
         private readonly Thread _worker;
@@ -51,6 +57,7 @@ namespace TensorSharp.Runtime.Scheduling
             _model = model ?? throw new ArgumentNullException(nameof(model));
             ArgumentNullException.ThrowIfNull(cfg);
             _logger = logger ?? NullLogger.Instance;
+            _stopRepetition = cfg.StopRepetition;   // cfg is null-checked above
 
             long blockBytes = ComputeBlockByteSize(model, cfg.BlockSize);
             int numBlocks = ResolveEffectiveNumBlocks(model, cfg, _logger);
@@ -66,10 +73,22 @@ namespace TensorSharp.Runtime.Scheduling
                 _executor.ComputeLiveContinuationLcp,
                 _executor.TryAdoptLiveCache);
             // Cross-request prefix reuse for concurrent (per-seq fused) decode:
-            // re-adopt a finished request's retained KV holder for a follow-up turn.
+            // re-adopt a finished request's complete retained holder (K/V and,
+            // for hybrid models, recurrent state) for a follow-up turn.
             _scheduler.AttachFusedCacheContinuation(
                 _executor.ComputeFusedContinuationLcp,
                 _executor.TryAdoptFusedContinuation);
+            // So admission can say WHY a turn reused nothing. The mechanisms record
+            // their reasons; only the scheduler knows which one ended up serving the
+            // request, so only it can report the outcome without guessing.
+            _scheduler.AttachReuseDiagnostics(
+                () => _executor.LastLiveContinuationDeclineReason,
+                () => _executor.LastFusedContinuationDeclineReason);
+            // Shared-prefix checkpoints: end a prefill chunk exactly where the chat
+            // layer says the shared prompt ends, so the executor can copy the model's
+            // state there and start every later new chat from that copy.
+            if (_executor.PrefixCheckpointsSupported)
+                _scheduler.EnablePrefixCheckpoints();
 
             // One-time capability report: which execution paths are statically
             // available for this model+backend under the current configuration,
@@ -102,22 +121,93 @@ namespace TensorSharp.Runtime.Scheduling
         public int RunningCount => _scheduler.RunningCount;
         public int WaitingCount => _scheduler.WaitingCount;
 
+        /// <summary>
+        /// Whether the step loop may run right now, or null for "always".
+        ///
+        /// <para>
+        /// Consulted on the worker thread between two steps, which is the one place
+        /// where no command buffer is in flight. A closed gate parks the loop there:
+        /// nothing is scheduled, nothing is submitted to the GPU, and the sequences keep
+        /// their place and their cache until it opens. It exists for iOS, where an app
+        /// that is not frontmost may not submit GPU work and ggml-metal treats a refused
+        /// command buffer as terminal — but nothing here knows that; a host that never
+        /// closes it pays one volatile read per step. See <see cref="ComputeGate"/>.
+        /// </para>
+        /// <para>
+        /// The engine cannot enforce this by being pulled less: tokens go out through an
+        /// unbounded channel and the loop runs whether or not anyone reads them, which is
+        /// what makes a reader that walks away harmless — and is also exactly why a
+        /// reader that merely stops reading cannot stop the GPU.
+        /// </para>
+        /// </summary>
+        public ComputeGate ComputeGate
+        {
+            get => Volatile.Read(ref _computeGate);
+            set => Volatile.Write(ref _computeGate, value);
+        }
+
+        private ComputeGate _computeGate;
+        private long _stepsHeldByGate;
+
+        /// <summary>
+        /// Where shared-prefix checkpoints outlive the process, or null for nowhere;
+        /// forwarded to the executor, which reads it on its own thread. See
+        /// <see cref="IPrefixCheckpointStore"/>.
+        /// </summary>
+        public IPrefixCheckpointStore PrefixCheckpointStore
+        {
+            get => _executor.PrefixCheckpointStore;
+            set => _executor.PrefixCheckpointStore = value;
+        }
+
+        /// <summary>
+        /// How many times the step loop was actually held by a closed
+        /// <see cref="ComputeGate"/>. Zero on any host that never closes it; a check
+        /// reads it to prove the loop parked rather than merely that the gate closed.
+        /// </summary>
+        public long StepsHeldByGate => Interlocked.Read(ref _stepsHeldByGate);
+
         /// <summary>Submit a sequence for inference. Returns immediately with a
         /// handle whose <see cref="InferenceRequestHandle.Tokens"/> channel
         /// streams sampled tokens.</summary>
         public InferenceRequestHandle SubmitRequest(SequenceState seq, CancellationToken ct = default)
         {
             if (seq == null) throw new ArgumentNullException(nameof(seq));
-            var handle = new InferenceRequestHandle(seq, this, ct);
-            _handles[seq.RequestId] = handle;
-            Interlocked.Increment(ref _totalSubmitted);
-
-            _commands.Writer.TryWrite(new EngineCommand
+            lock (_submissionGate)
             {
-                Kind = EngineCommandKind.Submit,
-                Sequence = seq,
-            });
-            return handle;
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_handles.ContainsKey(seq.RequestId))
+                {
+                    throw new InvalidOperationException(
+                        $"Sequence {seq.RequestId} is already submitted.");
+                }
+
+                var handle = new InferenceRequestHandle(seq, this, ct);
+                if (!_handles.TryAdd(seq.RequestId, handle))
+                {
+                    // All submitters take _submissionGate, so this is defensive
+                    // against a future registry writer outside this method.
+                    var ex = new InvalidOperationException(
+                        $"Sequence {seq.RequestId} is already submitted.");
+                    handle.CompleteWithError(ex);
+                    throw ex;
+                }
+
+                if (!_commands.Writer.TryWrite(new EngineCommand
+                    {
+                        Kind = EngineCommandKind.Submit,
+                        Sequence = seq,
+                    }))
+                {
+                    _handles.TryRemove(seq.RequestId, out _);
+                    var ex = new ObjectDisposedException(nameof(InferenceEngine));
+                    handle.CompleteWithError(ex);
+                    throw ex;
+                }
+
+                Interlocked.Increment(ref _totalSubmitted);
+                return handle;
+            }
         }
 
         /// <summary>Cancel a submitted request. Idempotent.</summary>
@@ -130,13 +220,66 @@ namespace TensorSharp.Runtime.Scheduling
             });
         }
 
+        /// <summary>
+        /// Release memory that only serves the next request's speed (retained
+        /// conversation holders beyond the newest, parked per-request holders, pooled
+        /// host buffers). Queued like an abort and applied on the engine thread between
+        /// steps, because those buffers belong to the model and a forward may be reading
+        /// them right now. Safe to call at any time; a no-op after disposal.
+        /// </summary>
+        public void TrimIdleMemory()
+        {
+            _commands.Writer.TryWrite(new EngineCommand { Kind = EngineCommandKind.Trim });
+        }
+
+        /// <summary>
+        /// Switch the speculation policy for every step from now on - what a settings
+        /// switch does while a model is loaded, instead of waiting for the next load.
+        /// Queued like a trim and applied on the engine thread between steps; the
+        /// executor drops its armed contexts and re-arms under the new policy on the
+        /// next turn. Safe to call at any time; a no-op after disposal.
+        /// </summary>
+        public void UpdateSpeculation(SpeculationOptions options)
+        {
+            _commands.Writer.TryWrite(new EngineCommand
+            {
+                Kind = EngineCommandKind.Speculation,
+                Speculation = options ?? SpeculationOptions.Disabled,
+            });
+        }
+
         public void Dispose()
         {
-            if (_disposed) return;
-            _disposed = true;
-            _shutdownCts.Cancel();
-            _commands.Writer.TryComplete();
-            try { _worker.Join(2000); } catch { /* best effort */ }
+            lock (_submissionGate)
+            {
+                if (_disposed) return;
+                _disposed = true;
+                _shutdownCts.Cancel();
+                _commands.Writer.TryComplete();
+            }
+            // Wait for the worker to actually leave its step. The caller is about to
+            // free the model's buffers and, on a recovery, the GPU backend itself; a
+            // worker still inside a graph compute when that happens is a use-after-free
+            // in a kernel, not an error. A step is bounded (one decode, or one prefill
+            // chunk), so this returns; the cap only stops a wedged native call from
+            // holding a shutdown forever. A worker parked on the compute gate leaves at
+            // once, because the gate wait uses the shutdown token.
+            if (_worker.IsAlive && Thread.CurrentThread != _worker)
+            {
+                bool left;
+                try { left = _worker.Join(TimeSpan.FromSeconds(60)); } catch { left = true; }
+                if (!left)
+                    _logger.LogWarning("InferenceEngine worker did not leave its step within 60s of shutdown; releasing anyway");
+            }
+            // Nobody is going to finish these now. A consumer awaiting one of them --
+            // another conversation's turn, on a phone -- would otherwise wait forever.
+            var abandoned = new ObjectDisposedException(nameof(InferenceEngine),
+                "The inference engine was shut down while this request was in flight.");
+            foreach (var entry in _handles)
+            {
+                if (_handles.TryRemove(entry.Key, out var handle))
+                    handle.CompleteWithError(abandoned);
+            }
         }
 
         private void WorkerLoop()
@@ -159,6 +302,20 @@ namespace TensorSharp.Runtime.Scheduling
                         if (!_commands.Reader.WaitToReadAsync(_shutdownCts.Token).AsTask().GetAwaiter().GetResult())
                             break;
                     }
+                    catch (OperationCanceledException) { break; }
+                    continue;
+                }
+
+                // Not while the host says the GPU is not ours. Between steps, so no
+                // command buffer is in flight when the loop parks; and BEFORE Schedule,
+                // so nothing is admitted or preempted on the strength of a step that is
+                // not about to run. Commands that queue while the loop is held (an Abort,
+                // a Submit) are drained at the top of the next pass, before the step they
+                // would have changed.
+                if (Volatile.Read(ref _computeGate) is ComputeGate gate && !gate.IsOpen)
+                {
+                    Interlocked.Increment(ref _stepsHeldByGate);
+                    try { gate.Wait(_shutdownCts.Token); }
                     catch (OperationCanceledException) { break; }
                     continue;
                 }
@@ -397,9 +554,9 @@ namespace TensorSharp.Runtime.Scheduling
                 if (retainFusedCache)
                 {
                     // Give the executor first refusal: a fused sequence that finished
-                    // cleanly has its per-request KV holder RETAINED (re-keyed out of the
-                    // active set) for cross-request prefix reuse, so the model release
-                    // below no-ops for it instead of disposing the still-useful K/V.
+                    // cleanly has its complete per-request state holder RETAINED
+                    // (re-keyed out of the active set) for cross-request prefix reuse,
+                    // so the model release below no-ops instead of disposing it.
                     _executor.TryRetainReleasedFusedCache(requestId);
                 }
                 else
@@ -444,17 +601,39 @@ namespace TensorSharp.Runtime.Scheduling
                     }
                     break;
 
+                case EngineCommandKind.Trim:
+                    try
+                    {
+                        _logger.LogInformation("Idle memory trimmed on the host's request: {Summary}",
+                            _executor.TrimIdleMemory());
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Trimming idle memory failed");
+                    }
+                    break;
+
+                case EngineCommandKind.Speculation:
+                    _executor.SetSpeculation(cmd.Speculation);
+                    _logger.LogInformation(
+                        "Speculation policy updated on the host's request: enabled={Enabled} algorithm={Algorithm} maxDraft={MaxDraft}",
+                        cmd.Speculation.Enabled, cmd.Speculation.SpeculatorName, cmd.Speculation.MaxDraftTokens);
+                    break;
+
                 case EngineCommandKind.Abort:
                     _scheduler.Abort(cmd.RequestId);
                     if (_model is Runtime.Scheduling.IBatchedPagedModel batchedAbort)
                     {
                         // Abort bypasses ApplyResults/NotifyReleasedSequences, so run
                         // the same executor-first cleanup before freeing model state.
+                        // The executor keeps a cleanly stopped sequence's holder (the
+                        // Stop button is the ordinary way a phone turn ends) and
+                        // declines anything inconsistent itself.
                         NotifyReleasedSequence(
                             batchedAbort,
                             cmd.RequestId,
                             seen: null,
-                            retainFusedCache: false);
+                            retainFusedCache: true);
                     }
                     if (_handles.TryRemove(cmd.RequestId, out var handle))
                     {
@@ -536,6 +715,32 @@ namespace TensorSharp.Runtime.Scheduling
                             finished = true;
                             break;
                         }
+
+                        // Stop a generation that has locked into a loop. It would
+                        // otherwise run to max-new-tokens -- hundreds of thousands
+                        // of tokens on a phone whose reply limit the user raised --
+                        // streaming the same phrase until somebody presses Stop.
+                        // Reported as its own reason so the layers above can say
+                        // what happened rather than "the answer was cut off".
+                        if (_stopRepetition
+                            && (seq.SamplingConfig?.StopRepetition ?? true)
+                            && RepetitionGuard.IsLooping(seq.OutputTokens, emittedCount, out int period, out int repeats))
+                        {
+                            TruncateUnpublishedTail(seq, emittedCount);
+                            LogSpeculationStatsIfAny(seq);
+                            _logger.LogWarning(
+                                "Request {RequestId} stopped after {Emitted} tokens: {What} (period {Period})",
+                                seq.RequestId, emittedCount,
+                                RepetitionGuard.Describe(seq.OutputTokens, emittedCount, period, repeats,
+                                    ids => _model.Tokenizer?.Decode(ids)),
+                                period);
+                            _scheduler.NotifyStop(seq, SequenceStatus.FinishedStopped, RepetitionGuard.FinishReason, output);
+                            handle?.CompleteFinished();
+                            _handles.TryRemove(seq.RequestId, out _);
+                            Interlocked.Increment(ref _totalCompleted);
+                            finished = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -563,10 +768,11 @@ namespace TensorSharp.Runtime.Scheduling
             if (st == null || (st.VerifySteps + st.PlainSteps) == 0)
                 return;
             _logger.LogInformation(
-                "Speculative decoding stats for {RequestId}: drafted={Drafted} accepted={Accepted} acceptance={Acceptance:P0} verifySteps={VerifySteps} plainSteps={PlainSteps} rollbacks={Rollbacks} | phaseMs draft={DraftMs:F0} verify={VerifyMs:F0} snapshot={SnapshotMs:F0} rollback={RollbackMs:F0} catchUp={CatchUpMs:F0} plain={PlainMs:F0}",
+                "Speculative decoding stats for {RequestId}: drafted={Drafted} accepted={Accepted} acceptance={Acceptance:P0} verifySteps={VerifySteps} plainSteps={PlainSteps} rollbacks={Rollbacks} | phaseMs draft={DraftMs:F0} verify={VerifyMs:F0} snapshot={SnapshotMs:F0} rollback={RollbackMs:F0} catchUp={CatchUpMs:F0} plain={PlainMs:F0} | governor plain={GovPlain:F1}ms/tok spec={GovSpec:F1}ms/tok wins={GovWins} losses={GovLosses} parked={GovParked}",
                 seq.RequestId, st.TokensDrafted, st.TokensAccepted, st.AcceptanceRate,
                 st.VerifySteps, st.PlainSteps, st.RollbackSteps,
-                st.DraftMs, st.VerifyMs, st.SnapshotMs, st.RollbackMs, st.CatchUpMs, st.PlainMs);
+                st.DraftMs, st.VerifyMs, st.SnapshotMs, st.RollbackMs, st.CatchUpMs, st.PlainMs,
+                st.PlainMsPerToken, st.SpecMsPerToken, st.GovernorWins, st.GovernorLosses, st.GovernorParkedSteps);
         }
 
         private static long ComputeBlockByteSize(IModelArchitecture model, int blockSize)
@@ -621,12 +827,15 @@ namespace TensorSharp.Runtime.Scheduling
             public EngineCommandKind Kind;
             public SequenceState Sequence;
             public string RequestId;
+            public SpeculationOptions Speculation;
         }
 
         private enum EngineCommandKind
         {
             Submit,
             Abort,
+            Trim,
+            Speculation,
         }
     }
 }

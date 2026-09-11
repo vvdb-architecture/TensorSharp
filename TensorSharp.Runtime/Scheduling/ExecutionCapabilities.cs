@@ -57,6 +57,10 @@ namespace TensorSharp.Runtime.Scheduling
         /// op-by-op batched kernels.</summary>
         public bool SupportsPerSequenceFusedForward { get; init; }
 
+        /// <summary>The model can retain and later re-key a completed per-request
+        /// fused holder for an exact-prefix continuation.</summary>
+        public bool SupportsRetainedFusedCache { get; init; }
+
         /// <summary>Model can migrate a sequence's K/V history from the linear
         /// cache (written by Forward / the N=1 fast path) into paged storage —
         /// prerequisite for the N=1 fast path, so a second concurrent request
@@ -116,6 +120,7 @@ namespace TensorSharp.Runtime.Scheduling
                 BatchedForwardAvailable = batched != null && batched.BatchedForwardAvailable,
                 SupportsBatchedMultimodal = batched != null && batched.SupportsBatchedMultimodal,
                 SupportsPerSequenceFusedForward = batched != null && batched.SupportsPerSequenceFusedForward,
+                SupportsRetainedFusedCache = batched != null && batched.SupportsRetainedFusedCache,
                 SupportsLinearKvMigration = batched != null && batched.SupportsLinearKVMigration,
                 SupportsKvStateSnapshot = model.SupportsKVStateSnapshot,
                 SupportsCrossSequenceKvReuse = model.SupportsCrossSequenceKvReuse,
@@ -139,6 +144,7 @@ namespace TensorSharp.Runtime.Scheduling
                 sb.Append(" (declared unavailable by model)");
             sb.Append(", batchedMultimodal=").Append(Flag(SupportsBatchedMultimodal));
             sb.Append(", perSeqFused=").Append(Flag(SupportsPerSequenceFusedForward));
+            sb.Append(", retainedFused=").Append(Flag(SupportsRetainedFusedCache));
             sb.Append(", linearKvMigration=").Append(Flag(SupportsLinearKvMigration));
             sb.Append(", kvSnapshot=").Append(Flag(SupportsKvStateSnapshot));
             sb.Append(", crossSeqKvReuse=").Append(Flag(SupportsCrossSequenceKvReuse));

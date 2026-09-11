@@ -678,6 +678,9 @@ public class BatchedExecutorTests
         var model = new BatchedStubModel("fp-pdf-boundary", peakToken: 7, maxContext: 262_144);
         var cfg = new SchedulerConfig
         {
+            // This run deliberately emits one token 65 536+ times to size the pool; the
+            // engine's loop guard would (rightly) end it at 128 tokens otherwise.
+            StopRepetition = false,
             MaxNumBatchedTokens = 65_536,
             MaxNumRunningSequences = 1,
             MaxPrefillChunkSize = 65_536,

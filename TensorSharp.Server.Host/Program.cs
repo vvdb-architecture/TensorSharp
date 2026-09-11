@@ -299,7 +299,15 @@ builder.Services.AddSingleton<ICodeRunner>(sp => codeExecOptions.Enabled
             codeArtifactStore),
         codeExecOptions)
     : null!);
-builder.Services.AddSingleton<ModelService>();
+// The model service comes from TensorSharp.Chat, which does not reference
+// TensorSharp.Distributed (it must stay linkable by hosts with no CUDA and no
+// peers), so multi-node tensor parallelism is handed in here: the factory reads
+// the TENSORSHARP_TP_* variables --tp / --tp-node-id / --tp-peers set above and
+// returns null for the ordinary single-node case.
+builder.Services.AddSingleton(sp => new ModelService(sp.GetRequiredService<ILogger<ModelService>>())
+{
+    TensorParallelGroupFactory = DistributedTensorParallel.CreateGroup,
+});
 builder.Services.AddSingleton<InferenceQueue>();
 builder.Services.AddSingleton<SessionManager>();
 // Engine is owned by ModelService now (so its lifecycle is tied to the
@@ -544,7 +552,7 @@ else
 // comes back as text/plain (an uploaded .html page must never execute in the
 // server's origin), unlisted extensions 404, and every response carries
 // X-Content-Type-Options: nosniff.
-app.UseStaticFiles(UploadContentPolicy.BuildStaticFileOptions(hostingOptions.UploadDirectory));
+app.UseStaticFiles(UploadStaticFiles.BuildStaticFileOptions(hostingOptions.UploadDirectory));
 
 app.MapHealthEndpoints(app.Environment, hostingOptions.WebUiEnabled);
 app.MapSessionEndpoints();
@@ -562,6 +570,55 @@ StartupModelLoader.LoadIfConfigured(
     app.Services.GetRequiredService<ModelService>(),
     configuredBackendInput,
     startupLogger);
+
+// Prepare the prompt every conversation shares, HERE: after the endpoints are mapped and
+// the container is live, but before app.Run binds a socket. That position is the whole
+// safety argument. The warm-up is an ordinary chat request and the engine is not
+// concurrency-safe for two of them; every other placement has to prove that no request
+// beat it to the engine, and one that loses that race is worse than not warming at all —
+// a prefill pushed onto the batched multi-sequence path never takes the checkpoint, so it
+// would cost twenty seconds and store nothing, silently. Before the port is open there is
+// no request to race.
+//
+// The cost is that the first launch after a prompt, skills, model or DATE change does not
+// answer connections until the prefill finishes. That is stated plainly in the log, and it
+// is the trade this feature exists to make: one slow startup instead of one slow first
+// message, and with the store attached above, later launches restore instead of prefill.
+if (hostingOptions.PrefixCacheEnabled && !string.IsNullOrWhiteSpace(hostingOptions.StartupModelPath))
+{
+    var warmupAdapter = app.Services.GetRequiredService<WebUiAdapter>();
+    var warmupSessions = app.Services.GetRequiredService<SessionManager>();
+    // A session of its own, never the default one: the default session has no workspace
+    // and is therefore offered different tools, which would warm a prompt no real request
+    // sends. A dedicated id also keeps the warm-up turn out of any transcript a host keeps.
+    ChatSession warmupSession = warmupSessions.CreateSession();
+    startupLogger.LogInformation(LogEventIds.HostConfiguration,
+        "Preparing the shared prompt before opening the port. The first launch after a prompt, "
+        + "skills or model change pays for it here instead of on the first message.");
+
+    // BOTH thinking modes, because both are reachable and they are different prefixes.
+    // Measured on Qwen 3.8: thinking off shares 6,459 tokens and thinking on shares 6,497
+    // — warming one does nothing whatsoever for the other. A client that omits `think`
+    // gets false (WebUiChatService reads it as a plain bool), while the bundled Web UI
+    // ships its reasoning toggle checked and sends true, so warming only one would leave
+    // half of this server's own callers on the slow path. Two checkpoints is exactly what
+    // the in-memory budget and the on-disk retention both hold.
+    foreach (bool think in new[] { false, true })
+    {
+        PrefixCacheWarmup.Result warmed = PrefixCacheWarmup
+            .RunAsync(warmupAdapter.Chat.ChatStreamAsync, warmupSession.Id, think, startupLogger)
+            .GetAwaiter().GetResult();
+        startupLogger.LogInformation(LogEventIds.HostConfiguration,
+            "Prefix cache (thinking {Think}): {Outcome}", think ? "on" : "off", warmed.ToString());
+        if (!warmed.Warmed)
+            break;
+    }
+    // The workspace goes with it. A chat session gets one lazily, and the warm-up IS a
+    // chat session, so a launch that only removed the session would leave a directory
+    // behind every time the server started.
+    warmupSessions.TryRemove(warmupSession.Id);
+    workspaceManager?.Release(warmupSession.Id);
+}
 
 StartupBanner.Emit(startupLogger, hostingOptions, hostingOptions.ListenUrls);
 

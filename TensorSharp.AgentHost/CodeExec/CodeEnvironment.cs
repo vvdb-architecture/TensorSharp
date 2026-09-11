@@ -47,6 +47,72 @@ namespace TensorSharp.AgentHost.CodeExec
     /// </summary>
     public static class CodeEnvironment
     {
+        // ---- a host with its own runtime ------------------------------------
+
+        /// <summary>What a host told <see cref="Configure"/> about the runtime it embeds.</summary>
+        private sealed record HostRuntime(
+            IReadOnlyList<string> AvailableTools,
+            Func<CodeLanguage, string?> ResolveInterpreter,
+            Func<string, Version?> PythonVersionOf);
+
+        private static volatile HostRuntime? _configured;
+        private static readonly object ConfigureGate = new();
+
+        /// <summary>
+        /// Describe an embedded runtime instead of probing PATH.
+        ///
+        /// <para>
+        /// Everything in this class answers "what can this host run" by looking at PATH,
+        /// and every answer is cached for the life of the process because PATH does not
+        /// change. A host that runs code in-process — an iOS app with CPython and
+        /// JavaScriptCore linked in — has no PATH entry for either, so without this the
+        /// shell declaration's "On this host:" line would be empty, the interpreter
+        /// shims would never be written, and the coaching that names the real
+        /// interpreter version would say nothing. The three answers a host has to give
+        /// are exactly the three this takes; the caches are dropped so nothing probed
+        /// before the call survives it.
+        /// </para>
+        /// </summary>
+        /// <param name="availableTools">What the declaration lists, e.g. <c>python3 3.13</c>, <c>node (JavaScriptCore)</c>.</param>
+        /// <param name="resolveInterpreter">The name the backend answers to for a language, or null when it has none.</param>
+        /// <param name="pythonVersionOf">The version behind an interpreter name, or null when unknown.</param>
+        public static void Configure(
+            IReadOnlyList<string> availableTools,
+            Func<CodeLanguage, string?> resolveInterpreter,
+            Func<string, Version?> pythonVersionOf)
+        {
+            ArgumentNullException.ThrowIfNull(availableTools);
+            ArgumentNullException.ThrowIfNull(resolveInterpreter);
+            ArgumentNullException.ThrowIfNull(pythonVersionOf);
+
+            lock (ConfigureGate)
+            {
+                _configured = new HostRuntime(availableTools.ToArray(), resolveInterpreter, pythonVersionOf);
+                ClearCaches();
+            }
+        }
+
+        /// <summary>Back to probing PATH, with every cache dropped. For tests.</summary>
+        public static void Reset()
+        {
+            lock (ConfigureGate)
+            {
+                _configured = null;
+                ClearCaches();
+            }
+        }
+
+        /// <summary>True between <see cref="Configure"/> and <see cref="Reset"/>.</summary>
+        public static bool IsConfigured => _configured != null;
+
+        private static void ClearCaches()
+        {
+            WhichCache.Clear();
+            InterpreterVersions.Clear();
+            _available = null;
+            CodeDiagnostics.ResetCaches();
+        }
+
         /// <summary>Names to try for each language's interpreter, in order.</summary>
         private static readonly Dictionary<CodeLanguage, string[]> Candidates = new()
         {
@@ -71,6 +137,16 @@ namespace TensorSharp.AgentHost.CodeExec
         {
             path = null;
             error = null;
+
+            if (_configured is { } configured)
+            {
+                path = configured.ResolveInterpreter(language);
+                if (!string.IsNullOrEmpty(path))
+                    return true;
+                path = null;
+                error = $"this host's runtime has no interpreter for {CodeExecOptions.NameOf(language)}";
+                return false;
+            }
 
             if (!Candidates.TryGetValue(language, out string[]? names))
             {
@@ -100,6 +176,9 @@ namespace TensorSharp.AgentHost.CodeExec
         /// </summary>
         public static Version? PythonVersionOf(string interpreter)
         {
+            if (_configured is { } configured)
+                return InterpreterVersions.GetOrAdd(interpreter, configured.PythonVersionOf);
+
             return InterpreterVersions.GetOrAdd(interpreter, path =>
             {
                 try
@@ -169,9 +248,24 @@ namespace TensorSharp.AgentHost.CodeExec
         /// anything that varies between turns costs the whole conversation its prefix reuse.
         /// </para>
         /// </summary>
-        public static IReadOnlyList<string> AvailableTools => Available.Value;
+        public static IReadOnlyList<string> AvailableTools
+        {
+            get
+            {
+                if (_configured is { } configured)
+                    return configured.AvailableTools;
+                IReadOnlyList<string>? probed = _available;
+                if (probed != null)
+                    return probed;
+                lock (ConfigureGate)
+                    return _available ??= ProbeAvailable();
+            }
+        }
 
-        private static readonly Lazy<IReadOnlyList<string>> Available = new(ProbeAvailable);
+        // A field rather than a Lazy, so Configure/Reset can drop it: a Lazy holds its
+        // first answer for the life of the process, and that answer was read off a PATH
+        // the host has just replaced.
+        private static volatile IReadOnlyList<string>? _available;
 
         private static IReadOnlyList<string> ProbeAvailable()
         {

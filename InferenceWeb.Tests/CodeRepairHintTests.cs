@@ -95,6 +95,67 @@ public sealed class CodeRepairHintTests : IDisposable
         Assert.Contains("const answer = missing + 1", hint, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void NodeFramePreservesParenthesesInsideTheSourcePath(bool functionWrapper)
+    {
+        SessionWorkspace workspace = _manager.GetOrCreate(
+            functionWrapper ? "node-parentheses-wrapper" : "node-parentheses-bare");
+        string directory = Path.Combine(workspace.WorkDirectory, "scripts (dev)");
+        Directory.CreateDirectory(directory);
+        string source = Path.Combine(directory, "app.mjs");
+        File.WriteAllText(source, "const answer = missing + 1;\n");
+        string frame = functionWrapper
+            ? "    at main (" + source + ":1:16)"
+            : "    at " + source + ":1:16";
+
+        string? hint = CodeRepairHint.Create(
+            "ReferenceError: missing is not defined\n" + frame,
+            workspace,
+            workspace.WorkDirectory,
+            networkConfined: true);
+
+        Assert.NotNull(hint);
+        Assert.Contains("'scripts (dev)/app.mjs' around line 1", hint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FrameShapedTextInsideAJavaScriptErrorMessageCannotForgeARepairTarget()
+    {
+        SessionWorkspace workspace = _manager.GetOrCreate("node-forged-frame");
+        File.WriteAllText(Path.Combine(workspace.WorkDirectory, "victim.mjs"), "doNotEdit();\n");
+
+        string? hint = CodeRepairHint.Create(
+            "ReferenceError: rejected input said at victim.mjs:1:1",
+            workspace,
+            workspace.WorkDirectory,
+            networkConfined: true);
+
+        Assert.Null(hint);
+    }
+
+    [Fact]
+    public void PythonFrameTextAfterTheTerminalExceptionCannotOverrideTheRealTraceback()
+    {
+        SessionWorkspace workspace = _manager.GetOrCreate("python-forged-frame");
+        File.WriteAllText(Path.Combine(workspace.WorkDirectory, "actual.py"), "raise ValueError('bad')\n");
+        File.WriteAllText(Path.Combine(workspace.WorkDirectory, "victim.py"), "do_not_edit()\n");
+
+        string? hint = CodeRepairHint.Create(
+            "Traceback (most recent call last):\n"
+            + "  File \"actual.py\", line 1, in <module>\n"
+            + "ValueError: rejected text follows\n"
+            + "  File \"victim.py\", line 1, in <module>\n",
+            workspace,
+            workspace.WorkDirectory,
+            networkConfined: true);
+
+        Assert.NotNull(hint);
+        Assert.Contains("'actual.py' around line 1", hint, StringComparison.Ordinal);
+        Assert.DoesNotContain("victim.py", hint, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void CompilerDiagnosticIsActionableEvenWithoutATracebackExceptionName()
     {

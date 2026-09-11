@@ -204,7 +204,7 @@ namespace TensorSharp.AgentHost.Skills
     /// </summary>
     public static class SkillPrompt
     {
-        /// <summary>The heading the block opens with. Also how tests find it.</summary>
+        /// <summary>The heading that identifies the skills block. Also how tests find it.</summary>
         public const string BlockHeading = "## Agent skills";
 
         /// <summary>
@@ -309,11 +309,27 @@ namespace TensorSharp.AgentHost.Skills
                 }
             }
 
+            // How long each catalog line may be. Normally the caller's cap, but when the
+            // catalog does not fit at that length the entries are SHORTENED rather than
+            // dropped, because a skill the model never hears of cannot be asked for.
+            //
+            // This is not hypothetical. TensorAgent's bundled descriptions came to about
+            // 1,450 tokens against a 1,024-token budget, and the fill below is ordinal by
+            // id — so `documents` and `research`, the two the app's own router depends on,
+            // were evicted by alphabetical luck while two 990-character entries ahead of
+            // them took half the budget. Asked to look something up, the model listed the
+            // skills it could see, found nothing that fetches a page, and refused. One
+            // sentence each about all of them beats three sentences each about half; the
+            // full text is one skills_read away either way. (Those two oversized entries
+            // have since been unbundled for a different reason, and the catalog still
+            // does not fit at full length, so this is still what makes it fit.)
+            int describeChars = FitCatalogDescriptions(discoverable, options, budget - spent);
+
             var listed = new List<Skill>();
             int omitted = 0;
             foreach (Skill skill in discoverable)
             {
-                int cost = SkillTextBudget.ApproximateTokens(skill.Description) + 16;
+                int cost = CatalogEntryTokens(skill, describeChars);
                 if (listed.Count >= options.MaxCatalogEntries || spent + cost > budget)
                 {
                     omitted++;
@@ -323,7 +339,7 @@ namespace TensorSharp.AgentHost.Skills
                 spent += cost;
             }
 
-            string instructions = Render(inlined, deferred, listed, omitted, options);
+            string instructions = Render(inlined, deferred, listed, omitted, options, describeChars);
             return new SkillPlan(
                 instructions,
                 chosen,
@@ -452,6 +468,7 @@ namespace TensorSharp.AgentHost.Skills
             AudioPaths = message.AudioPaths != null ? new List<string>(message.AudioPaths) : null,
             TextFilePaths = message.TextFilePaths != null ? new List<string>(message.TextFilePaths) : null,
             TextFileNames = message.TextFileNames != null ? new List<string>(message.TextFileNames) : null,
+            HasFileBackedTextAttachments = message.HasFileBackedTextAttachments,
             IsVideo = message.IsVideo,
             ToolCalls = message.ToolCalls != null ? new List<ToolCall>(message.ToolCalls) : null,
             ToolCallId = message.ToolCallId,
@@ -489,14 +506,21 @@ namespace TensorSharp.AgentHost.Skills
             IReadOnlyList<Skill> deferred,
             IReadOnlyList<Skill> catalog,
             int omitted,
-            SkillPromptOptions options)
+            SkillPromptOptions options,
+            int describeChars)
         {
             var sb = new StringBuilder();
+            // Establish the user's task before presenting descriptions of other work
+            // the model could do. In particular, missing details call for a question,
+            // not a speculative tool call against the nearest-sounding skill.
+            if (options.ToolsAvailable && options.IncludeUsageInstructions)
+                sb.Append(SelectionWithTools).Append("\n\n");
             sb.Append(BlockHeading).Append('\n');
             sb.Append(
                 "A skill is a set of instructions stored in a SKILL.md file, together with any scripts, "
                 + "references and assets it ships. Treat a skill's instructions as authoritative for the "
-                + "task it covers, above your default approach.\n");
+                + "task it covers, above your default approach. Skills are optional: listing or selecting "
+                + "one does not make it relevant to every request.\n");
 
             if (inlined.Count > 0 || deferred.Count > 0)
             {
@@ -536,7 +560,7 @@ namespace TensorSharp.AgentHost.Skills
                 foreach (Skill skill in catalog)
                 {
                     sb.Append("- ").Append(skill.Id).Append(": ")
-                      .Append(Trim(skill.Description, options.MaxCatalogDescriptionChars)).Append('\n');
+                      .Append(Trim(skill.Description, describeChars)).Append('\n');
                 }
                 if (omitted > 0)
                 {
@@ -626,6 +650,52 @@ namespace TensorSharp.AgentHost.Skills
         private static string Trim(string text, int maxChars) => SkillTextBudget.Truncate(text, maxChars);
 
         /// <summary>
+        /// What one catalog line costs at a given description length. Charged against
+        /// the SAME text <see cref="Render"/> will emit — the two used to disagree, so a
+        /// shorter cap shortened the line without buying any room.
+        /// </summary>
+        private static int CatalogEntryTokens(Skill skill, int describeChars) =>
+            SkillTextBudget.ApproximateTokens(Trim(skill.Description, describeChars)) + 16;
+
+        /// <summary>
+        /// The longest description length at which EVERY catalog entry fits the budget,
+        /// or the caller's cap when they already do.
+        ///
+        /// <para>
+        /// A ladder rather than a solve: the lengths are few, the catalog is short, and a
+        /// value that moves smoothly with the number of skills would change the rendered
+        /// prompt — and so the KV-cache prefix — every time a skill is installed. Below
+        /// the floor nothing is shortened further and the caller's fill runs as before,
+        /// reporting what it had to omit.
+        /// </para>
+        /// </summary>
+        private static int FitCatalogDescriptions(
+            IReadOnlyList<Skill> discoverable, SkillPromptOptions options, int room)
+        {
+            int cap = options.MaxCatalogDescriptionChars;
+            if (discoverable.Count == 0)
+                return cap;
+
+            // Only the entries that can be LISTED need to fit: past MaxCatalogEntries the
+            // fill stops anyway. Bailing out to the full cap here instead was the original
+            // bug restored at exactly the size where it hurts most — the more skills are
+            // installed, the longer each entry was allowed to be, and the fewer got in.
+            int fitting = Math.Min(discoverable.Count, options.MaxCatalogEntries);
+
+            foreach (int candidate in new[] { cap, 512, 320, 240, 160 })
+            {
+                if (candidate > cap)
+                    continue;
+                long total = 0;
+                for (int i = 0; i < fitting; i++)
+                    total += CatalogEntryTokens(discoverable[i], candidate);
+                if (total <= room)
+                    return candidate;
+            }
+            return Math.Min(cap, 160);
+        }
+
+        /// <summary>
         /// Guidance for the normal case, where the model can fetch what it needs.
         ///
         /// <para>
@@ -637,12 +707,19 @@ namespace TensorSharp.AgentHost.Skills
         /// (progressive disclosure only saves context if the model exercises it).
         /// </para>
         /// </summary>
+        private const string SelectionWithTools =
+            "Determine the subject and requested action from the latest user message before choosing tools. "
+            + "Only use a skill if BOTH match its description. Skill availability does not imply relevance. "
+            + "If required details are missing, ask the user for them before calling tools. "
+            + "If no skill matches, respond directly or use another appropriate tool.";
+
         private const string UsageWithTools =
-            "- Decide first. If a skill's description matches the task, use it; if none does, work normally. "
-            + "Do not use a skill just because it is listed.\n"
-            + "- Load before acting. The moment you decide to use a skill, call "
-            + "skills_read(skill=\"<name>\", path=\"SKILL.md\") and read the whole result - before any "
-            + "other tool call, and before writing any part of the answer that skill covers. If several "
+            "- Decide first. Use a skill only when its described scope matches the user's current request. "
+            + "Needing current information alone does not make a skill relevant. If none matches, answer "
+            + "normally or use another appropriate tool; do not call skills_list or skills_read just to start a turn.\n"
+            + "- Load before using. Once you have chosen a matching skill, call "
+            + "skills_read(skill=\"<name>\", path=\"SKILL.md\") and read the whole result before doing "
+            + "the work that skill covers. Reading a skill is not a prerequisite for unrelated tools or answers. If several "
             + "skills apply, read them all in the same turn rather than one per turn.\n"
             + "- A description is not a skill. You have read a skill's instructions only when the result "
             + "of that call is in this conversation. Never follow, summarise or paraphrase instructions "

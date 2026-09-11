@@ -8,6 +8,7 @@
 // TensorSharp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the BSD-3-Clause License for more details.
 #include "ggml_ops_internal.h"
+#include "ggml_ops_attention_alloc.h"
 #include "ggml_ops_transformer_common.h"
 
 #include <algorithm>
@@ -28,7 +29,7 @@ using namespace tsg;
 // replay dereferences freed device memory (the documented persistent-graph
 // use-after-free class).
 extern void tsg_q35_drop_decode_graphs_for_kv(const void* k_cache0);
-extern "C" void TSGgml_Qwen35ResetVerifyCache();
+extern "C" void TSGgml_Qwen35ResetVerifyCacheForHostPointer(const void* host_ptr);
 
 // ============================================================================
 // Qwen3.5/3.8 SLOT-STABLE ARENA token-batched decode: N concurrent sequences,
@@ -78,9 +79,9 @@ extern "C" void TSGgml_Qwen35ResetVerifyCache();
 //     pool reset. on_drop (InvalidateHostBuffer chain, holder dispose)
 //     discards without flushing — the host was rewritten behind us.
 //
-// v1 gates (decline -> engine round-robins, correctness never at risk):
-// CUDA backend, no TP, F32 KV cache only, no MoE CPU offload, folded lm_head,
-// uniform attention geometry across layers, no-wrap positions.
+// Gates (decline -> engine round-robins, correctness never at risk):
+// CUDA or Metal backend, no TP, F32/F16 KV cache only, no MoE CPU offload,
+// folded lm_head, uniform attention geometry across layers, no-wrap positions.
 // ============================================================================
 namespace
 {
@@ -111,6 +112,7 @@ namespace
         int cache_rows = 0;
         std::int64_t len = 0;                   // arena KV rows [0, len) valid
         std::int64_t clean = 0;                 // KV rows [clean, len) not yet in host
+        bool state_seeded = false;              // conv/delta arena slice holds this sequence's state
         bool state_dirty = false;               // GDN arena state newer than host
         std::uint64_t last_used = 0;
     };
@@ -275,7 +277,13 @@ namespace
             // against the re-uploaded copies instead of replaying freed memory.
             if (!sl.k_hosts.empty())
                 tsg_q35_drop_decode_graphs_for_kv(sl.k_hosts[0]);
-            TSGgml_Qwen35ResetVerifyCache();
+            // Retire only graphs that actually pin this slot's model buffers.
+            // A process-global reset can destroy another live Qwen35 model's
+            // deferred snapshot between verify and commit.
+            const void* verify_host = !sl.k_hosts.empty() ? sl.k_hosts[0]
+                : (!sl.conv_hosts.empty() ? sl.conv_hosts[0]
+                    : (!sl.delta_hosts.empty() ? sl.delta_hosts[0] : nullptr));
+            TSGgml_Qwen35ResetVerifyCacheForHostPointer(verify_host);
         }
         qab_unregister_slot(sl);
     }
@@ -401,6 +409,17 @@ TSG_EXPORT void TSGgml_Qwen35ArenaFlushHostPointer(void* host_ptr)
     tsg_q35arena::on_external_touch(host_ptr);
 }
 
+// Retire one arena slot without copying its device-resident state back to the
+// host. Completed requests deliberately use this path before their holder is
+// pooled: the host buffers will be reset for a different request, so flushing
+// the old request over those buffers later would corrupt the new sequence.
+// Unlike TSGgml_InvalidateHostBuffer this does not evict the normal resident
+// copy or reset persistent graphs belonging to unrelated active holders.
+TSG_EXPORT void TSGgml_Qwen35ArenaDiscardHostPointer(void* host_ptr)
+{
+    tsg_q35arena::on_drop(host_ptr);
+}
+
 // Drop all arena state. Dirty slots flush to their host bytes first on the
 // active rank. Like the GPT-OSS arena pool, this is NOT chained into the solo
 // TSGgml_Qwen35ResetDecodeCache (the solo pool churns per holder swap and
@@ -439,6 +458,9 @@ TSG_EXPORT void TSGgml_Qwen35ArenaResetBatchedDecodeCache()
 //   token_ids/positions: [n_seqs]; embedding happens in-graph (get_rows).
 //   logits_data [vocab, n_seqs] filled when want_logits; sampled_data [n_seqs]
 //   filled when non-null (in-graph argmax, first-max ties).
+// Returns 1 on success, 0 when declining before graph execution (safe for the
+// managed serial fallback), and -1 when graph execution failed after recurrent
+// state may have been partially advanced (the affected requests must fail).
 // ============================================================================
 TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
     const TSGgmlQwen35LayerDesc* layers, int num_layers, int n_seqs,
@@ -465,9 +487,9 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
     {
         if (!ensure_backend())
             return 0;
-        if (g_backend_type != BACKEND_TYPE_CUDA)
+        if (g_backend_type != BACKEND_TYPE_CUDA && g_backend_type != BACKEND_TYPE_METAL)
         {
-            set_last_error("Qwen3.5 arena batched decode: CUDA backend only (v1).");
+            set_last_error("Qwen3.5 arena batched decode: requires CUDA or Metal.");
             return 0;
         }
         if (layers == nullptr || num_layers <= 0 || n_seqs < 2 ||
@@ -492,9 +514,19 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             set_last_error("Qwen3.5 arena batched decode: folded lm_head + token embedding required.");
             return 0;
         }
-        if (kv_cache_type != GGML_TYPE_F32 && kv_cache_type != GGML_TYPE_F16)
+        // F32/F16 plus the two block-quantized cache types the solo fused graphs
+        // already run. Nothing in this file is dtype-specific: the arenas are created
+        // with static_cast<ggml_type>(kv_cache_type) and every join, flush and view
+        // strides by ggml_row_size(kv_type, head_dim), so a quantized row is simply a
+        // shorter row (hd=256 at Q8_0 is 8 blocks = 272 bytes) and every offset stays
+        // a whole multiple of it. What actually decides the answer is whether the
+        // BACKEND has kernels for the arena's set_rows and 4-D flash_attn shapes at
+        // this type - and that is checked below on the built nodes, where a miss
+        // aborts the build and the caller falls back to round-robin serving.
+        if (kv_cache_type != GGML_TYPE_F32 && kv_cache_type != GGML_TYPE_F16 &&
+            kv_cache_type != GGML_TYPE_Q8_0 && kv_cache_type != GGML_TYPE_Q4_0)
         {
-            set_last_error("Qwen3.5 arena batched decode: F32/F16 KV cache only.");
+            set_last_error("Qwen3.5 arena batched decode: F32/F16/Q8_0/Q4_0 KV cache only.");
             return 0;
         }
         if (head_k_dim != head_v_dim || conv_kernel <= 1)
@@ -904,7 +936,16 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
                     g_all = ggml_mul(ctx, g_all, t.ssm_a_w);
 
                     // Per-slot recurrent chain over the persistent state slices.
-                    ggml_tensor* gdn_batch = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, value_dim, n_slots);
+                    // Metal's concurrent graph scheduler needs an explicit
+                    // producer -> consumer edge for every output column. A set
+                    // of independent cpy graph outputs can otherwise race the
+                    // consumer of gdn_batch. Keep CUDA's established copy graph
+                    // unchanged and use concat to express that dependency only
+                    // on Metal.
+                    const bool dependency_batch = g_backend_type == BACKEND_TYPE_METAL;
+                    ggml_tensor* gdn_batch = dependency_batch
+                        ? nullptr
+                        : ggml_new_tensor_2d(ctx, GGML_TYPE_F32, value_dim, n_slots);
                     for (int s = 0; s < n_slots; s++)
                     {
                         ggml_tensor* conv_slice = ggml_view_2d(ctx, e.conv_arena[l], convDim, conv_dim,
@@ -928,8 +969,8 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
                         ggml_tensor* v_c = ggml_view_2d(ctx, conv_out_1d, head_v_dim, num_v_heads,
                             static_cast<std::size_t>(head_v_dim) * sizeof(float),
                             static_cast<std::size_t>(2 * key_dim) * sizeof(float));
-                        q_c = ggml_l2_norm(ctx, q_c, eps);
-                        k_c = ggml_l2_norm(ctx, k_c, eps);
+                        q_c = build_gdn_l2_norm(ctx, q_c, eps);
+                        k_c = build_gdn_l2_norm(ctx, k_c, eps);
 
                         ggml_tensor* q4 = ggml_reshape_4d(ctx, q_c, head_k_dim, num_k_heads, 1, 1);
                         ggml_tensor* k4 = ggml_reshape_4d(ctx, k_c, head_k_dim, num_k_heads, 1, 1);
@@ -960,9 +1001,19 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
                         state_writes.push_back(ggml_cpy(ctx, new_state, state4));
 
                         ggml_tensor* gdn_out = ggml_view_1d(ctx, gdn, value_dim, 0);
-                        ggml_tensor* out_col = ggml_view_1d(ctx, gdn_batch, value_dim,
-                            static_cast<std::size_t>(s) * gdn_batch->nb[1]);
-                        state_writes.push_back(ggml_cpy(ctx, gdn_out, out_col));
+                        if (dependency_batch)
+                        {
+                            ggml_tensor* gdn_col = ggml_reshape_2d(ctx, gdn_out, value_dim, 1);
+                            gdn_batch = gdn_batch == nullptr
+                                ? gdn_col
+                                : ggml_concat(ctx, gdn_batch, gdn_col, 1);
+                        }
+                        else
+                        {
+                            ggml_tensor* out_col = ggml_view_1d(ctx, gdn_batch, value_dim,
+                                static_cast<std::size_t>(s) * gdn_batch->nb[1]);
+                            state_writes.push_back(ggml_cpy(ctx, gdn_out, out_col));
+                        }
                     }
 
                     // Batched gated RMSNorm + output projection over the collected
@@ -1153,7 +1204,9 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             // pool, which is what lets this graph survive prefills and holder
             // churn. Zero it: fattn reads masked-but-unwritten arena rows, and
             // recycled VRAM decodes as NaN which survives the -inf mask.
-            e.buffer = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
+            e.buffer = (g_backend_type == BACKEND_TYPE_METAL
+                ? alloc_ctx_tensors_with_attention_reuse(ctx, e.graph, g_backend)
+                : ggml_backend_alloc_ctx_tensors(ctx, g_backend));
             if (e.buffer == nullptr)
                 return abort_build("failed to allocate the arena backend buffer.");
             ggml_backend_buffer_clear(e.buffer, 0);
@@ -1246,6 +1299,7 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             sl.cache_rows = cache_sizes[i];
             sl.len = 0;
             sl.clean = 0;
+            sl.state_seeded = false;
             sl.state_dirty = false;
             sl.k_hosts.resize(attn_layers);
             sl.v_hosts.resize(attn_layers);
@@ -1273,11 +1327,12 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             for (const void* p : sl.delta_hosts) reg[p] = {entry_idx, s};
         }
 
-        // Joins: seed arena slices for slots whose valid length lags this
-        // call's position. KV comes from the resident device copy when one is
-        // current (post solo decode), else from the host bytes (post prefill).
-        // GDN state seeds the same way, except a host-authoritative holder
-        // forces the host source.
+        // Joins: extend KV when a slot's valid length lags this call's position,
+        // and independently seed the complete GDN state when a slot is newly
+        // assigned or rolled back (including position zero). KV comes from the
+        // resident device copy when one is current (post solo decode), else from
+        // the host bytes (post prefill). GDN state uses the same source rule,
+        // except a host-authoritative holder forces the host source.
         std::vector<char> bounce;
         for (int i = 0; i < n_seqs; i++)
         {
@@ -1294,9 +1349,12 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
                 // back through its own solo paths.
                 sl.len = 0;
                 sl.clean = 0;
+                sl.state_seeded = false;
                 sl.state_dirty = false;
             }
-            if (sl.len < pos)
+            const bool needs_kv_join = sl.len < pos;
+            const bool needs_state_seed = !sl.state_seeded || needs_kv_join;
+            if (needs_kv_join)
             {
                 const std::int64_t from = sl.len;
                 const std::size_t bytes = static_cast<std::size_t>(pos - from) * row_bytes;
@@ -1328,33 +1386,39 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
                     }
                     al++;
                 }
-                {
-                    const bool force_host = gdn_host_auth[i] != 0;
-                    bounce.resize(std::max(convBytes, deltaBytes));
-                    for (int l = 0, gl = 0; l < num_layers; l++)
-                    {
-                        if (layers[l].is_recurrent == 0) continue;
-                        const void* ch = sl.conv_hosts[gl];
-                        const void* dh = sl.delta_hosts[gl];
-                        if (!qab_read_source(ch, 0, convBytes, convBytes, bounce.data(), force_host))
-                        {
-                            set_last_error("Qwen3.5 arena batched decode: conv state join read failed.");
-                            return 0;
-                        }
-                        ggml_backend_tensor_set(e.conv_arena[l], bounce.data(),
-                            static_cast<std::size_t>(s) * convBytes, convBytes);
-                        if (!qab_read_source(dh, 0, deltaBytes, deltaBytes, bounce.data(), force_host))
-                        {
-                            set_last_error("Qwen3.5 arena batched decode: delta state join read failed.");
-                            return 0;
-                        }
-                        ggml_backend_tensor_set(e.delta_arena[l], bounce.data(),
-                            static_cast<std::size_t>(s) * deltaBytes, deltaBytes);
-                        gl++;
-                    }
-                }
                 sl.len = pos;
                 sl.clean = pos;
+            }
+            // Recurrent state is not a KV row prefix. A newly assigned (or
+            // rolled-back) slot must seed its complete conv/delta state even at
+            // position zero, where there are no KV rows to join. Otherwise the
+            // first decode reuses the previous occupant's arena state.
+            if (needs_state_seed)
+            {
+                const bool force_host = gdn_host_auth[i] != 0;
+                bounce.resize(std::max(convBytes, deltaBytes));
+                for (int l = 0, gl = 0; l < num_layers; l++)
+                {
+                    if (layers[l].is_recurrent == 0) continue;
+                    const void* ch = sl.conv_hosts[gl];
+                    const void* dh = sl.delta_hosts[gl];
+                    if (!qab_read_source(ch, 0, convBytes, convBytes, bounce.data(), force_host))
+                    {
+                        set_last_error("Qwen3.5 arena batched decode: conv state join read failed.");
+                        return 0;
+                    }
+                    ggml_backend_tensor_set(e.conv_arena[l], bounce.data(),
+                        static_cast<std::size_t>(s) * convBytes, convBytes);
+                    if (!qab_read_source(dh, 0, deltaBytes, deltaBytes, bounce.data(), force_host))
+                    {
+                        set_last_error("Qwen3.5 arena batched decode: delta state join read failed.");
+                        return 0;
+                    }
+                    ggml_backend_tensor_set(e.delta_arena[l], bounce.data(),
+                        static_cast<std::size_t>(s) * deltaBytes, deltaBytes);
+                    gl++;
+                }
+                sl.state_seeded = true;
             }
         }
 
@@ -1392,9 +1456,12 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             set_last_error("Qwen3.5 arena batched decode: graph execution failed.");
             // A partially executed graph may have advanced SOME layers' GDN
             // state for this call's slots and not others — that mixed state is
-            // unrecoverable, so those slots are dropped without a state flush
-            // (their pre-step KV rows [clean,len) are still coherent and are
-            // flushed; the engine re-serves the token solo from host truth).
+            // unrecoverable. Dropping without a state flush avoids overwriting
+            // host memory with that mixed state, but the host may also predate
+            // earlier successful arena steps. Return the distinct fail-closed
+            // status -1: managed code must fail the affected sequences instead
+            // of re-serving this token through a stale serial recurrent state.
+            // Their pre-step KV rows [clean,len) remain coherent and are flushed.
             for (int i = 0; i < n_seqs; i++)
             {
                 QabSlot& sl = e.slots[slot_of[i]];
@@ -1403,7 +1470,7 @@ TSG_EXPORT int TSGgml_Qwen35ArenaDecodeBatched(
             qab_flush_entry(e);
             e.release_graph();
             e.slots.clear();
-            return 0;
+            return -1;
         }
 
         const bool need_logits = (want_logits != 0) || (sampled_data != nullptr && !e.has_argmax);

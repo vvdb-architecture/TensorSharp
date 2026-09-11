@@ -24,21 +24,15 @@ namespace TensorSharp.Runtime.Scheduling
         /// to vLLM's <c>max_num_seqs</c>. Default 16.</summary>
         public int MaxNumRunningSequences { get; init; } = 16;
 
-        /// <summary>Maximum number of new tokens to schedule for a single
-        /// sequence's prefill in one step. Chunked prefill caps the per-step
-        /// work on long prompts and lets decode sequences interleave with
-        /// long prompts. Default 1024.
-        ///
-        /// Historical note: an earlier benchmark with the (since-disabled-by-
-        /// default) N=1 fast path in <see cref="BatchExecutor.ExecuteStep"/>
-        /// showed smaller chunks hurt wall-clock for mixed prefill+decode
-        /// workloads ÔÇö that path got the first request through fused decode
-        /// before the second one arrived, and small chunks pushed more of
-        /// it onto the slow batched path. With the fast path off by default
-        /// the chunk-size sensitivity is much milder; 1024 is still a sane
-        /// default. Overridable via <c>TS_SCHED_PREFILL_CHUNK</c> env var
-        /// or the <c>--prefill-chunk-size</c> CLI flag.</summary>
-        public int MaxPrefillChunkSize { get; init; } = 1024;
+        /// <summary>Maximum number of new prefill tokens to schedule per
+        /// sequence in a mixed prefill+decode step. This bounds the time an
+        /// already-streaming request waits behind one long-prompt forward.
+        /// When every active request is still prefilling, the scheduler instead
+        /// divides the complete <see cref="MaxNumBatchedTokens"/> budget evenly
+        /// so the accelerator is not left half idle. Default 256. Overridable
+        /// via <c>TS_SCHED_PREFILL_CHUNK</c> or
+        /// <c>--prefill-chunk-size</c>.</summary>
+        public int MaxPrefillChunkSize { get; init; } = 256;
 
         /// <summary>Per-step prefill token cap used ONLY when there is no GPU
         /// contention ÔÇö i.e. at most one sequence is in the system (running +
@@ -69,6 +63,15 @@ namespace TensorSharp.Runtime.Scheduling
         /// when the free queue is empty. Default true.</summary>
         public bool EnablePrefixCaching { get; init; } = true;
 
+        /// <summary>
+        /// End a sequence whose output has locked into a loop (see
+        /// <see cref="RepetitionGuard"/>) with the finish reason <c>repetition</c>,
+        /// instead of running it to its token limit. On by default; a harness that
+        /// deliberately generates the same token thousands of times turns it off.
+        /// Env: <c>TS_SCHED_STOP_REPETITION</c>.
+        /// </summary>
+        public bool StopRepetition { get; init; } = true;
+
         /// <summary>How many decode steps a running sequence is allowed to run
         /// consecutively before the scheduler may swap to another sequence.
         /// In the current C# executor each session-switch pays a KV-state
@@ -89,17 +92,35 @@ namespace TensorSharp.Runtime.Scheduling
 
         public static SchedulerConfig Default => new();
 
+        /// <summary>This configuration with a different speculation policy: the
+        /// executor swaps it at run time when the host toggles speculation, so the
+        /// planner (a pure function of the config) sees the change on the next step.</summary>
+        public SchedulerConfig WithSpeculation(SpeculationOptions speculation) => new()
+        {
+            MaxNumBatchedTokens = MaxNumBatchedTokens,
+            MaxNumRunningSequences = MaxNumRunningSequences,
+            MaxPrefillChunkSize = MaxPrefillChunkSize,
+            SoloPrefillChunkSize = SoloPrefillChunkSize,
+            NumBlocks = NumBlocks,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = EnablePrefixCaching,
+            StopRepetition = StopRepetition,
+            DecodeQuantumTokens = DecodeQuantumTokens,
+            Speculation = speculation ?? SpeculationOptions.Disabled,
+        };
+
         public static SchedulerConfig FromEnvironment()
         {
             var cfg = new SchedulerConfig
             {
                 MaxNumBatchedTokens = ReadInt("TS_SCHED_MAX_BATCHED_TOKENS", 4096),
                 MaxNumRunningSequences = ReadInt("TS_SCHED_MAX_RUNNING_SEQS", 16),
-                MaxPrefillChunkSize = ReadInt("TS_SCHED_PREFILL_CHUNK", 1024),
+                MaxPrefillChunkSize = ReadInt("TS_SCHED_PREFILL_CHUNK", 256),
                 SoloPrefillChunkSize = ReadInt("TS_SCHED_SOLO_PREFILL_CHUNK", 8192),
                 NumBlocks = ReadInt("TS_SCHED_NUM_BLOCKS", 256),
                 BlockSize = ReadInt("TS_SCHED_BLOCK_SIZE", 256),
                 EnablePrefixCaching = ReadBool("TS_SCHED_PREFIX_CACHE", true),
+                StopRepetition = ReadBool("TS_SCHED_STOP_REPETITION", true),
                 DecodeQuantumTokens = ReadInt("TS_SCHED_DECODE_QUANTUM", 256),
                 Speculation = SpeculationOptions.FromEnvironment(),
             };

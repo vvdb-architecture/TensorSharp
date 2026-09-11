@@ -664,13 +664,13 @@ namespace TensorSharp.Models.MiniMaxH3
             // whole number of latent frames.
             while (frames % 17 != 5) frames--;
 
-            RgbImage first = ImageIO.Load(files[0]);
+            RgbImage first = QwenImage.ImageIO.Load(files[0]);
             var (w, h) = ReferenceVideoCanvas(first.Width, first.Height);
             var clip = new List<RgbImage>(frames);
             for (int i = 0; i < frames; i++)
             {
-                RgbImage src = i == 0 ? first : ImageIO.Load(files[i]);
-                clip.Add(src.Width == w && src.Height == h ? src : ImageIO.Resize(src, w, h));
+                RgbImage src = i == 0 ? first : QwenImage.ImageIO.Load(files[i]);
+                clip.Add(src.Width == w && src.Height == h ? src : QwenImage.ImageIO.Resize(src, w, h));
             }
             Console.WriteLine($"  [h3] reference video: {files.Count} frames at 24 fps " +
                               $"(source {sourceFps:F2} fps) -> {frames} frames at {w}x{h}");
@@ -737,7 +737,7 @@ namespace TensorSharp.Models.MiniMaxH3
                 double scale = Math.Min(1.0, Math.Sqrt(targetArea / ((double)image.Width * image.Height)));
                 int w = SnapToVaeGrid(image.Width * scale);
                 int h = SnapToVaeGrid(image.Height * scale);
-                return w == image.Width && h == image.Height ? image : ImageIO.Resize(image, w, h);
+                return w == image.Width && h == image.Height ? image : QwenImage.ImageIO.Resize(image, w, h);
             }
 
             var paths = p.ReferenceImagePaths;
@@ -763,7 +763,7 @@ namespace TensorSharp.Models.MiniMaxH3
                     $"reference images; {paths.Count} were supplied.", nameof(p));
 
             var images = new List<RgbImage>(paths.Count);
-            foreach (string path in paths) images.Add(Fit(ImageIO.Load(path)));
+            foreach (string path in paths) images.Add(Fit(QwenImage.ImageIO.Load(path)));
             return images;
         }
 
@@ -894,12 +894,12 @@ namespace TensorSharp.Models.MiniMaxH3
             if (first != null)
             {
                 WarnOnAspectCrop(first, shape);
-                frames.Add(ImageIO.ResizeCover(first, shape.Width, shape.Height));
+                frames.Add(QwenImage.ImageIO.ResizeCover(first, shape.Width, shape.Height));
                 atEnd.Add(false);
             }
             if (last != null)
             {
-                frames.Add(ImageIO.ResizeCover(last, shape.Width, shape.Height));
+                frames.Add(QwenImage.ImageIO.ResizeCover(last, shape.Width, shape.Height));
                 atEnd.Add(true);
             }
         }

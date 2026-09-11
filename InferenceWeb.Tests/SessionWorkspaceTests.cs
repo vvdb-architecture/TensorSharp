@@ -10,6 +10,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using TensorSharp.AgentHost.CodeExec;
@@ -100,6 +101,44 @@ public class SessionWorkspaceTests : IDisposable
         CodeExecResult second = RunPython(runner, workspace, "print(open('step1.txt').read())");
         Assert.True(second.Ok, second.Content);
         Assert.Contains("from step one", second.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TryCreateFile_ReportsATargetCollisionWithoutReplacingItsBytes()
+    {
+        SessionWorkspace workspace = Manager().GetOrCreate("create-collision");
+        string target = Path.Combine(workspace.WorkDirectory, "repair.py");
+        const string existing = "print('edited repair')\n";
+        File.WriteAllText(target, existing);
+
+        bool created = workspace.TryCreateFile(
+            "repair.py", "print('bundled source')\n", out bool alreadyExists, out string? error);
+
+        Assert.False(created);
+        Assert.True(alreadyExists);
+        Assert.Contains("already exists", error!, StringComparison.Ordinal);
+        Assert.Equal(existing, File.ReadAllText(target));
+        Assert.Empty(Directory.GetFiles(
+            workspace.WorkDirectory, ".tensorsharp-create-*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public void TryCreateFile_ReportsParentConstructionFailureAsAnErrorNotACollision()
+    {
+        SessionWorkspace workspace = Manager().GetOrCreate("create-parent-error");
+        string blocker = Path.Combine(workspace.WorkDirectory, "blocked");
+        const string original = "this is a file, not a directory";
+        File.WriteAllText(blocker, original);
+
+        bool created = workspace.TryCreateFile(
+            "blocked/repair.py", "print('source')\n", out bool alreadyExists, out string? error);
+
+        Assert.False(created);
+        Assert.False(alreadyExists);
+        Assert.Contains("could not be created", error!, StringComparison.Ordinal);
+        Assert.Equal(original, File.ReadAllText(blocker));
+        Assert.Empty(Directory.GetFiles(
+            workspace.WorkDirectory, ".tensorsharp-create-*.tmp", SearchOption.AllDirectories));
     }
 
     [Fact]
@@ -253,6 +292,108 @@ public class SessionWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public void AStagedPythonRepair_RunsWithTheOriginalSiblingImportsAndFileResources()
+    {
+        if (!HavePython) return;
+
+        SessionWorkspace workspace = Manager().GetOrCreate("repair-runtime-context");
+        Skill skill = MakeSkill(
+            "from pathlib import Path\n" +
+            "import helper\n" +
+            "print('sibling=' + helper.VALUE)\n" +
+            "print('asset=' + Path(__file__).with_name('asset.txt').read_text(encoding='utf-8').strip())\n" +
+            "raise RuntimeError('replace-only-this-line')\n");
+        string scripts = Path.Combine(skill.RootDirectory, "scripts");
+        File.WriteAllText(Path.Combine(scripts, "helper.py"), "VALUE = 'sibling-loaded'\n");
+        File.WriteAllText(Path.Combine(scripts, "asset.txt"), "resource-loaded\n");
+
+        SkillToolResult failed = ScriptRunner(workspace).Run(
+            skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(failed.Ok);
+        string overlay = Assert.Single(Directory.GetFiles(
+            workspace.WorkDirectory, "tool.py", SearchOption.AllDirectories));
+        string launcher = Assert.Single(Directory.GetFiles(
+            workspace.WorkDirectory, "*.tensorsharp-runner", SearchOption.AllDirectories));
+        Assert.Contains(
+            Path.GetRelativePath(workspace.WorkDirectory, launcher).Replace('\\', '/'),
+            failed.Content,
+            StringComparison.Ordinal);
+
+        string repaired = File.ReadAllText(overlay).Replace(
+            "raise RuntimeError('replace-only-this-line')",
+            "print('repair=executed')",
+            StringComparison.Ordinal);
+        File.WriteAllText(overlay, repaired);
+
+        (ShellRunner shell, _) = BuildRunner();
+        using (shell)
+        {
+            string relativeLauncher = Path.GetRelativePath(workspace.WorkDirectory, launcher)
+                .Replace('\\', '/');
+            string quotedLauncher = OperatingSystem.IsWindows()
+                ? ShellCommand.QuotePowerShell(relativeLauncher)
+                : ShellCommand.QuotePosix(relativeLauncher);
+            CodeExecResult rerun = shell.Run(
+                new ShellRequest("python " + quotedLauncher)
+                {
+                    ReadablePaths = new[] { skill.RootDirectory },
+                },
+                workspace);
+
+            Assert.True(rerun.Ok, rerun.Content);
+            Assert.Contains("sibling=sibling-loaded", rerun.Content, StringComparison.Ordinal);
+            Assert.Contains("asset=resource-loaded", rerun.Content, StringComparison.Ordinal);
+            Assert.Contains("repair=executed", rerun.Content, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("replace-only-this-line", File.ReadAllText(
+            Path.Combine(skill.RootDirectory, "scripts", "tool.py")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AHostStagedRepairOverlay_IsExcludedFromFailedScriptsCapturedOutput()
+    {
+        if (!HavePython) return;
+
+        SessionWorkspace workspace = Manager().GetOrCreate("repair-artifact-exclusion");
+        string artifacts = Path.Combine(_base, "repair-artifacts");
+        var store = new CodeArtifactStore(artifacts);
+        WorkspaceFileCapture capture = (workDir, exclude) =>
+        {
+            string runId = Guid.NewGuid().ToString("N");
+            IReadOnlyList<CodeArtifact> kept = store.Capture(
+                runId, workDir, (id, rel, _) => "/api/code/artifacts/" + id + "/" + rel,
+                out _, exclude);
+            return kept.Select(a => new SkillProducedFile(a.Path, a.Bytes, a.Pointer)).ToList();
+        };
+        Skill skill = MakeSkill(
+            "import os\n" +
+            "os.makedirs('skill-repairs/user', exist_ok=True)\n" +
+            "open('skill-repairs/user/report.txt', 'w', encoding='utf-8').write('keep this too')\n" +
+            "open('partial.txt', 'w', encoding='utf-8').write('keep me')\n" +
+            "raise RuntimeError('writer bug')\n");
+
+        SkillToolResult result = ScriptRunner(workspace, capture).Run(
+            skill, "scripts/tool.py", Array.Empty<string>());
+
+        Assert.False(result.Ok);
+        Assert.Contains(
+            "A copy of this script is now in your working directory as 'skill-repairs/",
+            result.Content,
+            StringComparison.Ordinal);
+        string repairs = Path.Combine(workspace.WorkDirectory, "skill-repairs");
+        Assert.NotEmpty(Directory.GetFiles(repairs, "*", SearchOption.AllDirectories));
+        Assert.Equal(
+            new[] { "partial.txt", "skill-repairs/user/report.txt" },
+            result.Files.Select(file => file.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Contains("[partial.txt](", result.Content, StringComparison.Ordinal);
+        Assert.Contains("[skill-repairs/user/report.txt](", result.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain(result.Files, file => file.Name.EndsWith("tool.py", StringComparison.Ordinal));
+        Assert.Equal(2, Directory.GetFiles(artifacts, "*", SearchOption.AllDirectories).Length);
+    }
+
+    [Fact]
     public void AScriptsLiveOutput_ReachesTheTap()
     {
         if (!HavePython) return;
@@ -398,9 +539,86 @@ public class SessionWorkspaceTests : IDisposable
         SessionWorkspace orphan = before.GetOrCreate("dead-session");
         File.WriteAllText(Path.Combine(orphan.WorkDirectory, "left.txt"), "over");
 
-        // A new manager models a restarted server: every old session is unreachable.
+        // A restarted server is one whose OWNER is gone, which is not the same thing as a
+        // fresh manager: the scratch root is shared by every host launched from a build,
+        // so a live owner's workspace has to survive another host's sweep. Removing the
+        // stamp is the documented "left behind by something that is not running" case.
+        File.Delete(Path.Combine(orphan.Root, ".owner"));
+
         var after = new SessionWorkspaceManager(root);
         after.SweepOrphans();
+
+        Assert.False(Directory.Exists(orphan.Root));
+    }
+
+    /// <summary>
+    /// The scratch root defaults to a folder beside the binary, so two servers launched
+    /// from one build share it. Sweeping it wholesale deleted the working directory of a
+    /// conversation that was still running in the other host, and every command in that
+    /// conversation then failed where its wrapper script is written.
+    /// </summary>
+    [Fact]
+    public void ASweepLeavesAWorkspaceThatALiveHostStillOwns()
+    {
+        string root = Path.Combine(_base, "shared");
+        var live = new SessionWorkspaceManager(root);
+        SessionWorkspace inUse = live.GetOrCreate("still-talking");
+        File.WriteAllText(Path.Combine(inUse.WorkDirectory, "deck.md"), "work in progress");
+
+        // A second host starting up against the same root. This process owns the
+        // workspace and this process is running, so it is not an orphan.
+        new SessionWorkspaceManager(root).SweepOrphans();
+
+        Assert.True(Directory.Exists(inUse.Root));
+        Assert.Equal("work in progress", File.ReadAllText(Path.Combine(inUse.WorkDirectory, "deck.md")));
+    }
+
+    /// <summary>
+    /// Every uncertain answer has to mean "sweep it", not "keep it".
+    ///
+    /// <para>
+    /// A stamp with no usable start time proves nothing, and so does a platform that
+    /// refuses process introspection — iOS does, and iOS is also the platform whose
+    /// scratch directory the system reclaims. Answering "cannot tell, so keep it" there
+    /// would accumulate every workspace the app ever created in a cache directory on a
+    /// device that is short of space, which is a worse bug than the one stamps fix.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void AStampThatProvesNothing_IsAnOrphan()
+    {
+        string root = Path.Combine(_base, "unprovable");
+        var manager = new SessionWorkspaceManager(root);
+        SessionWorkspace orphan = manager.GetOrCreate("no-proof");
+
+        // This process's own id, with no start time to check it against — the shape a
+        // platform that cannot report one leaves behind.
+        File.WriteAllText(
+            Path.Combine(orphan.Root, ".owner"),
+            Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + "\n0\n");
+
+        new SessionWorkspaceManager(root).SweepOrphans();
+
+        Assert.False(Directory.Exists(orphan.Root));
+    }
+
+    /// <summary>
+    /// Pids are reused. A workspace naming a pid that some unrelated process now holds
+    /// must still be swept, or it survives for as long as the machine stays up.
+    /// </summary>
+    [Fact]
+    public void AStampWhoseStartTimeDoesNotMatch_IsStillAnOrphan()
+    {
+        string root = Path.Combine(_base, "reused-pid");
+        var manager = new SessionWorkspaceManager(root);
+        SessionWorkspace orphan = manager.GetOrCreate("recycled");
+
+        // This process's id, with the start time of something else entirely.
+        File.WriteAllText(
+            Path.Combine(orphan.Root, ".owner"),
+            Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + "\n1\n");
+
+        new SessionWorkspaceManager(root).SweepOrphans();
 
         Assert.False(Directory.Exists(orphan.Root));
     }

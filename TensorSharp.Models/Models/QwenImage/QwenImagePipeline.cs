@@ -173,8 +173,9 @@ namespace TensorSharp.Models.QwenImage
             // unset = AUTO (engage exactly when the target resolution does not fit beside the
             // resident weights — quality wins over the streaming slowdown).
             string offloadEnv = Environment.GetEnvironmentVariable("TS_QWEN_IMAGE_OFFLOAD_CPU");
-            bool offloadAllowed = offloadEnv != "0" && _model.Backend == BackendType.GgmlCuda;
-            bool offload = offloadEnv == "1" && _model.Backend == BackendType.GgmlCuda;
+            bool offloadCapable = _model.Backend is BackendType.GgmlCuda or BackendType.GgmlMetal;
+            bool offloadAllowed = offloadEnv != "0" && offloadCapable;
+            bool offload = offloadEnv == "1" && offloadCapable;
             bool doCfgPass = cfgScale > 1f;
             // Reference-latent area (inputs[1..]): the detail source the DiT copies faces /
             // textures from. 0 = couple to the output area (legacy rule, kept for Metal/CPU
@@ -793,11 +794,24 @@ namespace TensorSharp.Models.QwenImage
             // Two padded square F16 masks (cond/neg branch token totals differ).
             long pad = (totalTokens + 255) / 256 * 256 + 256;
             long maskFloor = 2 * pad * pad * 2 + 64 * MiB;
+            // An explicit ceiling wins over what the device says is free, because on a
+            // phone those are different numbers. iOS kills an app at its jetsam
+            // allowance, which is a fraction of the memory the GPU reports as free, so
+            // sizing from `free` there means deciding the weights fit right up until
+            // the process is killed. A host that knows its own allowance says so.
+            long ceiling = long.MaxValue;
+            if (Environment.GetEnvironmentVariable("TS_QWEN_IMAGE_RESIDENT_MB") is { Length: > 0 } capped
+                && long.TryParse(capped, System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out long cap) && cap > 0)
+            {
+                ceiling = cap * MiB;
+            }
+
             if (!GgmlBasicOps.TryGetDeviceMemoryInfo(out long free, out long total) || free <= 0)
-                return Math.Max(512 * MiB, maskFloor);
+                return Math.Min(ceiling, Math.Max(512 * MiB, maskFloor));
             long activations = (long)totalTokens * 700 * 1024;
             long headroom = 1536 * MiB;
-            return Math.Max(maskFloor, free - activations - headroom);
+            return Math.Min(ceiling, Math.Max(maskFloor, free - activations - headroom));
         }
 
         /// <summary>

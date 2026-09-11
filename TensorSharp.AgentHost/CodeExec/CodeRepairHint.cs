@@ -26,11 +26,11 @@ namespace TensorSharp.AgentHost.CodeExec
         private const int MaxSourceBytes = 1024 * 1024;
 
         private static readonly Regex PythonFrame = new(
-            "File \\\"(?<path>[^\\\"]+)\\\", line (?<line>[0-9]+)",
+            "^\\s*File \\\"(?<path>[^\\\"]+)\\\", line (?<line>[0-9]+)(?:, in .*)?\\s*$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-        private static readonly Regex JavaScriptFrame = new(
-            @"(?<path>(?:[A-Za-z]:)?[^()\r\n]*?\.(?:[cm]?js|jsx|tsx?)):(?<line>[0-9]+):[0-9]+",
+        private static readonly Regex JavaScriptLocation = new(
+            @"^(?<path>.+\.(?:[cm]?js|jsx|tsx?)):(?<line>[0-9]+)(?::[0-9]+)?\s*$",
             RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
         private static readonly Regex CompilerLocation = new(
@@ -168,22 +168,22 @@ namespace TensorSharp.AgentHost.CodeExec
                 ? workspace.WorkDirectory
                 : currentDirectory!;
 
-            // The last Python frame is the deepest one and therefore the most useful.
-            // JavaScript and compiler output can repeat locations too, so all shapes use
-            // the same last-resolvable rule. Installed-library paths are rejected by the
-            // workspace's resolver because edits are confined to WorkDirectory.
-            foreach (Regex pattern in new[]
-                     { PythonFrame, JavaScriptFrame, CompilerLocation, ParenthesizedCompilerLocation })
+            // Runtime stacks are parsed as blocks rather than searched as arbitrary
+            // substrings. Otherwise an exception message or echoed workspace input can
+            // forge `File "..."` / `at ...` text and point the repair tool at an
+            // unrelated file. Within a genuine block the deepest resolvable frame wins;
+            // installed-library paths are rejected by the workspace guard, so an earlier
+            // workspace caller may still be selected.
+            foreach (IReadOnlyList<SourceLocation> locations in new[]
+                     { PythonLocations(diagnosis!), JavaScriptLocations(diagnosis!) })
             {
-                MatchCollection matches = pattern.Matches(diagnosis!);
-                for (int index = matches.Count - 1; index >= 0; index--)
+                for (int index = locations.Count - 1; index >= 0; index--)
                 {
-                    Match match = matches[index];
-                    string candidate = NormalizeCandidate(match.Groups["path"].Value);
+                    SourceLocation location = locations[index];
+                    string candidate = NormalizeCandidate(location.Path);
                     if (candidate.Length == 0 || string.Equals(candidate, "command", StringComparison.Ordinal))
                         continue;
-                    if (!int.TryParse(match.Groups["line"].Value, NumberStyles.None,
-                            CultureInfo.InvariantCulture, out int candidateLine) || candidateLine < 1)
+                    if (location.Line < 1)
                         continue;
                     // Existence is only a selection heuristic: it lets an earlier real
                     // workspace frame win over a deepest stale/missing one. The actual
@@ -195,12 +195,238 @@ namespace TensorSharp.AgentHost.CodeExec
                     string relative = Path.GetRelativePath(from, resolved).Replace('\\', '/');
                     displayPath = relative.Length == 0 ? Path.GetFileName(resolved) : relative;
                     fullPath = resolved;
+                    line = location.Line;
+                    return true;
+                }
+            }
+
+            foreach (Regex pattern in new[] { CompilerLocation, ParenthesizedCompilerLocation })
+            {
+                MatchCollection matches = pattern.Matches(diagnosis!);
+                for (int index = matches.Count - 1; index >= 0; index--)
+                {
+                    Match match = matches[index];
+                    string candidate = NormalizeCandidate(match.Groups["path"].Value);
+                    if (!int.TryParse(match.Groups["line"].Value, NumberStyles.None,
+                            CultureInfo.InvariantCulture, out int candidateLine) || candidateLine < 1
+                        || !workspace.TryResolveFrom(from, candidate, out string resolved, out _)
+                        || !File.Exists(resolved))
+                    {
+                        continue;
+                    }
+
+                    string relative = Path.GetRelativePath(from, resolved).Replace('\\', '/');
+                    displayPath = relative.Length == 0 ? Path.GetFileName(resolved) : relative;
+                    fullPath = resolved;
                     line = candidateLine;
                     return true;
                 }
             }
 
             return false;
+        }
+
+        private readonly record struct SourceLocation(string Path, int Line);
+
+        private static IReadOnlyList<SourceLocation> PythonLocations(string diagnosis)
+        {
+            string[] lines = diagnosis.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+            int header = -1;
+            for (int index = lines.Length - 1; index >= 0; index--)
+            {
+                if (string.Equals(
+                    lines[index].Trim(),
+                    "Traceback (most recent call last):",
+                    StringComparison.Ordinal))
+                {
+                    header = index;
+                    break;
+                }
+            }
+
+            var found = new List<SourceLocation>();
+            if (header >= 0)
+            {
+                bool complete = false;
+                for (int index = header + 1; index < lines.Length; index++)
+                {
+                    if (IsPythonTerminalLine(lines[index].Trim()))
+                    {
+                        complete = true;
+                        break;
+                    }
+                    AddPythonLocation(lines[index], found);
+                }
+                return complete ? found : Array.Empty<SourceLocation>();
+            }
+
+            // Compile-time SyntaxError diagnostics have no Traceback header. Bind only
+            // to the closest preceding File line in that diagnostic, not every such
+            // substring elsewhere in output.
+            for (int terminal = lines.Length - 1; terminal >= 0; terminal--)
+            {
+                string value = lines[terminal].TrimStart();
+                if (!value.StartsWith("SyntaxError", StringComparison.Ordinal)
+                    && !value.StartsWith("IndentationError", StringComparison.Ordinal)
+                    && !value.StartsWith("TabError", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                for (int index = terminal - 1; index >= 0; index--)
+                {
+                    string trimmed = lines[index].Trim();
+                    if (IsPythonTerminalLine(trimmed)
+                        || string.Equals(trimmed, "Traceback (most recent call last):", StringComparison.Ordinal))
+                    {
+                        break;
+                    }
+                    if (AddPythonLocation(lines[index], found))
+                        return found;
+                }
+                break;
+            }
+            return found;
+        }
+
+        private static bool AddPythonLocation(string line, List<SourceLocation> found)
+        {
+            Match match = PythonFrame.Match(line);
+            if (!match.Success
+                || !int.TryParse(match.Groups["line"].Value, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out int number)
+                || number < 1)
+            {
+                return false;
+            }
+            found.Add(new SourceLocation(match.Groups["path"].Value, number));
+            return true;
+        }
+
+        private static bool IsPythonTerminalLine(string value)
+        {
+            int colon = value.IndexOf(':');
+            string name = colon >= 0 ? value.Substring(0, colon) : value;
+            return name.EndsWith("Error", StringComparison.Ordinal)
+                || name.EndsWith("Exception", StringComparison.Ordinal);
+        }
+
+        private static IReadOnlyList<SourceLocation> JavaScriptLocations(string diagnosis)
+        {
+            string[] lines = diagnosis.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+            int error = -1;
+            for (int index = lines.Length - 1; index >= 0; index--)
+            {
+                if (IsJavaScriptErrorHeader(lines[index].Trim()))
+                {
+                    error = index;
+                    break;
+                }
+            }
+            if (error < 0)
+                return Array.Empty<SourceLocation>();
+
+            var found = new List<SourceLocation>();
+            bool stackStarted = false;
+            for (int index = error + 1; index < lines.Length; index++)
+            {
+                string trimmed = lines[index].TrimStart();
+                if (!trimmed.StartsWith("at ", StringComparison.Ordinal))
+                {
+                    if (stackStarted && trimmed.Length > 0)
+                        break;
+                    continue;
+                }
+
+                stackStarted = true;
+                if (TryParseJavaScriptStackLocation(trimmed, out SourceLocation location))
+                    found.Add(location);
+            }
+
+            if (found.Count == 0 && error > 0)
+            {
+                // Node prints a syntax-error file location above the source excerpt and
+                // error header. Search only that adjacent diagnostic preamble.
+                for (int index = error - 1; index >= 0 && index >= error - 6; index--)
+                {
+                    if (TryParseJavaScriptDirectLocation(lines[index].Trim(), out SourceLocation location))
+                    {
+                        found.Add(location);
+                        break;
+                    }
+                }
+            }
+            return found;
+        }
+
+        private static bool IsJavaScriptErrorHeader(string line)
+        {
+            int colon = line.IndexOf(':');
+            string name = colon >= 0 ? line.Substring(0, colon) : line;
+            int code = name.IndexOf(" [", StringComparison.Ordinal);
+            if (code > 0)
+                name = name.Substring(0, code);
+            return string.Equals(name, "Error", StringComparison.Ordinal)
+                || name.EndsWith("Error", StringComparison.Ordinal);
+        }
+
+        private static bool TryParseJavaScriptStackLocation(
+            string stackLine,
+            out SourceLocation location)
+        {
+            location = default;
+            string body = stackLine.Substring(3).Trim(); // anchored `at ` above
+            bool wrapped = body.EndsWith(")", StringComparison.Ordinal);
+            if (wrapped)
+                body = body.Substring(0, body.Length - 1);
+
+            Match match = JavaScriptLocation.Match(body);
+            if (!match.Success
+                || !int.TryParse(match.Groups["line"].Value, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out int number)
+                || number < 1)
+            {
+                return false;
+            }
+
+            string path = match.Groups["path"].Value;
+            if (wrapped)
+            {
+                int wrapper = path.IndexOf('(');
+                if (wrapper >= 0)
+                    path = path.Substring(wrapper + 1);
+            }
+            else
+            {
+                int uri = path.IndexOf("file://", StringComparison.OrdinalIgnoreCase);
+                int unix = path.IndexOf('/');
+                Match drive = Regex.Match(path, @"[A-Za-z]:[\\/]", RegexOptions.CultureInvariant);
+                int start = uri >= 0 ? uri
+                    : unix >= 0 ? unix
+                    : drive.Success ? drive.Index
+                    : 0;
+                path = path.Substring(start);
+            }
+
+            location = new SourceLocation(path.Trim(), number);
+            return true;
+        }
+
+        private static bool TryParseJavaScriptDirectLocation(
+            string line,
+            out SourceLocation location)
+        {
+            location = default;
+            Match match = JavaScriptLocation.Match(line);
+            if (!match.Success
+                || !int.TryParse(match.Groups["line"].Value, NumberStyles.None,
+                    CultureInfo.InvariantCulture, out int number)
+                || number < 1)
+            {
+                return false;
+            }
+            location = new SourceLocation(match.Groups["path"].Value, number);
+            return true;
         }
 
         private static string NormalizeCandidate(string path)

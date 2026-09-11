@@ -787,12 +787,53 @@ public class KVCachePromptRendererTests
     }
 
     [Fact]
-    public void GetAssistantGenerationSuffix_Qwen35FamilyThinkingDisabled_ReturnsEmpty()
+    public void GetAssistantGenerationSuffix_Qwen35FamilyThinkingDisabled_ReturnsClosedEmptyBlock()
     {
-        // Thinking-disabled goes through the hardcoded renderer which already emits
-        // `<think>\n\n</think>\n\n` for past assistant messages. No injection needed.
-        Assert.Equal(string.Empty, KVCachePromptRenderer.GetAssistantGenerationSuffix("qwen35", false));
-        Assert.Equal(string.Empty, KVCachePromptRenderer.GetAssistantGenerationSuffix("qwen35moe", false));
+        // Thinking-disabled renders through the same GGUF template as thinking-enabled
+        // now, and that template frames the generation prompt with the CLOSED empty
+        // block — which the cache therefore holds in front of every past answer and
+        // which the template does not re-emit for turns before the last user message.
+        Assert.Equal("<think>\n\n</think>\n\n", KVCachePromptRenderer.GetAssistantGenerationSuffix("qwen35", false));
+        Assert.Equal("<think>\n\n</think>\n\n", KVCachePromptRenderer.GetAssistantGenerationSuffix("qwen35moe", false));
+    }
+
+    [Fact]
+    public void RenderToTokens_UsesEachTurnsRecordedGenerationSuffix_NotTheCurrentRequests()
+    {
+        // Turn 1 was answered with thinking ON (its prompt ended `<think>\n`), turn 2
+        // is asked with thinking OFF. The cache holds `<think>\n` before turn 1's raw
+        // tokens, so that is what must be put back — the current request's closed
+        // block would diverge from the cache at the first answer.
+        var renderer = new KVCachePromptRenderer(new FakeRenderer());
+        var tokenizer = new CharTokenizer();
+        var raw = new List<int> { 1001, 1002 };
+        var messages = new List<ChatMessage>
+        {
+            new() { Role = "user", Content = "Q1" },
+            new()
+            {
+                Role = "assistant", Content = "A1", RawOutputTokens = raw,
+                RawGenerationSuffix = "<think>\n", RawPromptTrailingWhitespace = "\n",
+            },
+            new() { Role = "user", Content = "Q2" },
+        };
+
+        var tokens = renderer.RenderToTokens(tokenizer, chatTemplate: null, messages,
+            architecture: "qwen35", addGenerationPrompt: true, enableThinking: false);
+
+        int at = FindSubsequence(tokens, raw);
+        Assert.True(at > 0, "raw tokens should appear in the output");
+        string before = tokenizer.Decode(tokens.GetRange(0, at));
+        Assert.EndsWith("<assistant><think>\n", before);
+        Assert.DoesNotContain("</think>\n\n<think>", before);
+
+        // Without a recorded suffix the current request's framing is the fallback.
+        messages[1].RawGenerationSuffix = null;
+        messages[1].RawPromptTrailingWhitespace = "\n\n";
+        tokens = renderer.RenderToTokens(tokenizer, chatTemplate: null, messages,
+            architecture: "qwen35", addGenerationPrompt: true, enableThinking: false);
+        at = FindSubsequence(tokens, raw);
+        Assert.EndsWith("<assistant><think>\n\n</think>\n\n", tokenizer.Decode(tokens.GetRange(0, at)));
     }
 
     [Fact]

@@ -276,6 +276,22 @@ public class FailureSourceTests : IDisposable
             cause.Source);
     }
 
+    [Fact]
+    public void AnOldPythonVersionDoesNotExcuseAnOrdinarySyntaxDefect()
+    {
+        const string ordinary =
+            "  File \"command\", line 4\n    result = (1 +\n              ^\n"
+            + "SyntaxError: '(' was never closed";
+        const string matchStatement =
+            "  File \"command\", line 4\n    match family:\n          ^\n"
+            + "SyntaxError: invalid syntax";
+
+        Assert.False(CodeDiagnostics.IsPython310OnlyFailure(ordinary));
+        Assert.True(CodeDiagnostics.IsPython310OnlyFailure(matchStatement));
+        Assert.True(CodeDiagnostics.IsPython310OnlyFailure(
+            "TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'"));
+    }
+
     /// <summary>
     /// The narrowing that keeps the classifier honest. "The deepest frame is in a library"
     /// is a fine reason to stop routing something to the API probe — the model did not

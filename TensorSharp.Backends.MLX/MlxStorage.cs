@@ -154,7 +154,7 @@ namespace TensorSharp.MLX
             }
         }
 
-        internal void EnsureDeviceCurrent()
+        public override void EnsureDeviceCurrent()
         {
             ThrowIfDestroyed();
             if (ElementCount > int.MaxValue)

@@ -25,7 +25,27 @@ namespace TensorSharp.Models
         private readonly float[] _imageMean;
         private readonly float[] _imageStd;
 
-        public Gemma4ImageProcessor(int patchSize = 16, int nMerge = 3, int minTokens = 40, int maxTokens = 280,
+        /// <summary>
+        /// Gemma 4's own default soft-token budget per image. The processor documented
+        /// for this family resizes an image to a TARGET token count -- 280 by default,
+        /// choosing from 70/140/280/560/1120 -- rather than merely capping it, and it
+        /// keeps the aspect ratio with both sides divisible by patch*merge.
+        ///
+        /// <para>
+        /// Treating 280 as a ceiling with a low floor is what broke still-image
+        /// understanding: a 448x448 picture aligned to 432x432, which is inside both
+        /// bounds, so it was left at 9x9 = 81 soft tokens instead of the ~280 the model
+        /// was trained to receive. Measured on gemma-4-E4B, that image was not
+        /// perceived at all -- the model answered "I cannot directly view images" on 5
+        /// runs out of 5 -- while the SAME picture at 896x896 (256 tokens), and the same
+        /// picture supplied twice (162 tokens), were both described correctly. The floor
+        /// is the fix; the ceiling was never the problem.
+        /// </para>
+        /// </summary>
+        public const int DefaultSoftTokens = 280;
+
+        public Gemma4ImageProcessor(int patchSize = 16, int nMerge = 3,
+            int minTokens = DefaultSoftTokens, int maxTokens = DefaultSoftTokens,
             float[] imageMean = null, float[] imageStd = null)
         {
             PatchSize = patchSize;

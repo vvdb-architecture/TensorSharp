@@ -74,6 +74,12 @@ public class CudaLongDecodeReproTests
                 model.Tokenizer, model.Config.ChatTemplate, history, "gemma4", addGenerationPrompt: true);
             _output.WriteLine($"[repro] prompt tokens={promptTokens.Count}: {string.Join(",", promptTokens.Take(40))}");
 
+            // This harness exists to WATCH a long decode go wrong, and a collapse into a
+            // repeat is one of the shapes it is looking for (it logs FirstLongRepeat
+            // below). The engine's loop guard would end the run 128 tokens into exactly
+            // that, so it is off here unless an operator asked for it explicitly.
+            if (Environment.GetEnvironmentVariable("TS_SCHED_STOP_REPETITION") is null)
+                Environment.SetEnvironmentVariable("TS_SCHED_STOP_REPETITION", "0");
             var cfg = SchedulerConfig.FromEnvironment();
             using var engine = new InferenceEngine(model, cfg, NullLogger.Instance);
             var seq = new SequenceState("repro", promptTokens, maxNewTokens: steps,

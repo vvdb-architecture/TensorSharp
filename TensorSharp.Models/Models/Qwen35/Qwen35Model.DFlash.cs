@@ -211,8 +211,10 @@ namespace TensorSharp.Models
         private unsafe void DFlashSpecForwardPerOp(Tensor hidden, int startPos, int seqLen,
             float[] hAllOut, float[] logitsOut, bool allLogitsRows, bool captureAll, bool captureLast)
         {
-            EnsureKvCacheHostSynchronized();
-            EnsureFusedDecodeStateHostSynchronized();
+            // TryFullModelVerify may have declined while a prior chunk's recurrent
+            // state was still device-authoritative. The capture/per-op path reads
+            // host mirrors, so drain through the same fail-safe prefill barrier.
+            PrepareHostPrefillFallback();
             for (int layer = 0; layer < Config.NumLayers; layer++)
             {
                 int slot = _dflashCaptureSlot[layer];

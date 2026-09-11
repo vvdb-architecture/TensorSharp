@@ -106,7 +106,7 @@ Point the harness at an alternate settings file with `--config other.json`
 ## Prerequisites
 
 - **Python 3.10+** with `requests`, `opencv-python` (video frame sampling). Both already present on the dev box.
-- **TensorSharp.Server** built: `TensorSharp.Server/bin/TensorSharp.Server.dll` (run with `dotnet`). Build with `dotnet build TensorSharp.Server -c Release` if missing/stale.
+- **TensorSharp.Server** built: `TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll` (run with `dotnet`). Build with `dotnet build TensorSharp.Server.Host -c Release` if missing/stale.
 - **llama.cpp** server binary at `C:/Works/llama.cpp/build-cuda/bin/Release/llama-server.exe` (CUDA build).
   Non-CUDA backend columns use per-backend builds declared in the `backends` registry
   (e.g. a Vulkan build at `build-vulkan/.../llama-server.exe`, overridable via
@@ -552,7 +552,7 @@ apples-to-apples reference on that host is llama.cpp on `ggml_metal`, and the
 # One-time host setup: native libs + server + a Metal llama-server build
 bash TensorSharp.GGML.Native/build-macos.sh
 bash TensorSharp.Backends.MLX/build-native-macos.sh
-dotnet build TensorSharp.Server/TensorSharp.Server.csproj -c Release
+dotnet build TensorSharp.Server.Host/TensorSharp.Server.Host.csproj -c Release
 git clone https://github.com/ggml-org/llama.cpp ~/tensorsharp-bench/llama.cpp
 cmake -S ~/tensorsharp-bench/llama.cpp -B ~/tensorsharp-bench/llama.cpp/build \
     -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF -DLLAMA_BUILD_SERVER=ON

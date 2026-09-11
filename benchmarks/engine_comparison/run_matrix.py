@@ -463,7 +463,7 @@ def main():
             missing = (fetch_detail if not fetched_ok
                        else f"model file not found: {model_missing[0][1]}")
         elif engine_id == "tensorsharp" and not config.TENSORSHARP_SERVER_DLL.exists():
-            missing = f"TensorSharp.Server.dll not found: {config.TENSORSHARP_SERVER_DLL}"
+            missing = f"TensorSharp.Server.Host.dll not found: {config.TENSORSHARP_SERVER_DLL}"
         elif engine_id == "llamacpp" and not config.llama_server_exe_for(backend).exists():
             missing = (f"llama-server for backend '{backend}' not found: "
                        f"{config.llama_server_exe_for(backend)}")

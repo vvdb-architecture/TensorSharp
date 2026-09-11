@@ -80,7 +80,7 @@ namespace TensorSharp.Runtime.Speculative
 
         /// <summary>The cost governor guarding this execution. Set
         /// <c>Enabled = false</c> to force drafting on for A/B measurement.</summary>
-        public SpeculationCostGovernor Governor { get; } = new();
+        public SpeculationCostGovernor Governor { get; }
 
         /// <summary>Maximum tokens drafted per speculative step (llama.cpp n_max).</summary>
         public int MaxDraftTokens => _speculator.MaxDraftTokens;
@@ -108,11 +108,21 @@ namespace TensorSharp.Runtime.Speculative
 
         public SpeculationStats Stats { get; } = new();
 
-        public SpeculativeExecution(ISpeculativeTarget model, ISpeculator speculator, ISpecTrunk trunk = null)
+        public SpeculativeExecution(ISpeculativeTarget model, ISpeculator speculator, ISpecTrunk trunk = null,
+            SpeculationCostGovernor governor = null)
         {
             _model = model ?? throw new ArgumentNullException(nameof(model));
             _speculator = speculator ?? throw new ArgumentNullException(nameof(speculator));
             _trunk = trunk ?? new LinearSpecTrunk(model);
+            // A governor handed in is SHARED: its verdict about this (model, drafter,
+            // backend) carries from one request to the next, so a chat's short turns
+            // do not each pay a fresh probe round to rediscover that drafting loses
+            // on prose (it re-probes with backoff either way).
+            Governor = governor ?? new SpeculationCostGovernor();
+            Governor.NewSequence();   // a shared governor: this request starts fresh enough to re-probe
+            _governorWinsAtStart = Governor.Wins;
+            _governorLossesAtStart = Governor.Losses;
+            _governorParkedAtStart = Governor.ParkedSteps;
 
             _needsHidden = speculator.NeedsHiddenState;
             _hidden = model.SpecFeatureSize;
@@ -144,11 +154,71 @@ namespace TensorSharp.Runtime.Speculative
             Governor.Reset();
         }
 
+        /// <summary>
+        /// Arm over a context the trunk already holds: hand the speculator the
+        /// <paramref name="committedTokens"/> that are in the cache (positions 0..n-1)
+        /// so its own state - an n-gram corpus - covers them, without forwarding
+        /// anything. For a request whose prefill ran on the plain path (a media turn,
+        /// whose image/audio embeddings only that path can inject) and that would
+        /// otherwise decode plainly to the end. Only a speculator that needs no
+        /// hidden state can start this way: there is no trunk hidden state for the
+        /// last committed token to chain a learned head from.
+        /// </summary>
+        public void SeedCommitted(int[] committedTokens)
+        {
+            ArgumentNullException.ThrowIfNull(committedTokens);
+            if (!CanSeedCommitted)
+                throw new InvalidOperationException(
+                    $"{_speculator.Describe()} keeps per-position state it never replayed and cannot start mid-sequence.");
+            if (committedTokens.Length > 0)
+                _speculator.Commit(committedTokens, null, 0);
+            // A learned head that resumes after a gap still needs the trunk hidden
+            // state of the last committed token, which no plain prefill captured:
+            // the first step runs plain and captures it, drafting starts at the second.
+            _carryValid = !_needsHidden;
+        }
+
+        /// <summary>
+        /// The trunk advanced past this execution without it - a concurrent interlude
+        /// served the request plainly on the batched or serial fused path. Hand the
+        /// speculator those tokens (no hidden rows: a head that resumes after a gap
+        /// accepts that and takes one plain step to recapture its carry) and let the
+        /// governor count the steps, so the request resumes where it was instead of
+        /// being re-armed from scratch: a re-arm re-indexed the whole context and
+        /// re-ran the probe on every 1 -> N -> 1 transition. Requires
+        /// <see cref="CanSeedCommitted"/>.
+        /// </summary>
+        public void CatchUp(int[] tokens, int startPos)
+        {
+            ArgumentNullException.ThrowIfNull(tokens);
+            if (!CanSeedCommitted)
+                throw new InvalidOperationException(
+                    $"{_speculator.Describe()} keeps per-position state it never replayed and cannot resume after a gap.");
+            if (tokens.Length == 0)
+                return;
+            _speculator.Commit(tokens, null, startPos);
+            _carryValid = !_needsHidden;
+            Governor.NoteExternalPlainSteps(tokens.Length);
+        }
+
+        /// <summary>
+        /// Whether <see cref="SeedCommitted"/> can arm this execution over tokens the
+        /// trunk already holds: a speculator with no hidden-state chain (n-gram), or a
+        /// learned head that keeps no per-position state of its own
+        /// (<see cref="ISpeculator.CanArmAfterPrefixReuse"/>).
+        /// </summary>
+        public bool CanSeedCommitted => !_needsHidden || _speculator.CanArmAfterPrefixReuse;
+
+        // False until the trunk hidden state that drafting chains from has been
+        // captured by a forward of this execution (see SeedCommitted).
+        private bool _carryValid = true;
+
         /// <summary>Reset speculative state and statistics. Does NOT touch the model's KV cache.</summary>
         public void Reset()
         {
             if (_pendingH != null)
                 Array.Clear(_pendingH);
+            _carryValid = true;   // the prefill that follows a reset produces the carry
             _speculator.Reset();
             Stats.Reset();
             Governor.Reset();
@@ -241,8 +311,10 @@ namespace TensorSharp.Runtime.Speculative
             // Governor: a step it declines becomes a plain decode, which is the
             // same path an all-low-confidence draft window already takes (and so
             // keeps the drafter's own state in sync via the commit below).
+            bool governorDeclined = false;
             if (!Governor.AllowsSpeculation())
             {
+                governorDeclined = true;
                 kMax = 0;
                 // Only a genuine park counts. The calibration plain steps that a
                 // round takes to establish its baseline also come through here, and
@@ -256,6 +328,10 @@ namespace TensorSharp.Runtime.Speculative
             // Verify needs position + K + 1 trunk slots; drafting writes drafter
             // rows up to position + K.
             kMax = Math.Min(kMax, _model.MaxContextLength - position - 2);
+            // No carried hidden state yet (armed over a plain prefill): this step
+            // runs plain and captures it.
+            if (!_carryValid)
+                kMax = 0;
 
             _draftTokens.Clear();
             if (kMax > 0)
@@ -282,17 +358,57 @@ namespace TensorSharp.Runtime.Speculative
                 Stats.PlainSteps++;
                 long tPlain0 = Stopwatch.GetTimestamp();
                 _oneToken[0] = lastToken;
-                _trunk.Forward(_oneToken, _verifyH, _stepLogits, allLogitsRows: false);
+                // A seeded start has no carry for this token: hand the speculator the
+                // token with no hidden row (a head that starts mid-sequence accepts
+                // that, by contract) rather than a row of zeros dressed as one.
+                bool carryKnown = _carryValid;
+                // While the GOVERNOR has parked a learned head that can resume after
+                // a gap, the hidden state is not needed - nothing will draft from it
+                // until the park ends - so the step takes the model's own decode when
+                // the trunk offers it, and the first step after the park captures the
+                // carry again. Otherwise the park was measured against a plain step
+                // that is itself dearer than the real one (a one-row speculative
+                // forward with a per-op head), and the governor kept calling
+                // speculation a win against that inflated baseline: E4B-IQ4_XS on the
+                // host benchmark ran prose at 23-40 tok/s under it, against 65 plain.
+                bool cheapPlain = !_needsHidden
+                    || (governorDeclined && _speculator.CanArmAfterPrefixReuse && _trunk.HasCheapPlainStep);
+                if (cheapPlain)
+                    _trunk.ForwardPlain(lastToken, _stepLogits, parked: governorDeclined);   // the model's own decode step
+                else
+                    _trunk.Forward(_oneToken, _verifyH, _stepLogits, allLogitsRows: false);
                 if (_needsHidden)
                     Array.Copy(_pendingH, 0, _catchUpH, 0, _hidden);
-                _speculator.Commit(_oneToken, _catchUpH, position);
+                _speculator.Commit(_oneToken, _needsHidden && !carryKnown ? null : _catchUpH, position);
                 if (_needsHidden)
-                    Array.Copy(_verifyH, 0, _pendingH, 0, _hidden);
+                {
+                    if (cheapPlain)
+                    {
+                        _carryValid = false;   // captured again by the first step after the park
+                    }
+                    else
+                    {
+                        Array.Copy(_verifyH, 0, _pendingH, 0, _hidden);
+                        _carryValid = true;
+                    }
+                }
                 Stats.PlainTicks += Stopwatch.GetTimestamp() - tPlain0;
 
                 float[] plainLogits = new float[_vocab];
                 Array.Copy(_stepLogits, plainLogits, _vocab);
-                RecordStep(speculated: false, tokensEmitted: 1, tStep0);
+                // A step whose DRAFT ran and proposed nothing (the head under its gate)
+                // is speculation's cost - the head pass is in it - not the plain
+                // baseline's: charged to plain it inflated the baseline every verdict
+                // is measured against, and a head that stayed under its gate never
+                // filled the probe's speculative quota, so the round never closed and
+                // the head ran on every step unparked.
+                // That holds for a matchless n-gram lookup too, although it paid no head
+                // pass: its step still ran on the SPECULATIVE path's plain step, which on
+                // a trunk whose families differ (Qwen 3.5) is the dearer one, and that is
+                // exactly the cost a parked step would not pay. Counting such steps as
+                // plain instead inflated the baseline with them and let n-gram run
+                // through prose unparked: Qwen prose fell from 47 to 38 tok/s.
+                RecordStep(speculated: kMax > 0, tokensEmitted: 1, tStep0);
                 return new SpeculativeStepOutcome
                 {
                     AcceptedCount = 0,
@@ -397,11 +513,16 @@ namespace TensorSharp.Runtime.Speculative
 
         public void Dispose() => _speculator.Dispose();
 
+        private readonly int _governorWinsAtStart, _governorLossesAtStart, _governorParkedAtStart;
+
         private void RecordStep(bool speculated, int tokensEmitted, long tStep0)
         {
             Governor.Record(speculated, tokensEmitted, Stopwatch.GetTimestamp() - tStep0);
             Stats.PlainMsPerToken = Governor.PlainMsPerToken;
             Stats.SpecMsPerToken = Governor.SpecMsPerToken;
+            Stats.GovernorWins = Governor.Wins - _governorWinsAtStart;
+            Stats.GovernorLosses = Governor.Losses - _governorLossesAtStart;
+            Stats.GovernorParkedSteps = Governor.ParkedSteps - _governorParkedAtStart;
         }
 
         private void EnsureChunkBuffers(int chunkLen)

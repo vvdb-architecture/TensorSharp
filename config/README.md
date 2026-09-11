@@ -70,6 +70,11 @@ drive letters there — so it would be treated as *relative* and silently glued 
 the config's own directory. Written the way above, one file works unmodified on
 Windows, Linux and macOS.
 
+The [`agent-*.json`](#agent-configs) files are the one deliberate exception: their
+fallbacks are absolute POSIX paths on a specific Mac, because they also pin a
+`skills-dir` that has to exist or the host refuses to start. `TENSORSHARP_MODELS`
+and `TENSORSHARP_SKILLS` still override both, which is how you move them.
+
 You can declare **as many variables (and root paths) as you need** — models that
 live in different folders each get their own root:
 
@@ -165,6 +170,9 @@ TensorSharp.Server --config config/gemma-4-26b-a4b.json
 | [`qwen-image-edit-2511.json`](qwen-image-edit-2511.json) | Qwen-Image-Edit 2511 + VAE/TE/mmproj + Lightning LoRA | Image edit |
 | [`qwen-image-rapid-nsfw.json`](qwen-image-rapid-nsfw.json) | Qwen-Rapid v9.0 DiT + VAE/TE/mmproj | Image edit (few-step) |
 
+For the agent-enabled counterparts of four of these models — skills, code execution,
+network and package installs switched on — see [Agent configs](#agent-configs) below.
+
 Notes:
 
 - **Multimodal** configs load a vision projector, so add `--image photo.png` to ask
@@ -186,6 +194,68 @@ Notes:
 - To make any of these auto-download on another machine, turn a `"model": "…path…"`
   string into an object: `{ "path": "…", "urls": ["https://…"] }` (see the examples
   above).
+
+## Agent configs
+
+The `agent-*.json` files turn a model into an **agent** rather than a chat
+endpoint: Agent Skills and their bundled scripts, network access for both, the
+`shell` / `read_file` / `edit_file` / `write_file` / `apply_patch` tool loop, and
+host-performed `pip` / `npm` installs are all switched on in one file. They point
+at local paths on an Apple Silicon Mac (`ggml_metal`), so change `backend` and the
+`variables` block to run them elsewhere.
+
+```bash
+TensorSharp.Cli    --config config/agent-gemma-4-12b.json --chat
+TensorSharp.Server --config config/agent-qwen3.8-27b.json
+```
+
+| File | Model | Speculative decoding |
+|------|-------|----------------------|
+| [`agent-qwen3.8-27b.json`](agent-qwen3.8-27b.json) | Qwen3.8-27B (UD-Q4_K_XL, 16.7 GB) | Off — the embedded NextN head measured only ~1.04× |
+| [`agent-qwen3.6-35b-a3b.json`](agent-qwen3.6-35b-a3b.json) | Qwen3.6-35B-A3B MoE (UD-IQ2_XXS, 11 GB) | Off — MTP measured **2× slower** on this MoE |
+| [`agent-gemma-4-12b.json`](agent-gemma-4-12b.json) | Gemma-4 12B (QAT UD-Q4_K_XL, 6.3 GB) | **On** — MTP draft head, auto window 7 |
+| [`agent-gemma-4-26b-a4b.json`](agent-gemma-4-26b-a4b.json) | Gemma-4 26B-A4B MoE (QAT UD-Q4_K_XL, 13.3 GB) | Off — no Metal MoE measurement exists yet |
+
+Notes, all of which the files themselves repeat as comments:
+
+- **`--code-exec-allow-network` is the broadest permission here.** Every command
+  the model writes gets unrestricted host IP networking, including LAN and
+  loopback. Both hosts print a warning at startup. Do not run these configs on a
+  server reachable by people you do not trust.
+- **Skill scripts and generated commands have separate network switches** —
+  `"skills-allow-network"` and `"code-exec-allow-network"`, neither implying the
+  other. Both are set, because the `research` and `market-data` skills need the
+  first and generated code needs the second.
+- **`"skills-dir"` is not optional.** The default root beside the binary is empty,
+  so a config without this key yields an agent with zero skills. These files point
+  at `TensorAgent/skills`: 11 skills, six of which bundle runnable scripts — four
+  Python (`documents`, `research`, `slack-gif-creator`, `market-data`), one shell
+  (`web-artifacts-builder`) and one JS template (`algorithmic-art`). A path that
+  does not exist is a fatal startup error.
+- **`"temperature"` must be pinned, or the two hosts disagree.** These GGUFs carry
+  `general.sampling.temp = 1.0`, which the CLI's chat path overlays onto any field
+  left unset while the server ignores it and falls to its built-in 0.8.
+  `--code-exec-temperature` cannot bridge that either: it rewrites a temperature
+  only while it still sits at that built-in 0.8. The same applies to
+  `"repeat-penalty"`, pinned to 1.0 here so every turn on both hosts matches.
+- **`--max-tokens` is the generation cap, never the context window**, and it also
+  sizes the up-front KV reservation. The window is environment-only: export
+  `MAX_CONTEXT` before launching. Overshooting on Metal is not a slowdown — past
+  the working set, ggml latches a sticky error and every later graph fails.
+- **The agent works in its own workspace, not in your checkout.** Writes are
+  confined to the session workspace and the whole home directory is unreadable, so
+  the model has to copy anything it needs in. `"code-exec-unconfined"` is left off
+  deliberately; on macOS it downgrades confinement to best-effort.
+- **`"skills-max-rounds"` is one shared budget** for skill lookups and shell rounds.
+  Naming it at all cancels the automatic raise to 24 that `--code-exec` applies, so
+  it is set to 32 — never set it below 24.
+- **Gemma-4 cannot use a quantized KV cache.** `Gemma4Model` declines block
+  quantization because its circular sliding-window cache helpers are float-only, so
+  an explicit `"kv-cache-dtype": "q8_0"` is downgraded to f16 at load with a note on
+  stderr. The two Qwen configs do use it, halving a cache Metal charges twice.
+- Two options must be a **single comma-separated string** if you add them:
+  `"code-exec-packages"` and `"code-exec-install-domains"`. A JSON array becomes a
+  repeated flag whose parse is last-one-wins, so only the final entry survives.
 
 ## Video generation with sound (MiniMax-H3)
 

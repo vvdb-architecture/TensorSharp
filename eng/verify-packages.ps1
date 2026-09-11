@@ -33,6 +33,12 @@ $PublicPackages = @(
         EmbeddedAssemblies = @("AdvUtils.dll")
     },
     @{
+        Id = "TensorSharp.Runtime.Logging"
+        Project = "TensorSharp.Runtime.Logging/TensorSharp.Runtime.Logging.csproj"
+        TensorSharpDependencies = @()
+        EmbeddedAssemblies = @()
+    },
+    @{
         Id = "TensorSharp.Runtime"
         Project = "TensorSharp.Runtime/TensorSharp.Runtime.csproj"
         TensorSharpDependencies = @()
@@ -75,15 +81,29 @@ $PublicPackages = @(
         EmbeddedAssemblies = @()
     },
     @{
+        Id = "TensorSharp.Chat"
+        Project = "TensorSharp.Chat/TensorSharp.Chat.csproj"
+        TensorSharpDependencies = @("TensorSharp.Runtime", "TensorSharp.Runtime.Logging", "TensorSharp.AgentHost", "TensorSharp.Models", "TensorSharp.Backends.GGML")
+        EmbeddedAssemblies = @()
+    },
+    @{
         Id = "TensorSharp.Server"
         Project = "TensorSharp.Server/TensorSharp.Server.csproj"
-        TensorSharpDependencies = @("TensorSharp.Runtime", "TensorSharp.AgentHost", "TensorSharp.Models", "TensorSharp.Backends.GGML", "TensorSharp.Backends.Cuda", "TensorSharp.Backends.MLX", "TensorSharp.Distributed")
+        TensorSharpDependencies = @("TensorSharp.Runtime", "TensorSharp.Runtime.Logging", "TensorSharp.AgentHost", "TensorSharp.Chat", "TensorSharp.Models", "TensorSharp.Backends.GGML", "TensorSharp.Backends.Cuda", "TensorSharp.Backends.MLX", "TensorSharp.Distributed")
+        EmbeddedAssemblies = @()
+    },
+    @{
+        # The runnable server. TensorSharp.Server is the library it builds on,
+        # and is its only direct dependency.
+        Id = "TensorSharp.Server.Host"
+        Project = "TensorSharp.Server.Host/TensorSharp.Server.Host.csproj"
+        TensorSharpDependencies = @("TensorSharp.Server")
         EmbeddedAssemblies = @()
     },
     @{
         Id = "TensorSharp.Cli"
         Project = "TensorSharp.Cli/TensorSharp.Cli.csproj"
-        TensorSharpDependencies = @("TensorSharp.Tensors", "TensorSharp.Runtime", "TensorSharp.AgentHost", "TensorSharp.Models", "TensorSharp.Backends.GGML", "TensorSharp.Backends.MLX", "TensorSharp.Distributed")
+        TensorSharpDependencies = @("TensorSharp.Tensors", "TensorSharp.Runtime", "TensorSharp.Runtime.Logging", "TensorSharp.AgentHost", "TensorSharp.Chat", "TensorSharp.Models", "TensorSharp.Backends.GGML", "TensorSharp.Backends.MLX", "TensorSharp.Distributed")
         EmbeddedAssemblies = @()
     }
 )
@@ -272,7 +292,7 @@ foreach ($package in $PublicPackages) {
     }
 
     if ($properties.Properties.IsPackable -ne "true") {
-        throw "$packageId must be packable because it is listed in README.md."
+        throw "$packageId must be packable because this script publishes it."
     }
 
     Invoke-CheckedDotNet (@("pack", $projectPath, "-c", $Configuration, "-o", $PackageOutput) + $ExtraPackArgs)

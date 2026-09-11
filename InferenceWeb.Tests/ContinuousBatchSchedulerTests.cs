@@ -7,6 +7,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using TensorSharp;
 using TensorSharp.Runtime.Paged;
@@ -153,6 +155,229 @@ public class ContinuousBatchSchedulerTests
         var step = sched.Schedule();
         Assert.Equal(3, step.ScheduledWork.Count);
         Assert.All(seqs, s => Assert.Equal(SequenceStatus.Running, s.Status));
+    }
+
+    [Fact]
+    public void Scheduler_PrefillOnlyContention_UsesWholeTokenBudgetFairly()
+    {
+        // Two long prompts are the shape produced by parallel research/document
+        // requests before either reaches its first tool call.  A fixed 8-token
+        // per-request cap schedules only 16 of the available 32 tokens and makes
+        // both prefills take twice as many model forwards.  With no decode in
+        // flight, enlarging both chunks evenly consumes the otherwise-idle budget.
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 32,
+            MaxNumRunningSequences = 4,
+            MaxPrefillChunkSize = 8,
+            SoloPrefillChunkSize = 32,
+            NumBlocks = 32,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = false,
+            DecodeQuantumTokens = 1,
+        };
+        var pool = NewPool(cfg.NumBlocks);
+        var sched = new ContinuousBatchScheduler(cfg, pool, "fp-prefill-fill", NullLogger.Instance);
+        var first = NewSequence("prefill-a", promptLen: 64, maxNew: 4);
+        var second = NewSequence("prefill-b", promptLen: 64, maxNew: 4);
+        sched.Submit(first);
+        sched.Submit(second);
+
+        var step = sched.Schedule();
+
+        Assert.Equal(2, step.ScheduledWork.Count);
+        Assert.All(step.ScheduledWork, work => Assert.True(work.IsPrefill));
+        Assert.Equal(cfg.MaxNumBatchedTokens,
+            step.ScheduledWork.Sum(work => work.NumScheduledTokens));
+        Assert.All(step.ScheduledWork,
+            work => Assert.Equal(cfg.MaxNumBatchedTokens / 2, work.NumScheduledTokens));
+    }
+
+    [Fact]
+    public void Scheduler_ActiveDecodeKeepsNewLongPrefillAtFairnessChunk()
+    {
+        // The prefill-only optimisation above must switch off as soon as a decode
+        // is active.  Otherwise a newly-arrived long research prompt can monopolise
+        // a large Metal forward and inflate an existing stream's inter-token latency.
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 32,
+            MaxNumRunningSequences = 4,
+            MaxPrefillChunkSize = 8,
+            SoloPrefillChunkSize = 32,
+            NumBlocks = 32,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = false,
+            DecodeQuantumTokens = 1,
+        };
+        var pool = NewPool(cfg.NumBlocks);
+        var sched = new ContinuousBatchScheduler(cfg, pool, "fp-prefill-fair", NullLogger.Instance);
+        var decoder = NewSequence("decoding", promptLen: 4, maxNew: 16);
+        sched.Submit(decoder);
+
+        // Model the executor completing the decoder's initial solo prefill so its
+        // next scheduled unit is one decode token.
+        var initial = sched.Schedule();
+        Assert.Single(initial.ScheduledWork);
+        decoder.AdvanceComputedTokens(initial.ScheduledWork[0].NumScheduledTokens);
+
+        var longPrefill = NewSequence("long-prefill", promptLen: 64, maxNew: 4);
+        sched.Submit(longPrefill);
+        var mixed = sched.Schedule();
+
+        Assert.Equal(2, mixed.ScheduledWork.Count);
+        Assert.Same(decoder, mixed.ScheduledWork[0].Sequence);
+        Assert.False(mixed.ScheduledWork[0].IsPrefill);
+        Assert.Equal(1, mixed.ScheduledWork[0].NumScheduledTokens);
+        Assert.Same(longPrefill, mixed.ScheduledWork[1].Sequence);
+        Assert.True(mixed.ScheduledWork[1].IsPrefill);
+        Assert.Equal(cfg.MaxPrefillChunkSize, mixed.ScheduledWork[1].NumScheduledTokens);
+    }
+
+    [Fact]
+    public void Scheduler_DecodeRunsBeforeAnEarlierSubmittedPrefill()
+    {
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 32,
+            MaxNumRunningSequences = 4,
+            MaxPrefillChunkSize = 8,
+            SoloPrefillChunkSize = 32,
+            NumBlocks = 32,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = false,
+            DecodeQuantumTokens = 1,
+        };
+        var pool = NewPool(cfg.NumBlocks);
+        var sched = new ContinuousBatchScheduler(
+            cfg, pool, "fp-decode-first", NullLogger.Instance);
+        var earlierLongPrefill = NewSequence("prefill-first", promptLen: 64, maxNew: 4);
+        var laterShortPrompt = NewSequence("decode-second", promptLen: 4, maxNew: 16);
+        sched.Submit(earlierLongPrefill);
+        sched.Submit(laterShortPrompt);
+
+        var initial = sched.Schedule();
+        foreach (var work in initial.ScheduledWork)
+            work.Sequence.AdvanceComputedTokens(work.NumScheduledTokens);
+        Assert.True(earlierLongPrefill.NumComputedTokens < earlierLongPrefill.PromptTokens.Count);
+        Assert.Equal(laterShortPrompt.PromptTokens.Count, laterShortPrompt.NumComputedTokens);
+
+        var mixed = sched.Schedule();
+
+        Assert.Equal(2, mixed.ScheduledWork.Count);
+        Assert.Same(laterShortPrompt, mixed.ScheduledWork[0].Sequence);
+        Assert.False(mixed.ScheduledWork[0].IsPrefill);
+        Assert.Same(earlierLongPrefill, mixed.ScheduledWork[1].Sequence);
+        Assert.True(mixed.ScheduledWork[1].IsPrefill);
+        Assert.Equal(cfg.MaxPrefillChunkSize, mixed.ScheduledWork[1].NumScheduledTokens);
+    }
+
+    [Fact]
+    public void Scheduler_ActiveDecodeSharesConstrainedPrefillBudgetAcrossSteps()
+    {
+        // After reserving one token for an active decode, this configuration has
+        // nine prefill tokens for three 4-token-cap prompts.  A fixed traversal
+        // gives the tail request 1 token forever (4/4/1 each step).  Rotating the
+        // constrained order, or equivalently splitting it fairly, gives every
+        // prompt nine tokens after three steps without delaying the decode.
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 10,
+            MaxNumRunningSequences = 4,
+            MaxPrefillChunkSize = 4,
+            SoloPrefillChunkSize = 10,
+            NumBlocks = 64,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = false,
+            DecodeQuantumTokens = 1,
+        };
+        var pool = NewPool(cfg.NumBlocks);
+        var sched = new ContinuousBatchScheduler(cfg, pool, "fp-prefill-rotate", NullLogger.Instance);
+        var decoder = NewSequence("decoding", promptLen: 4, maxNew: 32);
+        sched.Submit(decoder);
+        var initial = sched.Schedule();
+        decoder.AdvanceComputedTokens(Assert.Single(initial.ScheduledWork).NumScheduledTokens);
+
+        var prefills = Enumerable.Range(0, 3)
+            .Select(i => NewSequence($"prefill-{i}", promptLen: 64, maxNew: 4))
+            .ToArray();
+        foreach (var prefill in prefills)
+            sched.Submit(prefill);
+
+        var scheduledByPrompt = prefills.ToDictionary(seq => seq.RequestId, _ => 0);
+        for (int round = 0; round < prefills.Length; round++)
+        {
+            var step = sched.Schedule();
+            Assert.Same(decoder, step.ScheduledWork[0].Sequence);
+            Assert.False(step.ScheduledWork[0].IsPrefill);
+            Assert.Equal(1, step.ScheduledWork[0].NumScheduledTokens);
+            Assert.Equal(
+                cfg.MaxNumBatchedTokens - 1,
+                step.ScheduledWork.Where(work => work.IsPrefill)
+                    .Sum(work => work.NumScheduledTokens));
+
+            foreach (var work in step.ScheduledWork)
+            {
+                if (ReferenceEquals(work.Sequence, decoder))
+                {
+                    decoder.AppendOutputToken(round + 1);
+                    decoder.AdvanceComputedTokens(work.NumScheduledTokens);
+                }
+                else
+                {
+                    scheduledByPrompt[work.Sequence.RequestId] += work.NumScheduledTokens;
+                    work.Sequence.AdvanceComputedTokens(work.NumScheduledTokens);
+                }
+            }
+        }
+
+        Assert.All(prefills, prefill => Assert.Equal(9, scheduledByPrompt[prefill.RequestId]));
+    }
+
+    [Fact]
+    public void Scheduler_PreemptedSequenceIsNotReadmittedInTheSameOutput()
+    {
+        // A/B/C initially occupy 1/1/2 blocks. At the next decode step A needs
+        // a second block, so the latest sequence C is preempted and frees two.
+        // A consumes one; the other must not immediately re-admit C because the
+        // engine releases every PreemptedRequestId after executing this output.
+        var cfg = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 32,
+            MaxNumRunningSequences = 3,
+            MaxPrefillChunkSize = 8,
+            SoloPrefillChunkSize = 32,
+            NumBlocks = 4,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = false,
+            DecodeQuantumTokens = 1,
+        };
+        var pool = NewPool(cfg.NumBlocks);
+        var sched = new ContinuousBatchScheduler(
+            cfg, pool, "fp-preempt-readmit", NullLogger.Instance);
+        var a = NewSequence("a", promptLen: 8, maxNew: 8);
+        var b = NewSequence("b", promptLen: 7, maxNew: 8);
+        var c = NewSequence("c", promptLen: 16, maxNew: 8);
+        sched.Submit(a);
+        sched.Submit(b);
+        sched.Submit(c);
+
+        var initial = sched.Schedule();
+        Assert.Equal(3, initial.ScheduledWork.Count);
+        foreach (var work in initial.ScheduledWork)
+            work.Sequence.AdvanceComputedTokens(work.NumScheduledTokens);
+        Assert.Equal(0, pool.NumFreeBlocks);
+
+        var pressured = sched.Schedule();
+
+        Assert.Equal(new[] { c.RequestId }, pressured.PreemptedRequestIds);
+        Assert.DoesNotContain(
+            pressured.ScheduledWork,
+            work => ReferenceEquals(work.Sequence, c));
+        Assert.Equal(SequenceStatus.Preempted, c.Status);
+        Assert.Equal(1, sched.WaitingCount);
+        Assert.Equal(2, sched.RunningCount);
+        Assert.Equal(1, pool.NumFreeBlocks);
     }
 
     [Fact]
@@ -303,6 +528,44 @@ public class ContinuousBatchSchedulerTests
     }
 
     [Fact]
+    public async Task Engine_DuplicateRunningRequestId_IsRejectedWithoutOrphaningOriginalHandle()
+    {
+        using var forwardEntered = new ManualResetEventSlim();
+        using var releaseForward = new ManualResetEventSlim();
+        var model = new StubModel(
+            "fp-duplicate-id",
+            peakToken: 7,
+            forwardEntered: forwardEntered,
+            releaseForward: releaseForward);
+        using var engine = new InferenceEngine(model, SmallConfig(), NullLogger.Instance);
+
+        var original = engine.SubmitRequest(
+            NewSequence("duplicate-id", promptLen: 4, maxNew: 2));
+        try
+        {
+            Assert.True(
+                forwardEntered.Wait(TimeSpan.FromSeconds(5)),
+                "Original request never reached model execution.");
+
+            var error = Assert.Throws<InvalidOperationException>(() =>
+                engine.SubmitRequest(
+                    NewSequence("duplicate-id", promptLen: 5, maxNew: 2)));
+
+            Assert.Contains("already submitted", error.Message, StringComparison.Ordinal);
+            Assert.False(original.Completion.IsCompleted);
+            Assert.Equal(1, engine.TotalSubmitted);
+        }
+        finally
+        {
+            releaseForward.Set();
+        }
+
+        var completion = await original.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(SequenceStatus.FinishedLengthCapped, completion.Status);
+        Assert.Equal(2, completion.OutputTokenCount);
+    }
+
+    [Fact]
     public void Engine_ParallelSequences_AllComplete()
     {
         var model = new StubModel("fp-par", peakToken: 7);
@@ -321,6 +584,39 @@ public class ContinuousBatchSchedulerTests
             Assert.True(completion.OutputTokenCount > 0,
                 $"Sequence {h.RequestId} produced no tokens.");
         }
+    }
+
+    /// <summary>
+    /// A model that emits the same token forever used to run to MaxTokens, which on a
+    /// phone whose reply limit the user raised is hundreds of thousands of tokens of
+    /// the same phrase. The guard ends it at the first provable loop and says so.
+    /// </summary>
+    [Fact]
+    public void Engine_StopsARunawayLoopBeforeMaxTokens_AndSaysWhy()
+    {
+        var model = new StubModel("fp-loop", peakToken: 5);
+        // A pool of 512 slots: room for the 400 tokens the request asks for, so the
+        // guard -- not the pool -- is what ends the run, at 128.
+        var config = new SchedulerConfig
+        {
+            MaxNumBatchedTokens = 256,
+            MaxNumRunningSequences = 8,
+            MaxPrefillChunkSize = 64,
+            NumBlocks = 64,
+            BlockSize = BlockSize,
+            EnablePrefixCaching = true,
+            DecodeQuantumTokens = BlockSize,
+        };
+        using var engine = new InferenceEngine(model, config, NullLogger.Instance);
+        var seq = NewSequence("loop", promptLen: 4, maxNew: 400);
+        var handle = engine.SubmitRequest(seq);
+
+        var completion = handle.Completion.GetAwaiter().GetResult();
+        Assert.Equal(SequenceStatus.FinishedStopped, completion.Status);
+        Assert.Equal(RepetitionGuard.FinishReason, completion.FinishReason);
+        Assert.Equal(RepetitionGuard.MinSpan, completion.OutputTokenCount);
+        Assert.Equal(RepetitionGuard.MinSpan, seq.OutputTokens.Count);
+        Assert.All(seq.OutputTokens, token => Assert.Equal(5, token));
     }
 
     [Fact]
@@ -783,11 +1079,19 @@ public class ContinuousBatchSchedulerTests
         private byte[] _state = Array.Empty<byte>();
         private int _cacheSeqLen;
         private int _eos = -1;
+        private readonly ManualResetEventSlim? _forwardEntered;
+        private readonly ManualResetEventSlim? _releaseForward;
 
-        public StubModel(string fingerprint, int peakToken)
+        public StubModel(
+            string fingerprint,
+            int peakToken,
+            ManualResetEventSlim? forwardEntered = null,
+            ManualResetEventSlim? releaseForward = null)
         {
             _fp = fingerprint;
             _peak = peakToken;
+            _forwardEntered = forwardEntered;
+            _releaseForward = releaseForward;
             Tokenizer = new StubTokenizer(VocabSize, this);
         }
 
@@ -802,6 +1106,13 @@ public class ContinuousBatchSchedulerTests
 
         public float[] Forward(int[] tokens)
         {
+            _forwardEntered?.Set();
+            if (_releaseForward != null
+                && !_releaseForward.Wait(TimeSpan.FromSeconds(5)))
+            {
+                throw new TimeoutException("Test did not release the blocked model forward.");
+            }
+
             // Pretend to write KV state for each input token.
             int newCount = _cacheSeqLen + tokens.Length;
             long needed = ComputeKVBlockByteSize(newCount);

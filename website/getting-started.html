@@ -67,8 +67,8 @@ cd TensorSharp</code></pre>
 dotnet build TensorSharp.Cli/TensorSharp.Cli.csproj -c Release
 
 # Web application
-dotnet build TensorSharp.Server/TensorSharp.Server.csproj -c Release</code></pre>
-  <p>The CLI binary lands in <code>TensorSharp.Cli/bin/...</code> and the server in <code>TensorSharp.Server/bin/...</code>. For a CUDA- or Vulkan-enabled native build, manual native builds, or MLX, see <a href="backends.html#native-build">Building the native libraries</a>.</p>
+dotnet build TensorSharp.Server.Host/TensorSharp.Server.Host.csproj -c Release</code></pre>
+  <p>The CLI binary lands in <code>TensorSharp.Cli/bin/...</code> and the server in <code>TensorSharp.Server.Host/bin/...</code>. For a CUDA- or Vulkan-enabled native build, manual native builds, or MLX, see <a href="backends.html#native-build">Building the native libraries</a>.</p>
   <div class="callout note"><div class="ic">📦</div><p><strong>Release status, verified 2026-09-01:</strong> <a href="https://github.com/zhongkaifu/TensorSharp/releases/tag/v3.3.0.0" target="_blank" rel="noopener">v3.3.0.0</a> provides ten prebuilt archives — CLI and Server for Windows x64 (CPU/CUDA), Linux x64 (CPU/CUDA), and macOS arm64. CUDA archives still need a compatible NVIDIA GPU and driver. Use the <a href="https://github.com/zhongkaifu/TensorSharp/releases" target="_blank" rel="noopener">Releases page</a> for downloads and newer versions; source builds remain supported.</p></div>
 
   <h2 id="download">3 · Download a model</h2>
@@ -98,7 +98,7 @@ TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Cli -c R
   <p>Type messages turn-by-turn; drive the session with <a href="cli.html#repl">slash commands</a> like <code>/reset</code>, <code>/think on</code>, or <code>/image photo.png</code>.</p>
 
   <h3>Option C — browser UI + HTTP APIs (server)</h3>
-  <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
+  <pre data-lang="bash"><code>TENSORSHARP_GGML_NATIVE_ENABLE_CUDA=ON dotnet run --project TensorSharp.Server.Host -c Release -p:TensorSharpSkipMlxNative=true -- --model models/gemma-4-E4B-it-Q8_0.gguf --backend ggml_cuda --max-tokens 128
 # open http://localhost:5000/index.html</code></pre>
   <p>The health response is at <code>http://localhost:5000/</code>; the browser chat is at <code>/index.html</code>. The <a href="http-api.html">Ollama- and OpenAI-compatible</a> endpoints use the same fixed port.</p>
 

@@ -437,7 +437,7 @@ TSG_EXPORT int TSGgml_DiffusionDecodeLayer(const TSGgmlDiffusionDecodeLayerDesc*
 
         // ===================== Final residual + decoder scalar =====================
         ggml_tensor* mlp_normed = ggml_mul(ctx, ggml_rms_norm(ctx, mlp, eps), post_ffw_norm_w);
-        ggml_tensor* result = ggml_add(ctx, residual1, mlp_normed);
+        ggml_tensor* result = ggml_add(ctx, mlp_normed, residual1);   // normed first: lets ggml-metal fuse rms_norm+mul+add into one kernel
         if (std::fabs(d->dec_scale - 1.0f) > 1e-9f)
             result = ggml_scale(ctx, result, d->dec_scale);
 
@@ -535,7 +535,7 @@ TSG_EXPORT int TSGgml_DiffusionDecodeLayer(const TSGgmlDiffusionDecodeLayerDesc*
         // Reuse a persistent compute buffer across the per-layer calls (as Gemma4MoELayerDecode
         // does) so we don't pay a fresh backend allocation for every layer of every step.
         BufferHandle buffer(nullptr);
-        if (!alloc_ctx_tensors_reuse(ctx))
+        if (!alloc_ctx_tensors_reuse(ctx, graph))
         {
             buffer.value = ggml_backend_alloc_ctx_tensors(ctx, g_backend);
             if (buffer.value == nullptr)

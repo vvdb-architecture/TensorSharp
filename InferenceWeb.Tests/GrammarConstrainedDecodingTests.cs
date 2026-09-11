@@ -130,6 +130,13 @@ public class GrammarConstrainedDecodingTests
     [InlineData("{\"a\": 1}", true)]
     [InlineData("{\"a\": [1, 2, {\"b\": null}]}", true)]
     [InlineData("{\"a\": \"x\\ny\"}", true)]
+    // RFC 8259: control characters inside a string MUST be escaped. A raw newline
+    // or tab is exactly what a model emits when it pastes source code into a
+    // string value, and it made "constrained" output unparseable.
+    [InlineData("{\"a\": \"x\ny\"}", false)]
+    [InlineData("{\"a\": \"x\ty\"}", false)]
+    [InlineData("{\"a\": \"x\u007Fy\"}", false)]
+    [InlineData("{\"a\": \"x\\ty\"}", true)]
     [InlineData("{\"a\": -1.5e10}", true)]
     [InlineData("{\"a\": 1,}", false)]
     [InlineData("{a: 1}", false)]
@@ -138,6 +145,17 @@ public class GrammarConstrainedDecodingTests
     public void JsonObjectGrammarMatchesJsonSyntax(string text, bool valid)
     {
         Assert.Equal(valid, Feed(Grammar.JsonObject(), text).Complete);
+    }
+
+    [Theory]
+    [InlineData("{\"name\": \"x\ny\"}", false)]      // raw newline inside a schema-typed string
+    [InlineData("{\"name\": \"x\\ny\"}", true)]
+    public void CompiledSchemaStringRejectsRawControlCharacters(string text, bool valid)
+    {
+        // The exclusion lives in three hand-copied rules; the compiled schema's is
+        // the one every tool-call schema actually uses.
+        var grammar = Grammar.FromJsonSchema("{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}},\"required\":[\"name\"]}");
+        Assert.Equal(valid, Feed(grammar, text).Complete);
     }
 
     [Fact]

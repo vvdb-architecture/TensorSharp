@@ -41,9 +41,39 @@ namespace TensorSharp.Models
                 ".wav" => DecodeWAV(File.ReadAllBytes(path)),
                 ".mp3" => DecodeMp3(path),
                 ".ogg" => DecodeOgg(path),
-                _ => throw new NotSupportedException(
-                    $"Audio format '{ext}' is not supported. Supported formats: .wav, .mp3, .ogg")
+                _ => DecodeViaPlatform(path),
             };
+        }
+
+        /// <summary>
+        /// Every extension the managed decoders above do not handle (.m4a / .aac / .caf from
+        /// Voice Memos, .flac, ...) goes to the platform audio decoder on
+        /// <see cref="TensorSharp.Models.Media.MediaCodecs.Audio"/>, which returns native-rate
+        /// planar PCM. The fold to mono (float average, as the MP3/OGG paths do) and the
+        /// resampler are this file's own, so the mel pipeline sees exactly what it always has.
+        /// With no platform decoder registered this throws the provider's
+        /// <see cref="NotSupportedException"/>, which names what to register.
+        /// </summary>
+        private static float[] DecodeViaPlatform(string path)
+        {
+            TensorSharp.Models.Video.DecodedAudio raw = TensorSharp.Models.Media.MediaCodecs.Audio.Decode(path);
+            if (raw is not { ChannelCount: > 0, SampleCount: > 0 })
+                throw new InvalidDataException($"The platform audio decoder returned no samples for '{path}'.");
+
+            int channels = raw.ChannelCount;
+            int totalFrames = raw.SampleCount;
+            float[] mono = new float[totalFrames];
+            for (int i = 0; i < totalFrames; i++)
+            {
+                float sum = 0;
+                for (int ch = 0; ch < channels; ch++)
+                    sum += raw.Channels[ch][i];
+                mono[i] = sum / channels;
+            }
+
+            if (raw.SampleRate != SampleRate)
+                mono = ResampleLinear(mono, raw.SampleRate, SampleRate);
+            return mono;
         }
 
         private static float[] DecodeMp3(string path)
