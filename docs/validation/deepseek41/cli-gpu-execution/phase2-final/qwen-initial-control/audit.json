@@ -1,0 +1,114 @@
+{
+  "audit_complete": true,
+  "input_sha256": "94f7a9baa3c6981766f931e3fd19999524942b9dfce28131bb27155b4d975912",
+  "all_3_outputs_and_counts_match": true,
+  "strict_passed_per_version": 2,
+  "performance_qualification": "Unqualified initial 3-request CLI control. Preserve large timing differences; no resolved-regression or stable-throughput claim. Inputs are short and include terminal/logging overhead. Later fair repetitions are separate.",
+  "native_identity_basis": "Parent-executed baseline phase1 1d920988 and final fa5ac075; raw logs do not contain binary SHA.",
+  "runs": {
+    "before": {
+      "completed": 3,
+      "strict_passed": 2,
+      "cases": [
+        {
+          "index": 0,
+          "output": "OK.",
+          "output_sha256": "b814aabdde112d89d45105c3205482949a86d7bbc33040034db21f7a85c84c4a",
+          "expected_output": "OK",
+          "passed": false,
+          "tokens": 2,
+          "prompt_tokens": 16,
+          "prefill_ms": 1056,
+          "decode_ms": 56,
+          "cli_tps": 35.7,
+          "cli_ttft_ms": 8,
+          "finish": "eos",
+          "kv_plan": "Reset"
+        },
+        {
+          "index": 1,
+          "output": "4",
+          "output_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "expected_output": "4",
+          "passed": true,
+          "tokens": 1,
+          "prompt_tokens": 26,
+          "prefill_ms": 1102,
+          "decode_ms": 522,
+          "cli_tps": 1.9,
+          "cli_ttft_ms": 0,
+          "finish": "eos",
+          "kv_plan": "Reset"
+        },
+        {
+          "index": 2,
+          "output": "{\"ok\":true}",
+          "output_sha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+          "expected_output": "{\"ok\":true}",
+          "passed": true,
+          "tokens": 5,
+          "prompt_tokens": 23,
+          "prefill_ms": 1014,
+          "decode_ms": 1009,
+          "cli_tps": 5.0,
+          "cli_ttft_ms": 0,
+          "finish": "eos",
+          "kv_plan": "Reset"
+        }
+      ],
+      "log_sha256": "5a9496eb79d466ece3229ea4fec78dd9e6dc59ecec2e915bc6c558f542148b9d"
+    },
+    "after": {
+      "completed": 3,
+      "strict_passed": 2,
+      "cases": [
+        {
+          "index": 0,
+          "output": "OK.",
+          "output_sha256": "b814aabdde112d89d45105c3205482949a86d7bbc33040034db21f7a85c84c4a",
+          "expected_output": "OK",
+          "passed": false,
+          "tokens": 2,
+          "prompt_tokens": 16,
+          "prefill_ms": 1065,
+          "decode_ms": 1060,
+          "cli_tps": 1.9,
+          "cli_ttft_ms": 9,
+          "finish": "eos",
+          "kv_plan": "Reset"
+        },
+        {
+          "index": 1,
+          "output": "4",
+          "output_sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+          "expected_output": "4",
+          "passed": true,
+          "tokens": 1,
+          "prompt_tokens": 26,
+          "prefill_ms": 178,
+          "decode_ms": 619,
+          "cli_tps": 1.6,
+          "cli_ttft_ms": 0,
+          "finish": "eos",
+          "kv_plan": "Reset"
+        },
+        {
+          "index": 2,
+          "output": "{\"ok\":true}",
+          "output_sha256": "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+          "expected_output": "{\"ok\":true}",
+          "passed": true,
+          "tokens": 5,
+          "prompt_tokens": 23,
+          "prefill_ms": 1275,
+          "decode_ms": 1269,
+          "cli_tps": 3.9,
+          "cli_ttft_ms": 0,
+          "finish": "eos",
+          "kv_plan": "Reset"
+        }
+      ],
+      "log_sha256": "4c850e8e72acd81f0fadbff7a7a004afb102241f90422c863314971f7a483c83"
+    }
+  }
+}

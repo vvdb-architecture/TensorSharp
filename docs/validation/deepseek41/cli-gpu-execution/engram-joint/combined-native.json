@@ -1,0 +1,46 @@
+{
+  "scope": "Combined joint scheduling plus scoped mmap advice; explicit local CPU, established stable fixture, FA disabled. Does not establish full-checkpoint or CUDA parity.",
+  "commands": [
+    "cmake --build /tmp/tensorsharp-scheduler-capacity-build --target GgmlOps GgmlOpsDsv41EngramIoTest -j 4",
+    "ctest --test-dir /tmp/tensorsharp-scheduler-capacity-build -R deepseek41-engram-parallel-io --output-on-failure"
+  ],
+  "oracle_command": "PYTHONPATH=/Users/zhongkaifu/work/llama.cpp/gguf-py TS_DSV4_FA=0 TS_DSV41_ENGRAM_THREADS={1,16} /tmp/deepseek41-reference/venv/bin/python eng/tests/dsv41-inference.py /tmp/deepseek41-reference/fixture-stable --library /tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib --report REPORT",
+  "build_and_ctest_exit_code": 0,
+  "oracle_exit_codes": [
+    0,
+    0
+  ],
+  "checks_per_oracle": 41,
+  "all_reported_metrics_equal_between_thread_counts": true,
+  "max_absolute_error": 5.163252353668213e-06,
+  "sha256": {
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "8a88f291052a1c734321af904b77207181d9abeb1498de483c574dee2ac27f57",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/dsv41_engram.h": "8cfa5923268c8912c4f84a4b1208d5e6ace474f87c27f8048d3e040d916b6bf3",
+    "/tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib": "7b74ce834f6212034337c6e0ed3db27b7a524494c25d882ad5c270f1f3eb3f45",
+    "/tmp/deepseek41-reference/fixture-stable/deepseek41-fixture.gguf": "f3917170dd3b8bf2b3220a1c41ff5a6dfd81517b2ae37079afbf5224d7dca99d",
+    "/tmp/deepseek41-reference/fixture-stable/deepseek41.config.json": "591475827cbe2db8382a3cd57d177875b49d60f05b6538c17df4f5a1e57ae10d",
+    "/tmp/deepseek41-reference/fixture-stable/deepseek41.engram.bin": "d9f9c28124c59c1df587ccd9eef24297c5eefa0aad1bcccc1939b8ded2f5f126",
+    "/tmp/deepseek41-reference/fixture-stable/tokens.json": "5a4eaf21b55013a77789388c7c1dc4d8581378a91bab7385b762e3234ab6da1f",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/dsv41_engram_advice.h": "c4c983453b57b99d2253b240db3d27bb8278ff352c2b4e101aef3355bfc548ce"
+  },
+  "retained_logs_sha256": {
+    "combined-native-build.log": "a6ec5d71ebab31351457c09803c35075ab4868c7a2ecf103cff2487c7e218d0e",
+    "combined-ctest.log": "7d884772bb6e2c24e86ee15f159819fb8f65dca6302f83702585fd01fe2ccfa8",
+    "native-oracle-threads1.json": "198de75b5a7303277d3b73ef1f4c139341078f93930394980808c104f8dbe6b6",
+    "native-oracle-threads1.log": "a6029a7ff3286ae04f48101fe9c95f3e8730bad5e218551d3aed4ed36e01da10",
+    "native-stable-threads1.json": "5753d0e0cec09c911513a539dc34d6f7d2a0601fce8447ecaa3c82e33af3219c",
+    "native-stable-threads1.log": "72ac338510ec3873dd337f2aba52a64e0051737b3954529ee3ac793ee852913f",
+    "native-stable-threads16.json": "b9b4a6be9b4ad164e18a602376a7fa6237f847e9efe0344a7d5faee39092157e",
+    "native-stable-threads16.log": "8cbf456d1f57d5eed17d2d6d159eb128e7198122225d8fa06e9d1a07674cbd33"
+  },
+  "earlier_attempt": {
+    "fixture": "/tmp/deepseek41-reference/fixture-f32",
+    "threads": 1,
+    "FA": "default/on",
+    "exit_code": 1,
+    "passed": 35,
+    "total": 41,
+    "evidence": "native-oracle-threads1.json",
+    "interpretation": "Preserved, not a pass. The prior backend-diagnostics stage also records35/41 for this fixture with FA disabled, but no matched default-FA before/after result is claimed. Established stable fixture policy is validated separately without widening tolerances."
+  }
+}

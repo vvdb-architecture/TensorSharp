@@ -1,0 +1,57 @@
+{
+  "run_complete": true,
+  "all_passed": true,
+  "platform": "Darwin",
+  "scope": "Local portable range and policy checks. Linux mmap/smaps branch has not run on this host.",
+  "checks_per_execution": 47,
+  "normal_exit_code": 0,
+  "asan_ubsan_exit_code": 0,
+  "test_output": "Non-Linux: range/policy checks complete; OS advice explicitly unsupported\nPassed 47 mapped Engram advice checks\n",
+  "commands": [
+    [
+      "clang++",
+      "-std=c++17",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "TensorSharp.GGML.Native/tests/dsv41_engram_advice_test.cpp",
+      "-o",
+      "/tmp/deepseek41-reference/engram-advice-unit/advice-test"
+    ],
+    [
+      "/tmp/deepseek41-reference/engram-advice-unit/advice-test"
+    ],
+    [
+      "clang++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "TensorSharp.GGML.Native/tests/dsv41_engram_advice_test.cpp",
+      "-o",
+      "/tmp/deepseek41-reference/engram-advice-unit/advice-test-sanitized"
+    ],
+    [
+      "/tmp/deepseek41-reference/engram-advice-unit/advice-test-sanitized"
+    ]
+  ],
+  "inputs": [
+    {
+      "path": "TensorSharp.GGML.Native/tests/dsv41_engram_advice_test.cpp",
+      "bytes": 9657,
+      "sha256": "eeda64006fdcede8f114ea43c6540e497c3e031eaceabb13f013b2a8f5a24207"
+    },
+    {
+      "path": "TensorSharp.GGML.Native/dsv41_engram_advice.h",
+      "bytes": 3514,
+      "sha256": "c4c983453b57b99d2253b240db3d27bb8278ff352c2b4e101aef3355bfc548ce"
+    },
+    {
+      "path": "TensorSharp.GGML.Native/CMakeLists.txt",
+      "bytes": 28544,
+      "sha256": "d83ac9e7ff50cf5863619d575881be77fee3423a83d628cf9eaa2b65fc6d8312"
+    }
+  ]
+}

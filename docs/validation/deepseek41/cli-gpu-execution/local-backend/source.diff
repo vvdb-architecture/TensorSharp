@@ -1,0 +1,114 @@
+diff --git a/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp b/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp
+index f004807..3883c68 100644
+--- a/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp
++++ b/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp
+@@ -1294,23 +1294,20 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+         return nullptr;
+     }
+ 
++    // Report the compute devices before metadata scans and weight uploads can
++    // take minutes. The CPU scheduler pool below is auxiliary to these devices.
++    fprintf(stderr, "[dsv4] compute devices initialized: %d %s\n",
++            n_gpu, cpu_only ? "CPU device(s)" : "GPU(s)");
++    for (int d = 0; d < n_gpu; ++d)
+     {
+-        // DeepSeek V4's architecture-specific ops (the 4-stream hyper-connections
+-        // and the lightning indexer) ship kernels for CPU and CUDA only.
+-        // Elsewhere ggml_backend_sched routes them to the CPU backend, which is
+-        // correct but costs a host round trip per layer. Worth saying once, so a
+-        // slow Vulkan run does not read as a mystery.
+-        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(m->backends[0]));
+-        const char * rn = reg ? ggml_backend_reg_name(reg) : nullptr;
+-        if (!cpu_only && !dsv4_backend_matches(rn, "CUDA"))
+-        {
+-            fprintf(stderr,
+-                    "[dsv4] note: the %s backend has no kernels for this architecture's hyper-connection and "
+-                    "lightning-indexer ops; they run on the CPU backend (correct, but a host round trip per "
+-                    "layer). --backend ggml_cuda / cuda keep everything on the GPU.\n",
+-                    rn ? rn : "selected");
+-        }
++        ggml_backend_t backend = m->backends[d];
++        ggml_backend_dev_t device = ggml_backend_get_device(backend);
++        fprintf(stderr, "[dsv4]   compute device %d: backend=%s, device=%s (%s)\n",
++                d, ggml_backend_name(backend),
++                device ? ggml_backend_dev_name(device) : "unknown",
++                device ? ggml_backend_dev_description(device) : "unknown");
+     }
++
+     m->n_gpu = n_gpu;
+     ggml_backend_t cpu = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
+     {
+@@ -1344,7 +1341,7 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+         ggml_threadpool_params tpp = ggml_threadpool_params_default(cpu_threads);
+         m->cpu_threadpool = ggml_threadpool_new(&tpp);
+         if (m->cpu_threadpool) ggml_backend_cpu_set_threadpool(cpu, m->cpu_threadpool);
+-        fprintf(stderr, "[dsv4] CPU fallback/host-expert pool: threads=%d, persistent=%s\n",
++        fprintf(stderr, "[dsv4] auxiliary CPU worker pool: threads=%d, persistent=%s\n",
+                 cpu_threads, m->cpu_threadpool ? "yes" : "no");
+ #if defined(TSG_GGML_TEST_HOOKS)
+         if (m->cpu_threadpool) m->test_cpu_pool_threads = tpp.n_threads;
+@@ -1412,6 +1409,40 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+     if (arch != "deepseek4" && arch != "deepseek41")
+         throw std::runtime_error("DeepSeek executor requires deepseek4 or deepseek41 architecture");
+     hp.v41 = arch == "deepseek41";
++    if (hp.v41 && !cpu_only)
++    {
++        // V4.1's public executor supports the CUDA family only. Preserve V4's
++        // alternate-GPU fallback and the explicit native CPU oracle path, but
++        // do not let fallback bypass V4.1's managed backend validation.
++        for (int d = 0; d < n_gpu; ++d)
++        {
++            ggml_backend_dev_t device = ggml_backend_get_device(m->backends[d]);
++            ggml_backend_reg_t reg = device ? ggml_backend_dev_backend_reg(device) : nullptr;
++            const char * name = reg ? ggml_backend_reg_name(reg) : nullptr;
++            if (!name || !dsv4_backend_matches(name, "CUDA"))
++                throw std::runtime_error("DeepSeek V4.1 requires CUDA-family GPU devices; selected device " +
++                    std::to_string(d) + " uses " + (name ? name : "an unknown backend") +
++                    ". Alternate GPU fallback is not supported for V4.1.");
++        }
++    }
++    if (!hp.v41 && !cpu_only)
++    {
++        // DeepSeek V4's architecture-specific ops (the 4-stream hyper-connections
++        // and the lightning indexer) ship kernels for CPU and CUDA only.
++        // Elsewhere ggml_backend_sched routes them to the CPU backend, which is
++        // correct but costs a host round trip per layer. Worth saying once, so a
++        // slow Vulkan run does not read as a mystery.
++        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(m->backends[0]));
++        const char * rn = reg ? ggml_backend_reg_name(reg) : nullptr;
++        if (!dsv4_backend_matches(rn, "CUDA"))
++        {
++            fprintf(stderr,
++                    "[dsv4] note: the %s backend has no kernels for this architecture's hyper-connection and "
++                    "lightning-indexer ops; they run on the CPU backend (correct, but a host round trip per "
++                    "layer). --backend ggml_cuda / cuda keep everything on the GPU.\n",
++                    rn ? rn : "selected");
++        }
++    }
+     int tp_ranks = 0;
+     if (const char * value = getenv("TS_DSV41_TP"))
+     {
+@@ -1811,6 +1842,12 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+         for (int il = 0; il < n_cpu_moe && il < hp.n_layer; il++)
+             m->layers[il].cpu_moe = true;
+ 
++        if (cpu_only)
++            fprintf(stderr, "[dsv4] routed-expert placement: all %d layer(s) on the explicitly selected CPU device\n",
++                    hp.n_layer);
++        else
++            fprintf(stderr, "[dsv4] routed-expert CPU offload: %d of %d layer(s); %d layer(s) on GPUs\n",
++                    n_cpu_moe, hp.n_layer, hp.n_layer - n_cpu_moe);
+         if (n_cpu_moe > 0)
+         {
+             size_t host_bytes = 0;
+@@ -2340,8 +2377,8 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+ 
+         auto t_end = std::chrono::steady_clock::now();
+         double secs = std::chrono::duration<double>(t_end - t_start).count();
+-        fprintf(stderr, "[dsv4] loaded %.1f GiB across %d GPU(s) in %.1fs (%.2f GiB/s, %d load threads%s; n_ctx=%d, ring=%" PRId64 ", csa_rows=%" PRId64 ", hca_rows=%" PRId64 ")\n",
+-                uploaded / (1024.0 * 1024.0 * 1024.0), n_gpu, secs,
++        fprintf(stderr, "[dsv4] loaded %.1f GiB across %d %s in %.1fs (%.2f GiB/s, %d load threads%s; n_ctx=%d, ring=%" PRId64 ", csa_rows=%" PRId64 ", hca_rows=%" PRId64 ")\n",
++                uploaded / (1024.0 * 1024.0 * 1024.0), n_gpu, cpu_only ? "CPU device(s)" : "GPU(s)", secs,
+                 secs > 0 ? uploaded / (1024.0 * 1024.0 * 1024.0) / secs : 0.0,
+                 load_threads,
+                 m->mmap_weight_bytes > 0 ? "; host weights mmapped" : "",

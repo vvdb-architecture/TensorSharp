@@ -1,0 +1,81 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+16:47:49 info: TensorSharp.Cli[1700] tensorsharp-cli started: argv=7 logLevel=Information logDir=logs fileLogging=True consoleLogging=True
+16:47:49 info: TensorSharp.Cli[1400] Loading model Qwen3.5-0.8B-Q8_0.gguf on backend GgmlCuda kvCacheDtype=auto (path=/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf)
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Model: qwen35, Layers=24, Hidden=1024, Heads=8, KVHeads=2, HeadDim=256, Vocab=248320
+RoPE base=10000000, scale=1, eps=1E-06
+SSM: dInner=2048, dState=128, nGroup=16, dtRank=16, convKernel=4, fullAttnInterval=4
+MRoPE sections: [11, 11, 10, 0]
+Layer types: 6 full attention, 18 recurrent (GatedDeltaNet)
+Loading model weights... done (133 F32 tensors, 187 quantized tensors)
+  Quantized: 761 MB (761 MB file-backed), F32: 1 MB
+  Fused projections: 6 Q+K+V
+  Fused projections: 18 recurrent input packs
+  Fused projections: 24 Gate+Up
+  Device-resident quantized weights: 915 MB across 169 tensors
+Context length: using GGUF metadata qwen35.context_length=262144.
+Initial GgmlCuda KV cache allocation: 8192 tokens (grows on demand up to 262144).
+16:48:34 info: TensorSharp.Cli[1401] Loaded model Qwen3.5-0.8B-Q8_0.gguf architecture=qwen35 contextLength=262144 kvCacheDtype=f16 elapsedMs=44412.7
+  Warming up kernels (decode + prefill)...
+    Decode warmup: 2237.4 ms
+    Prefill warmup (2048 tokens): starting...
+    Prefill warmup (2048 tokens): completed in 2384.0 ms
+16:48:40 info: TensorSharp.Cli[1010] Kernel warmup completed in 5793.3 ms
+16:48:40 info: TensorSharp.Cli[1700] Entering interactive chat mode (model=Qwen3.5-0.8B-Q8_0.gguf, backend=GgmlCuda, thinking=False)
+  Chat sampling: temp=0.8 top_k=40 top_p=0.95 min_p=0.05 repeat_penalty=1
+
+=== TensorSharp interactive chat ===
+Model: Qwen3.5-0.8B-Q8_0.gguf
+Backend: GgmlCuda
+Architecture: qwen35
+Context length: 262144 tokens
+Max tokens per reply: 128
+Thinking: off
+Sampling: temp=0.8 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+Type /help to see all available commands. Use /exit or Ctrl+D to leave.
+===============================
+
+[turn 1]> temperature updated.
+temp=0 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+
+[turn 1]> Seed set to 42 (deterministic).
+
+[turn 1]> Thinking is now off.
+
+[turn 1]> [ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=86
+
+Assistant: OK.
+[turn complete: tokens=2 prefillMs=1065 decodeMs=1060 tps=1.9 ttftMs=9 reason=eos kvPlan=Reset]
+16:48:42 info: TensorSharp.Cli[1501] interactive.turn complete tokens=2 promptTokens=16 kvPlan=Reset prefillMs=1065 decodeMs=1060 tps=1.9 ttftMs=9 reason=eos
+
+[turn 2]> No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> [ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=110
+
+Assistant: 4
+[turn complete: tokens=1 prefillMs=178 decodeMs=619 tps=1.6 ttftMs=0 reason=eos kvPlan=Reset]
+
+[turn 2]> 16:48:44 info: TensorSharp.Cli[1501] interactive.turn complete tokens=1 promptTokens=26 kvPlan=Reset prefillMs=178 decodeMs=619 tps=1.6 ttftMs=0 reason=eos
+No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> [ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=110
+
+Assistant: {"ok":true}
+[turn complete: tokens=5 prefillMs=1275 decodeMs=1269 tps=3.9 ttftMs=0 reason=eos kvPlan=Reset]
+
+[turn 2]> 16:48:47 info: TensorSharp.Cli[1501] interactive.turn complete tokens=5 promptTokens=23 kvPlan=Reset prefillMs=1275 decodeMs=1269 tps=3.9 ttftMs=0 reason=eos
+16:48:51 info: TensorSharp.Cli[1701] tensorsharp-cli completed

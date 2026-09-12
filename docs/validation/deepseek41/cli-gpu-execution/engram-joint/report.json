@@ -1,0 +1,75 @@
+{
+  "scope": "Local warm-memory scheduling control; synthetic int16 / 127 dequantization. Not Linux filesystem, full-model inference, GPU or qualified deployment timing. Linux --joint cold-file mode remains unexecuted locally.",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "head": "3347b06b39bf705f6a69c85053ca9704a0c30e4f",
+  "source_sha256": {
+    "TensorSharp.GGML.Native/dsv41_engram.h": "8cfa5923268c8912c4f84a4b1208d5e6ace474f87c27f8048d3e040d916b6bf3",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "e146b4004f644b3da05124b712ed2eb5049e9f2ded12907a3555dda0d30feac3",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp": "68fb12af664ffa8d21abecee8c15a6a790c524b0abecfee821498107ecbf7d6a",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp": "76630ac84e88d5e10e1d9930204323740ffb9a522d070234665405c1b03bb409",
+    "TensorSharp.GGML.Native/dsv41_engram_io.h": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+  },
+  "commands": [
+    "clang++ -std=c++17 -O2 -pthread TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp -o /tmp/dsv41-engram-joint-test",
+    "/tmp/dsv41-engram-joint-test",
+    "clang++ -std=c++17 -O1 -g -pthread -fsanitize=address,undefined -fno-omit-frame-pointer TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp -o /tmp/dsv41-engram-joint-asan",
+    "/tmp/dsv41-engram-joint-asan",
+    "clang++ -std=c++17 -O2 -pthread TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp -o /tmp/dsv41-engram-joint-bench",
+    "/tmp/dsv41-engram-joint-bench --warm-joint",
+    "/tmp/dsv41-engram-joint-bench --warm-memory"
+  ],
+  "normal_and_sanitizer_passed": true,
+  "native_cpu_syntax_passed": true,
+  "unit_scope": {
+    "tokens": [
+      1,
+      3,
+      257
+    ],
+    "tables": 3,
+    "formats": [
+      "synthetic int16",
+      "F32"
+    ],
+    "group_sizes": [
+      1,
+      2,
+      3
+    ],
+    "workers": [
+      1,
+      16
+    ],
+    "image_masks": true,
+    "invalid_later_hash_before_any_read": true,
+    "expired_prepare_helper_stack": true,
+    "worker_error_then_recovery": true
+  },
+  "warm_pairs": [
+    {
+      "tokens": 1,
+      "separate_us": 84.046875,
+      "joint_us": 45.185,
+      "median_ratio_separate_over_joint": 1.8600614141861236
+    },
+    {
+      "tokens": 3,
+      "separate_us": 90.07573,
+      "joint_us": 52.123545,
+      "median_ratio_separate_over_joint": 1.728119796917113
+    },
+    {
+      "tokens": 257,
+      "separate_us": 580.41455,
+      "joint_us": 506.3146,
+      "median_ratio_separate_over_joint": 1.1463515964185114
+    }
+  ],
+  "retained_logs": {
+    "normal.log": "de59149d45c6730d6697db9c43d6a6462c07226982ef4e98107a3397b8eeed54",
+    "warm-joint.jsonl": "6e3032d3672ede9dce9ed55132fef051e605a57a3d82cadf6582ecc760912191",
+    "native-syntax.log": "09c236d028a7b158aae2378b8e0eddafb45a3b8df6f2a57ddfd600923a3d8b5a",
+    "warm-memory.jsonl": "54c4787b923337b3896ecfb26a44a2d250ffae75963b07f6d25691817f0fa9f3",
+    "asan.log": "4cce32eb0529adbd3353002c9853f356b6aa0f29d786848f9ce2c75cbd69fbac"
+  }
+}

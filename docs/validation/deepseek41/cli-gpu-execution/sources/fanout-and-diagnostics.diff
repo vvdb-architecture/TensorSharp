@@ -1,0 +1,335 @@
+diff --git a/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp b/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp
+index f004807..68bc035 100644
+--- a/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp
++++ b/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp
+@@ -1294,23 +1294,20 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+         return nullptr;
+     }
+ 
++    // Report the compute devices before metadata scans and weight uploads can
++    // take minutes. The CPU scheduler pool below is auxiliary to these devices.
++    fprintf(stderr, "[dsv4] compute devices initialized: %d %s\n",
++            n_gpu, cpu_only ? "CPU device(s)" : "GPU(s)");
++    for (int d = 0; d < n_gpu; ++d)
+     {
+-        // DeepSeek V4's architecture-specific ops (the 4-stream hyper-connections
+-        // and the lightning indexer) ship kernels for CPU and CUDA only.
+-        // Elsewhere ggml_backend_sched routes them to the CPU backend, which is
+-        // correct but costs a host round trip per layer. Worth saying once, so a
+-        // slow Vulkan run does not read as a mystery.
+-        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(m->backends[0]));
+-        const char * rn = reg ? ggml_backend_reg_name(reg) : nullptr;
+-        if (!cpu_only && !dsv4_backend_matches(rn, "CUDA"))
+-        {
+-            fprintf(stderr,
+-                    "[dsv4] note: the %s backend has no kernels for this architecture's hyper-connection and "
+-                    "lightning-indexer ops; they run on the CPU backend (correct, but a host round trip per "
+-                    "layer). --backend ggml_cuda / cuda keep everything on the GPU.\n",
+-                    rn ? rn : "selected");
+-        }
++        ggml_backend_t backend = m->backends[d];
++        ggml_backend_dev_t device = ggml_backend_get_device(backend);
++        fprintf(stderr, "[dsv4]   compute device %d: backend=%s, device=%s (%s)\n",
++                d, ggml_backend_name(backend),
++                device ? ggml_backend_dev_name(device) : "unknown",
++                device ? ggml_backend_dev_description(device) : "unknown");
+     }
++
+     m->n_gpu = n_gpu;
+     ggml_backend_t cpu = ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr);
+     {
+@@ -1344,7 +1341,7 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+         ggml_threadpool_params tpp = ggml_threadpool_params_default(cpu_threads);
+         m->cpu_threadpool = ggml_threadpool_new(&tpp);
+         if (m->cpu_threadpool) ggml_backend_cpu_set_threadpool(cpu, m->cpu_threadpool);
+-        fprintf(stderr, "[dsv4] CPU fallback/host-expert pool: threads=%d, persistent=%s\n",
++        fprintf(stderr, "[dsv4] auxiliary CPU worker pool: threads=%d, persistent=%s\n",
+                 cpu_threads, m->cpu_threadpool ? "yes" : "no");
+ #if defined(TSG_GGML_TEST_HOOKS)
+         if (m->cpu_threadpool) m->test_cpu_pool_threads = tpp.n_threads;
+@@ -1412,6 +1409,40 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+     if (arch != "deepseek4" && arch != "deepseek41")
+         throw std::runtime_error("DeepSeek executor requires deepseek4 or deepseek41 architecture");
+     hp.v41 = arch == "deepseek41";
++    if (hp.v41 && !cpu_only)
++    {
++        // V4.1's public executor supports the CUDA family only. Preserve V4's
++        // alternate-GPU fallback and the explicit native CPU oracle path, but
++        // do not let fallback bypass V4.1's managed backend validation.
++        for (int d = 0; d < n_gpu; ++d)
++        {
++            ggml_backend_dev_t device = ggml_backend_get_device(m->backends[d]);
++            ggml_backend_reg_t reg = device ? ggml_backend_dev_backend_reg(device) : nullptr;
++            const char * name = reg ? ggml_backend_reg_name(reg) : nullptr;
++            if (!name || !dsv4_backend_matches(name, "CUDA"))
++                throw std::runtime_error("DeepSeek V4.1 requires CUDA-family GPU devices; selected device " +
++                    std::to_string(d) + " uses " + (name ? name : "an unknown backend") +
++                    ". Alternate GPU fallback is not supported for V4.1.");
++        }
++    }
++    if (!hp.v41 && !cpu_only)
++    {
++        // DeepSeek V4's architecture-specific ops (the 4-stream hyper-connections
++        // and the lightning indexer) ship kernels for CPU and CUDA only.
++        // Elsewhere ggml_backend_sched routes them to the CPU backend, which is
++        // correct but costs a host round trip per layer. Worth saying once, so a
++        // slow Vulkan run does not read as a mystery.
++        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(m->backends[0]));
++        const char * rn = reg ? ggml_backend_reg_name(reg) : nullptr;
++        if (!dsv4_backend_matches(rn, "CUDA"))
++        {
++            fprintf(stderr,
++                    "[dsv4] note: the %s backend has no kernels for this architecture's hyper-connection and "
++                    "lightning-indexer ops; they run on the CPU backend (correct, but a host round trip per "
++                    "layer). --backend ggml_cuda / cuda keep everything on the GPU.\n",
++                    rn ? rn : "selected");
++        }
++    }
+     int tp_ranks = 0;
+     if (const char * value = getenv("TS_DSV41_TP"))
+     {
+@@ -1811,6 +1842,12 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+         for (int il = 0; il < n_cpu_moe && il < hp.n_layer; il++)
+             m->layers[il].cpu_moe = true;
+ 
++        if (cpu_only)
++            fprintf(stderr, "[dsv4] routed-expert placement: all %d layer(s) on the explicitly selected CPU device\n",
++                    hp.n_layer);
++        else
++            fprintf(stderr, "[dsv4] routed-expert CPU offload: %d of %d layer(s); %d layer(s) on GPUs\n",
++                    n_cpu_moe, hp.n_layer, hp.n_layer - n_cpu_moe);
+         if (n_cpu_moe > 0)
+         {
+             size_t host_bytes = 0;
+@@ -2090,7 +2127,7 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+             io_threads = (unsigned) requested;
+         }
+         m->engram_io.reset(new tsg_dsv41::engram_io_pool(io_threads));
+-        fprintf(stderr, "[dsv41] Engram sparse prefill reads: %u persistent I/O threads\n", io_threads);
++        fprintf(stderr, "[dsv41] Engram sparse prefill/decode reads: %u persistent I/O threads\n", io_threads);
+         int kv_source = -1, index_source = -1;
+         for (int il = 0; il < hp.n_layer; ++il)
+         {
+@@ -2340,8 +2377,8 @@ static dsv4_model * dsv4_load(const char * gguf_path, int n_gpu_req, int n_ctx,
+ 
+         auto t_end = std::chrono::steady_clock::now();
+         double secs = std::chrono::duration<double>(t_end - t_start).count();
+-        fprintf(stderr, "[dsv4] loaded %.1f GiB across %d GPU(s) in %.1fs (%.2f GiB/s, %d load threads%s; n_ctx=%d, ring=%" PRId64 ", csa_rows=%" PRId64 ", hca_rows=%" PRId64 ")\n",
+-                uploaded / (1024.0 * 1024.0 * 1024.0), n_gpu, secs,
++        fprintf(stderr, "[dsv4] loaded %.1f GiB across %d %s in %.1fs (%.2f GiB/s, %d load threads%s; n_ctx=%d, ring=%" PRId64 ", csa_rows=%" PRId64 ", hca_rows=%" PRId64 ")\n",
++                uploaded / (1024.0 * 1024.0 * 1024.0), n_gpu, cpu_only ? "CPU device(s)" : "GPU(s)", secs,
+                 secs > 0 ? uploaded / (1024.0 * 1024.0 * 1024.0) / secs : 0.0,
+                 load_threads,
+                 m->mmap_weight_bytes > 0 ? "; host weights mmapped" : "",
+@@ -4822,8 +4859,11 @@ static bool dsv4_forward_ubatch(dsv4_model & m, const int32_t * tokens, int64_t
+                             std::fill_n(rows.data() + i * m.engram.head_dim, m.engram.head_dim, 0.0f);
+                         else row(i);
+                     };
+-                    if (nt >= 4) m.engram_io->run(count, lookup);
+-                    else for (size_t i = 0; i < count; ++i) lookup(i);
++                    // Even one token selects 24 independent rows. A cold
++                    // mapped table can fault on network storage, so decode
++                    // needs the same bounded I/O fanout as prefill. A pool
++                    // configured with one thread still executes serially.
++                    m.engram_io->run(count, lookup);
+                 });
+             ggml_backend_tensor_set(res.inp.engram[e], rows.data(), 0, rows.size() * sizeof(float));
+         }
+diff --git a/TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp b/TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp
+index 0cb0f57..b2c47e0 100644
+--- a/TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp
++++ b/TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp
+@@ -1,24 +1,81 @@
+ // Copyright (c) Zhongkai Fu. All rights reserved.
+ // Licensed under the BSD-3-Clause license in the repository root.
+-// Linux-only filesystem microbenchmark; creates and removes its own scratch
+-// file. It never drops global caches or evicts live model pages.
++// Portable warm-memory lookup control, plus a Linux-only filesystem benchmark
++// that creates/removes its own scratch file. Never evicts live model pages.
+ #include "../dsv41_engram.h"
+ #include "../dsv41_engram_io.h"
+ 
+ #include <chrono>
+ #include <cstdio>
+ #include <cstring>
+-#include <fcntl.h>
+ #include <random>
++#if defined(__linux__)
++#include <fcntl.h>
+ #include <sys/mman.h>
+ #include <unistd.h>
++#endif
+ 
+ static void require(bool value, const char * message) {
+     if (!value) throw std::runtime_error(message);
+ }
+ 
++static int warm_memory() {
++    using clock = std::chrono::steady_clock;
++    constexpr size_t table_rows = 65536, head = 256, repetitions = 200, samples = 12;
++    tsg_dsv41::engram_data layout;
++    layout.max_ngram_size = 4; layout.n_heads = 8; layout.head_dim = head;
++    layout.layers.push_back({1, table_rows, {}, {}, {}});
++    std::vector<int16_t> table(table_rows * head);
++    std::mt19937 random(4101);
++    for (auto & value : table) value = int16_t(int(random() % 65536) - 32768);
++    auto dequantize = [](const void * source, float * output, size_t count) {
++        const auto * values = static_cast<const int16_t *>(source);
++        for (size_t i = 0; i < count; ++i) output[i] = float(values[i]) / 127;
++    };
++    tsg_dsv41::engram_io_pool serial(1), parallel(16);
++    for (size_t tokens : {size_t(1), size_t(3)}) {
++        std::vector<int32_t> hashes(tokens * layout.hash_columns());
++        for (auto & hash : hashes) hash = int32_t(random() % table_rows);
++        std::vector<float> expected(hashes.size() * head), actual(expected.size());
++        layout.lookup(0, table.data(), table_rows, head * sizeof(int16_t), hashes.data(), tokens,
++            expected.data(), dequantize);
++        auto lookup = [&](tsg_dsv41::engram_io_pool & pool) {
++            layout.lookup(0, table.data(), table_rows, head * sizeof(int16_t), hashes.data(), tokens,
++                actual.data(), dequantize, [&](size_t count, auto row) { pool.run(count, row); });
++        };
++        // Fault the selected pages and start the persistent workers before
++        // timing. Alternate serial/parallel block order; report every sample.
++        for (size_t i = 0; i < 50; ++i) { lookup(serial); lookup(parallel); }
++        std::vector<double> durations[2];
++        for (size_t sample = 0; sample < samples; ++sample) {
++            for (size_t pass = 0; pass < 2; ++pass) {
++                const size_t index = (sample + pass) % 2;
++                auto & pool = index ? parallel : serial;
++                const auto start = clock::now();
++                for (size_t i = 0; i < repetitions; ++i) lookup(pool);
++                durations[index].push_back(std::chrono::duration<double, std::micro>(clock::now() - start).count() / repetitions);
++                require(std::memcmp(actual.data(), expected.data(), actual.size() * sizeof(float)) == 0,
++                        "Warmed small lookup changed row bytes");
++            }
++        }
++        for (size_t index = 0; index < 2; ++index) {
++            auto sorted = durations[index]; std::sort(sorted.begin(), sorted.end());
++            std::printf("{\"mode\":\"warm_memory\",\"tokens\":%zu,\"selected_rows\":%zu,\"head_dim\":%zu,"
++                        "\"threads\":%u,\"repetitions_per_sample\":%zu,\"exact_output\":true,\"median_us\":%.6f,\"samples_us\":[",
++                        tokens, hashes.size(), head, index ? parallel.threads() : serial.threads(), repetitions,
++                        (sorted[sorted.size() / 2 - 1] + sorted[sorted.size() / 2]) / 2);
++            for (size_t i = 0; i < durations[index].size(); ++i)
++                std::printf("%s%.6f", i ? "," : "", durations[index][i]);
++            std::printf("]}\n");
++        }
++    }
++    return 0;
++}
++
+ int main(int argc, char ** argv) {
+-    if (argc != 2) { std::fprintf(stderr, "usage: %s SCRATCH_DIRECTORY\n", argv[0]); return 2; }
++    if (argc != 2) { std::fprintf(stderr, "usage: %s SCRATCH_DIRECTORY | --warm-memory\n", argv[0]); return 2; }
++    if (std::strcmp(argv[1], "--warm-memory") == 0) return warm_memory();
++#if defined(__linux__)
+     constexpr size_t bytes = 64 * 1024 * 1024, row_bytes = 64, page = 4096;
+     std::string pattern = std::string(argv[1]) + "/dsv41-engram-io-XXXXXX";
+     std::vector<char> path(pattern.begin(), pattern.end()); path.push_back(0);
+@@ -76,4 +133,8 @@ int main(int argc, char ** argv) {
+         std::fflush(stdout);
+         require(munmap(mapped, bytes) == 0, "Cannot unmap benchmark file");
+     }
++#else
++    std::fprintf(stderr, "Filesystem benchmark requires Linux; use --warm-memory on this platform.\n");
++    return 2;
++#endif
+ }
+diff --git a/TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp b/TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp
+index 0e424ba..221d247 100644
+--- a/TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp
++++ b/TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp
+@@ -23,9 +23,11 @@ int main() {
+     expect_error([] { engram_io_pool invalid(0); });
+     expect_error([] { engram_io_pool invalid(33); });
+     tsg_dsv41::engram_data layout;
+-    layout.max_ngram_size = 3; layout.n_heads = 2; layout.head_dim = 32;
++    // Published V4.1 geometry: 24 independently hashed 256-element rows
++    // per token. Cover decode and the former serial small-prefill path.
++    layout.max_ngram_size = 4; layout.n_heads = 8; layout.head_dim = 256;
+     layout.layers.push_back({1, 1024, {}, {}, {}});
+-    std::vector<int16_t> table(1024 * 32);
++    std::vector<int16_t> table(1024 * layout.head_dim);
+     for (size_t i = 0; i < table.size(); ++i) table[i] = int16_t(int((i * 71) % 511) - 255);
+     std::vector<int32_t> hashes(257 * layout.hash_columns());
+     for (size_t i = 0; i < hashes.size(); ++i) hashes[i] = int32_t((i * 257 + i / 3) % 1024);
+@@ -33,17 +35,48 @@ int main() {
+         const auto * values = static_cast<const int16_t *>(source);
+         for (size_t i = 0; i < count; ++i) output[i] = float(values[i]) / 127;
+     };
+-    std::vector<float> expected(hashes.size() * 32), actual(expected.size());
+-    layout.lookup(0, table.data(), 1024, 32 * sizeof(int16_t), hashes.data(), 257, expected.data(), dequantize);
++    const size_t row_bytes = layout.head_dim * sizeof(int16_t);
++    std::vector<float> expected(hashes.size() * layout.head_dim), actual(expected.size());
++    layout.lookup(0, table.data(), 1024, row_bytes, hashes.data(), 257, expected.data(), dequantize);
+     for (unsigned threads : {1, 2, 8, 16, 32}) {
+         engram_io_pool pool(threads);
+-        for (int repeat = 0; repeat < 10; ++repeat) {
+-            layout.lookup(0, table.data(), 1024, 32 * sizeof(int16_t), hashes.data(), 257, actual.data(), dequantize,
+-                [&](size_t count, auto row) { pool.run(count, row); });
+-            require(std::memcmp(actual.data(), expected.data(), actual.size() * sizeof(float)) == 0,
+-                    "Parallel Engram lookup changed row order or arithmetic");
++        for (size_t tokens : {size_t(1), size_t(3), size_t(257)}) {
++            const size_t elements = tokens * layout.hash_columns() * layout.head_dim;
++            for (int repeat = 0; repeat < 10; ++repeat) {
++                std::fill(actual.begin(), actual.end(), -98765.0f);
++                layout.lookup(0, table.data(), 1024, row_bytes, hashes.data(), tokens, actual.data(), dequantize,
++                    [&](size_t count, auto row) { pool.run(count, row); });
++                require(std::memcmp(actual.data(), expected.data(), elements * sizeof(float)) == 0,
++                        "Parallel Engram lookup changed row order or arithmetic");
++                require(std::all_of(actual.begin() + elements, actual.end(), [](float value) { return value == -98765.0f; }),
++                        "Small Engram lookup wrote beyond its output rows");
++            }
++            // Validate every hash before submitting any row, including a
++            // missing last row after otherwise valid decode/prefill hashes.
++            auto invalid = hashes;
++            const size_t last = tokens * layout.hash_columns() - 1;
++            for (int32_t missing : {-1, 1024}) {
++                invalid[last] = missing;
++                std::atomic<int> calls{0};
++                expect_error([&] {
++                    layout.lookup(0, table.data(), 1024, row_bytes, invalid.data(), tokens, actual.data(),
++                        [&](const void *, float *, size_t) { ++calls; },
++                        [&](size_t count, auto row) { pool.run(count, row); });
++                });
++                require(calls == 0, "Invalid Engram hash submitted partial work");
++            }
++        }
++        for (size_t count : {size_t(24), size_t(72), size_t(129)}) {
++            expect_error([&] { pool.run(count, [](size_t i) { if (i == 13) throw std::runtime_error("test"); }); });
++            std::vector<std::atomic<int>> recovered(count);
++            for (auto & visits : recovered) visits = 0;
++            pool.run(count, [&](size_t i) { ++recovered[i]; });
++            for (const auto & visits : recovered) require(visits == 1, "Small pool job did not recover after exception");
+         }
+-        expect_error([&] { pool.run(129, [](size_t i) { if (i == 13) throw std::runtime_error("test"); }); });
++        expect_error([&] {
++            layout.lookup(0, nullptr, 1024, row_bytes, hashes.data(), 1, actual.data(), dequantize,
++                [&](size_t count, auto row) { pool.run(count, row); });
++        });
+         std::vector<std::atomic<int>> visits(257);
+         for (auto & count : visits) count = 0;
+         pool.run(visits.size(), [&](size_t i) { ++visits[i]; });
+@@ -66,10 +99,10 @@ int main() {
+     expect_error([&] { parallel.warm(nullptr, 1); });
+     // Model delayed page reads deterministically; timing is diagnostic, while
+     // peak overlap verifies the optimization without a flaky speed threshold.
+-    for (auto * pool : {&serial, &parallel}) {
++    for (size_t rows : {size_t(24), size_t(72)}) for (auto * pool : {&serial, &parallel}) {
+         std::atomic<int> active{0}, peak{0};
+         const auto start = std::chrono::steady_clock::now();
+-        pool->run(64, [&](size_t) {
++        pool->run(rows, [&](size_t) {
+             const int current = ++active;
+             int previous = peak.load();
+             while (previous < current && !peak.compare_exchange_weak(previous, current)) {}
+@@ -78,8 +111,8 @@ int main() {
+         });
+         require(peak <= int(pool->threads()), "Pool exceeded its worker bound");
+         if (pool->threads() > 1) require(peak > 1, "Delayed I/O was still serialized");
+-        std::printf("Simulated blocked reads: threads=%u peak=%d elapsed_ms=%.2f\n", pool->threads(), int(peak),
++        std::printf("Simulated blocked reads: rows=%zu threads=%u peak=%d elapsed_ms=%.2f\n", rows, pool->threads(), int(peak),
+             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+     }
+-    std::puts("Engram serial/parallel/warm, lifecycle, concurrent submission and exception tests passed");
++    std::puts("Engram 1/3/257-token serial/parallel/warm, invalid rows, lifecycle, concurrent submission and exception tests passed");
+ }
