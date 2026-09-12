@@ -1,0 +1,28 @@
+{
+  "started_utc": "2026-09-11T13:24:14.918388+00:00",
+  "command": [
+    "/workspace/deepseek41-work/reference-venv/bin/python",
+    "/workspace/deepseek41-work/final-smoke18-runner.py",
+    "--trace-after"
+  ],
+  "session_id": 84593,
+  "exit_code": 0,
+  "native_process_elapsed_seconds": 248.96793074626476,
+  "unload_observed_utc": "2026-09-11T13:29:49.855336+00:00",
+  "gpu_compute_processes_after": "",
+  "unload_observation_source": "Read-only nvidia-smi --query-compute-apps=pid,used_gpu_memory --format=csv,noheader tool result",
+  "primary_and_traced_npy_sha256": "1e835b54a343f6ea4c51a3c18e74df5651a3dae827ff118af918fc85c6d2289c",
+  "native_trace_files": 384,
+  "native_trace_bytes": 279763072,
+  "required_trace_files_verified": 81,
+  "full_native_trace_local": "/tmp/deepseek41-reference/final-smoke18-6b3/trace-after",
+  "full_native_trace_remote": "/workspace/deepseek41-work/final-smoke18-6b3/trace-after",
+  "reference_traces_local": "/tmp/deepseek41-reference/q2-smoke18-retained",
+  "primary_native_source_version": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "old_native_source_version": null,
+  "limitations": [
+    "Command success verifies expected generation and completed trace diagnostics; it does not mean the strict CPU-oracle comparison passed.",
+    "Timings are diagnostic smoke/load measurements, not a qualified end-to-end throughput benchmark.",
+    "The complete279.8MB native trace remains on VM and local/tmp, with all per-file hashes in final-run/manifest.json; this compact repository bundle retains selected primary artifacts."
+  ]
+}

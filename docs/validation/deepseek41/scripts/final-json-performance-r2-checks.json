@@ -1,0 +1,123 @@
+{
+  "scope": "Local simulated HTTP/process/telemetry orchestration with actual portable request generation and response validation. No real model, VM compute, clock mutation, or benchmark executed.",
+  "runner_source": {
+    "path": "/tmp/deepseek41-reference/run-final-json-performance.py",
+    "sha256": "10ab194bb0c1397f353a3eda7e2eaa990a6d4f950d4e366f8d64940bf41553c5",
+    "bytes": 33558
+  },
+  "test_source": {
+    "path": "/tmp/deepseek41-reference/check-final-json-performance.py",
+    "sha256": "0a6ae45e6960d5457c4a651d2b2016365decd744c29564437de7ff8700999622",
+    "bytes": 13637
+  },
+  "checks": [
+    {
+      "name": "all-matched-90-timed-plus36-warmups",
+      "passed": true
+    },
+    {
+      "name": "changed-valid-response-90-timed-plus36-warmups",
+      "passed": true
+    },
+    {
+      "name": "telemetry-finalization-failure-90-timed-plus36-warmups",
+      "passed": true
+    },
+    {
+      "name": "external-runtime-log-writes-all-six-jobs-keep-all-frozen-files-intact",
+      "passed": true
+    },
+    {
+      "name": "frozen-tamper-rejected-TensorSharp.Runtime.dll",
+      "passed": true
+    },
+    {
+      "name": "frozen-tamper-rejected-appsettings.json",
+      "passed": true
+    },
+    {
+      "name": "frozen-tamper-rejected-logs/tensorsharp-server-20260911.jsonl",
+      "passed": true
+    },
+    {
+      "name": "token-count-mismatch-not-credited",
+      "passed": true
+    },
+    {
+      "name": "request-hash-mismatch-not-credited",
+      "passed": true
+    },
+    {
+      "name": "missing-case-not-credited",
+      "passed": true
+    },
+    {
+      "name": "duplicate-case-not-credited",
+      "passed": true
+    },
+    {
+      "name": "failed-semantic-case-not-credited",
+      "passed": true
+    },
+    {
+      "name": "unqualified-telemetry-not-credited",
+      "passed": true
+    },
+    {
+      "name": "deployment-change-not-credited",
+      "passed": true
+    },
+    {
+      "name": "wave-token-accounting-mismatch-not-credited",
+      "passed": true
+    },
+    {
+      "name": "nonfinite-paired-clock-not-credited",
+      "passed": true
+    },
+    {
+      "name": "tiny-stream-window-only-decode-ratio-withheld",
+      "passed": true
+    },
+    {
+      "name": "decode-source-mismatch-only-decode-ratio-withheld",
+      "passed": true
+    },
+    {
+      "name": "preceding-quality-incomplete-rejected",
+      "passed": true
+    },
+    {
+      "name": "stable-owned-only",
+      "passed": true
+    },
+    {
+      "name": "undeclared-window",
+      "passed": true
+    },
+    {
+      "name": "foreign-gpu",
+      "passed": true
+    },
+    {
+      "name": "clock-drift",
+      "passed": true
+    },
+    {
+      "name": "nan-clock",
+      "passed": true
+    },
+    {
+      "name": "inf-clock",
+      "passed": true
+    },
+    {
+      "name": "foreign-cpu-busy",
+      "passed": true
+    },
+    {
+      "name": "too-few-samples",
+      "passed": true
+    }
+  ]
+}

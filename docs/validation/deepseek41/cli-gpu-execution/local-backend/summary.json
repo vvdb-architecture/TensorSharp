@@ -1,0 +1,86 @@
+{
+  "scope": "Local macOS native backend selection/rejection and explicit CPU oracle only. Does not resolve the user-reported VM inference performance behavior.",
+  "production_files_changed": [
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp"
+  ],
+  "source": {
+    "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp",
+    "bytes": 256070,
+    "sha256": "4d5688edaf445b9ecc6916183233eb4f2df44838fa677767321b26c0e09d28dd"
+  },
+  "git_head": "3347b06b39bf705f6a69c85053ca9704a0c30e4f",
+  "cpu_native": {
+    "path": "/tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib",
+    "bytes": 3526912,
+    "sha256": "58275a258d8fb7cfc39fcb7da785693aa9a1598849399513bb8215e41e772cce"
+  },
+  "metal_native": {
+    "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+    "bytes": 5635968,
+    "sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79"
+  },
+  "checks": {
+    "old-cuda-fallback": {
+      "backend": "CUDA",
+      "accepted": true,
+      "expected": "accept",
+      "passed": true,
+      "library": "/private/tmp/dsv41-backend-diagnostics/old-metal.dylib",
+      "library_sha256": "b7b46ca7d4571df7f7d6c12ad9096d90c8ed980beb3fbadb4cc9d640e4aac95b",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "new-cuda-fallback": {
+      "backend": "CUDA",
+      "accepted": false,
+      "expected": "reject",
+      "passed": true,
+      "library": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+      "library_sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "new-metal-explicit": {
+      "backend": "Metal",
+      "accepted": false,
+      "expected": "reject",
+      "passed": true,
+      "library": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+      "library_sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "new-cpu-explicit": {
+      "backend": "CPU",
+      "accepted": true,
+      "expected": "accept",
+      "passed": true,
+      "library": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+      "library_sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "stable_cpu_oracle": {
+      "passed": 41,
+      "total": 41,
+      "atol": 2e-05,
+      "rtol": 2e-05,
+      "max_absolute_error": 5.163252353668213e-06
+    },
+    "cuda_index_cpu_before_after": {
+      "before_passed": 32,
+      "after_passed": 32,
+      "total": 41,
+      "all_reported_numerical_metrics_exactly_identical": true,
+      "all_greedy_tokens_match_reference": true
+    }
+  },
+  "before_library_scope": "Archived local CPU/Metal binaries copied before this local rebuild; not claimed to be identical to the current deployed VM native or an exact clean-HEAD build.",
+  "build_commands": [
+    "cmake --build /tmp/tensorsharp-scheduler-capacity-build --target GgmlOps -j6",
+    "cmake --build TensorSharp.GGML.Native/build --target GgmlOps -j6"
+  ],
+  "test_environment": "PYTHONPATH=/Users/zhongkaifu/work/llama.cpp/gguf-py TS_DSV4_FA=0; /tmp/deepseek41-reference/venv/bin/python; explicit CPU",
+  "initial_setup_failure": "cpu-oracle.log failed before native loading because gguf Python package was missing from PYTHONPATH; retry supplied existing local package.",
+  "other_preserved_check": "fixture-f32 CPU result 35/41 is retained; no tolerance widening or passing strict claim."
+}

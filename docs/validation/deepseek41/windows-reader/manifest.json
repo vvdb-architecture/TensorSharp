@@ -1,0 +1,47 @@
+{
+  "scope": "Windows-only FILE constructor cleanup; locally compiled extracted production branch with POSIX I/O adapters, not Windows execution. VM Linux incremental rebuild is byte-identical to archived 6b3.",
+  "production_source": "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp",
+  "before_sha256": "edd49ef0071e51e8823c3c7ec2c7b50350400062769252dd98231c5588219e02",
+  "after_sha256": "d49215b7b238cbf6194133a2016d15f270f625625299a8008685bd3882fde341",
+  "test_source": "eng/tests/dsv41-windows-reader.py",
+  "test_sha256": "073218fafcf25102e0f9bff33b48033fa47722f3ea2ffb1a16d3fd8b81ff35c2",
+  "commands": [
+    [
+      "python3",
+      "eng/tests/dsv41-windows-reader.py",
+      "--source",
+      "/tmp/deepseek41-reference/windows-reader/before.cpp",
+      "--report",
+      "/tmp/deepseek41-reference/windows-reader/before.json"
+    ],
+    [
+      "python3",
+      "eng/tests/dsv41-windows-reader.py",
+      "--report",
+      "/tmp/deepseek41-reference/windows-reader/after.json"
+    ]
+  ],
+  "before_checks": {
+    "passed": 2,
+    "total": 6
+  },
+  "after_checks": {
+    "passed": 6,
+    "total": 6
+  },
+  "artifact_sha256": {
+    "before.json": "083c3e1cf405b806aad01eea68214a835aa670541ce56f0ecf7670eca17e7c77",
+    "native-windows-reader-identity.json": "cbdc95c3557f923b8d68cf83d7742dc191920297de3cee970d99ce03cf9540bf",
+    "native-windows-reader-build.log": "96560075379036f2c8b70ee5d23179ecb4e9ad1cc12b3b060bcf5e8f7f5ba01a",
+    "after.json": "647518a5d5921fab822218990bbe924a4ca0dba086be4285d41b4cb201ab75ef",
+    "posix-preprocess.json": "879d920f3301b8114ce06f7002adbefb021b44dc32fa1286a8a3c41a100b6e1a",
+    "README.md": "f892156d235f81b945a1389ee07cbdfb14b963015668eca12427fc72de20dfaa",
+    "windows-reader.patch": "b39c0c135d790715bc717b3ba882091ae65881c3591e33643d4f5eb812aafe39"
+  },
+  "linux_rebuild": {
+    "bit_identical": true,
+    "cmp_exit_code": 0,
+    "sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+    "bytes": 204523264
+  }
+}

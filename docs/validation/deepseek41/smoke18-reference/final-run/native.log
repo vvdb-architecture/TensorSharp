@@ -1,0 +1,28 @@
+ggml_cuda_init: found 8 CUDA devices (Total VRAM: 363904 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 1: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 2: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 3: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 4: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 5: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 6: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 7: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+[dsv4] CPU fallback/host-expert pool: threads=24, persistent=yes
+[dsv41] Engram sparse prefill reads: 16 persistent I/O threads
+[dsv4] host weights are served from the GGUF mapping (60.1 GiB, no private copy)
+[dsv4] prefaulted 0.0 GiB of mmapped host experts in 0.0s
+[dsv4] loaded 186.3 GiB across 8 GPU(s) in 239.6s (0.78 GiB/s, 16 load threads; host weights mmapped; n_ctx=4096, ring=256, csa_rows=2304, hca_rows=4352)
+[dsv4]   device 0: layers 0..4 (5), 20.7 GiB free after load
+[dsv4]   device 1: layers 5..9 (5), 21.0 GiB free after load
+[dsv4]   device 2: layers 10..14 (5), 20.9 GiB free after load
+[dsv4]   device 3: layers 15..19 (5), 21.0 GiB free after load
+[dsv4]   device 4: layers 20..24 (5), 21.0 GiB free after load
+[dsv4]   device 5: layers 25..29 (5), 21.0 GiB free after load
+[dsv4]   device 6: layers 30..34 (5), 21.0 GiB free after load
+[dsv4]   device 7: layers 35..39 (5), 20.5 GiB free after load
+[dsv4] fused ops: on
+[dsv4] hyper-connection ops: native
+[dsv4] flash attention: on
+Loaded in 239.594s
+{"step": 0, "input_tokens": 18, "token": 22, "seconds": 0.7982059055939317, "max_logit": 30.679214477539062}
+{"step": 1, "input_tokens": 1, "token": 1, "seconds": 0.2682433044537902, "max_logit": 33.79047393798828}

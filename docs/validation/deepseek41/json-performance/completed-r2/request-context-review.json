@@ -1,0 +1,444 @@
+{
+  "scope": "Local read-only retained-artifact and source review",
+  "records": [
+    {
+      "stage": "quality",
+      "report": "/tmp/deepseek41-reference/final-existing-regressions/quality/qwen3-tensorsharp.json",
+      "report_sha256": "9297833edb7c193a08cf93235632921f8d0fc6b6538da09908eb2e39d6083b03",
+      "server_log": "/tmp/deepseek41-reference/final-existing-regressions/qwen3-server.log",
+      "server_log_sha256": "888e30600c64c0c41ce16cc1d17632866e97d9b04cb5fb652838450aa702f3e6",
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+          }
+        ],
+        "tools": null,
+        "response_format": {
+          "type": "json_object"
+        },
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "ok",
+      "output_text": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+      "completion_tokens": 21,
+      "prompt_tokens": 90,
+      "finish_reason": "stop",
+      "ttft_ms": 2522.88512699306,
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "environment": {
+        "CUDA_VISIBLE_DEVICES": "7",
+        "MAX_CONTEXT": "8192",
+        "KV_CACHE_DTYPE": "f16",
+        "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+        "TS_SCHED_MAX_RUNNING_SEQS": "4",
+        "TS_SCHED_PREFILL_CHUNK": "256",
+        "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+        "TS_SCHED_PREFIX_CACHE": "0",
+        "TS_SCHED_STOP_REPETITION": "0",
+        "OMP_NUM_THREADS": "4",
+        "TS_GGML_CPU_THREADS": "4"
+      },
+      "arrival_log_order": [
+        {
+          "line": 247,
+          "tag": "json-c4-r0-i0"
+        },
+        {
+          "line": 249,
+          "tag": "json-c4-r0-i1"
+        },
+        {
+          "line": 259,
+          "tag": "json-c4-r0-i3"
+        },
+        {
+          "line": 265,
+          "tag": "json-c4-r0-i2"
+        }
+      ],
+      "capability_and_fallback_lines": [
+        {
+          "line": 19,
+          "text": "Prefix cache disabled (--no-prefix-cache): the first message of this process will prefill the whole shared prompt, and nothing is kept between launches."
+        },
+        {
+          "line": 98,
+          "text": "retained fused-cache continuation: unavailable (model does not support retained holders)"
+        },
+        {
+          "line": 152,
+          "text": "The model declined the default batched fused-decode path for a 4-sequence decode step; serving sequences round-robin on the serial fused path instead (concurrency stays near 1x). Reported once."
+        }
+      ],
+      "preceding_case_order": [
+        "short-c1-r0-i0",
+        "short-c4-r0-i0",
+        "short-c4-r0-i1",
+        "short-c4-r0-i2",
+        "short-c4-r0-i3",
+        "decode-c1-r0-i0",
+        "decode-c4-r0-i0",
+        "decode-c4-r0-i1",
+        "decode-c4-r0-i2",
+        "decode-c4-r0-i3",
+        "json-c1-r0-i0"
+      ],
+      "warmups": [],
+      "singular_warmup": "warmup",
+      "decode512_warmup": false
+    },
+    {
+      "stage": "r1",
+      "report": "/tmp/deepseek41-reference/final-json-performance/qwen3-final.json",
+      "report_sha256": "365aac0f7ce6d28452f314ee7813f4703975d21f335162766984c02c55b89108",
+      "server_log": "/tmp/deepseek41-reference/final-json-performance/qwen3-final-server.log",
+      "server_log_sha256": "34a6da33c8a5638b38379390b23c61e6da893d0be95256e53c00a93e559e6000",
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+          }
+        ],
+        "tools": null,
+        "response_format": {
+          "type": "json_object"
+        },
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "fail",
+      "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "completion_tokens": 25,
+      "prompt_tokens": 90,
+      "finish_reason": "stop",
+      "ttft_ms": 2968.4047158807516,
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "environment": {
+        "CUDA_VISIBLE_DEVICES": "7",
+        "MAX_CONTEXT": "8192",
+        "KV_CACHE_DTYPE": "f16",
+        "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+        "TS_SCHED_MAX_RUNNING_SEQS": "4",
+        "TS_SCHED_PREFILL_CHUNK": "256",
+        "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+        "TS_SCHED_PREFIX_CACHE": "0",
+        "TS_SCHED_STOP_REPETITION": "0",
+        "OMP_NUM_THREADS": "4",
+        "TS_GGML_CPU_THREADS": "4"
+      },
+      "arrival_log_order": [
+        {
+          "line": 212,
+          "tag": "json-c4-r0-i1"
+        },
+        {
+          "line": 216,
+          "tag": "json-c4-r0-i2"
+        },
+        {
+          "line": 222,
+          "tag": "json-c4-r0-i3"
+        },
+        {
+          "line": 229,
+          "tag": "json-c4-r0-i0"
+        }
+      ],
+      "capability_and_fallback_lines": [
+        {
+          "line": 19,
+          "text": "Prefix cache disabled (--no-prefix-cache): the first message of this process will prefill the whole shared prompt, and nothing is kept between launches."
+        },
+        {
+          "line": 98,
+          "text": "retained fused-cache continuation: unavailable (model does not support retained holders)"
+        },
+        {
+          "line": 153,
+          "text": "The model declined the default batched fused-decode path for a 2-sequence decode step; serving sequences round-robin on the serial fused path instead (concurrency stays near 1x). Reported once."
+        }
+      ],
+      "preceding_case_order": [
+        "json-c1-r0-i0",
+        "json-c1-r1-i0",
+        "json-c1-r2-i0"
+      ],
+      "warmups": [
+        [
+          "json-warmup-c1-i0",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i0",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i1",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i2",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i3",
+          "ok"
+        ]
+      ],
+      "singular_warmup": null,
+      "decode512_warmup": true
+    },
+    {
+      "stage": "r2",
+      "report": "/tmp/deepseek41-reference/final-json-performance-r2/qwen3-final.json",
+      "report_sha256": "18ffacfa2eeb9a862838cec38178c2e989808a8afbab72962558c70f4e15219a",
+      "server_log": "/tmp/deepseek41-reference/final-json-performance-r2/qwen3-final-server.log",
+      "server_log_sha256": "58a06b5899927b4473971bf4995b58469f26e8f03f0a3f2a8678a9024ad665e2",
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+          }
+        ],
+        "tools": null,
+        "response_format": {
+          "type": "json_object"
+        },
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "fail",
+      "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "completion_tokens": 25,
+      "prompt_tokens": 90,
+      "finish_reason": "stop",
+      "ttft_ms": 3326.5195162966847,
+      "binary_sha256": {
+        "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+        "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+        "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+        "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+        "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+        "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+      },
+      "environment": {
+        "CUDA_VISIBLE_DEVICES": "7",
+        "MAX_CONTEXT": "8192",
+        "KV_CACHE_DTYPE": "f16",
+        "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+        "TS_SCHED_MAX_RUNNING_SEQS": "4",
+        "TS_SCHED_PREFILL_CHUNK": "256",
+        "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+        "TS_SCHED_PREFIX_CACHE": "0",
+        "TS_SCHED_STOP_REPETITION": "0",
+        "OMP_NUM_THREADS": "4",
+        "TS_GGML_CPU_THREADS": "4"
+      },
+      "arrival_log_order": [
+        {
+          "line": 212,
+          "tag": "json-c4-r0-i1"
+        },
+        {
+          "line": 214,
+          "tag": "json-c4-r0-i2"
+        },
+        {
+          "line": 222,
+          "tag": "json-c4-r0-i3"
+        },
+        {
+          "line": 229,
+          "tag": "json-c4-r0-i0"
+        }
+      ],
+      "capability_and_fallback_lines": [
+        {
+          "line": 19,
+          "text": "Prefix cache disabled (--no-prefix-cache): the first message of this process will prefill the whole shared prompt, and nothing is kept between launches."
+        },
+        {
+          "line": 98,
+          "text": "retained fused-cache continuation: unavailable (model does not support retained holders)"
+        },
+        {
+          "line": 153,
+          "text": "The model declined the default batched fused-decode path for a 3-sequence decode step; serving sequences round-robin on the serial fused path instead (concurrency stays near 1x). Reported once."
+        }
+      ],
+      "preceding_case_order": [
+        "json-c1-r0-i0",
+        "json-c1-r1-i0",
+        "json-c1-r2-i0"
+      ],
+      "warmups": [
+        [
+          "json-warmup-c1-i0",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i0",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i1",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i2",
+          "ok"
+        ],
+        [
+          "json-warmup-c4-i3",
+          "ok"
+        ]
+      ],
+      "singular_warmup": null,
+      "decode512_warmup": true
+    }
+  ],
+  "structured_log": {
+    "path": "/tmp/deepseek41-reference/final-json-performance-r2/qwen3-final-file-logs/tensorsharp-server-20260911.jsonl",
+    "sha256": "6922bbc13713c1a2bd42af2f23a860fde70b54278f5966c4e92be30f8b0f872a",
+    "events": [
+      {
+        "line": 85,
+        "tag": "json-c4-r0-i1",
+        "timestamp": "2026-09-11T13:45:45.7202658+00:00",
+        "request_id": "31890c9c69f3",
+        "message": "/v1/chat/completions request: id=chatcmpl-5f82c5220c2c4e9aa0815 model=Qwen3-0.6B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput=\"[validation json-c4-r0-i1]\\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.\""
+      },
+      {
+        "line": 86,
+        "tag": "json-c4-r0-i2",
+        "timestamp": "2026-09-11T13:45:45.7204132+00:00",
+        "request_id": "ae8fe5646b17",
+        "message": "/v1/chat/completions request: id=chatcmpl-9081be47e99c40de8fd7e model=Qwen3-0.6B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput=\"[validation json-c4-r0-i2]\\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.\""
+      },
+      {
+        "line": 90,
+        "tag": "json-c4-r0-i3",
+        "timestamp": "2026-09-11T13:45:45.7211130+00:00",
+        "request_id": "5ca63aa633c7",
+        "message": "/v1/chat/completions request: id=chatcmpl-0e7c3f3bbb6b40de9489b model=Qwen3-0.6B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput=\"[validation json-c4-r0-i3]\\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.\""
+      },
+      {
+        "line": 92,
+        "tag": "json-c4-r0-i0",
+        "timestamp": "2026-09-11T13:45:45.7262602+00:00",
+        "request_id": "fd64e49141cf",
+        "message": "/v1/chat/completions request: id=chatcmpl-c1f126c7dc3541fda821b model=Qwen3-0.6B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput=\"[validation json-c4-r0-i0]\\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.\""
+      },
+      {
+        "line": 95,
+        "tag": "json-c4-r0-i3",
+        "timestamp": "2026-09-11T13:45:49.5601093+00:00",
+        "request_id": "5ca63aa633c7",
+        "message": "chat.complete tokens=21 promptTokens=90 kvReused=0 kvReusePercent=0.0 ttftMs=3193 elapsedMs=3836.7 tokensPerSec=5.47 finishReason=eos assistantOutput=\"{\\n\\n\"name\": \"Mars\",\\n\"moons\": 2,\\n\"habitable\": false\\n}\""
+      },
+      {
+        "line": 97,
+        "tag": "json-c4-r0-i1",
+        "timestamp": "2026-09-11T13:45:49.6469565+00:00",
+        "request_id": "31890c9c69f3",
+        "message": "chat.complete tokens=25 promptTokens=90 kvReused=0 kvReusePercent=0.0 ttftMs=2818 elapsedMs=3924.2 tokensPerSec=6.37 finishReason=eos assistantOutput=\"{\\n\\n  \"Mars\": {\\n    \"moons\": 2,\\n    \"habitable\": false\\n  }\\n}\""
+      },
+      {
+        "line": 99,
+        "tag": "json-c4-r0-i2",
+        "timestamp": "2026-09-11T13:45:49.7026701+00:00",
+        "request_id": "ae8fe5646b17",
+        "message": "chat.complete tokens=25 promptTokens=90 kvReused=0 kvReusePercent=0.0 ttftMs=3193 elapsedMs=3979.8 tokensPerSec=6.28 finishReason=eos assistantOutput=\"{\\n\\n  \"Mars\": {\\n    \"moons\": 2,\\n    \"habitable\": false\\n  }\\n}\""
+      },
+      {
+        "line": 101,
+        "tag": "json-c4-r0-i0",
+        "timestamp": "2026-09-11T13:45:49.7529479+00:00",
+        "request_id": "fd64e49141cf",
+        "message": "chat.complete tokens=25 promptTokens=90 kvReused=0 kvReusePercent=0.0 ttftMs=3305 elapsedMs=4018.7 tokensPerSec=6.22 finishReason=eos assistantOutput=\"{\\n\\n  \"Mars\": {\\n    \"moons\": 2,\\n    \"habitable\": false\\n  }\\n}\""
+      }
+    ]
+  },
+  "source_sha256": {
+    "TensorSharp.Server/ProtocolAdapters/OpenAIChatAdapter.cs": "129c2ca56c9916a3838e868780c5cb490fe7fef27176987b877d5be7e4859777",
+    "TensorSharp.Runtime/Grammar/GrammarLibrary.cs": "8f3a6ce06b872d234d7446053a63fc16cc6ee6946005989c6817ff9086b57a74",
+    "TensorSharp.Runtime/Grammar/GrammarConstraint.cs": "c8f759921442f5a335aaa58aaa900a7572a102d45c9db555b8a79d0c8da94992",
+    "TensorSharp.Runtime/Scheduling/ContinuousBatchScheduler.cs": "b48ec987ceccf8eb40693df1dc2d80e3ae4291726dbcec1e689004db3c4cec6e",
+    "TensorSharp.Runtime/Scheduling/BatchExecutor.cs": "5ee8a99da372b5594b51f021b5a39c9059ae9ca81c6ebc53b20c981153f74267",
+    "TensorSharp.Models/Models/Qwen3/Qwen3Model.PerSeqCache.cs": "ccccfb960d5a10d9b2a53185bf5f8a0e8084ad87332b5ad7bcff7fd78ec9beaa",
+    "TensorSharp.Models/Models/Qwen3/Qwen3Model.cs": "5743bdbefe36929a46a04faab20d9fac83f59ec2f70c8511595fa749057359a7"
+  },
+  "facts": [
+    "Same final binaries, request payload and90 prompt tokens across the three executions.",
+    "Quality returns21-token flat object; r1/r2 return the same25-token nested object. Nested output is syntactically valid JSON and violates the prompt semantic structure.",
+    "Observed request arrival order changes: quality i0,i1,i3,i2; both timing runs i1,i2,i3,i0.",
+    "Prefix caching explicitly disabled; all target completions report kvReused=0; retained fused holders unavailable.",
+    "Qwen3 logs decline token-batched fused decode and fall back to serial per-sequence fused forwarding.",
+    "Current adapter constructs a fresh constraint per request. Shared grammar-state/mask caches are synchronized; ApplyMask does not mutate the shared mask.",
+    "Scheduler total256-token budget cannot admit all4x90 prompt tokens in one forward step; chunk sizes depend on waiting/running contenders."
+  ],
+  "limitations": [
+    "No per-step sequence IDs, chunk sizes, cached/logit tensor identities or per-token logits were retained; no proof of a cache lifecycle bug or exact numerical cause.",
+    "Different request order, previous requests, and resulting prefill/kernel geometry are confounded. The quality run is not a controlled equal-history replay of the timing run.",
+    "Source review identifies mechanisms, not proof of the recorded runtime branch beyond logged execution plans/fallback.",
+    "Do not describe this as proven nondeterministic batched decode GEMM: Qwen3 runs serial fused decode in these logs.",
+    "The earlier zero-introduced-failures quality conclusion remains limited to that particular execution. These repeated timing reports add a real semantic failure on the same request.",
+    "No VM access, new model runs, source edits, tolerances or validator changes were made for this review."
+  ],
+  "conclusion": "No demonstrated state bug. Admission/chunk geometry sensitivity is consistent with the evidence but is not a causal attribution."
+}

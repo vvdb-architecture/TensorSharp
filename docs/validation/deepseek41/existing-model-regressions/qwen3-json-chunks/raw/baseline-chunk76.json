@@ -1,0 +1,262 @@
+{
+  "job": {
+    "chunk": 76,
+    "version": "baseline",
+    "repetitions": 2,
+    "concurrency": 1
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/baseline/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "76"
+  ],
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "76",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "76",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4",
+    "TS_CB_DEBUG": "1",
+    "TENSORSHARP_LOG_DIR": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-qwen3-json-chunks/baseline-chunk76-file-logs"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+    "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+    "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+    "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+    "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+    "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+  },
+  "weights": {
+    "path": "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "bytes": 639446688,
+    "mtime_ns": 1789100913000000000,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/qwen3-weights.json",
+        "sha256": "b770735d67c06ea1035158091ae9dfe91f763a4af9768b510ba8feff334859c0",
+        "bytes": 208
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "cases": [
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "concurrency": 1,
+      "repeat": 0,
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "fail",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 25,
+            "ttft_ms": 996.458507142961,
+            "prefill_tps": 90.31986716441148,
+            "decode_tps": 35.63427528876193,
+            "total_wall_ms": 1696.2921293452382,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "t_start_abs": 4408704.743200248,
+            "t_first_abs": 4408705.739658755,
+            "t_last_abs": 4408706.413167612,
+            "t_end_abs": 4408706.439492377
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "detail": "ValueError: final answer failed the unchanged semantic/structural check",
+      "total_wall_ms": 1696.8487408012152
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "concurrency": 1,
+      "repeat": 1,
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "fail",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 25,
+            "ttft_ms": 534.1550251469016,
+            "prefill_tps": 168.490411515362,
+            "decode_tps": 170.0669668099809,
+            "total_wall_ms": 681.5654970705509,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "t_start_abs": 4408706.455051999,
+            "t_first_abs": 4408706.989207024,
+            "t_last_abs": 4408707.130327904,
+            "t_end_abs": 4408707.136617496
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "detail": "ValueError: final answer failed the unchanged semantic/structural check",
+      "total_wall_ms": 682.1881672367454
+    }
+  ],
+  "run_complete": true,
+  "timings_qualified_for_comparison": false,
+  "timing_note": "Cold first request, warm second request, debug logging; diagnostic only.",
+  "request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+  "source_deployment": "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/baseline/bin",
+  "before": {
+    "utc": "2026-09-11T14:11:26Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.17 W, 300.00 W, 34\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.28 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.41 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.38 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.65 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.62 W, 300.00 W, 33\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.79 W, 300.00 W, 35\n7, NVIDIA A40, 0 MiB, 0 %, 270 MHz, 7251 MHz, 60.53 W, 300.00 W, 40\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1   2\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  65\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 146464 sshd             0.0    1  88\n 146475 python          18.6    1  87\n 146849 ps               0.0    1  88\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "served_model_id": "Qwen3-0.6B-Q8_0",
+  "owned_process_exit_observed": true,
+  "deployment_changed_files": [],
+  "after": {
+    "utc": "2026-09-11T14:11:40Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.33 W, 300.00 W, 35\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.34 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.54 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.45 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.81 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.67 W, 300.00 W, 33\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.93 W, 300.00 W, 35\n7, NVIDIA A40, 0 MiB, 0 %, 1740 MHz, 7251 MHz, 88.93 W, 300.00 W, 42\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1   2\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  65\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 146464 sshd             0.0    1  88\n 146475 python          16.3    1  44\n 146965 ps               0.0    1  93\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-qwen3-json-chunks/baseline-chunk76-server.log",
+    "sha256": "47af2e3ef2db9a0b1708afe9e18d13fb0905a2f98460e80e2d740aa394493184",
+    "bytes": 18045
+  },
+  "observed_chunks": {
+    "requests": [
+      {
+        "request_id": "chat-2ef07186837f4ee09247c2aa493203e7",
+        "prefill_positions": [
+          0,
+          76
+        ],
+        "first_decode_position": 90,
+        "observed_prefill_lengths": [
+          76,
+          14
+        ],
+        "phase_order_valid": true,
+        "matches_expected_chunking": true
+      },
+      {
+        "request_id": "chat-5279f5065c574c939828157efe5501af",
+        "prefill_positions": [
+          0,
+          76
+        ],
+        "first_decode_position": 90,
+        "observed_prefill_lengths": [
+          76,
+          14
+        ],
+        "phase_order_valid": true,
+        "matches_expected_chunking": true
+      }
+    ],
+    "complete": true,
+    "method": "Consecutive logged P@ positions followed by first D@90, not a claimed native per-kernel trace."
+  },
+  "finalization_errors": [],
+  "all_cases_passed": false
+}

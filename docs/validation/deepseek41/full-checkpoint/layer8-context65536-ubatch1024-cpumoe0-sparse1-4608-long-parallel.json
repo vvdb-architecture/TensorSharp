@@ -1,0 +1,536 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "max_tokens_override": null,
+  "waves": [
+    {
+      "scenario": "long_8k",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 116426.9453510642,
+      "generated_tokens": 145,
+      "end_to_end_tokens_per_second": 1.2454161668742485,
+      "all_passed": false
+    },
+    {
+      "scenario": "long_32k",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 549402.8000654653,
+      "generated_tokens": 136,
+      "end_to_end_tokens_per_second": 0.2475415123180927,
+      "all_passed": true
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "long_8k@c4": {
+      "passed": 3,
+      "total": 4,
+      "ttft_ms_median": 111060.06688717753,
+      "ttft_ms_samples": [
+        56771.635866723955,
+        111064.19312674552,
+        111060.06688717753
+      ],
+      "prefill_tps_median": 69.38587573360897,
+      "prefill_tps_samples": [
+        135.73679677102248,
+        69.38329792038355,
+        69.38587573360897
+      ],
+      "decode_tps_median": 6.764211564804071,
+      "decode_tps_samples": [
+        0.5739661601759428,
+        6.764958117014217,
+        6.764211564804071
+      ],
+      "conversation_wall_ms_median": 116054.16796635836
+    },
+    "long_32k@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 438112.9387030378,
+      "ttft_ms_samples": [
+        546673.6148754135,
+        329559.57698915154,
+        275261.87089737505,
+        546666.3004169241
+      ],
+      "prefill_tps_median": 74.37694313210729,
+      "prefill_tps_samples": [
+        55.94745963177736,
+        92.80567804893984,
+        111.11237419222113,
+        55.94820821527474
+      ],
+      "decode_tps_median": 6.449757484509153,
+      "decode_tps_samples": [
+        12.493759324149874,
+        0.4074586836321153,
+        0.35791235217718276,
+        12.492056285386191
+      ],
+      "conversation_wall_ms_median": 481384.8014464602
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-long-parallel.json",
+  "source_report_sha256": "bb2c35d03e0a2b5146f85d9610e9b1c06d9a31af84495111cbd0781d8d749d7e",
+  "native_sha256": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573",
+  "cases": [
+    {
+      "scenario": "long_8k",
+      "tag": "long_8k-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "bf979146f6deb5b7f2a163694a07082d74399fbd102fbd36241f5d72f9d2ff0a",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 114422.10112605244,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "5997d22c8940121bd3d2f2f8fb1e8198f3f51cb4f32ba2502061fc58cb8bde12",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 7706,
+            "completion_tokens": 34,
+            "ttft_ms": 56771.635866723955,
+            "prefill_tps": 135.73679677102248,
+            "decode_tps": 0.5739661601759428,
+            "total_wall_ms": 114421.95808701217,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385212.037186645,
+            "t_first_abs": 4385268.808822512,
+            "t_last_abs": 4385326.303501274,
+            "t_end_abs": 4385326.459144732
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_8k",
+      "tag": "long_8k-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "7092fa4ad7f9056a5238c692218136fde1fdaba72d38238ba1d329fb6c210b89",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 116057.5159965083,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "e6f7081cf5a9fe14a903e377e3a348c427792cf56b92bed04292808b051fa070",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 7706,
+            "completion_tokens": 34,
+            "ttft_ms": 111064.19312674552,
+            "prefill_tps": 69.38329792038355,
+            "decode_tps": 6.764958117014217,
+            "total_wall_ms": 116057.28909093887,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385212.033308084,
+            "t_first_abs": 4385323.097501211,
+            "t_last_abs": 4385327.975580192,
+            "t_end_abs": 4385328.090597175
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_8k",
+      "tag": "long_8k-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "56486438b78944988120f778eddb980d9199cb452a61fb0e020e1c8c52fe251c",
+      "validated_content": "```json\n{\n  \"ALPHA\": \"silver-4821\",\n  \"BETA\": \"amber-7392\",\n  \"GAMMA\": \"violet-1605\"\n}\n```",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 116420.40897533298,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "0ad8ca6077e2e3bbc83c211fc13c06d8f1e1d4efc043fe36990c9f514ad5c938",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 7706,
+            "completion_tokens": 43,
+            "ttft_ms": 111062.55119852722,
+            "prefill_tps": 69.38432367022907,
+            "decode_tps": 7.8963278594411515,
+            "total_wall_ms": 116420.06882373244,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "```json\n{\n  \"ALPHA\": \"silver-4821\",\n  \"BETA\": \"amber-7392\",\n  \"GAMMA\": \"violet-1605\"\n}\n```"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "```json\n{\n  \"ALPHA\": \"silver-4821\",\n  \"BETA\": \"amber-7392\",\n  \"GAMMA\": \"violet-1605\"\n}\n```",
+            "t_start_abs": 4385212.034098477,
+            "t_first_abs": 4385323.096649676,
+            "t_last_abs": 4385328.415577758,
+            "t_end_abs": 4385328.454167301
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_8k",
+      "tag": "long_8k-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "bdd46a2a5100d834c90155c91bfa42f6367f151d064a843222ce16e34b9f22a7",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 116054.16796635836,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "962880fe181125436651d193498bcda6e4180e8108156d1da13b07843f116978",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 7706,
+            "completion_tokens": 34,
+            "ttft_ms": 111060.06688717753,
+            "prefill_tps": 69.38587573360897,
+            "decode_tps": 6.764211564804071,
+            "total_wall_ms": 116053.92184481025,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385212.037041667,
+            "t_first_abs": 4385323.097108554,
+            "t_last_abs": 4385327.975725919,
+            "t_end_abs": 4385328.090963512
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_32k",
+      "tag": "long_32k-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "e0ce37a9830a27a0ceaaca33065d33975f68c36fa721e07ce5564583bfdda8f9",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 549391.3386911154,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "a7bd5d7c3b7cca166a8b3e8397ac73d4ae0bcdcaff90fd80eef504112137aeb6",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 30585,
+            "completion_tokens": 34,
+            "ttft_ms": 546673.6148754135,
+            "prefill_tps": 55.94745963177736,
+            "decode_tps": 12.493759324149874,
+            "total_wall_ms": 549391.0271767527,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385328.481468652,
+            "t_first_abs": 4385875.155083528,
+            "t_last_abs": 4385877.796402217,
+            "t_end_abs": 4385877.872495829
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_32k",
+      "tag": "long_32k-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "41d300321296dd204e35c4b0b42dfc06a5a228cf4fd5a54a7dc8f87bbae8d6da",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 413384.4882501289,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "192e027d4237e0e3f8a4f10575d461e876c7ecac9693db8a3b51f7bae98151bd",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 30585,
+            "completion_tokens": 34,
+            "ttft_ms": 329559.57698915154,
+            "prefill_tps": 92.80567804893984,
+            "decode_tps": 0.4074586836321153,
+            "total_wall_ms": 413384.1339973733,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385328.482840599,
+            "t_first_abs": 4385658.042417588,
+            "t_last_abs": 4385739.032224225,
+            "t_end_abs": 4385741.866974596
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_32k",
+      "tag": "long_32k-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "b7c88b01d9a38612675cff2bf4d0b7e35f7b94ae3434539c3ddee55d3b978179",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 369948.4246755019,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "887bbf34ad838307560fa28128343ade4094efa54f05179b82cadbdbf34c0bce",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 30585,
+            "completion_tokens": 34,
+            "ttft_ms": 275261.87089737505,
+            "prefill_tps": 111.11237419222113,
+            "decode_tps": 0.35791235217718276,
+            "total_wall_ms": 369948.1149893254,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385328.484302422,
+            "t_first_abs": 4385603.746173319,
+            "t_last_abs": 4385695.947517585,
+            "t_end_abs": 4385698.432417411
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_32k",
+      "tag": "long_32k-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "f3baacf4ba040339376488194efc5022d009698ddab61adc3f73a9337f1ad9ff",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 549385.1146427915,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "075d2386e7c1308629bff1bf9962985037ba5bd5ab10b1c7ee47abe0334e2c82",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 30585,
+            "completion_tokens": 34,
+            "ttft_ms": 546666.3004169241,
+            "prefill_tps": 55.94820821527474,
+            "decode_tps": 12.492056285386191,
+            "total_wall_ms": 549384.7991917282,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4385328.488154889,
+            "t_first_abs": 4385875.154455306,
+            "t_last_abs": 4385877.796134085,
+            "t_end_abs": 4385877.872954081
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

@@ -1,0 +1,291 @@
+{
+  "implementation": "current1",
+  "gguf_metadata_source": "/tmp/dsv41-tokenizer-microbench/headers/qwen35-metadata-only.gguf",
+  "architecture": "qwen35",
+  "platform": "macOS 26.6.2",
+  "process_architecture": "Arm64",
+  "utc": "2026-09-11T06:12:14.50463Z",
+  "samples_per_operation": 7,
+  "minimum_sample_ms": 125,
+  "warmup_ms": 750,
+  "metadata_only_no_tensor_reads": true,
+  "sink": 331,
+  "reports": [
+    {
+      "name": "short_bmp",
+      "operation": "encode",
+      "prompt_characters": 142,
+      "token_count": 39,
+      "prompt_sha256": "CE0499EF42FEBD828599E3EB60F64FD85A90ECEDDAFCD47081D5B9D3EE61F136",
+      "token_sha256": "66B28FA9A5645193DAACA0285C717BCC1DF6BCADFCD2A4FF696305290C576CFE",
+      "warm_iterations": 107300,
+      "samples": [
+        {
+          "iterations": 24576,
+          "nanoseconds_per_operation": 5086.3206787109375,
+          "allocated_bytes_per_operation": 25544
+        },
+        {
+          "iterations": 24576,
+          "nanoseconds_per_operation": 5086.4241129557295,
+          "allocated_bytes_per_operation": 25544
+        },
+        {
+          "iterations": 24624,
+          "nanoseconds_per_operation": 5076.456587069526,
+          "allocated_bytes_per_operation": 25544
+        },
+        {
+          "iterations": 22493,
+          "nanoseconds_per_operation": 5557.354865958298,
+          "allocated_bytes_per_operation": 25544
+        },
+        {
+          "iterations": 22922,
+          "nanoseconds_per_operation": 5453.363580839368,
+          "allocated_bytes_per_operation": 25544
+        },
+        {
+          "iterations": 23249,
+          "nanoseconds_per_operation": 5377.2760978966835,
+          "allocated_bytes_per_operation": 25544
+        },
+        {
+          "iterations": 23764,
+          "nanoseconds_per_operation": 5260.186963474162,
+          "allocated_bytes_per_operation": 25544
+        }
+      ]
+    },
+    {
+      "name": "short_bmp",
+      "operation": "render",
+      "prompt_characters": 142,
+      "token_count": 39,
+      "prompt_sha256": "CE0499EF42FEBD828599E3EB60F64FD85A90ECEDDAFCD47081D5B9D3EE61F136",
+      "token_sha256": "66B28FA9A5645193DAACA0285C717BCC1DF6BCADFCD2A4FF696305290C576CFE",
+      "warm_iterations": 5704,
+      "samples": [
+        {
+          "iterations": 2336,
+          "nanoseconds_per_operation": 53529.020547945205,
+          "allocated_bytes_per_operation": 288320
+        },
+        {
+          "iterations": 2360,
+          "nanoseconds_per_operation": 52969.61525423729,
+          "allocated_bytes_per_operation": 288320
+        },
+        {
+          "iterations": 2370,
+          "nanoseconds_per_operation": 52746.04430379747,
+          "allocated_bytes_per_operation": 288320
+        },
+        {
+          "iterations": 2296,
+          "nanoseconds_per_operation": 54451.80052264808,
+          "allocated_bytes_per_operation": 288320
+        },
+        {
+          "iterations": 2298,
+          "nanoseconds_per_operation": 54415.07093124456,
+          "allocated_bytes_per_operation": 288320
+        },
+        {
+          "iterations": 2374,
+          "nanoseconds_per_operation": 52654.04717775906,
+          "allocated_bytes_per_operation": 288320
+        },
+        {
+          "iterations": 2338,
+          "nanoseconds_per_operation": 53468.0996578272,
+          "allocated_bytes_per_operation": 288320
+        }
+      ]
+    },
+    {
+      "name": "tool_bmp",
+      "operation": "encode",
+      "prompt_characters": 1443,
+      "token_count": 331,
+      "prompt_sha256": "511F11A8073DBFE2A06655A9B6B7340110DF676A99D0D9F34C63EFA54B2A38B0",
+      "token_sha256": "E9D4F7417DC4A52A29A97D3B272D795F2E3E67847986D78811300F5BE8F465D4",
+      "warm_iterations": 20581,
+      "samples": [
+        {
+          "iterations": 3418,
+          "nanoseconds_per_operation": 36572.71562317145,
+          "allocated_bytes_per_operation": 158192
+        },
+        {
+          "iterations": 3346,
+          "nanoseconds_per_operation": 37367.14225941423,
+          "allocated_bytes_per_operation": 158192
+        },
+        {
+          "iterations": 3382,
+          "nanoseconds_per_operation": 36968.04139562389,
+          "allocated_bytes_per_operation": 158192
+        },
+        {
+          "iterations": 3426,
+          "nanoseconds_per_operation": 36492.62988908348,
+          "allocated_bytes_per_operation": 158192
+        },
+        {
+          "iterations": 3402,
+          "nanoseconds_per_operation": 36744.85596707819,
+          "allocated_bytes_per_operation": 158192
+        },
+        {
+          "iterations": 3422,
+          "nanoseconds_per_operation": 36537.46610169492,
+          "allocated_bytes_per_operation": 158192
+        },
+        {
+          "iterations": 3390,
+          "nanoseconds_per_operation": 36878.01150442478,
+          "allocated_bytes_per_operation": 158192
+        }
+      ]
+    },
+    {
+      "name": "tool_bmp",
+      "operation": "render",
+      "prompt_characters": 1443,
+      "token_count": 331,
+      "prompt_sha256": "511F11A8073DBFE2A06655A9B6B7340110DF676A99D0D9F34C63EFA54B2A38B0",
+      "token_sha256": "E9D4F7417DC4A52A29A97D3B272D795F2E3E67847986D78811300F5BE8F465D4",
+      "warm_iterations": 11245,
+      "samples": [
+        {
+          "iterations": 1885,
+          "nanoseconds_per_operation": 66343.83289124668,
+          "allocated_bytes_per_operation": 329256
+        },
+        {
+          "iterations": 1915,
+          "nanoseconds_per_operation": 65281.309660574414,
+          "allocated_bytes_per_operation": 329256
+        },
+        {
+          "iterations": 1906,
+          "nanoseconds_per_operation": 65640.82686253935,
+          "allocated_bytes_per_operation": 329256
+        },
+        {
+          "iterations": 1931,
+          "nanoseconds_per_operation": 64787.99844640083,
+          "allocated_bytes_per_operation": 329256
+        },
+        {
+          "iterations": 1899,
+          "nanoseconds_per_operation": 65835.06687730385,
+          "allocated_bytes_per_operation": 329256
+        },
+        {
+          "iterations": 1885,
+          "nanoseconds_per_operation": 66341.6222811671,
+          "allocated_bytes_per_operation": 329256
+        },
+        {
+          "iterations": 1906,
+          "nanoseconds_per_operation": 65655.62696747114,
+          "allocated_bytes_per_operation": 329256
+        }
+      ]
+    },
+    {
+      "name": "long_bmp",
+      "operation": "encode",
+      "prompt_characters": 64907,
+      "token_count": 12821,
+      "prompt_sha256": "A2E926CEF6A3416A39CE4E6866120DFE9E429E58451473CA25979587DCF68F40",
+      "token_sha256": "4FB5BAB11CC01CC2039E81F47B3D7ED03B4C134710DC94EC0BEEE1E2B4FC8951",
+      "warm_iterations": 441,
+      "samples": [
+        {
+          "iterations": 79,
+          "nanoseconds_per_operation": 1606865.5063291139,
+          "allocated_bytes_per_operation": 4118912.405063291
+        },
+        {
+          "iterations": 79,
+          "nanoseconds_per_operation": 1604702,
+          "allocated_bytes_per_operation": 4118912.405063291
+        },
+        {
+          "iterations": 77,
+          "nanoseconds_per_operation": 1662320.8831168832,
+          "allocated_bytes_per_operation": 4118912.4155844157
+        },
+        {
+          "iterations": 77,
+          "nanoseconds_per_operation": 1679917.7402597403,
+          "allocated_bytes_per_operation": 4118912
+        },
+        {
+          "iterations": 77,
+          "nanoseconds_per_operation": 1679491.3376623376,
+          "allocated_bytes_per_operation": 4118912
+        },
+        {
+          "iterations": 77,
+          "nanoseconds_per_operation": 1685507.038961039,
+          "allocated_bytes_per_operation": 4118912
+        },
+        {
+          "iterations": 77,
+          "nanoseconds_per_operation": 1695781.9220779222,
+          "allocated_bytes_per_operation": 4118912
+        }
+      ]
+    },
+    {
+      "name": "long_bmp",
+      "operation": "render",
+      "prompt_characters": 64907,
+      "token_count": 12821,
+      "prompt_sha256": "A2E926CEF6A3416A39CE4E6866120DFE9E429E58451473CA25979587DCF68F40",
+      "token_sha256": "4FB5BAB11CC01CC2039E81F47B3D7ED03B4C134710DC94EC0BEEE1E2B4FC8951",
+      "warm_iterations": 2185,
+      "samples": [
+        {
+          "iterations": 309,
+          "nanoseconds_per_operation": 410147.3818770227,
+          "allocated_bytes_per_operation": 1858497.8122977347
+        },
+        {
+          "iterations": 309,
+          "nanoseconds_per_operation": 408628.640776699,
+          "allocated_bytes_per_operation": 1858497.7605177993
+        },
+        {
+          "iterations": 309,
+          "nanoseconds_per_operation": 407971.145631068,
+          "allocated_bytes_per_operation": 1858497.7605177993
+        },
+        {
+          "iterations": 309,
+          "nanoseconds_per_operation": 408496.2265372168,
+          "allocated_bytes_per_operation": 1858497.7605177993
+        },
+        {
+          "iterations": 309,
+          "nanoseconds_per_operation": 411805.82524271845,
+          "allocated_bytes_per_operation": 1858497.7605177993
+        },
+        {
+          "iterations": 311,
+          "nanoseconds_per_operation": 402134.5112540193,
+          "allocated_bytes_per_operation": 1858497.7491961415
+        },
+        {
+          "iterations": 309,
+          "nanoseconds_per_operation": 408071.06148867315,
+          "allocated_bytes_per_operation": 1858497.7605177993
+        }
+      ]
+    }
+  ]
+}

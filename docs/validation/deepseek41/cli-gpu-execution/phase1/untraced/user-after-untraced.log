@@ -1,0 +1,102 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+16:20:22 info: TensorSharp.Cli[1700] tensorsharp-cli started: argv=8 logLevel=Information logDir=logs fileLogging=True consoleLogging=True
+16:20:22 info: TensorSharp.Cli[1400] Loading model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf on backend GgmlCuda kvCacheDtype=auto (path=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf)
+ggml_cuda_init: found 8 CUDA devices (Total VRAM: 363904 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 1: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 2: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 3: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 4: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 5: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 6: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 7: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Context length: using GGUF metadata deepseek41.context_length=1048576.
+Model: deepseek41 (native whole-model executor), Layers=40, Hidden=5120, Heads=64, HeadDim=512, Vocab=129280
+[dsv4] compute devices initialized: 8 GPU(s)
+[dsv4]   compute device 0: backend=CUDA0, device=CUDA0 (NVIDIA A40)
+[dsv4]   compute device 1: backend=CUDA1, device=CUDA1 (NVIDIA A40)
+[dsv4]   compute device 2: backend=CUDA2, device=CUDA2 (NVIDIA A40)
+[dsv4]   compute device 3: backend=CUDA3, device=CUDA3 (NVIDIA A40)
+[dsv4]   compute device 4: backend=CUDA4, device=CUDA4 (NVIDIA A40)
+[dsv4]   compute device 5: backend=CUDA5, device=CUDA5 (NVIDIA A40)
+[dsv4]   compute device 6: backend=CUDA6, device=CUDA6 (NVIDIA A40)
+[dsv4]   compute device 7: backend=CUDA7, device=CUDA7 (NVIDIA A40)
+[dsv4] auxiliary CPU worker pool: threads=32, persistent=yes
+[dsv4] routed-expert CPU offload: 0 of 40 layer(s); 40 layer(s) on GPUs
+[dsv41] Engram sparse prefill/decode reads: 16 persistent I/O threads
+[dsv4] host weights are served from the GGUF mapping (60.1 GiB, no private copy)
+[dsv4] prefaulted 0.0 GiB of mmapped host experts in 0.0s
+[dsv4] loaded 186.3 GiB across 8 GPU(s) in 205.1s (0.91 GiB/s, 16 load threads; host weights mmapped; n_ctx=65536, ring=512, csa_rows=33024, hca_rows=65792)
+[dsv4]   device 0: layers 0..4 (5), 20.7 GiB free after load
+[dsv4]   device 1: layers 5..9 (5), 20.9 GiB free after load
+[dsv4]   device 2: layers 10..14 (5), 20.9 GiB free after load
+[dsv4]   device 3: layers 15..19 (5), 20.9 GiB free after load
+[dsv4]   device 4: layers 20..24 (5), 20.9 GiB free after load
+[dsv4]   device 5: layers 25..29 (5), 20.9 GiB free after load
+[dsv4]   device 6: layers 30..34 (5), 20.9 GiB free after load
+[dsv4]   device 7: layers 35..39 (5), 20.4 GiB free after load
+[dsv4] fused ops: on
+[dsv4] hyper-connection ops: native
+[dsv4] flash attention: on
+16:24:08 info: TensorSharp.Cli[1401] Loaded model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf architecture=deepseek41 contextLength=65536 kvCacheDtype=f32 elapsedMs=225280.3
+16:24:08 info: TensorSharp.Cli[1010] Kernel warmup completed in 309.2 ms
+16:24:08 info: TensorSharp.Cli[1700] Entering interactive chat mode (model=DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf, backend=GgmlCuda, thinking=True)
+  Chat sampling: temp=0.8 top_k=40 top_p=0.95 min_p=0.05 repeat_penalty=1
+
+=== TensorSharp interactive chat ===
+Model: DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf
+Backend: GgmlCuda
+Architecture: deepseek41
+Context length: 65536 tokens
+Max tokens per reply: 20000
+Thinking: on
+Sampling: temp=0.8 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+Type /help to see all available commands. Use /exit or Ctrl+D to leave.
+===============================
+
+[turn 1]> 
+Assistant: 
+[thinking] User asks a simple arithmetic question: 17 + 25 = 42. Need brief answer. Just answer.
+[answer] 42
+[turn complete: tokens=25 prefillMs=1090 decodeMs=1334 tps=18.7 ttftMs=10 reason=eos kvPlan=Reset]
+16:24:11 info: TensorSharp.Cli[1501] interactive.turn complete tokens=25 promptTokens=43 kvPlan=Reset prefillMs=1090 decodeMs=1334 tps=18.7 ttftMs=10 reason=eos
+
+[turn 2]> No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> temperature updated.
+temp=0 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+
+[turn 1]> Seed set to 42 (deterministic).
+
+[turn 1]> Max tokens per reply set to 128.
+
+[turn 1]> 
+Assistant: 
+[thinking] The user asks: "What is 31 plus 47? Give a brief answer." I need to provide a brief answer. 31 + 47 = 78. Just answer briefly.
+[answer] 78
+[turn complete: tokens=41 prefillMs=410 decodeMs=1892 tps=21.7 ttftMs=1 reason=eos kvPlan=Reset]
+16:24:13 info: TensorSharp.Cli[1501] interactive.turn complete tokens=41 promptTokens=43 kvPlan=Reset prefillMs=410 decodeMs=1892 tps=21.7 ttftMs=1 reason=eos
+
+[turn 2]> No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> 
+Assistant: 
+[thinking] The user asks: "What is 31 plus 47? Give a brief answer." I need to provide a brief answer. 31 + 47 = 78. Just answer briefly.
+[answer] 78
+[turn complete: tokens=41 prefillMs=290 decodeMs=1277 tps=32.1 ttftMs=0 reason=eos kvPlan=Reset]
+16:24:14 info: TensorSharp.Cli[1501] interactive.turn complete tokens=41 promptTokens=43 kvPlan=Reset prefillMs=290 decodeMs=1277 tps=32.1 ttftMs=0 reason=eos
+
+[turn 2]> 16:24:15 info: TensorSharp.Cli[1701] tensorsharp-cli completed

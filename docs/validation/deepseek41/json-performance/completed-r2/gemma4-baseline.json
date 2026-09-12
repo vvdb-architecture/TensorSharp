@@ -1,0 +1,1555 @@
+{
+  "model": "gemma4",
+  "version": "baseline",
+  "run_complete": true,
+  "status": "fail",
+  "execution_plan": {
+    "scenario": "json",
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 3,
+    "expected_cases": 15,
+    "decode512_warmups": 1,
+    "json_warmups": 5
+  },
+  "weights_id": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+  "weights": {
+    "path": "/workspace/models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+    "bytes": 3106738272,
+    "mtime_ns": 1789100920000000000,
+    "sha256": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/gemma4-weights.json",
+        "sha256": "1a403e23f7b89a7cd7fb7519266f962b98c51ee59adc08fd8d3f6dee50726783",
+        "bytes": 219
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "profile": "gpu7-context8192-slots4-batch256-f16",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "256",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4"
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+    "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+    "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+    "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+    "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+    "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+  },
+  "cases": [
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 65.77545683830976,
+            "prefill_tps": 1429.1044793664032,
+            "decode_tps": 0.0,
+            "total_wall_ms": 81.37827832251787,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407208.886254515,
+            "t_first_abs": 4407208.952029971,
+            "t_last_abs": 4407208.952029971,
+            "t_end_abs": 4407208.967632793
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 81.49154204875231,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r1-i0",
+      "status": "fail",
+      "input_sha256": "f0ec9270d2852b7985ba2d1c1999a9c72d7169e7749e33fe251d76a273ea32f2",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 69.76906303316355,
+            "prefill_tps": 1347.3020263339165,
+            "decode_tps": 0.0,
+            "total_wall_ms": 83.95605068653822,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407208.985980038,
+            "t_first_abs": 4407209.055749101,
+            "t_last_abs": 4407209.055749101,
+            "t_end_abs": 4407209.069936088
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 84.07095912843943,
+      "concurrency": 1,
+      "repeat": 1
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r2-i0",
+      "status": "fail",
+      "input_sha256": "1388f97caa157635bdd7927e65f4ac2c316d85018907926986d845a4785a7d5d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 59.1217465698719,
+            "prefill_tps": 1589.9394969481814,
+            "decode_tps": 0.0,
+            "total_wall_ms": 73.84385075420141,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.088075919,
+            "t_first_abs": 4407209.147197666,
+            "t_last_abs": 4407209.147197666,
+            "t_end_abs": 4407209.16191977
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 74.05811548233032,
+      "concurrency": 1,
+      "repeat": 2
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 20,
+            "ttft_ms": 325.4171898588538,
+            "prefill_tps": 288.85997092154685,
+            "decode_tps": 78.82076010886433,
+            "total_wall_ms": 580.2560467272997,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }",
+            "t_start_abs": 4407209.176049276,
+            "t_first_abs": 4407209.501466466,
+            "t_last_abs": 4407209.742519711,
+            "t_end_abs": 4407209.756305323
+          }
+        }
+      ],
+      "validated_content": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 580.477369017899,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 371.76806200295687,
+            "prefill_tps": 252.84581869018209,
+            "decode_tps": 0.0,
+            "total_wall_ms": 455.5317675694823,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.177563826,
+            "t_first_abs": 4407209.549331888,
+            "t_last_abs": 4407209.549331888,
+            "t_end_abs": 4407209.633095593
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 455.7006126269698,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 407.5252739712596,
+            "prefill_tps": 230.66054059417496,
+            "decode_tps": 0.0,
+            "total_wall_ms": 471.1658162996173,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.179051892,
+            "t_first_abs": 4407209.586577166,
+            "t_last_abs": 4407209.586577166,
+            "t_end_abs": 4407209.650217708
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 471.26030176877975,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 367.8672667592764,
+            "prefill_tps": 255.52694815195767,
+            "decode_tps": 0.0,
+            "total_wall_ms": 451.9938649609685,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.180771302,
+            "t_first_abs": 4407209.548638569,
+            "t_last_abs": 4407209.548638569,
+            "t_end_abs": 4407209.632765167
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 452.22996827214956,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r1-i0",
+      "status": "fail",
+      "input_sha256": "f87d8465b20455a0c52a2e3f9bdcaceb91df99246e27d87ec5decc557e583652",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 340.68956039845943,
+            "prefill_tps": 275.91100792774705,
+            "decode_tps": 0.0,
+            "total_wall_ms": 433.66661481559277,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.77179657,
+            "t_first_abs": 4407210.112486131,
+            "t_last_abs": 4407210.112486131,
+            "t_end_abs": 4407210.205463185
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 433.80404729396105,
+      "concurrency": 4,
+      "repeat": 1
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r1-i1",
+      "status": "fail",
+      "input_sha256": "7662fdaf4f2993e1846da7ea8f5ba4268c62e2823289205c1fcb4a1fcbaa9cb4",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r1-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 389.343885704875,
+            "prefill_tps": 241.43181247040968,
+            "decode_tps": 0.0,
+            "total_wall_ms": 476.81170608848333,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.773220651,
+            "t_first_abs": 4407210.162564537,
+            "t_last_abs": 4407210.162564537,
+            "t_end_abs": 4407210.250032357
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 476.95039957761765,
+      "concurrency": 4,
+      "repeat": 1
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r1-i2",
+      "status": "fail",
+      "input_sha256": "05cc6d0e4a7500b3e3377692a75e215e38557dfbf90153e5baa39fd530d5be09",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r1-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 388.7693537399173,
+            "prefill_tps": 241.7886057523069,
+            "decode_tps": 0.0,
+            "total_wall_ms": 475.75242817401886,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.774553864,
+            "t_first_abs": 4407210.163323218,
+            "t_last_abs": 4407210.163323218,
+            "t_end_abs": 4407210.250306292
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 475.9171586483717,
+      "concurrency": 4,
+      "repeat": 1
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r1-i3",
+      "status": "fail",
+      "input_sha256": "5865e308079b0002321d50cf1538b9d65b4d084573e36b0eb7d7669c3f4c403c",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r1-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 428.41219529509544,
+            "prefill_tps": 219.4148556748056,
+            "decode_tps": 0.0,
+            "total_wall_ms": 484.2438595369458,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407209.776769593,
+            "t_first_abs": 4407210.205181789,
+            "t_last_abs": 4407210.205181789,
+            "t_end_abs": 4407210.261013453
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 484.35279354453087,
+      "concurrency": 4,
+      "repeat": 1
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r2-i0",
+      "status": "fail",
+      "input_sha256": "0efec83e924667824894b4eb2524e98836966da63f61e76e2190af5f993fa541",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 242.1017149463296,
+            "prefill_tps": 388.26655986653554,
+            "decode_tps": 0.0,
+            "total_wall_ms": 342.600729316473,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407210.277331464,
+            "t_first_abs": 4407210.519433179,
+            "t_last_abs": 4407210.519433179,
+            "t_end_abs": 4407210.619932193
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 342.8478706628084,
+      "concurrency": 4,
+      "repeat": 2
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r2-i1",
+      "status": "fail",
+      "input_sha256": "cd1e52efdff54b4fcf48b1bfb76713b3b9aca6dd1e55ee88d4fdd8eaad4a3771",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r2-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 339.4588092342019,
+            "prefill_tps": 276.9113584415682,
+            "decode_tps": 0.0,
+            "total_wall_ms": 383.3808181807399,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407210.278727138,
+            "t_first_abs": 4407210.618185948,
+            "t_last_abs": 4407210.618185948,
+            "t_end_abs": 4407210.662107957
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 383.5116261616349,
+      "concurrency": 4,
+      "repeat": 2
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r2-i2",
+      "status": "fail",
+      "input_sha256": "49b9b1db1ab8a28b67a923ae19df2d50ad0bdffe4092f5e7bf297f6bacf170cc",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r2-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 292.3410749062896,
+            "prefill_tps": 321.54222608003977,
+            "decode_tps": 0.0,
+            "total_wall_ms": 370.48264965415,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407210.280742889,
+            "t_first_abs": 4407210.573083964,
+            "t_last_abs": 4407210.573083964,
+            "t_end_abs": 4407210.651225539
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 370.61762623488903,
+      "concurrency": 4,
+      "repeat": 2
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r2-i3",
+      "status": "fail",
+      "input_sha256": "17f3abe06d64d182517f5b49f4eb83022019169a3b7ec2219bf13eb165a84420",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r2-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 290.4682643711567,
+            "prefill_tps": 323.615387737808,
+            "decode_tps": 0.0,
+            "total_wall_ms": 368.5884075239301,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407210.282174869,
+            "t_first_abs": 4407210.572643134,
+            "t_last_abs": 4407210.572643134,
+            "t_end_abs": 4407210.650763277
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 368.7040079385042,
+      "concurrency": 4,
+      "repeat": 2
+    }
+  ],
+  "waves": [
+    {
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 82.20803271979094,
+      "generated_tokens": 2,
+      "all_passed": false
+    },
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 84.84087884426117,
+      "generated_tokens": 2,
+      "all_passed": false
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 74.69820696860552,
+      "generated_tokens": 2,
+      "all_passed": false
+    },
+    {
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 581.5085750073195,
+      "generated_tokens": 26,
+      "all_passed": false
+    },
+    {
+      "concurrency": 4,
+      "repeat": 1,
+      "wall_ms": 490.3215803205967,
+      "generated_tokens": 8,
+      "all_passed": false
+    },
+    {
+      "concurrency": 4,
+      "repeat": 2,
+      "wall_ms": 385.8715044334531,
+      "generated_tokens": 8,
+      "all_passed": false
+    }
+  ],
+  "warmups": [
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c1-i0",
+      "status": "fail",
+      "input_sha256": "e8d65fa33e003bbf33d61f0540979777348aca21ad350ee18b04aa0fc8ff27a9",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 608.7792180478573,
+            "prefill_tps": 154.40737333548478,
+            "decode_tps": 0.0,
+            "total_wall_ms": 626.7489958554506,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407206.88931227,
+            "t_first_abs": 4407207.498091488,
+            "t_last_abs": 4407207.498091488,
+            "t_end_abs": 4407207.516061266
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 626.8530692905188,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i0",
+      "status": "fail",
+      "input_sha256": "159b022d837a1f1e15a7c47d9f289c81b4b71c9cc3397cbc0d2966cbae6349df",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 20,
+            "ttft_ms": 384.7009604796767,
+            "prefill_tps": 244.34563376913093,
+            "decode_tps": 20.318864718456027,
+            "total_wall_ms": 1333.7457934394479,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }",
+            "t_start_abs": 4407207.529645911,
+            "t_first_abs": 4407207.914346872,
+            "t_last_abs": 4407208.849438486,
+            "t_end_abs": 4407208.863391705
+          }
+        }
+      ],
+      "validated_content": "{\"name\": \"Mars\", \"moons\": \"two\", \"habitable\": false }",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 1333.9748503640294,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i1",
+      "status": "fail",
+      "input_sha256": "69ec99d17da04a70fe694b03b8c1db2b81d91ece62fe727350d442a9b42faf58",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 343.1956525892019,
+            "prefill_tps": 273.89624341342125,
+            "decode_tps": 0.0,
+            "total_wall_ms": 651.5886038541794,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407207.530149456,
+            "t_first_abs": 4407207.873345109,
+            "t_last_abs": 4407207.873345109,
+            "t_end_abs": 4407208.18173806
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 651.7490558326244,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i2",
+      "status": "fail",
+      "input_sha256": "76d530ba37aeb4e7e7d4cc55997b8df8bdf8904b5e88dff41905c348a17835ee",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 341.1286938935518,
+            "prefill_tps": 275.555828878272,
+            "decode_tps": 0.0,
+            "total_wall_ms": 648.8415682688355,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407207.532638341,
+            "t_first_abs": 4407207.873767035,
+            "t_last_abs": 4407207.873767035,
+            "t_end_abs": 4407208.181479909
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 649.000208824873,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-warmup-c4-i3",
+      "status": "fail",
+      "input_sha256": "bc66d3594b548850a4f17d3755df20620ce64e3fef046f1ae8c1271e045d9faa",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-warmup-c4-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 94,
+            "completion_tokens": 2,
+            "ttft_ms": 380.2314829081297,
+            "prefill_tps": 247.21782447118397,
+            "decode_tps": 0.0,
+            "total_wall_ms": 665.3383737429976,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{}",
+            "t_start_abs": 4407207.533709171,
+            "t_first_abs": 4407207.913940654,
+            "t_last_abs": 4407207.913940654,
+            "t_end_abs": 4407208.199047545
+          }
+        }
+      ],
+      "validated_content": "{}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 665.4575690627098,
+      "concurrency": 4,
+      "repeat": 0
+    }
+  ],
+  "historical_reference": {
+    "path": "/workspace/deepseek41-work/existing-regressions/performance-baseline/gemma4-tensorsharp.json",
+    "sha256": "15d7692a4b5d574055cba139761fc7a923f6e708614612fa9582e07cd6d9ab43",
+    "bytes": 355181
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/baseline/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "256"
+  ],
+  "logging_environment": {
+    "TENSORSHARP_LOG_DIR": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/gemma4-baseline-file-logs"
+  },
+  "safe_before_snapshot": {
+    "utc": "2026-09-11T13:46:26Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.12 W, 300.00 W, 34\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.33 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.55 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.48 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.76 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.62 W, 300.00 W, 33\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.89 W, 300.00 W, 35\n7, NVIDIA A40, 0 MiB, 0 %, 405 MHz, 7251 MHz, 64.64 W, 300.00 W, 43\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1  66\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  54\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 144664 sshd             0.0    1   7\n 144675 python          13.1    1   8\n 145390 ps               0.0    1  20\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "served_model_id": "gemma-4-E2B-it-Q4_K_M",
+  "decode512_warmup": {
+    "scenario": "decode",
+    "tag": "warmup-decode",
+    "status": "ok",
+    "input_sha256": "ba62cb4ea57a92f051aa47ca98b81bb6e06981f39a3b173ea31e0894498c1128",
+    "turns": [
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "[validation warmup-decode]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+            }
+          ],
+          "tools": null,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "max_tokens": 512,
+          "stream": true
+        },
+        "metrics": {
+          "prompt_tokens": 49,
+          "completion_tokens": 512,
+          "ttft_ms": 207.59877748787403,
+          "prefill_tps": 236.0322184597745,
+          "decode_tps": 168.72372409073503,
+          "total_wall_ms": 3259.8040578886867,
+          "finish_reason": "length",
+          "tool_calls": [],
+          "tool_call_details": [],
+          "assistant_message": {
+            "role": "assistant",
+            "content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and widely used data structures in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, offering performance that is typically $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this efficiency by using a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering the core components, the challenges (collisions), the solutions (resizing), complexity analysis, and a worked example.\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array is a \"bucket\" or \"slot\" where the actual data (key-value pairs) will be stored.\n\n#### B. The Hash Function\nThis is the crucial mathematical function. It takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a valid position within the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n#### C. The Data Structure (Chaining or Open Addressing)\nSince multiple different keys can sometimes map to the *same* index (a collision), we need a strategy to handle these conflicts. The two primary methods are:\n\n1.  **Separate Chaining:** Each bucket in the array holds a pointer to a secondary data structure, typically a **linked list**. If a collision occurs, the new key-value pair is simply added to the linked list at that index.\n2.  **Open Addressing (Probing):** If a collision occurs, the system searches for the *next available empty slot* in the main array itself, using a specific probing sequence (e.g., linear probing, quadratic probing).\n\n---\n\n### 2. The Problem: Collisions\n\nA **collision** occurs when the hash function maps two"
+          },
+          "usage_present": true,
+          "decode_timing_source": "stream_window",
+          "server_timings": {},
+          "reasoning_text": "",
+          "output_text": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and widely used data structures in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, offering performance that is typically $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this efficiency by using a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering the core components, the challenges (collisions), the solutions (resizing), complexity analysis, and a worked example.\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array is a \"bucket\" or \"slot\" where the actual data (key-value pairs) will be stored.\n\n#### B. The Hash Function\nThis is the crucial mathematical function. It takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a valid position within the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n#### C. The Data Structure (Chaining or Open Addressing)\nSince multiple different keys can sometimes map to the *same* index (a collision), we need a strategy to handle these conflicts. The two primary methods are:\n\n1.  **Separate Chaining:** Each bucket in the array holds a pointer to a secondary data structure, typically a **linked list**. If a collision occurs, the new key-value pair is simply added to the linked list at that index.\n2.  **Open Addressing (Probing):** If a collision occurs, the system searches for the *next available empty slot* in the main array itself, using a specific probing sequence (e.g., linear probing, quadratic probing).\n\n---\n\n### 2. The Problem: Collisions\n\nA **collision** occurs when the hash function maps two",
+          "t_start_abs": 4407203.590045429,
+          "t_first_abs": 4407203.797644206,
+          "t_last_abs": 4407206.826263938,
+          "t_end_abs": 4407206.849849487
+        }
+      }
+    ],
+    "validated_content": "## A Detailed Explanation of Hash Tables\n\nA hash table is one of the most fundamental and widely used data structures in computer science. Its primary purpose is to allow for **very fast average-case lookups, insertions, and deletions** of data, offering performance that is typically $O(1)$ (constant time).\n\nAt its core, a hash table maps **keys** to **values**. It achieves this efficiency by using a **hash function** to compute an index (or \"bucket\") where the corresponding value should be stored.\n\nHere is a detailed breakdown of how a hash table works, covering the core components, the challenges (collisions), the solutions (resizing), complexity analysis, and a worked example.\n\n---\n\n### 1. The Core Components\n\nA hash table fundamentally consists of three main parts:\n\n#### A. The Array (Buckets)\nThis is the underlying data structure—usually a simple array. Each index in this array is a \"bucket\" or \"slot\" where the actual data (key-value pairs) will be stored.\n\n#### B. The Hash Function\nThis is the crucial mathematical function. It takes an input key (which can be a string, an integer, an object, etc.) and deterministically converts it into a fixed-size integer index that corresponds to a valid position within the array.\n\n$$\\text{Index} = \\text{HashFunction}(\\text{Key}) \\pmod{\\text{ArraySize}}$$\n\nThe modulo operator ($\\%$) is used to ensure the resulting index always falls within the bounds of the array (i.e., $0$ to $\\text{ArraySize} - 1$).\n\n#### C. The Data Structure (Chaining or Open Addressing)\nSince multiple different keys can sometimes map to the *same* index (a collision), we need a strategy to handle these conflicts. The two primary methods are:\n\n1.  **Separate Chaining:** Each bucket in the array holds a pointer to a secondary data structure, typically a **linked list**. If a collision occurs, the new key-value pair is simply added to the linked list at that index.\n2.  **Open Addressing (Probing):** If a collision occurs, the system searches for the *next available empty slot* in the main array itself, using a specific probing sequence (e.g., linear probing, quadratic probing).\n\n---\n\n### 2. The Problem: Collisions\n\nA **collision** occurs when the hash function maps two",
+    "total_wall_ms": 3260.181619785726
+  },
+  "timed_monotonic_interval": [
+    4407208.878136963,
+    4407210.687140338
+  ],
+  "telemetry_source": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/gemma4-baseline-telemetry.jsonl",
+    "sha256": "7141c4639b19c95f9eacbd116f4e4427a22d2d7afc3b7eb324d534a74dc85058",
+    "bytes": 5910
+  },
+  "telemetry_qualification": {
+    "qualified": true,
+    "issues": [],
+    "samples_in_timed_interval": 2,
+    "gpu7": {
+      "clocks.sm": {
+        "min": 1740.0,
+        "median": 1740.0,
+        "max": 1740.0
+      },
+      "clocks.mem": {
+        "min": 7251.0,
+        "median": 7251.0,
+        "max": 7251.0
+      },
+      "power.draw": {
+        "min": 118.44,
+        "median": 133.655,
+        "max": 148.87
+      },
+      "power.limit": {
+        "min": 300.0,
+        "median": 300.0,
+        "max": 300.0
+      },
+      "temperature.gpu": {
+        "min": 48.0,
+        "median": 48.0,
+        "max": 48.0
+      },
+      "utilization.gpu": {
+        "min": 37.0,
+        "median": 38.0,
+        "max": 39.0
+      },
+      "memory.used": {
+        "min": 4427.0,
+        "median": 4590.0,
+        "max": 4753.0
+      }
+    },
+    "foreign_gpu_clients": [],
+    "foreign_cpu_processes": [],
+    "policy": {
+      "external_exclusive_declaration": true,
+      "sample_period_seconds": 1,
+      "maximum_sm_clock_spread_fraction": 0.03,
+      "maximum_memory_clock_spread_fraction": 0.005,
+      "foreign_cpu_limit_percent_of_one_core": 10
+    },
+    "limitation": "Sampling cannot prove every in-flight clock or exclude sub-second contention. No clocks/power limits are changed."
+  },
+  "deployment_changed_files": [],
+  "safe_after_snapshot": {
+    "utc": "2026-09-11T13:46:43Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.11 W, 300.00 W, 34\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.33 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.50 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.37 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.71 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.65 W, 300.00 W, 32\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.84 W, 300.00 W, 34\n7, NVIDIA A40, 0 MiB, 0 %, 1740 MHz, 7251 MHz, 91.83 W, 300.00 W, 46\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1  68\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  54\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 144664 sshd             0.0    1   7\n 144675 python          12.3    1   4\n 145561 ps               0.0    1  53\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-json-performance-r2/gemma4-baseline-server.log",
+    "sha256": "d57a661b6666f5d0aafc8ccbbe65e72e5df1e6abc2805b184949ff23386ac0f0",
+    "bytes": 51803
+  },
+  "summary": {
+    "json@c1": {
+      "passed": 0,
+      "total": 3
+    },
+    "json@c4": {
+      "passed": 0,
+      "total": 12
+    }
+  }
+}

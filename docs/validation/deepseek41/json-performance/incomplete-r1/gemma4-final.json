@@ -1,0 +1,114 @@
+{
+  "model": "gemma4",
+  "version": "final",
+  "run_complete": false,
+  "status": "fail",
+  "execution_plan": {
+    "scenario": "json",
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 3,
+    "expected_cases": 15,
+    "decode512_warmups": 1,
+    "json_warmups": 5
+  },
+  "weights_id": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+  "weights": {
+    "path": "/workspace/models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+    "bytes": 3106738272,
+    "mtime_ns": 1789100920000000000,
+    "sha256": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/gemma4-weights.json",
+        "sha256": "1a403e23f7b89a7cd7fb7519266f962b98c51ee59adc08fd8d3f6dee50726783",
+        "bytes": 219
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "profile": "gpu7-context8192-slots4-batch256-f16",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "256",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4"
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+    "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+    "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+    "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+    "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+  },
+  "cases": [],
+  "waves": [],
+  "warmups": [],
+  "historical_reference": {
+    "path": "/workspace/deepseek41-work/existing-regressions/performance-baseline/gemma4-tensorsharp.json",
+    "sha256": "15d7692a4b5d574055cba139761fc7a923f6e708614612fa9582e07cd6d9ab43",
+    "bytes": 355181
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance/final/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_K_M.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "256"
+  ],
+  "error": "RuntimeError: Frozen deployment changed before launch",
+  "timed_monotonic_interval": [
+    0,
+    4406575.565446287
+  ],
+  "deployment_changed_files": [
+    "logs/tensorsharp-server-20260911.jsonl"
+  ],
+  "safe_after_snapshot": {
+    "utc": "2026-09-11T13:36:07Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.11 W, 300.00 W, 34\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.33 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.60 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.43 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.67 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.53 W, 300.00 W, 33\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.79 W, 300.00 W, 34\n7, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 7251 MHz, 60.25 W, 300.00 W, 42\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1  66\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  52\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 144171 sshd             0.0    1  56\n 144182 python          18.0    1   9\n 144585 ps               0.0    1  13\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "summary": {}
+}

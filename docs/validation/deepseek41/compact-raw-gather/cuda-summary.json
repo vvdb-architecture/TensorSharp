@@ -1,0 +1,239 @@
+{
+  "native_sha256": "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+  "atol": 2e-05,
+  "rtol": 2e-05,
+  "runs": [
+    {
+      "report": "compact-cuda2-fa0-ubatch1024.json",
+      "gpus": 2,
+      "ubatch": 1024,
+      "flash_attention": "0",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 88,
+          "total": 88,
+          "max_absolute_error": 1.430511474609375e-06,
+          "max_relative_l2": 4.7086913923521934e-07,
+          "argmax_matches": 88
+        },
+        "compact_vs_dense": {
+          "passed": 88,
+          "total": 88,
+          "max_absolute_error": 1.430511474609375e-06,
+          "max_relative_l2": 4.284155465938966e-07,
+          "argmax_matches": 88
+        },
+        "compact_vs_gather": {
+          "passed": 88,
+          "total": 88,
+          "max_absolute_error": 1.5497207641601562e-06,
+          "max_relative_l2": 4.773207820107928e-07,
+          "argmax_matches": 88
+        }
+      }
+    },
+    {
+      "report": "compact-cuda2-fa0-ubatch256.json",
+      "gpus": 2,
+      "ubatch": 256,
+      "flash_attention": "0",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 66,
+          "total": 66,
+          "max_absolute_error": 1.5795230865478516e-06,
+          "max_relative_l2": 4.193450706679869e-07,
+          "argmax_matches": 66
+        },
+        "compact_vs_dense": {
+          "passed": 66,
+          "total": 66,
+          "max_absolute_error": 1.430511474609375e-06,
+          "max_relative_l2": 5.433940941657056e-07,
+          "argmax_matches": 66
+        },
+        "compact_vs_gather": {
+          "passed": 66,
+          "total": 66,
+          "max_absolute_error": 1.2516975402832031e-06,
+          "max_relative_l2": 4.794090386894823e-07,
+          "argmax_matches": 66
+        }
+      }
+    },
+    {
+      "report": "compact-cuda2-fa1-ubatch1024.json",
+      "gpus": 2,
+      "ubatch": 1024,
+      "flash_attention": "1",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 16,
+          "total": 88,
+          "max_absolute_error": 0.020822525024414062,
+          "max_relative_l2": 0.007438818458467722,
+          "argmax_matches": 88
+        },
+        "compact_vs_dense": {
+          "passed": 16,
+          "total": 88,
+          "max_absolute_error": 0.02081596851348877,
+          "max_relative_l2": 0.007435589097440243,
+          "argmax_matches": 88
+        },
+        "compact_vs_gather": {
+          "passed": 21,
+          "total": 88,
+          "max_absolute_error": 0.00819617509841919,
+          "max_relative_l2": 0.002884485060349107,
+          "argmax_matches": 88
+        }
+      }
+    },
+    {
+      "report": "compact-cuda2-fa1-ubatch256.json",
+      "gpus": 2,
+      "ubatch": 256,
+      "flash_attention": "1",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 14,
+          "total": 66,
+          "max_absolute_error": 0.048107147216796875,
+          "max_relative_l2": 0.01546408236026764,
+          "argmax_matches": 66
+        },
+        "compact_vs_dense": {
+          "passed": 14,
+          "total": 66,
+          "max_absolute_error": 0.04561161994934082,
+          "max_relative_l2": 0.01455643679946661,
+          "argmax_matches": 66
+        },
+        "compact_vs_gather": {
+          "passed": 23,
+          "total": 66,
+          "max_absolute_error": 0.014017701148986816,
+          "max_relative_l2": 0.006168074440211058,
+          "argmax_matches": 66
+        }
+      }
+    },
+    {
+      "report": "compact-cuda8-ub1024-fa0.json",
+      "gpus": 8,
+      "ubatch": 1024,
+      "flash_attention": "0",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 88,
+          "total": 88,
+          "max_absolute_error": 1.430511474609375e-06,
+          "max_relative_l2": 4.7086913923521934e-07,
+          "argmax_matches": 88
+        },
+        "compact_vs_dense": {
+          "passed": 88,
+          "total": 88,
+          "max_absolute_error": 1.430511474609375e-06,
+          "max_relative_l2": 4.284155465938966e-07,
+          "argmax_matches": 88
+        },
+        "compact_vs_gather": {
+          "passed": 88,
+          "total": 88,
+          "max_absolute_error": 1.5497207641601562e-06,
+          "max_relative_l2": 4.773207820107928e-07,
+          "argmax_matches": 88
+        }
+      }
+    },
+    {
+      "report": "compact-cuda8-ub1024-fa1.json",
+      "gpus": 8,
+      "ubatch": 1024,
+      "flash_attention": "1",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 16,
+          "total": 88,
+          "max_absolute_error": 0.020822525024414062,
+          "max_relative_l2": 0.007438818458467722,
+          "argmax_matches": 88
+        },
+        "compact_vs_dense": {
+          "passed": 16,
+          "total": 88,
+          "max_absolute_error": 0.02081596851348877,
+          "max_relative_l2": 0.007435589097440243,
+          "argmax_matches": 88
+        },
+        "compact_vs_gather": {
+          "passed": 21,
+          "total": 88,
+          "max_absolute_error": 0.00819617509841919,
+          "max_relative_l2": 0.002884485060349107,
+          "argmax_matches": 88
+        }
+      }
+    },
+    {
+      "report": "compact-cuda8-ub256-fa0.json",
+      "gpus": 8,
+      "ubatch": 256,
+      "flash_attention": "0",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 66,
+          "total": 66,
+          "max_absolute_error": 1.5795230865478516e-06,
+          "max_relative_l2": 4.193450706679869e-07,
+          "argmax_matches": 66
+        },
+        "compact_vs_dense": {
+          "passed": 66,
+          "total": 66,
+          "max_absolute_error": 1.430511474609375e-06,
+          "max_relative_l2": 5.433940941657056e-07,
+          "argmax_matches": 66
+        },
+        "compact_vs_gather": {
+          "passed": 66,
+          "total": 66,
+          "max_absolute_error": 1.2516975402832031e-06,
+          "max_relative_l2": 4.794090386894823e-07,
+          "argmax_matches": 66
+        }
+      }
+    },
+    {
+      "report": "compact-cuda8-ub256-fa1.json",
+      "gpus": 8,
+      "ubatch": 256,
+      "flash_attention": "1",
+      "groups": {
+        "gather_vs_dense": {
+          "passed": 14,
+          "total": 66,
+          "max_absolute_error": 0.048107147216796875,
+          "max_relative_l2": 0.01546408236026764,
+          "argmax_matches": 66
+        },
+        "compact_vs_dense": {
+          "passed": 14,
+          "total": 66,
+          "max_absolute_error": 0.04561161994934082,
+          "max_relative_l2": 0.01455643679946661,
+          "argmax_matches": 66
+        },
+        "compact_vs_gather": {
+          "passed": 23,
+          "total": 66,
+          "max_absolute_error": 0.014017701148986816,
+          "max_relative_l2": 0.006168074440211058,
+          "argmax_matches": 66
+        }
+      }
+    }
+  ]
+}

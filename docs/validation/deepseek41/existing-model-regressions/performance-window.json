@@ -1,0 +1,62 @@
+{
+  "started_utc": "2026-09-11T05:23:37Z",
+  "resident_context": "DeepSeek V4.1 full checkpoint remains resident and idle on GPUs 0-7, HTTP port 5000. Root reserved all GPU compute for this comparison.",
+  "benchmark_gpu": 7,
+  "repeats": 3,
+  "concurrency": [
+    1,
+    4
+  ],
+  "runs": [
+    {
+      "label": "baseline",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/deepseek41-work/dsv41-existing-regressions.py",
+        "--mode",
+        "performance",
+        "--label",
+        "baseline",
+        "--tensor-root",
+        "/workspace/TensorSharp-baseline",
+        "--engines",
+        "tensorsharp",
+        "--models",
+        "qwen3,qwen35,gemma4",
+        "--concurrency",
+        "1,4",
+        "--repeats",
+        "3"
+      ],
+      "started_utc": "2026-09-11T05:23:37Z",
+      "returncode": 1,
+      "finished_utc": "2026-09-11T05:28:13Z"
+    },
+    {
+      "label": "after",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/deepseek41-work/dsv41-existing-regressions.py",
+        "--mode",
+        "performance",
+        "--label",
+        "after",
+        "--tensor-root",
+        "/workspace/TensorSharp",
+        "--engines",
+        "tensorsharp",
+        "--models",
+        "qwen3,qwen35,gemma4",
+        "--concurrency",
+        "1,4",
+        "--repeats",
+        "3"
+      ],
+      "started_utc": "2026-09-11T05:28:13Z",
+      "returncode": 1,
+      "finished_utc": "2026-09-11T05:32:55Z"
+    }
+  ],
+  "status": "completed",
+  "finished_utc": "2026-09-11T05:32:56Z"
+}

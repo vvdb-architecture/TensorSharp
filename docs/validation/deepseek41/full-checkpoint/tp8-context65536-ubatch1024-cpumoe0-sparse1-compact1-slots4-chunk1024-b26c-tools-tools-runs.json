@@ -1,0 +1,46 @@
+{
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools",
+  "phase": "tools",
+  "runs": [
+    {
+      "label": "tool-policies",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_deepseek41_tools.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools",
+        "--timeout",
+        "2400",
+        "--native-sha256",
+        "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+        "--server-build",
+        "b80a2475c484c314db5e9f86673b806961893d14c3e4d3456b0ba63f83a75d44",
+        "--output",
+        "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-tool-policies.json"
+      ],
+      "started_epoch": 1789118465.942667,
+      "wall_seconds": 417.6878764629364,
+      "exit_code": 1,
+      "output": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-tool-policies.json",
+      "log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-tool-policies.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-server.log",
+        "byte_start": 45029,
+        "byte_end": 396738,
+        "range_sha256": "edb9b18b30f360984c95bef64086abd348b91ac49114e6e4bc88e1a368f030c7",
+        "prefill_calls": 32,
+        "prefill_tokens": 11173,
+        "prefill_forward_seconds": 50.917,
+        "decode_calls": 5335,
+        "decode_forward_seconds": 361.05100000000004,
+        "preemption_lines": []
+      }
+    }
+  ]
+}

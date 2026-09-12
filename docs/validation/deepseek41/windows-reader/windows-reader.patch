@@ -1,0 +1,20 @@
+--- a/TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp
++++ b/TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp
+@@ -142,12 +142,13 @@
+         close(fd);
+         require(mapping != MAP_FAILED, "Cannot map V4.1 TP weight shard");
+ #else
+-        file = std::fopen(src.path.c_str(), "rb");
+-        require(file != nullptr, "Cannot open V4.1 TP weight shard");
+-        _fseeki64(file, 0, SEEK_END);
+-        const auto length = _ftelli64(file);
++        std::unique_ptr<FILE, decltype(&std::fclose)> pending(std::fopen(src.path.c_str(), "rb"), &std::fclose);
++        require(pending != nullptr, "Cannot open V4.1 TP weight shard");
++        require(_fseeki64(pending.get(), 0, SEEK_END) == 0, "Cannot seek V4.1 TP weight shard");
++        const auto length = _ftelli64(pending.get());
+         require(length >= 0 && src.offset <= (size_t) length && bytes <= (size_t) length - src.offset,
+                 "Truncated V4.1 TP weight source");
++        file = pending.release();
+ #endif
+     }
+     ~reader()

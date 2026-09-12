@@ -1,0 +1,61 @@
+{
+  "spec": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "[validation agentic-c4-r0-i2]\nRead invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results."
+      }
+    ],
+    "max_tokens": 256,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_invoice",
+          "description": "Read an invoice by its identifier.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "invoice_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "invoice_id"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "calculate_total",
+          "description": "Calculate the total for an invoice.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "unit_price": {
+                "type": "number"
+              },
+              "quantity": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "unit_price",
+              "quantity"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    ],
+    "response_format": null
+  },
+  "initial_input_sha256": "d6cc93c41de1c4b88e8b9de8ec92a616155cfbe75f86bdfd39901398f1a42951",
+  "raw_output": "I'll follow the steps: read the invoice, then calculate the total using its returned values.\n\n<｜DSML｜ calls>\n<｜DSML｜ invoke name=\"read_invoice\">\n<｜DSML｜ parameter name=\"invoice_id\" string=\"true\">INV-472</｜DSML｜ parameter>\n</｜DSML｜ invoke>\n<｜DSML｜ invoke name=\"calculate_total\">\n<｜DSML｜ parameter name=\"unit_price\" string=\"false\">0</｜DSML｜ parameter>\n<｜DSML｜ parameter name=\"quantity\" string=\"false\">0</｜DSML｜ parameter>\n</｜DSML｜ invoke>\n</｜DSML｜ calls>",
+  "server_log_line": 1997,
+  "reference_prompt": "<｜begin▁of▁sentence｜><｜System｜>\n\n## Tools\n\nYou have access to a set of tools to help answer the user's question. You can invoke tools by writing a \"<｜DSML｜ calls>\" block like the following:\n\n<｜DSML｜ calls>\n<｜DSML｜ invoke name=\"$TOOL_NAME\">\n<｜DSML｜ parameter name=\"$PARAMETER_NAME\" string=\"true|false\">$PARAMETER_VALUE</｜DSML｜ parameter>\n...\n</｜DSML｜ invoke>\n<｜DSML｜ invoke name=\"$TOOL_NAME2\">\n...\n</｜DSML｜ invoke>\n</｜DSML｜ calls>\n\nString parameters should be specified as is and set `string=\"true\"`. For all other types (numbers, booleans, arrays, objects), pass the value in JSON format and set `string=\"false\"`.\n\nIf thinking_mode is enabled (triggered by <think>), you MUST output your complete reasoning inside <think>...</think> BEFORE any tool calls or final response.\n\nOtherwise, output directly after </think> with tool calls or final response.\n\n### Available Tool Schemas\n\n{\"name\": \"read_invoice\", \"description\": \"Read an invoice by its identifier.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"invoice_id\": {\"type\": \"string\"}}, \"required\": [\"invoice_id\"], \"additionalProperties\": false}}\n{\"name\": \"calculate_total\", \"description\": \"Calculate the total for an invoice.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"unit_price\": {\"type\": \"number\"}, \"quantity\": {\"type\": \"integer\"}}, \"required\": [\"unit_price\", \"quantity\"], \"additionalProperties\": false}}\n\nYou MUST strictly follow the above defined tool name and parameter schemas to invoke tool calls.\n<｜User｜>[validation agentic-c4-r0-i2]\nRead invoice INV-472 with read_invoice, then pass its returned unit_price and quantity to calculate_total. You must call both tools in that order. Finally return only JSON with invoice_id and total using the tool results.<｜Assistant｜></think>",
+  "reference_source_sha256": "081382cb953a1c8041fdfc82a6001cf0c932553171436625c89fe5b9fbcda464"
+}

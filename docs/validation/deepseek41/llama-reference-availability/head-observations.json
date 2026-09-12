@@ -1,0 +1,53 @@
+{
+  "llama-head": {
+    "url": "https://api.github.com/repos/ggml-org/llama.cpp/commits/master",
+    "utc": "2026-09-11T13:08:51.130820+00:00",
+    "sha256": "970a2e1e0c2dc798c0cb8e9fce96ecdcffd7fffd1fca3a57288b83e64365208c",
+    "summary": {
+      "sha": "5bda51bfbc62e64193221e639f6ad4e08767d760",
+      "html_url": "https://github.com/ggml-org/llama.cpp/commit/5bda51bfbc62e64193221e639f6ad4e08767d760",
+      "message": "metal : skip the empty half of the mul_mm_id token tile (#28301)\n\nkernel_mul_mm_id splits its NR1 = 32 token tile into two 16-row halves and skips\nthe upper half when the expert did not fill it, on both the tensor and simdgroup\npaths. The tB extents are corrected to (NK, NR1H) for the [NR1][NK] row-major tile.\n\nThe B tile is staged unconditionally, as on master: rows past nr1 restage a clamped\nduplicate of a valid row, lie in the output-row dimension so they never contribute\nto a valid row, and are dropped by the final store loop.\n\ntest-backend-ops: re-draw the expert ids between perf iterations of test_mul_mat_id\nso MoE perf numbers are not warm-cache, and add token-tile boundary coverage using\nn_used == n_mats, which routes every token to every expert so each expert receives\nexactly n rows; n = 32, 33, 47, 48, 49 reach mul_mm_id and leave a last tile of 32,\n1, 15, 16 and 17 rows.",
+      "committer": {
+        "name": "GitHub",
+        "email": "noreply@github.com",
+        "date": "2026-09-11T11:12:55Z"
+      }
+    }
+  },
+  "quant-head": {
+    "url": "https://huggingface.co/api/models/vcruz305/DeepSeek-V4.1-Flash-GGUF/revision/main",
+    "utc": "2026-09-11T13:08:51.086901+00:00",
+    "sha256": "eff55223bcd1c072c2558c168feaf64cee275e400b375ccb6ee0ef933bd848ea",
+    "summary": {
+      "sha": "3b4c2f9dc4f3045b96b18620f50046be6ffc39be",
+      "lastModified": "2026-09-11T08:07:03.000Z",
+      "patch_files": [
+        "llama.cpp/patches/README.md",
+        "llama.cpp/patches/patch_llamacpp_v41.py"
+      ]
+    }
+  },
+  "github-search": {
+    "url": "https://api.github.com/search/issues?q=repo%3Aggml-org%2Fllama.cpp+%22deepseek41%22",
+    "utc": "2026-09-11T13:08:51.093417+00:00",
+    "sha256": "16d527a1e04c80adb9d08177730e60dbf7fd5741d3ae9e1f5a5e5be80c2e59f0",
+    "summary": {
+      "total_count": 1,
+      "items": [
+        {
+          "title": "convert : add DeepSeek V4.1 (DeepseekV41ForCausalLM)",
+          "html_url": "https://github.com/ggml-org/llama.cpp/pull/28696",
+          "state": "open",
+          "updated_at": "2026-09-11T12:51:17Z",
+          "pull_request": {
+            "url": "https://api.github.com/repos/ggml-org/llama.cpp/pulls/28696",
+            "html_url": "https://github.com/ggml-org/llama.cpp/pull/28696",
+            "diff_url": "https://github.com/ggml-org/llama.cpp/pull/28696.diff",
+            "patch_url": "https://github.com/ggml-org/llama.cpp/pull/28696.patch",
+            "merged_at": null
+          }
+        }
+      ]
+    }
+  }
+}

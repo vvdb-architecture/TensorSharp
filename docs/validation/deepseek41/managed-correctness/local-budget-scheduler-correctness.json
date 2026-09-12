@@ -1,0 +1,40 @@
+{
+  "stage": "combined-thinking-budget-request-local-grammar-and-v41-native-slot-accounting",
+  "platform": "local macOS",
+  "build_and_focused_test_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release -p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true -p:TensorSharpSkipCudaNative=true --filter 'FullyQualifiedName~DeepSeek41SchedulerCapacityTests|FullyQualifiedName~BatchedExecutorTests|FullyQualifiedName~ContinuousBatchSchedulerTests' --logger 'trx;LogFileName=deepseek41-scheduler-focused.trx' --results-directory /tmp/dsv41-scheduler-results",
+  "focused_passed": 68,
+  "full_test_command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release --no-build --no-restore --filter 'Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video' --logger 'trx;LogFileName=deepseek41-budget-scheduler-managed.trx' --results-directory /tmp/dsv41-scheduler-results",
+  "full_counters": {
+    "total": "3433",
+    "executed": "3433",
+    "passed": "3433",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "trx_path": "/tmp/dsv41-scheduler-results/deepseek41-budget-scheduler-managed.trx",
+  "trx_sha256": "e36cd26f5d92e1952a3dd6c232798c529125517d1913b2e184159e141ce36595",
+  "sha256": {
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/Scheduling/InferenceEngine.cs": "6dacc35d0b19c2399af3f31b9d938231bd7cf3c8d97f1543aa672b26825fc7e6",
+    "/Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/DeepSeek41SchedulerCapacityTests.cs": "6a0f7f3a9b0385278bf8e02771eb0331bac2a23570f53bf99ce1af95ca03f3ec",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/Grammar/GrammarConstraint.cs": "f54394648d52a787fa83b839bf0e15be3d116f3d78d816fae8fde871e049bed8",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/SamplingConfig.cs": "64db95b66f4f4a6aec8b46e3480125589f4755f0ce178b70d7e1bf085b2fb3f6",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/TokenSampler.cs": "9fcffe3c86df9ea96e6236e2272983a87768049db8cf665de39d3ed31e10a869",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/Scheduling/SequenceState.cs": "8c50fb2035a1b716146283c3887942c9af4d518c47f433f8b8f4f80cde06d108",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/Scheduling/BatchExecutor.cs": "5ee8a99da372b5594b51f021b5a39c9059ae9ca81c6ebc53b20c981153f74267",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/ChatProtocol.cs": "2e35a514276f441c5d615972654bd58880edd5594e0d109363c9a555cd7d587a",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Runtime/ChatProtocolRegistry.cs": "2fc4c62a898c67502c7d8b749d75deb257a1704bd7d6adc32a45494a07266e68",
+    "/Users/zhongkaifu/work/TensorSharp/TensorSharp.Chat/ChatGenerationPipeline.cs": "5aa6a492e4a68e65d983bcf33809919b42d08085902dbcb53186a1953a9fa6e9",
+    "/Users/zhongkaifu/work/TensorSharp/InferenceWeb.Tests/bin/Release/net10.0/InferenceWeb.Tests.dll": "b58b9d9a278a88bbb1e218bb41d9cd8a7274114cfbcfdb56ee7e894a4eef43ee"
+  }
+}

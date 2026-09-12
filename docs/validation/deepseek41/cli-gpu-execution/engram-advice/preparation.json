@@ -1,0 +1,35 @@
+{
+  "portable_build": {
+    "argv": [
+      "clang++",
+      "-std=c++17",
+      "-O3",
+      "-pthread",
+      "/tmp/deepseek41-reference/engram-advice/engram_advice_bench.cpp",
+      "-o",
+      "/tmp/deepseek41-reference/engram-advice/portable-bench"
+    ],
+    "exit_code": 0,
+    "source_sha256": "e29807413cba49881b67af7b62f9c148c674529e26837549c309acb6d4f6ce53",
+    "binary_sha256": "0eaa44a87f4aed75130df98e3cfa12b8cc90f14551d3f4b41852ba2679b00a1f"
+  },
+  "warm_control": {
+    "argv": [
+      "/tmp/deepseek41-reference/engram-advice/portable-bench",
+      "--warm-memory"
+    ],
+    "exit_code": 0,
+    "exact_outputs": 4
+  },
+  "summarizer_checks": {
+    "argv": [
+      "python3",
+      "/tmp/deepseek41-reference/engram-advice/check-analyze.py"
+    ],
+    "exit_code": 0,
+    "passed": 13
+  },
+  "linux_execution": false,
+  "production_source_edits": false,
+  "vm_activity": false
+}

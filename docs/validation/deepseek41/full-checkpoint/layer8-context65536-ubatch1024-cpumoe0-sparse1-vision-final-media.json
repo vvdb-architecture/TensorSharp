@@ -1,0 +1,1420 @@
+{
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "companion_sha256": "e7b0debed15706dd2f065879fa62a54f49e5c0472a54fa33d5ff40957f167e0c",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "fixtures": {
+    "sha256": {
+      "ordered-cards.mp4": "7bd626261836db05c66167db95c02cb059b77a5019c2ff981be2c8c8a5789c67",
+      "frame-2.png": "f043c213b4b08a94842cdae897acbb4f5cc8908aab3c5f99f10c8f54bf17c7bc",
+      "frame-1.png": "3c5d04cd6f61635007297c4427f66d638e59f24a319ae03230154726e85258e3",
+      "frame-0.png": "a2e597c35e9299fce55eac8eb3d6306a3cfcb9c7391837bb681b47c39247a92b",
+      "card-1.png": "c1417e2740400aea7d4c54eff13237189d8af5014bd3830d42a506a762a7f920",
+      "card-0.png": "922f16960fb8fa086b6203f4fd212c92e97c165e8b051fbdd0d483f0bc5a0b25"
+    },
+    "cards": [
+      [
+        "4821",
+        "red"
+      ],
+      [
+        "9364",
+        "blue"
+      ]
+    ],
+    "video_codes": [
+      "17",
+      "42",
+      "86"
+    ],
+    "video_seconds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "scope": "Synthetic OCR, color, attachment order, image history and sampled video time labels; no audio validation or broad visual-quality parity.",
+  "waves": [
+    {
+      "scenario": "image_ocr",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.0527585381641984
+    },
+    {
+      "scenario": "image_ocr",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 8.79300024267286
+    },
+    {
+      "scenario": "multi_image",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 2.6975434236228466
+    },
+    {
+      "scenario": "multi_image",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 12.31676740758121
+    },
+    {
+      "scenario": "image_follow_up",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.5900754975154996
+    },
+    {
+      "scenario": "image_follow_up",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 15.737521773204207
+    },
+    {
+      "scenario": "video_order",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.359444440342486
+    },
+    {
+      "scenario": "video_order",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 16.84625969361514
+    },
+    {
+      "scenario": "video_timestamp",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 3.0551963644102216
+    },
+    {
+      "scenario": "video_timestamp",
+      "concurrency": 4,
+      "passed": 4,
+      "wall_seconds": 15.753282175399363
+    }
+  ],
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final-media.json",
+  "source_report_sha256": "9e325c821b847487a09fa520af3ae52fa3661a0a1a08cc4f354899859e1d7711",
+  "native_sha256": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88",
+  "cases": [
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c1-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "5748975daea97618b7b2dd58fb682b9226e8ff87a0f7348862cbc0433c30a7ac",
+      "wall_seconds": 3.045452583581209,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "6da17e32512c2f0a66292d028b23428a0c7984ec655052d28c3eb75e27c706cf",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 2253.493260592222,
+            "prefill_tps": 128.68909131939782,
+            "decode_tps": 16.123896417879138,
+            "total_wall_ms": 3044.5941984653473,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4383547.357314559,
+            "t_first_abs": 4383549.610807819,
+            "t_last_abs": 4383550.355044801,
+            "t_end_abs": 4383550.401908757
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "64b32c18b460014b1c0f8c38b22ffa9229c084b7ee3e3d33b236b5f1605349c0",
+      "wall_seconds": 8.572216199710965,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "e33e238e619a96df98fae5eec0bab9eaa9f31ff5d47c4c16f1b92c950a95ccd6",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 5990.071198903024,
+            "prefill_tps": 48.413447915795786,
+            "decode_tps": 4.906136568478255,
+            "total_wall_ms": 8571.411568671465,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4383550.420140191,
+            "t_first_abs": 4383556.41021139,
+            "t_last_abs": 4383558.856127812,
+            "t_end_abs": 4383558.99155176
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i1",
+      "status": "ok",
+      "expected": {
+        "code": "9364",
+        "color": "blue"
+      },
+      "input_sha256": "1fcd7e00dca0f057d5f9788350a36464444e870694285b94758d0a28a0eb7dea",
+      "wall_seconds": 8.778972638770938,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "960fa35d67f9858a583dceb425f8cd8d3b784b566e966fbd2a7a555cc78e4418",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 6903.362221084535,
+            "prefill_tps": 42.00851566418896,
+            "decode_tps": 6.747797414171972,
+            "total_wall_ms": 8777.938120998442,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\", \"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\", \"color\": \"blue\"}",
+            "t_start_abs": 4383550.424390266,
+            "t_first_abs": 4383557.327752487,
+            "t_last_abs": 4383559.106110559,
+            "t_end_abs": 4383559.202328387
+          },
+          "expected": {
+            "code": "9364",
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i2",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "89bf5b0c381e171332a37b065c0129604cc2775af37d7ae1f0deabdb968e0011",
+      "wall_seconds": 8.783938031643629,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "25a62d97f0f2e1e673a2c1961cf7294679d0aade7ae88e709c5f1d8a54bb9661",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 6904.278255999088,
+            "prefill_tps": 42.002942124764544,
+            "decode_tps": 6.741706416365989,
+            "total_wall_ms": 8783.19461736828,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4383550.422150447,
+            "t_first_abs": 4383557.326428703,
+            "t_last_abs": 4383559.106393486,
+            "t_end_abs": 4383559.205345064
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_ocr",
+      "tag": "image_ocr-c4-i3",
+      "status": "ok",
+      "expected": {
+        "code": "9364",
+        "color": "blue"
+      },
+      "input_sha256": "3bc82604080dd538565726e9c3bfb9b1cd5293b843df7e64c35edc196521b9d0",
+      "wall_seconds": 8.779020266607404,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "273ab67c31ddd33c71b9ccf9c6389704401d6761077fa61da3cab3f94d804366",
+          "metrics": {
+            "prompt_tokens": 290,
+            "completion_tokens": 13,
+            "ttft_ms": 6901.375561952591,
+            "prefill_tps": 42.020608413020625,
+            "decode_tps": 6.743393793780248,
+            "total_wall_ms": 8778.16470619291,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\", \"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\", \"color\": \"blue\"}",
+            "t_start_abs": 4383550.425668861,
+            "t_first_abs": 4383557.327044423,
+            "t_last_abs": 4383559.106563811,
+            "t_end_abs": 4383559.203833567
+          },
+          "expected": {
+            "code": "9364",
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c1-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "4821",
+          "9364"
+        ]
+      },
+      "input_sha256": "12e30d2ef833dcb57b59ed9ae7d8cde3ad582501466f3bf1c39771a5df9060f7",
+      "wall_seconds": 2.690879361703992,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "7f2467862fcd97b72035cad430cb73c515794cd4e7908ca8df90f82b5f204963",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 2219.980387017131,
+            "prefill_tps": 218.92085301393686,
+            "decode_tps": 24.992891985382045,
+            "total_wall_ms": 2690.3513772413135,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"4821\", \"9364\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"4821\", \"9364\"]}",
+            "t_start_abs": 4383559.220367704,
+            "t_first_abs": 4383561.440348091,
+            "t_last_abs": 4383561.880473227,
+            "t_end_abs": 4383561.910719081
+          },
+          "expected": {
+            "codes": [
+              "4821",
+              "9364"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "4821",
+          "9364"
+        ]
+      },
+      "input_sha256": "51d84e826154f8fc4df626858038fff9fb9ed8872710bd2d5f1ffb117679082b",
+      "wall_seconds": 12.30755071900785,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "1f84607e02c00d46f9b5856ab1559482bdd82801175db345099bd392cb134808",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 10594.079793430865,
+            "prefill_tps": 45.87467807268706,
+            "decode_tps": 6.822115311518553,
+            "total_wall_ms": 12306.204760447145,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"4821\", \"9364\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"4821\", \"9364\"]}",
+            "t_start_abs": 4383561.921051216,
+            "t_first_abs": 4383572.51513101,
+            "t_last_abs": 4383574.127534128,
+            "t_end_abs": 4383574.227255977
+          },
+          "expected": {
+            "codes": [
+              "4821",
+              "9364"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i1",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "9364",
+          "4821"
+        ]
+      },
+      "input_sha256": "f601e1d85971f192f0363284efc9f3f38ffe3721b19e98648091ce50f15120fe",
+      "wall_seconds": 12.309762104414403,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "639610fe1ccae718fd97a0fa32c086d902c69f43a528bae6a43a177633e4ab9f",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 10594.871767796576,
+            "prefill_tps": 45.871248907156314,
+            "decode_tps": 6.823577992146005,
+            "total_wall_ms": 12308.523862622678,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"9364\", \"4821\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"9364\", \"4821\"]}",
+            "t_start_abs": 4383561.920864414,
+            "t_first_abs": 4383572.515736182,
+            "t_last_abs": 4383574.127793671,
+            "t_end_abs": 4383574.229388277
+          },
+          "expected": {
+            "codes": [
+              "9364",
+              "4821"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i2",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "4821",
+          "9364"
+        ]
+      },
+      "input_sha256": "e88f44f73f33bd382e1c9dcba9f805ef291276d290cb07f85ae9144dfc4b6c9f",
+      "wall_seconds": 12.309961912222207,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "a30edba2d01aac2fbec97823094e84dfd0e83e19fcdf99c745a4181de334b12c",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 10592.168898321688,
+            "prefill_tps": 45.88295415842603,
+            "decode_tps": 6.817819655656736,
+            "total_wall_ms": 12308.691616170108,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"4821\", \"9364\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"4821\", \"9364\"]}",
+            "t_start_abs": 4383561.922463965,
+            "t_first_abs": 4383572.514632863,
+            "t_last_abs": 4383574.128051897,
+            "t_end_abs": 4383574.231155581
+          },
+          "expected": {
+            "codes": [
+              "4821",
+              "9364"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_image",
+      "tag": "multi_image-c4-i3",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "9364",
+          "4821"
+        ]
+      },
+      "input_sha256": "9ef3a858eb232e8bf99d9b42288d3dfbbec34042335d76dee8214b29ceff9b6b",
+      "wall_seconds": 12.101314130239189,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "1f425c708eb1ad58583954b89868d697587d6b75d76724cebedfb9a2deaa1264",
+          "metrics": {
+            "prompt_tokens": 486,
+            "completion_tokens": 12,
+            "ttft_ms": 6970.7991145551205,
+            "prefill_tps": 69.7194097854901,
+            "decode_tps": 2.200882524639792,
+            "total_wall_ms": 12100.003665313125,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"9364\", \"4821\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"9364\", \"4821\"]}",
+            "t_start_abs": 4383561.924850929,
+            "t_first_abs": 4383568.895650043,
+            "t_last_abs": 4383573.89364511,
+            "t_end_abs": 4383574.024854594
+          },
+          "expected": {
+            "codes": [
+              "9364",
+              "4821"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c1-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821"
+      },
+      "input_sha256": "17e1c08155af4fbb565fe86f6528d16d8b3eb9365432a2e3fda4778a6fa6d841",
+      "wall_seconds": 3.5857518585398793,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "eaf3d58767e9e7c0124de027c86a582e0d28acbe655292c3047fee61a00d2f9d",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 1524.4226520881057,
+            "prefill_tps": 180.3961648190636,
+            "decode_tps": 26.167904799458558,
+            "total_wall_ms": 1783.294596709311,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\"}",
+            "t_start_abs": 4383574.245548168,
+            "t_first_abs": 4383575.76997082,
+            "t_last_abs": 4383575.999259334,
+            "t_end_abs": 4383576.028842765
+          },
+          "expected": {
+            "code": "4821"
+          }
+        },
+        {
+          "request_sha256": "c7240c0c6cfb8124659eff028403994c93bdfe0865afe0a803ec1ef2e55cecd2",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 1624.5292276144028,
+            "prefill_tps": 191.4400767394619,
+            "decode_tps": 34.0607291993405,
+            "total_wall_ms": 1800.930429250002,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"red\"}",
+            "t_start_abs": 4383576.029621712,
+            "t_first_abs": 4383577.65415094,
+            "t_last_abs": 4383577.800947562,
+            "t_end_abs": 4383577.830552141
+          },
+          "expected": {
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821"
+      },
+      "input_sha256": "ab254dd2d6ae3620b4193dc5c5b56ef8f38b9fc756e448fb5a67ab034a3098c3",
+      "wall_seconds": 15.551356794312596,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "5e2f54cd7838dd1e3bee9d6cc705583fe87da2dde3803f5883659963f2037c35",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 5800.653082318604,
+            "prefill_tps": 47.40845489247541,
+            "decode_tps": 4.401497196265588,
+            "total_wall_ms": 7304.009724408388,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\"}",
+            "t_start_abs": 4383577.847395199,
+            "t_first_abs": 4383583.648048282,
+            "t_last_abs": 4383585.011220796,
+            "t_end_abs": 4383585.151404924
+          },
+          "expected": {
+            "code": "4821"
+          }
+        },
+        {
+          "request_sha256": "65416eafc9749311204e92a9f92b0cb37da1e4a6dbde4c613e27060731928f09",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 6260.899685323238,
+            "prefill_tps": 49.673372139956854,
+            "decode_tps": 2.686639826583051,
+            "total_wall_ms": 8245.861708186567,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"red\"}",
+            "t_start_abs": 4383585.152137307,
+            "t_first_abs": 4383591.413036993,
+            "t_last_abs": 4383593.274097769,
+            "t_end_abs": 4383593.397999016
+          },
+          "expected": {
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i1",
+      "status": "ok",
+      "expected": {
+        "code": "9364"
+      },
+      "input_sha256": "7b9e409665630879cb9e307978d2705b286c33ac481bbbea4ca2ad6bf18aa67b",
+      "wall_seconds": 15.72830012254417,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "fa20394a8f4e329eeae3440a9e45243bd550f99eb22333c6063757e0d5ab7890",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 6473.523025400937,
+            "prefill_tps": 42.48073250391628,
+            "decode_tps": 6.338025789542148,
+            "total_wall_ms": 7509.887266904116,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\"}",
+            "t_start_abs": 4383577.849047311,
+            "t_first_abs": 4383584.322570336,
+            "t_last_abs": 4383585.269237358,
+            "t_end_abs": 4383585.358934578
+          },
+          "expected": {
+            "code": "9364"
+          }
+        },
+        {
+          "request_sha256": "237ca2b9e1b200d326af811ccce16e35859316a22137dce52f7c727eb31c9840",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 7410.672141239047,
+            "prefill_tps": 41.9665037222928,
+            "decode_tps": 6.968321273811171,
+            "total_wall_ms": 8217.133309692144,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"blue\"}",
+            "t_start_abs": 4383585.359836529,
+            "t_first_abs": 4383592.77050867,
+            "t_last_abs": 4383593.488041603,
+            "t_end_abs": 4383593.576969839
+          },
+          "expected": {
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i2",
+      "status": "ok",
+      "expected": {
+        "code": "4821"
+      },
+      "input_sha256": "459cb61e63fb0bb4f0b3f36f2a01e09d9fa46de301aada79371e817aefd8f519",
+      "wall_seconds": 15.729193986393511,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "955012a3ba03c67edca382fafc2821caba1f1e1e4b65fe03b8c62142092f9ab0",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 6472.867032513022,
+            "prefill_tps": 42.485037714923386,
+            "decode_tps": 6.331872079779542,
+            "total_wall_ms": 7510.077937506139,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\"}",
+            "t_start_abs": 4383577.849187452,
+            "t_first_abs": 4383584.322054485,
+            "t_last_abs": 4383585.269641537,
+            "t_end_abs": 4383585.35926539
+          },
+          "expected": {
+            "code": "4821"
+          }
+        },
+        {
+          "request_sha256": "4c41c81299824fe98257e61b8e4376141cbd218052f26847bc2c33575edf8ec2",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 7408.5741471499205,
+            "prefill_tps": 41.97838798976477,
+            "decode_tps": 6.948251904093067,
+            "total_wall_ms": 8218.067876063287,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"red\"}",
+            "t_start_abs": 4383585.359989121,
+            "t_first_abs": 4383592.768563268,
+            "t_last_abs": 4383593.488168727,
+            "t_end_abs": 4383593.578056997
+          },
+          "expected": {
+            "color": "red"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "image_follow_up",
+      "tag": "image_follow_up-c4-i3",
+      "status": "ok",
+      "expected": {
+        "code": "9364"
+      },
+      "input_sha256": "64c54d50b815adcacd3c4802c9698542eefda8a09c94bf1e01aa64c5454d2375",
+      "wall_seconds": 15.729026077315211,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "4632e25115ae108046cd20426472b72f8224f58bc13235eeaa9579043525c7b6",
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 7,
+            "ttft_ms": 6472.318216226995,
+            "prefill_tps": 42.48864020785274,
+            "decode_tps": 6.330068310166403,
+            "total_wall_ms": 7510.245149023831,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"9364\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"9364\"}",
+            "t_start_abs": 4383577.849314047,
+            "t_first_abs": 4383584.321632263,
+            "t_last_abs": 4383585.269489333,
+            "t_end_abs": 4383585.359559196
+          },
+          "expected": {
+            "code": "9364"
+          }
+        },
+        {
+          "request_sha256": "8231ef8b407989ba083c9f994005671e6bda5cd96cec94589f6594da5f0d02e6",
+          "metrics": {
+            "prompt_tokens": 311,
+            "completion_tokens": 6,
+            "ttft_ms": 7408.575818873942,
+            "prefill_tps": 41.978378517461145,
+            "decode_tps": 6.960768406018547,
+            "total_wall_ms": 8216.749407351017,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"color\": \"blue\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"color\": \"blue\"}",
+            "t_start_abs": 4383585.360960173,
+            "t_first_abs": 4383592.769535992,
+            "t_last_abs": 4383593.487847493,
+            "t_end_abs": 4383593.577709581
+          },
+          "expected": {
+            "color": "blue"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c1-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "f11486a816dbcc69d12d6dbd16be9f746b9bc55e37f265c3f1b541e7864b78f7",
+      "wall_seconds": 3.355596585199237,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "1a23cc91531c7b5621922ba07ea0032e317d6eaa0add325c227501de35bf3e2a",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 2919.3546576425433,
+            "prefill_tps": 246.62984955086588,
+            "decode_tps": 29.748059761820606,
+            "total_wall_ms": 3354.7928240150213,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4383593.595317862,
+            "t_first_abs": 4383596.51467252,
+            "t_last_abs": 4383596.918060172,
+            "t_end_abs": 4383596.950110686
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i0",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "7d3cfe545dae7ffaef1e89a78cf686b3d3ba3b33a1fd8c366960ce03ead4ee46",
+      "wall_seconds": 16.551234111189842,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "4f2df7284123eb84592caa32ec1f3de4b3dcaa2d350d237e9c024ef688070cd1",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 8574.317761696875,
+            "prefill_tps": 83.97169547603873,
+            "decode_tps": 1.5291502042053946,
+            "total_wall_ms": 16550.785868428648,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4383596.965894354,
+            "t_first_abs": 4383605.540212115,
+            "t_last_abs": 4383613.387708043,
+            "t_end_abs": 4383613.516680222
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i1",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "6789598a6409dc0dd4beeb111fcc93068293385ac45f0cf73b156476bb7a7d5e",
+      "wall_seconds": 16.838547275401652,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "d17f4dbea10c42ba5e7a908fcd6ab79a2f57b1e9abedad9ed46abe1e2754571a",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 15124.217687174678,
+            "prefill_tps": 47.605768105980076,
+            "decode_tps": 7.427957406429317,
+            "total_wall_ms": 16837.659710086882,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4383596.967361605,
+            "t_first_abs": 4383612.091579292,
+            "t_last_abs": 4383613.707097441,
+            "t_end_abs": 4383613.805021315
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i2",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "d878c454e0da336c08fe070f802fc60d46e6c66d68f278f43aef244b902d0932",
+      "wall_seconds": 16.83493026625365,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "05b8ac54431452ab1e5f175c0d9b899ffc726f1e752c6fa64c9b9e2d5fca2cf9",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 15123.549393378198,
+            "prefill_tps": 47.60787175497637,
+            "decode_tps": 7.432015764433136,
+            "total_wall_ms": 16834.04421620071,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4383596.968718789,
+            "t_first_abs": 4383612.092268182,
+            "t_last_abs": 4383613.706904154,
+            "t_end_abs": 4383613.802763005
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_order",
+      "tag": "video_order-c4-i3",
+      "status": "ok",
+      "expected": {
+        "codes": [
+          "17",
+          "42",
+          "86"
+        ]
+      },
+      "input_sha256": "dcdb4ba9e01161e7ab1e546da618fc6926ee6e46ea70736a4b94869705751f84",
+      "wall_seconds": 16.83827643468976,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "cbaf657dc54aa457dbadadf4b92be464dcfbb53650ef397b6177c389d11a3d21",
+          "metrics": {
+            "prompt_tokens": 720,
+            "completion_tokens": 13,
+            "ttft_ms": 15125.00745151192,
+            "prefill_tps": 47.6032823327983,
+            "decode_tps": 7.4337646886265345,
+            "total_wall_ms": 16836.679307743907,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"codes\": [\"17\", \"42\", \"86\"]}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"codes\": [\"17\", \"42\", \"86\"]}",
+            "t_start_abs": 4383596.967523221,
+            "t_first_abs": 4383612.092530672,
+            "t_last_abs": 4383613.706786773,
+            "t_end_abs": 4383613.804202529
+          },
+          "expected": {
+            "codes": [
+              "17",
+              "42",
+              "86"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c1-i0",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "12bb81a357d61e200b6bf5695806c0a742372e9d906df6de794e154edac406df",
+      "wall_seconds": 3.0505376560613513,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "6c1bf144eb510e3b91a6d8d94ac3cd9353ecb250ba24251e9c81ba42d374f5d2",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 2807.3540423065424,
+            "prefill_tps": 257.53787698468483,
+            "decode_tps": 23.684244223471968,
+            "total_wall_ms": 3049.776448868215,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4383613.820962181,
+            "t_first_abs": 4383616.628316224,
+            "t_last_abs": 4383616.839427034,
+            "t_end_abs": 4383616.87073863
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i0",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "87bab4b7a7d90bf7b851a793aae3c612591b473f1c7e9e3698786b35f0802c7f",
+      "wall_seconds": 15.45580083783716,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "7b8e7e36dcdc8d3a236a0eb0bb8abe03a92c4c368f9a06f2551ce38ba55ade74",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 8410.263514146209,
+            "prefill_tps": 85.96639080141799,
+            "decode_tps": 0.7266766982765936,
+            "total_wall_ms": 15454.969522543252,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4383616.894781613,
+            "t_first_abs": 4383625.305045127,
+            "t_last_abs": 4383632.185684085,
+            "t_end_abs": 4383632.349751135
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i1",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "f5e81040d9274c752abb0c8854c979180fd43b6f442f09514f50d334440d3ca5",
+      "wall_seconds": 15.747298616915941,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "92395f2209b1759b649ac937e3272779d9ced5ac8f89d576d29ccb0f378debbd",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 14934.217983856797,
+            "prefill_tps": 48.4123106266113,
+            "decode_tps": 6.98665336358696,
+            "total_wall_ms": 15745.11518329382,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4383616.893616636,
+            "t_first_abs": 4383631.82783462,
+            "t_last_abs": 4383632.543484838,
+            "t_end_abs": 4383632.63873182
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i2",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "e33de35528e24ddeab848bb519e9efcddce366106b2eff3b1996d0745444dd58",
+      "wall_seconds": 15.744789420627058,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "253103bbd4491a176f9340b9e600077d0887ae2cadb1a4af9bee04a058ffd870",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 14930.85406254977,
+            "prefill_tps": 48.42321791982822,
+            "decode_tps": 6.978278523808315,
+            "total_wall_ms": 15742.903916165233,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4383616.896468261,
+            "t_first_abs": 4383631.827322324,
+            "t_last_abs": 4383632.543831415,
+            "t_end_abs": 4383632.639372177
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "video_timestamp",
+      "tag": "video_timestamp-c4-i3",
+      "status": "ok",
+      "expected": {
+        "second": 1
+      },
+      "input_sha256": "161013007c36af3184c8a61a7ce134302fd1d74709ea765925bbd68ea81ca813",
+      "wall_seconds": 15.743178335949779,
+      "concurrency": 4,
+      "turns": [
+        {
+          "request_sha256": "39933d683f2d88246fbb75e53039bf74647c800aa69c53845ed5a2f04fb91113",
+          "metrics": {
+            "prompt_tokens": 723,
+            "completion_tokens": 6,
+            "ttft_ms": 14930.550426244736,
+            "prefill_tps": 48.424202682381996,
+            "decode_tps": 6.9875627737159,
+            "total_wall_ms": 15742.219413630664,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"second\": 1}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"second\": 1}",
+            "t_start_abs": 4383616.897944935,
+            "t_first_abs": 4383631.828495361,
+            "t_last_abs": 4383632.544052439,
+            "t_end_abs": 4383632.640164348
+          },
+          "expected": {
+            "second": 1
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": false
+}

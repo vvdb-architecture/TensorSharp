@@ -1,0 +1,59 @@
+{
+  "scope": "Local simulated four-job orchestration using retained real R2cases and real temporary frozen files. No native/HTTP/VM inference or timings executed. Existing reviewed run_version remains unchanged.",
+  "runner_source": {
+    "path": "/tmp/deepseek41-reference/run-qwen35-json-control.py",
+    "sha256": "d3cc10180fd03b14b7dc7a4d940203804e1b0d64230e15a9b2a5aceaf9dbf4a5",
+    "bytes": 9680
+  },
+  "test_source": {
+    "path": "/tmp/deepseek41-reference/check-qwen35-json-control.py",
+    "sha256": "a2149c1b793a7c30e3a17eb36f09ea446fdd2be541cd598b9463b8b419e2750d",
+    "bytes": 7079
+  },
+  "checks": [
+    {
+      "name": "complete-r2-and-all-frozen-binary-config-hashes-accepted",
+      "passed": true
+    },
+    {
+      "name": "frozen-tamper-rejected-TensorSharp.Runtime.dll",
+      "passed": true
+    },
+    {
+      "name": "frozen-tamper-rejected-appsettings.json",
+      "passed": true
+    },
+    {
+      "name": "frozen-tamper-rejected-logs/tensorsharp-server-20260911.jsonl",
+      "passed": true
+    },
+    {
+      "name": "even-unmeasured-r2-child-hash-tamper-rejected",
+      "passed": true
+    },
+    {
+      "name": "r2-root-manifest-tamper-rejected",
+      "passed": true
+    },
+    {
+      "name": "complete-all-four-jobs-preserved-no-host-copies",
+      "passed": true
+    },
+    {
+      "name": "one-semantic-failure-all-four-jobs-preserved-no-host-copies",
+      "passed": true
+    },
+    {
+      "name": "uncaught-job-error-all-four-jobs-preserved-no-host-copies",
+      "passed": true
+    },
+    {
+      "name": "existing-output-refused-before-launch",
+      "passed": true
+    },
+    {
+      "name": "incomplete-r2-refused-even-with-matching-test-manifest-hash",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final",
+  "planned_phases": [
+    "placement",
+    "serial-tools"
+  ],
+  "run_complete": true,
+  "runner_sha256": "9139670b49d5bbe0c5eb8e818fe50fecbb55ed8a33a38300e410f8470da83375",
+  "started_utc": "2026-09-11T11:09:58Z",
+  "runs": [
+    {
+      "phase": "placement",
+      "command": [
+        "python3",
+        "/workspace/deepseek41-work/run-final-suite.py",
+        "layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final",
+        "--phase",
+        "placement"
+      ],
+      "exit_code": 1,
+      "wall_seconds": 511.06884932518005
+    },
+    {
+      "phase": "serial-tools",
+      "command": [
+        "python3",
+        "/workspace/deepseek41-work/run-final-suite.py",
+        "layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final",
+        "--phase",
+        "serial-tools"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 81.91169905662537
+    }
+  ],
+  "all_passed": false,
+  "finished_utc": "2026-09-11T11:19:51Z"
+}

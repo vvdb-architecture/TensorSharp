@@ -1,0 +1,265 @@
+{
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "pid": 141037,
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "runtime_sha256": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+  "scope": "Local curation of already retained source, server logs, reports and earlier /proc observations; no new VM access, model execution or source modification.",
+  "preparation_failure": {
+    "started_utc": "2026-09-11T11:27:22Z",
+    "original_source": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/scripts/prepare-final-profile.py",
+      "sha256": "81158b05578443dbc21946b46090e25764978cbfeb20d559ac3bd3dc75f51bde",
+      "bytes": 4955
+    },
+    "incomplete_report": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/tp-startup-diagnostic/preparation-incomplete.json",
+      "sha256": "076e1fadc973080f7bee60a8420e3ddd93fa8e5426b5151233b9d9bfa0d27d06",
+      "bytes": 533
+    },
+    "warmer_argument_error": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/tp-startup-diagnostic/source-warmer-argument-error.txt",
+      "sha256": "4fbfddc71cb4d2cb2e6127e7c5eb9b7810253a3963100a589f93f959975b63c1",
+      "bytes": 227
+    },
+    "wrapper_exit_code": 1,
+    "wrapper_exit_evidence_kind": "Root observed the prepare-final-profile tool exit 1 and reported it in the task conversation; the raw outer traceback/exit transcript was not found among the locally retained files. The archived exact source raises an uncaught RuntimeError at line 78 only after endpoint_ready and nonzero warmer exit.",
+    "warmer_exit_code": null,
+    "warmer_exit_note": "No numeric child exit code was persisted in the incomplete report; the retained argparse output proves the required --report argument was missing.",
+    "ready_false_meaning": "The preparation JSON was written before startup and never finalized after the exception; ready=false is not evidence that the native host failed to load.",
+    "failure_class": "Optional expert-source warming orchestration, separate from native model loading and native Engram warming."
+  },
+  "native_startup": {
+    "source_log": {
+      "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+      "sha256": "ee46466cda112da68f7dc5675f9290aaedb5763d40bd91b42e30077b81173e2c",
+      "bytes": 1352805
+    },
+    "excerpt": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/tp-startup-diagnostic/server-startup-excerpt.log",
+      "sha256": "f1f6bc6dff43686e44a45528417f7f0647dfa5ba9cf11bec395fcd1548f52c86",
+      "bytes": 14288
+    },
+    "excerpt_source_lines": [
+      1,
+      160
+    ],
+    "weight_upload_gib": 186.3,
+    "weight_upload_seconds": 559.5,
+    "engram_warmed_gib": 60.08,
+    "engram_warm_seconds": 151.56,
+    "engram_io_threads": 16,
+    "managed_load_ms": 714236.3,
+    "health_http_status": 200,
+    "models_http_status": 200,
+    "startup_performance_qualified": false,
+    "limitation": "No matched cache, file-system residency or competing I/O control; these diagnostic durations do not establish a startup regression or improvement."
+  },
+  "resolution": {
+    "host_reused_after_failure": true,
+    "action": "Root inspected the retained argparse error and healthy host, preserved the incomplete preparation artifact, then ran endpoint checks and the complete inference suite on the already loaded host.",
+    "helper_fix_source": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/scripts/prepare-final-profile-warming-report.py",
+      "sha256": "ae1bd5bdea38790fc151ee2838a3c37a9c22d82f5505af29c5e4c99044056ee6",
+      "bytes": 5040
+    },
+    "helper_fix": "Supply --report with a JSON output path and retain stdout/stderr separately as .log. This is a later helper-only correction; it does not rewrite the failed TP preparation result.",
+    "corrected_helper_executed_for_this_tp_startup": false
+  },
+  "endpoint_checks_before_suite": [
+    {
+      "label": "image-input-rejections",
+      "passed": 8,
+      "total": 8,
+      "expected_http_status": 400,
+      "included_in_130_case_suite": false,
+      "raw_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-image-input-rejections.json",
+        "sha256": "f42495f368a710659bfd091c043c085c8b2a307b6f43a8291511fd9153feef6b",
+        "bytes": 13972
+      }
+    },
+    {
+      "label": "audio-input-rejections",
+      "passed": 4,
+      "total": 4,
+      "expected_http_status": 400,
+      "included_in_130_case_suite": false,
+      "raw_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-audio-input-rejections.json",
+        "sha256": "99eef956e496792e06768d2847d9e75fe723dce097e7472462d3e8c623a71cb5",
+        "bytes": 10536
+      }
+    }
+  ],
+  "later_suite": {
+    "started_utc": "2026-09-11T12:12:57Z",
+    "finished_utc": "2026-09-11T12:30:03Z",
+    "complete": true,
+    "passed": 129,
+    "total": 130,
+    "all_passed": false,
+    "phases": [
+      {
+        "label": "quality",
+        "complete": true,
+        "passed": 29,
+        "total": 30,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-quality.json",
+          "sha256": "0ff8b7f72e3325763d7487702b65cda28bd6f134b369b5b4916e4e4fc78c86d7",
+          "bytes": 161997
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-quality.json",
+          "sha256": "f5742934d85cd32d82bbeafd2f6c74c993a82813e541d5cb2f1a3409d97d5800",
+          "bytes": 111742
+        }
+      },
+      {
+        "label": "steady",
+        "complete": true,
+        "passed": 15,
+        "total": 15,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-steady.json",
+          "sha256": "29ff55e59cd5be8b6e2a8eae6edd3aab6a4b1a9725f8401b854493660bc097e1",
+          "bytes": 133888
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-steady.json",
+          "sha256": "2e71dd23eb9b1b3e02269cf31de24c0af93b0dba2aa861933dfa02be39c37e2b",
+          "bytes": 129475
+        }
+      },
+      {
+        "label": "long",
+        "complete": true,
+        "passed": 2,
+        "total": 2,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long.json",
+          "sha256": "7a4b6eb6e568efdfac32457d039d7f19b701b2380b5deb3f1c058c7a83c3cc4c",
+          "bytes": 200271
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long.json",
+          "sha256": "b6475da1b6532c1dffff894e79b98d87d6b0fec47b11a00646577aa9ec98981f",
+          "bytes": 7202
+        }
+      },
+      {
+        "label": "tool-policies",
+        "complete": true,
+        "passed": 30,
+        "total": 30,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-tool-policies.json",
+          "sha256": "78beef9ca23ed2840090021f60f26cce011391a967f38d3d7a9a2b3495e68b7a",
+          "bytes": 284872
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-tool-policies.json",
+          "sha256": "da9ea3dd6d2f6905ff5cdfdab1b7c2b7f0ba880cd228302c4dc59021a145dce4",
+          "bytes": 88954
+        }
+      },
+      {
+        "label": "thinking",
+        "complete": true,
+        "passed": 4,
+        "total": 4,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-thinking.json",
+          "sha256": "6ffdd2dcc1792c326341f1a849bd48249dabc132b1690bc9fb1d401fac08c6d9",
+          "bytes": 63008
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-thinking.json",
+          "sha256": "67390ed1f14d7052003cd03ebd113965ab1d9a27966bbaf58e7b79c149173797",
+          "bytes": 38450
+        }
+      },
+      {
+        "label": "blocking",
+        "complete": true,
+        "passed": 4,
+        "total": 4,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-blocking.json",
+          "sha256": "128bb4511c90f63fd4bd667740b54558bc5c1e29afd18339ace22fa9ab135a71",
+          "bytes": 29258
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-blocking.json",
+          "sha256": "05d8971fa99b7ced7d90852bda737af7b6f617dc2d525352ce035ec4022fa90f",
+          "bytes": 17812
+        }
+      },
+      {
+        "label": "media",
+        "complete": true,
+        "passed": 25,
+        "total": 25,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-media.json",
+          "sha256": "4cc96336ebac3d932c82dd4e6434f5409074010ab0f60828d166e2e8d98d5966",
+          "bytes": 46441
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-media.json",
+          "sha256": "c9e29b8e17892d8041e284a09527e6290fff1be2e2fb0fdf71b772162dd9777f",
+          "bytes": 46801
+        }
+      },
+      {
+        "label": "multilingual",
+        "complete": true,
+        "passed": 10,
+        "total": 10,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-multilingual.json",
+          "sha256": "8d3cb66cc249fed53232b11677c5489b39dda557bc8f504d3ee189ba7e4053da",
+          "bytes": 26931
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-multilingual.json",
+          "sha256": "692d25adce45cf470850c693670b945f5765b4d58fd5969578749b8ee488107e",
+          "bytes": 23948
+        }
+      },
+      {
+        "label": "serial-tools",
+        "complete": true,
+        "passed": 10,
+        "total": 10,
+        "raw_source": {
+          "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-serial-tools.json",
+          "sha256": "78a38c07551e03b360f146512a751de92dcd85d71dce1f9cde7aa306d9ef8211",
+          "bytes": 111364
+        },
+        "curated_report": {
+          "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/full-checkpoint/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-serial-tools.json",
+          "sha256": "5df24f3d07262e57122676b859da48f5c26587c851e5e1519c03148977f9e045",
+          "bytes": 60596
+        }
+      }
+    ],
+    "profile_wrapper": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/tp-startup-diagnostic/completed-profile-runs.json",
+      "sha256": "252c1022404d7dff9929648aa652314b393e8d88d18c0a56f770f2e218c11877",
+      "bytes": 2517
+    },
+    "retained_failure": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/docs/validation/deepseek41/tp-startup-diagnostic/retained-agentic-failure.json",
+      "sha256": "71d9a2665d56abd2ebfbc6f6b7eca1c8a5243787835d624c28b5ff9cd780a5e2",
+      "bytes": 4432
+    },
+    "failure_summary": "Default agentic c4 request emitted read_invoice and dependent calculate_total together before receiving invoice data, using zero placeholder arguments. The exact-one-tool-call validator rejected it. Separate serial-tool policy cases passed 10/10; they do not erase the default-policy failure."
+  },
+  "evidence_limits": [
+    "Root-reported wrapper exit 1 is explicitly distinguished from locally retained raw artifacts.",
+    "The failed .json-named warmer output is plain argparse text and is not counted as a successful warming report.",
+    "Startup duration and helper failure are excluded from inference timing.",
+    "130 completed scenario cases are not strict numerical parity, broad model-quality parity, or llama.cpp parity."
+  ]
+}

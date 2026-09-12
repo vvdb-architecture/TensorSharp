@@ -1,0 +1,505 @@
+[
+  {
+    "model": "qwen3",
+    "cases": 18,
+    "baseline_pass": 13,
+    "after_pass": 18,
+    "matching_status": 13,
+    "matching_generated_outputs": 11,
+    "introduced_failed_cases": [],
+    "changed_outputs": [
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i3",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i3",
+        4
+      ]
+    ],
+    "baseline_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+      "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+      "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+      "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+      "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+      "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    "after_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "dcc088addb36a99106bbe84291d898d7fb5457394f6985e7d8d3423e2f515188",
+      "TensorSharp.Runtime.dll": "7237fbdb4275ff5f5cc223dc2a47d3e13b3bbd3f4fb9b14e0f72e1deecc1ab55",
+      "TensorSharp.Models.dll": "2c9b2e7dbf7aac04cae50c877eb5e49ad94457e1f930f191075736516bd60aa4",
+      "TensorSharp.Chat.dll": "1cff009892189c7285c7099b939482b46eb41da86c233b059c65cd03729113ee",
+      "TensorSharp.Server.dll": "4bd9e1420583e37e2ffadc0d3fda2b27c42cc13fdb8cd87d47b8720f46215160",
+      "libGgmlOps.so": "30716e9bbc0747671f54b7e67e9c48244fb1b6aa72ee0a4a62e84a7da091be94"
+    },
+    "performance": {
+      "qualified": true,
+      "groups": {
+        "decode@c1": {
+          "samples": [
+            [
+              "decode",
+              "decode-c1-r0-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r1-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            1.2043572126188182,
+            1.0054270064616384,
+            1.2889394152424338
+          ],
+          "ttft_ratios": [
+            1.3501534772845836,
+            0.8147599895857024,
+            1.6617201697195354
+          ],
+          "decode_ratios": [
+            1.1904126893566733,
+            1.0281132742363572,
+            1.257827144623541
+          ],
+          "wall_ratios_median_speedup": 1.2043572126188182,
+          "ttft_ratios_median_speedup": 1.3501534772845836,
+          "decode_ratios_median_speedup": 1.1904126893566733
+        },
+        "tool_round_trip@c1": {
+          "samples": [
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r0-i0",
+              1
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r1-i0",
+              1
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            1.687397405701973,
+            1.4332367900611434,
+            1.2167664038141666
+          ],
+          "ttft_ratios": [
+            1.9537855710839112,
+            1.4401406202209144,
+            1.4219782651576809
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.4332367900611434,
+          "ttft_ratios_median_speedup": 1.4401406202209144
+        },
+        "tool_round_trip@c4": {
+          "samples": [
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i0",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i1",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i2",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i3",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r1-i2",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.353227721244636,
+            1.3773794527853889,
+            1.3811458911397585,
+            1.3441858069572965,
+            1.3283339813943393
+          ],
+          "ttft_ratios": [
+            1.3090916154017973,
+            1.5817426065153282,
+            2.0163798445217713,
+            0.8812717879810061,
+            1.3077057752010919
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.353227721244636,
+          "ttft_ratios_median_speedup": 1.3090916154017973
+        }
+      },
+      "excluded_cases": [
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i3",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i3",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        }
+      ],
+      "regressions_at_5_percent": [],
+      "scope": "Comparable passing workflows only; exclusions and quality failures remain visible."
+    },
+    "pair": 0
+  },
+  {
+    "model": "qwen3",
+    "cases": 18,
+    "baseline_pass": 12,
+    "after_pass": 18,
+    "matching_status": 12,
+    "matching_generated_outputs": 10,
+    "introduced_failed_cases": [],
+    "changed_outputs": [
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r1-i3",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i0",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i1",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i2",
+        4
+      ],
+      [
+        "tool_round_trip",
+        "tool_round_trip-c4-r2-i3",
+        4
+      ]
+    ],
+    "baseline_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+      "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+      "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+      "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+      "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+      "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    "after_binary_sha256": {
+      "TensorSharp.Server.Host.dll": "dcc088addb36a99106bbe84291d898d7fb5457394f6985e7d8d3423e2f515188",
+      "TensorSharp.Runtime.dll": "7237fbdb4275ff5f5cc223dc2a47d3e13b3bbd3f4fb9b14e0f72e1deecc1ab55",
+      "TensorSharp.Models.dll": "2c9b2e7dbf7aac04cae50c877eb5e49ad94457e1f930f191075736516bd60aa4",
+      "TensorSharp.Chat.dll": "1cff009892189c7285c7099b939482b46eb41da86c233b059c65cd03729113ee",
+      "TensorSharp.Server.dll": "4bd9e1420583e37e2ffadc0d3fda2b27c42cc13fdb8cd87d47b8720f46215160",
+      "libGgmlOps.so": "30716e9bbc0747671f54b7e67e9c48244fb1b6aa72ee0a4a62e84a7da091be94"
+    },
+    "performance": {
+      "qualified": true,
+      "groups": {
+        "decode@c1": {
+          "samples": [
+            [
+              "decode",
+              "decode-c1-r0-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r1-i0",
+              1
+            ],
+            [
+              "decode",
+              "decode-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.9157016288132328,
+            1.0091287248123773,
+            0.9144596628358762
+          ],
+          "ttft_ratios": [
+            0.9644721363431756,
+            1.2904130585060438,
+            0.5042041729307621
+          ],
+          "decode_ratios": [
+            0.9101959676618172,
+            0.985891397335162,
+            0.9796176606258098
+          ],
+          "wall_ratios_median_speedup": 0.9157016288132328,
+          "ttft_ratios_median_speedup": 0.9644721363431756,
+          "decode_ratios_median_speedup": 0.9796176606258098
+        },
+        "tool_round_trip@c1": {
+          "samples": [
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r0-i0",
+              1
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r1-i0",
+              1
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c1-r2-i0",
+              1
+            ]
+          ],
+          "wall_ratios": [
+            0.9643844873422189,
+            0.9836680660218972,
+            0.9167600169469841
+          ],
+          "ttft_ratios": [
+            0.9270899366168553,
+            0.910286856722699,
+            0.9011969642191242
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 0.9643844873422189,
+          "ttft_ratios_median_speedup": 0.910286856722699
+        },
+        "tool_round_trip@c4": {
+          "samples": [
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i0",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i1",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i2",
+              4
+            ],
+            [
+              "tool_round_trip",
+              "tool_round_trip-c4-r0-i3",
+              4
+            ]
+          ],
+          "wall_ratios": [
+            1.0676087020224556,
+            1.0911755676176542,
+            1.0853352397931515,
+            1.1080332238457855
+          ],
+          "ttft_ratios": [
+            1.0525337298940414,
+            1.354608710504152,
+            1.2093044107593753,
+            1.3787140248281173
+          ],
+          "decode_ratios": [],
+          "wall_ratios_median_speedup": 1.0882554037054029,
+          "ttft_ratios_median_speedup": 1.2819565606317638
+        }
+      },
+      "excluded_cases": [
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i2",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r1-i3",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i0",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i1",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i2",
+            4
+          ],
+          "reason": "Both outputs must pass correctness checks"
+        },
+        {
+          "case": [
+            "tool_round_trip",
+            "tool_round_trip-c4-r2-i3",
+            4
+          ],
+          "reason": "Prompt/output lengths or timer sources differ"
+        }
+      ],
+      "regressions_at_5_percent": [
+        {
+          "scenario": "decode@c1",
+          "metric": "wall_ratios",
+          "median_speedup": 0.9157016288132328
+        },
+        {
+          "scenario": "tool_round_trip@c1",
+          "metric": "ttft_ratios",
+          "median_speedup": 0.910286856722699
+        }
+      ],
+      "scope": "Comparable passing workflows only; exclusions and quality failures remain visible."
+    },
+    "pair": 1
+  }
+]

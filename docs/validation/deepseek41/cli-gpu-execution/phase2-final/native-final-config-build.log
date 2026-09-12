@@ -1,0 +1,38 @@
+-- NCCL found: enabling multi-GPU collective AllReduce for tensor parallelism
+-- CMAKE_SYSTEM_PROCESSOR: x86_64
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: -march=native 
+-- CUDA Toolkit found
+-- Using CMAKE_CUDA_ARCHITECTURES=86-real CMAKE_CUDA_ARCHITECTURES_NATIVE=86-real
+-- FlashAttention K-V type combinations: f16-f16;q4_0-q4_0;q8_0-q8_0;bf16-bf16
+-- Including CUDA backend
+-- Vulkan found
+-- GL_KHR_cooperative_matrix supported by glslc
+-- GL_NV_cooperative_matrix2 not supported by glslc
+-- GL_NV_cooperative_matrix_decode_vector not supported by glslc
+-- GL_EXT_integer_dot_product not supported by glslc
+-- GL_EXT_bfloat16 not supported by glslc
+-- GL_EXT_float_e2m1 not supported by glslc
+-- GL_EXT_float_e4m3 not supported by glslc
+-- Including Vulkan backend
+-- ggml version: 0.23.0
+-- ggml commit:  7840aab-dirty
+-- TensorSharp: cuDNN headers at /usr/include; VAE convolutions will use cuDNN when its runtime is present
+-- Configuring done (1.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /root/TensorSharp/TensorSharp.GGML.Native/build
+[  0%] Performing build step for 'vulkan-shaders-gen'
+[  2%] Built target ggml-base
+gmake[4]: warning: jobserver unavailable: using -j1.  Add '+' to parent make rule.
+[  5%] Built target ggml-cpu
+[100%] Built target vulkan-shaders-gen
+[  5%] Performing install step for 'vulkan-shaders-gen'
+-- Up-to-date: /root/TensorSharp/TensorSharp.GGML.Native/build/Release/./vulkan-shaders-gen
+[  5%] Completed 'vulkan-shaders-gen'
+[  7%] Built target vulkan-shaders-gen
+[ 34%] Built target ggml-cuda
+[ 91%] Built target ggml-vulkan
+[ 91%] Built target ggml
+[100%] Built target GgmlOps

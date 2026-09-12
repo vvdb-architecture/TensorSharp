@@ -1,0 +1,65 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+15:51:22 info: TensorSharp.Cli[1700] tensorsharp-cli started: argv=8 logLevel=Information logDir=logs fileLogging=True consoleLogging=True
+15:51:22 info: TensorSharp.Cli[1400] Loading model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf on backend GgmlCuda kvCacheDtype=auto (path=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf)
+ggml_cuda_init: found 8 CUDA devices (Total VRAM: 363904 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 1: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 2: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 3: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 4: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 5: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 6: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 7: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Context length: using GGUF metadata deepseek41.context_length=1048576.
+Model: deepseek41 (native whole-model executor), Layers=40, Hidden=5120, Heads=64, HeadDim=512, Vocab=129280
+[dsv4] CPU fallback/host-expert pool: threads=32, persistent=yes
+[dsv41] Engram sparse prefill reads: 16 persistent I/O threads
+[dsv4] host weights are served from the GGUF mapping (60.1 GiB, no private copy)
+[dsv4] prefaulted 0.0 GiB of mmapped host experts in 0.0s
+[dsv4] loaded 186.3 GiB across 8 GPU(s) in 36.0s (5.18 GiB/s, 16 load threads; host weights mmapped; n_ctx=65536, ring=512, csa_rows=33024, hca_rows=65792)
+[dsv4]   device 0: layers 0..4 (5), 20.7 GiB free after load
+[dsv4]   device 1: layers 5..9 (5), 20.9 GiB free after load
+[dsv4]   device 2: layers 10..14 (5), 20.9 GiB free after load
+[dsv4]   device 3: layers 15..19 (5), 20.9 GiB free after load
+[dsv4]   device 4: layers 20..24 (5), 20.9 GiB free after load
+[dsv4]   device 5: layers 25..29 (5), 20.9 GiB free after load
+[dsv4]   device 6: layers 30..34 (5), 20.9 GiB free after load
+[dsv4]   device 7: layers 35..39 (5), 20.4 GiB free after load
+[dsv4] fused ops: on
+[dsv4] hyper-connection ops: native
+[dsv4] flash attention: on
+15:52:00 info: TensorSharp.Cli[1401] Loaded model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf architecture=deepseek41 contextLength=65536 kvCacheDtype=f32 elapsedMs=37493.4
+15:52:00 info: TensorSharp.Cli[1010] Kernel warmup completed in 243.9 ms
+15:52:00 info: TensorSharp.Cli[1700] Entering interactive chat mode (model=DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf, backend=GgmlCuda, thinking=True)
+  Chat sampling: temp=0.8 top_k=40 top_p=0.95 min_p=0.05 repeat_penalty=1
+
+=== TensorSharp interactive chat ===
+Model: DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf
+Backend: GgmlCuda
+Architecture: deepseek41
+Context length: 65536 tokens
+Max tokens per reply: 20000
+Thinking: on
+Sampling: temp=0.8 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+Type /help to see all available commands. Use /exit or Ctrl+D to leave.
+===============================
+
+[turn 1]> 
+Assistant: 
+[thinking] The user asks: "What is 17 plus 25? Give a brief answer." It's a simple arithmetic question. 17 + 25 = 42. I need to give a brief answer. I should provide the answer concisely. The user requested a brief answer. So I'll respond with "42". Or perhaps "17 + 25 = 42". Keep it brief. So final answer: 42. I'll just output 42.
+[answer] 42
+[turn complete: tokens=97 prefillMs=749 decodeMs=12347 tps=7.9 ttftMs=10 reason=eos kvPlan=Reset]
+15:54:21 info: TensorSharp.Cli[1501] interactive.turn complete tokens=97 promptTokens=43 kvPlan=Reset prefillMs=749 decodeMs=12347 tps=7.9 ttftMs=10 reason=eos
+
+[turn 2]> 15:56:00 info: TensorSharp.Cli[1701] tensorsharp-cli completed

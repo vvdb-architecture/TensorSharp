@@ -1,0 +1,76 @@
+{
+  "diagnostic_only": true,
+  "collection_complete": true,
+  "errors": [],
+  "trace_integrity": "Pending offline raw-nettrace parse, event-loss and time-range checks",
+  "host_pid": 148222,
+  "version": "baseline-managed_final-native",
+  "command": [
+    "/workspace/deepseek41-work/profiling-tools/dotnet-trace",
+    "collect",
+    "--process-id",
+    "148222",
+    "--profile",
+    "dotnet-sampled-thread-time,dotnet-common",
+    "--providers",
+    "Microsoft-Windows-DotNETRuntime:0x100003C01D:4",
+    "--format",
+    "NetTrace",
+    "--output",
+    "/workspace/deepseek41-work/existing-regressions/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.nettrace",
+    "--buffersize",
+    "128"
+  ],
+  "profiles": "dotnet-sampled-thread-time,dotnet-common",
+  "provider_semantics": {
+    "0x100003801D": "Unchanged dotnet-common GC/loader/JIT/threading/compilation events",
+    "0x4000": "Additional contention"
+  },
+  "collector_environment": {
+    "DOTNET_ROOT": "/workspace/deepseek41-work/dotnet"
+  },
+  "attach_requested": {
+    "utc": "2026-09-11T14:42:12.568831+00:00",
+    "unix_seconds": 1789137732.568831,
+    "monotonic": 4410541.84756053,
+    "anchor_uncertainty_seconds": 1.066364347934723e-06
+  },
+  "host_sampling_rate_ms": 1,
+  "attach_scope": "After the512-token and five JSON warmups, before all15 measured requests",
+  "collector_pid": 148340,
+  "collection_ready": {
+    "utc": "2026-09-11T14:42:13.020059+00:00",
+    "unix_seconds": 1789137733.0200593,
+    "monotonic": 4410542.298789064,
+    "anchor_uncertainty_seconds": 1.0542571544647217e-06
+  },
+  "stop_requested": {
+    "utc": "2026-09-11T14:42:15.158281+00:00",
+    "unix_seconds": 1789137735.1582806,
+    "monotonic": 4410544.437010732,
+    "anchor_uncertainty_seconds": 4.032626748085022e-07
+  },
+  "collector_exit_code": 0,
+  "finalized": {
+    "utc": "2026-09-11T14:42:15.422372+00:00",
+    "unix_seconds": 1789137735.4223723,
+    "monotonic": 4410544.701102213,
+    "anchor_uncertainty_seconds": 7.497146725654602e-07
+  },
+  "collector_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-collector.log",
+    "sha256": "840951e9d6822088db67d07ebe488381b564fecc4fbad5f30a7a2302d8eb075d",
+    "bytes": 589
+  },
+  "completed_message_present": true,
+  "raw_nettrace": {
+    "path": "/workspace/deepseek41-work/existing-regressions/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.nettrace",
+    "sha256": "dfe410e0171637f1affd6cce9da17e99a69fd3c034c1f376d43259d82f03f9e1",
+    "bytes": 6477626
+  },
+  "actual_case_monotonic_interval": [
+    4410542.306929582,
+    4410544.436955359
+  ],
+  "expected_measured_cases": 15
+}

@@ -1,0 +1,18 @@
+--- prepare-final-profile.py (executed TP source)
++++ prepare-final-profile-warming-report.py (later helper fix)
+@@ -55,11 +55,12 @@
+ launch = json.loads(launch_path.read_text())
+ launch.update({key: r[key] for key in ('startup_performance_qualified', 'startup_note')})
+ launch_path.write_text(json.dumps(launch, indent=2) + '\n')
++warm_path = w / (a.profile + '-expert-source-warming.json')
++warm_log = w / (a.profile + '-expert-source-warming.log')
+ warm_cmd = [str(w / 'reference-venv/bin/python'), '/workspace/TensorSharp/eng/dsv41-warm-experts.py',
+             '/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf',
+-            '--layers', str(a.cpu_moe if a.cpu_moe else 40), '--workers', '4']
+-warm_path = w / (a.profile + '-expert-source-warming.json')
+-with warm_path.open('w') as warm_out:
++            '--layers', str(a.cpu_moe if a.cpu_moe else 40), '--workers', '4', '--report', str(warm_path)]
++with warm_log.open('w') as warm_out:
+     warmer = subprocess.Popen(warm_cmd, stdout=warm_out, stderr=subprocess.STDOUT)
+     deadline = time.monotonic() + 1800
+     last_notice = 0

@@ -1,0 +1,2300 @@
+{
+  "scope": "Temporal samples at the managed engine thread; category priority is exact listed source matching. Samples are not on-CPU time. Native boundary residence includes waits and cannot resolve native frames.",
+  "source_sha256": "f2d530cb49cc27ce1c524b0f4c61a1d9242e56adb9da34166f207e5e926499d1",
+  "runs": {
+    "baseline": {
+      "summary_sha256": "5409cf8f383751b2bfd5eabeee8f85dcc0f7693022199ebb6aaf02846e7515cf",
+      "full_window_counts": {
+        "worker_wait": 133,
+        "reset_kv": 146,
+        "other_managed": 147,
+        "native_verify_boundary": 367,
+        "sampler": 36,
+        "native_decode_boundary": 275,
+        "grammar": 40,
+        "reset_holder": 160,
+        "ring_to_scratch": 38,
+        "native_batched_decode_boundary": 331
+      },
+      "solo": [
+        {
+          "tag": "json-c1-r0-i0",
+          "ttft_ms": 70.30102144926786,
+          "start_utc": "2026-09-11T14:42:13.0291991+00:00",
+          "first_utc": "2026-09-11T14:42:13.0995001+00:00",
+          "engine_samples": 56,
+          "categories": {
+            "worker_wait": 6,
+            "reset_kv": 13,
+            "other_managed": 2,
+            "native_verify_boundary": 24,
+            "sampler": 1,
+            "native_decode_boundary": 10
+          },
+          "stacks": [
+            {
+              "id": 23,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelVerifyOwned(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,int32,int32,int64)",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 24
+            },
+            {
+              "id": 20,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x74ad4c12fe30<class System.Object>)",
+                "System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.RegisterOpStorageType+<>c__DisplayClass2_0.<DoRegister>b__0(class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Ops.Fill(class TensorSharp.Tensor,float32)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 11
+            },
+            {
+              "id": 26,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 10
+            },
+            {
+              "id": 9,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Wait(class System.Object,int32)",
+                "System.Threading.ManualResetEventSlim.Wait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.SpinThenBlockingWait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWaitCore(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWait(int32,value class System.Threading.CancellationToken)",
+                "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task,value class System.Threading.Tasks.ConfigureAwaitOptions)",
+                "System.Runtime.CompilerServices.TaskAwaiter`1[System.Boolean].GetResult()",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 6
+            },
+            {
+              "id": 19,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.Qwen35ResetDecodeCache()",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ResetDecodeCache()",
+                "TensorSharp.Models.Qwen35Model.InvalidateFullDecodeState(bool)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 21,
+              "frames_leaf_to_root": [
+                "System.Buffer.ZeroMemoryInternal(unsigned int8&,unsigned int)",
+                "System.Array.Clear(class System.Array)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 22,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 24,
+              "frames_leaf_to_root": [
+                "TensorSharp.Runtime.TokenSampler.Sample(float32[],class System.Collections.Generic.IList`1<int32>)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.SampleFromLogits(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 25,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            }
+          ],
+          "sample_runs": [
+            {
+              "category": "worker_wait",
+              "first_offset_ms": 1.053,
+              "last_offset_ms": 7.7299999999999995,
+              "samples": 6
+            },
+            {
+              "category": "reset_kv",
+              "first_offset_ms": 9.001,
+              "last_offset_ms": 24.362000000000002,
+              "samples": 13
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 25.637,
+              "last_offset_ms": 25.637,
+              "samples": 1
+            },
+            {
+              "category": "native_verify_boundary",
+              "first_offset_ms": 26.865,
+              "last_offset_ms": 55.114000000000004,
+              "samples": 24
+            },
+            {
+              "category": "sampler",
+              "first_offset_ms": 56.444,
+              "last_offset_ms": 56.444,
+              "samples": 1
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 57.681999999999995,
+              "last_offset_ms": 57.681999999999995,
+              "samples": 1
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 58.908,
+              "last_offset_ms": 69.97,
+              "samples": 10
+            }
+          ],
+          "gc_reason_spans": [],
+          "thread_contention_events": [
+            {
+              "utc": "2026-09-11T14:42:13.0300953+00:00",
+              "relative_ms": 88.09532,
+              "pid": 148222,
+              "tid": 148299,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0305194+00:00",
+              "relative_ms": 88.519469,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0305926+00:00",
+              "relative_ms": 88.592698,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0377266+00:00",
+              "relative_ms": 95.72661,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0377329+00:00",
+              "relative_ms": 95.732918,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0377531+00:00",
+              "relative_ms": 95.753163,
+              "pid": 148222,
+              "tid": 148299,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0977764+00:00",
+              "relative_ms": 155.776459,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0978327+00:00",
+              "relative_ms": 155.832788,
+              "pid": 148222,
+              "tid": 148299,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.0981255+00:00",
+              "relative_ms": 156.125597,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "ttft_ms": 73.54435417801142,
+          "start_utc": "2026-09-11T14:42:13.1749484+00:00",
+          "first_utc": "2026-09-11T14:42:13.2484927+00:00",
+          "engine_samples": 58,
+          "categories": {
+            "worker_wait": 6,
+            "reset_kv": 16,
+            "other_managed": 4,
+            "native_verify_boundary": 23,
+            "native_decode_boundary": 9
+          },
+          "stacks": [
+            {
+              "id": 23,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelVerifyOwned(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,int32,int32,int64)",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 23
+            },
+            {
+              "id": 20,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x74ad4c12fe30<class System.Object>)",
+                "System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.RegisterOpStorageType+<>c__DisplayClass2_0.<DoRegister>b__0(class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Ops.Fill(class TensorSharp.Tensor,float32)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 12
+            },
+            {
+              "id": 26,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 9
+            },
+            {
+              "id": 9,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Wait(class System.Object,int32)",
+                "System.Threading.ManualResetEventSlim.Wait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.SpinThenBlockingWait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWaitCore(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWait(int32,value class System.Threading.CancellationToken)",
+                "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task,value class System.Threading.Tasks.ConfigureAwaitOptions)",
+                "System.Runtime.CompilerServices.TaskAwaiter`1[System.Boolean].GetResult()",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 6
+            },
+            {
+              "id": 41,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.ModelBase.InvalidateTensorDeviceCache(class TensorSharp.Tensor)",
+                "TensorSharp.Models.ModelBase.ResetCacheTensor(class TensorSharp.Tensor)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 4
+            },
+            {
+              "id": 22,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 2
+            },
+            {
+              "id": 42,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.GetRowsQuant(value class TensorSharp.GGML.GgmlTensorView2D,int,int32,int64,int64,int64,value class TensorSharp.GGML.GgmlContiguousTensor)",
+                "TensorSharp.GGML.GgmlBasicOps.GetRowsQuant(class TensorSharp.Tensor,int,int32,int64,int64,int64,class TensorSharp.Tensor)",
+                "TensorSharp.Models.ModelBase.Embedding(int32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 43,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Enter_Slowpath(class System.Object)",
+                "TensorSharp.GGML.GgmlMemoryPool.Allocate(int64)",
+                "TensorSharp.Models.ModelBase.Embedding(int32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            }
+          ],
+          "sample_runs": [
+            {
+              "category": "worker_wait",
+              "first_offset_ms": 1.082,
+              "last_offset_ms": 8.154,
+              "samples": 6
+            },
+            {
+              "category": "reset_kv",
+              "first_offset_ms": 9.459999999999999,
+              "last_offset_ms": 28.453,
+              "samples": 16
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 29.685,
+              "last_offset_ms": 32.153,
+              "samples": 3
+            },
+            {
+              "category": "native_verify_boundary",
+              "first_offset_ms": 33.375,
+              "last_offset_ms": 60.39,
+              "samples": 23
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 61.652,
+              "last_offset_ms": 61.652,
+              "samples": 1
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 62.88100000000001,
+              "last_offset_ms": 72.725,
+              "samples": 9
+            }
+          ],
+          "gc_reason_spans": [],
+          "thread_contention_events": [
+            {
+              "utc": "2026-09-11T14:42:13.175641+00:00",
+              "relative_ms": 233.641075,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.1761981+00:00",
+              "relative_ms": 234.198144,
+              "pid": 148222,
+              "tid": 148308,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.1762361+00:00",
+              "relative_ms": 234.236127,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.1833291+00:00",
+              "relative_ms": 241.329195,
+              "pid": 148222,
+              "tid": 148308,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.1833296+00:00",
+              "relative_ms": 241.32961,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.183366+00:00",
+              "relative_ms": 241.366065,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.2471185+00:00",
+              "relative_ms": 305.118591,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.2472159+00:00",
+              "relative_ms": 305.215994,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "ttft_ms": 144.34181433171034,
+          "start_utc": "2026-09-11T14:42:13.3193135+00:00",
+          "first_utc": "2026-09-11T14:42:13.4636553+00:00",
+          "engine_samples": 116,
+          "categories": {
+            "worker_wait": 6,
+            "reset_kv": 37,
+            "other_managed": 19,
+            "native_verify_boundary": 41,
+            "grammar": 1,
+            "native_decode_boundary": 12
+          },
+          "stacks": [
+            {
+              "id": 23,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelVerifyOwned(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,int32,int32,int64)",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 41
+            },
+            {
+              "id": 41,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.ModelBase.InvalidateTensorDeviceCache(class TensorSharp.Tensor)",
+                "TensorSharp.Models.ModelBase.ResetCacheTensor(class TensorSharp.Tensor)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 22
+            },
+            {
+              "id": 22,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 16
+            },
+            {
+              "id": 26,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 12
+            },
+            {
+              "id": 20,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x74ad4c12fe30<class System.Object>)",
+                "System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.RegisterOpStorageType+<>c__DisplayClass2_0.<DoRegister>b__0(class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Ops.Fill(class TensorSharp.Tensor,float32)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 11
+            },
+            {
+              "id": 9,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Wait(class System.Object,int32)",
+                "System.Threading.ManualResetEventSlim.Wait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.SpinThenBlockingWait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWaitCore(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWait(int32,value class System.Threading.CancellationToken)",
+                "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task,value class System.Threading.Tasks.ConfigureAwaitOptions)",
+                "System.Runtime.CompilerServices.TaskAwaiter`1[System.Boolean].GetResult()",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 6
+            },
+            {
+              "id": 25,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 3
+            },
+            {
+              "id": 19,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.Qwen35ResetDecodeCache()",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ResetDecodeCache()",
+                "TensorSharp.Models.Qwen35Model.InvalidateFullDecodeState(bool)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 2
+            },
+            {
+              "id": 53,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x74ad4c12fe30<class System.Object>)",
+                "System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.RegisterOpStorageType+<>c__DisplayClass2_0.<DoRegister>b__0(class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 54,
+              "frames_leaf_to_root": [
+                "System.Buffer.ZeroMemoryInternal(unsigned int8&,unsigned int)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 30,
+              "frames_leaf_to_root": [
+                "TensorSharp.Runtime.Grammar.GrammarConstraint.ApplyMask(float32[],bool)",
+                "TensorSharp.Runtime.TokenSampler.Sample(float32[],class System.Collections.Generic.IList`1<int32>)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.SampleFromLogits(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            }
+          ],
+          "sample_runs": [
+            {
+              "category": "worker_wait",
+              "first_offset_ms": 0.201,
+              "last_offset_ms": 7.361999999999999,
+              "samples": 6
+            },
+            {
+              "category": "reset_kv",
+              "first_offset_ms": 8.605,
+              "last_offset_ms": 53.629000000000005,
+              "samples": 37
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 54.864999999999995,
+              "last_offset_ms": 73.39,
+              "samples": 16
+            },
+            {
+              "category": "native_verify_boundary",
+              "first_offset_ms": 74.62299999999999,
+              "last_offset_ms": 123.96799999999999,
+              "samples": 41
+            },
+            {
+              "category": "grammar",
+              "first_offset_ms": 125.32199999999999,
+              "last_offset_ms": 125.32199999999999,
+              "samples": 1
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 126.55199999999999,
+              "last_offset_ms": 129.04399999999998,
+              "samples": 3
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 130.275,
+              "last_offset_ms": 143.93,
+              "samples": 12
+            }
+          ],
+          "gc_reason_spans": [],
+          "thread_contention_events": [
+            {
+              "utc": "2026-09-11T14:42:13.3199243+00:00",
+              "relative_ms": 377.924322,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.3202982+00:00",
+              "relative_ms": 378.298229,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.3203385+00:00",
+              "relative_ms": 378.338536,
+              "pid": 148222,
+              "tid": 148308,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.326975+00:00",
+              "relative_ms": 384.975013,
+              "pid": 148222,
+              "tid": 148310,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.326977+00:00",
+              "relative_ms": 384.977085,
+              "pid": 148222,
+              "tid": 148308,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.3269858+00:00",
+              "relative_ms": 384.985828,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.4618087+00:00",
+              "relative_ms": 519.808797,
+              "pid": 148222,
+              "tid": 148308,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.4622156+00:00",
+              "relative_ms": 520.215667,
+              "pid": 148222,
+              "tid": 148316,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:13.4622849+00:00",
+              "relative_ms": 520.284944,
+              "pid": 148222,
+              "tid": 148308,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            }
+          ]
+        }
+      ],
+      "full_window_engine_stack_counts": {
+        "9": 133,
+        "19": 5,
+        "20": 34,
+        "21": 1,
+        "22": 47,
+        "23": 179,
+        "24": 4,
+        "25": 4,
+        "26": 152,
+        "30": 12,
+        "31": 5,
+        "41": 28,
+        "42": 2,
+        "43": 1,
+        "53": 1,
+        "54": 3,
+        "56": 1,
+        "90": 42,
+        "102": 1,
+        "103": 42,
+        "104": 12,
+        "105": 123,
+        "106": 10,
+        "107": 116,
+        "108": 1,
+        "109": 188,
+        "110": 23,
+        "111": 20,
+        "112": 38,
+        "113": 331,
+        "114": 20,
+        "115": 1,
+        "116": 2,
+        "119": 7,
+        "127": 33,
+        "145": 1,
+        "146": 32,
+        "147": 2,
+        "148": 1,
+        "149": 1,
+        "153": 3,
+        "176": 1,
+        "177": 6,
+        "178": 3,
+        "180": 1
+      }
+    },
+    "final": {
+      "summary_sha256": "03b24fe00bd41d919df1ac9ee0e7724b040ef092ea54682afaa52fb1873ad174",
+      "full_window_counts": {
+        "worker_wait": 122,
+        "reset_kv": 113,
+        "other_managed": 114,
+        "native_verify_boundary": 340,
+        "native_decode_boundary": 232,
+        "grammar": 31,
+        "sampler": 37,
+        "reset_holder": 156,
+        "ring_to_scratch": 74,
+        "native_batched_decode_boundary": 429
+      },
+      "solo": [
+        {
+          "tag": "json-c1-r0-i0",
+          "ttft_ms": 71.84295821934938,
+          "start_utc": "2026-09-11T14:42:27.2096228+00:00",
+          "first_utc": "2026-09-11T14:42:27.2814657+00:00",
+          "engine_samples": 59,
+          "categories": {
+            "worker_wait": 4,
+            "reset_kv": 13,
+            "other_managed": 3,
+            "native_verify_boundary": 28,
+            "native_decode_boundary": 11
+          },
+          "stacks": [
+            {
+              "id": 20,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelVerifyOwned(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,int32,int32,int64)",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 28
+            },
+            {
+              "id": 18,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x7c785bd2fe30<class System.Object>)",
+                "System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.RegisterOpStorageType+<>c__DisplayClass2_0.<DoRegister>b__0(class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Ops.Fill(class TensorSharp.Tensor,float32)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 12
+            },
+            {
+              "id": 22,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 11
+            },
+            {
+              "id": 9,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Wait(class System.Object,int32)",
+                "System.Threading.ManualResetEventSlim.Wait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.SpinThenBlockingWait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWaitCore(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWait(int32,value class System.Threading.CancellationToken)",
+                "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task,value class System.Threading.Tasks.ConfigureAwaitOptions)",
+                "System.Runtime.CompilerServices.TaskAwaiter`1[System.Boolean].GetResult()",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 4
+            },
+            {
+              "id": 19,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 2
+            },
+            {
+              "id": 17,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.Qwen35ResetDecodeCache()",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ResetDecodeCache()",
+                "TensorSharp.Models.Qwen35Model.InvalidateFullDecodeState(bool)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 21,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            }
+          ],
+          "sample_runs": [
+            {
+              "category": "worker_wait",
+              "first_offset_ms": 0.772,
+              "last_offset_ms": 4.4159999999999995,
+              "samples": 4
+            },
+            {
+              "category": "reset_kv",
+              "first_offset_ms": 5.549,
+              "last_offset_ms": 19.877,
+              "samples": 13
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 21.082,
+              "last_offset_ms": 21.082,
+              "samples": 1
+            },
+            {
+              "category": "native_verify_boundary",
+              "first_offset_ms": 22.243,
+              "last_offset_ms": 54.371,
+              "samples": 28
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 55.602,
+              "last_offset_ms": 56.832,
+              "samples": 2
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 58.076,
+              "last_offset_ms": 70.61099999999999,
+              "samples": 11
+            }
+          ],
+          "gc_reason_spans": [],
+          "thread_contention_events": [
+            {
+              "utc": "2026-09-11T14:42:27.210734+00:00",
+              "relative_ms": 62.734025,
+              "pid": 148403,
+              "tid": 148492,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2109827+00:00",
+              "relative_ms": 62.982738,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2110256+00:00",
+              "relative_ms": 63.025619,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2150066+00:00",
+              "relative_ms": 67.006611,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2152029+00:00",
+              "relative_ms": 67.202961,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2152145+00:00",
+              "relative_ms": 67.21455,
+              "pid": 148403,
+              "tid": 148492,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2800438+00:00",
+              "relative_ms": 132.043875,
+              "pid": 148403,
+              "tid": 148492,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.2803179+00:00",
+              "relative_ms": 132.317905,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "json-c1-r1-i0",
+          "ttft_ms": 105.6735860183835,
+          "start_utc": "2026-09-11T14:42:27.3610264+00:00",
+          "first_utc": "2026-09-11T14:42:27.4667+00:00",
+          "engine_samples": 87,
+          "categories": {
+            "worker_wait": 4,
+            "reset_kv": 42,
+            "other_managed": 5,
+            "native_verify_boundary": 26,
+            "native_decode_boundary": 9,
+            "sampler": 1
+          },
+          "stacks": [
+            {
+              "id": 20,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelVerifyOwned(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,int32,int32,int64)",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 26
+            },
+            {
+              "id": 36,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.ModelBase.InvalidateTensorDeviceCache(class TensorSharp.Tensor)",
+                "TensorSharp.Models.ModelBase.ResetCacheTensor(class TensorSharp.Tensor)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 23
+            },
+            {
+              "id": 18,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x7c785bd2fe30<class System.Object>)",
+                "System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.RegisterOpStorageType+<>c__DisplayClass2_0.<DoRegister>b__0(class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Ops.Fill(class TensorSharp.Tensor,float32)",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 17
+            },
+            {
+              "id": 22,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 9
+            },
+            {
+              "id": 9,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Wait(class System.Object,int32)",
+                "System.Threading.ManualResetEventSlim.Wait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.SpinThenBlockingWait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWaitCore(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWait(int32,value class System.Threading.CancellationToken)",
+                "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task,value class System.Threading.Tasks.ConfigureAwaitOptions)",
+                "System.Runtime.CompilerServices.TaskAwaiter`1[System.Boolean].GetResult()",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 4
+            },
+            {
+              "id": 19,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 4
+            },
+            {
+              "id": 17,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.Qwen35ResetDecodeCache()",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ResetDecodeCache()",
+                "TensorSharp.Models.Qwen35Model.InvalidateFullDecodeState(bool)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 2
+            },
+            {
+              "id": 21,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            },
+            {
+              "id": 27,
+              "frames_leaf_to_root": [
+                "TensorSharp.Runtime.TokenSampler.Sample(float32[],class System.Collections.Generic.IList`1<int32>)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.SampleFromLogits(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            }
+          ],
+          "sample_runs": [
+            {
+              "category": "worker_wait",
+              "first_offset_ms": 1.0219999999999998,
+              "last_offset_ms": 5.0,
+              "samples": 4
+            },
+            {
+              "category": "reset_kv",
+              "first_offset_ms": 6.234,
+              "last_offset_ms": 56.49,
+              "samples": 42
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 57.681000000000004,
+              "last_offset_ms": 60.043,
+              "samples": 3
+            },
+            {
+              "category": "native_verify_boundary",
+              "first_offset_ms": 61.248999999999995,
+              "last_offset_ms": 90.986,
+              "samples": 26
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 92.167,
+              "last_offset_ms": 93.366,
+              "samples": 2
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 94.54700000000001,
+              "last_offset_ms": 102.80300000000001,
+              "samples": 8
+            },
+            {
+              "category": "sampler",
+              "first_offset_ms": 104.146,
+              "last_offset_ms": 104.146,
+              "samples": 1
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 105.389,
+              "last_offset_ms": 105.389,
+              "samples": 1
+            }
+          ],
+          "gc_reason_spans": [],
+          "thread_contention_events": [
+            {
+              "utc": "2026-09-11T14:42:27.3622029+00:00",
+              "relative_ms": 214.202954,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.362497+00:00",
+              "relative_ms": 214.497016,
+              "pid": 148403,
+              "tid": 148492,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3625055+00:00",
+              "relative_ms": 214.5055,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3625428+00:00",
+              "relative_ms": 214.542823,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3634812+00:00",
+              "relative_ms": 215.481287,
+              "pid": 148403,
+              "tid": 148479,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "Contention/LockCreated",
+              "payload": {
+                "LockID": "103436107532704",
+                "AssociatedObjectID": "135354414102096",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.363497+00:00",
+              "relative_ms": 215.497014,
+              "pid": 148403,
+              "tid": 148479,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "Contention/Start",
+              "payload": {
+                "ContentionFlags": "Managed",
+                "ClrInstanceID": "0",
+                "LockID": "103436107532704",
+                "AssociatedObjectID": "135354414102096",
+                "LockOwnerThreadID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3635036+00:00",
+              "relative_ms": 215.503674,
+              "pid": 148403,
+              "tid": 148479,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "Contention/Stop",
+              "payload": {
+                "ContentionFlags": "Managed",
+                "ClrInstanceID": "0",
+                "DurationNs": "139430"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3668008+00:00",
+              "relative_ms": 218.800813,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3668066+00:00",
+              "relative_ms": 218.806649,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.3668199+00:00",
+              "relative_ms": 218.819942,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.4652324+00:00",
+              "relative_ms": 317.232411,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.4653829+00:00",
+              "relative_ms": 317.382999,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.4654423+00:00",
+              "relative_ms": 317.442395,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            }
+          ]
+        },
+        {
+          "tag": "json-c1-r2-i0",
+          "ttft_ms": 69.13073547184467,
+          "start_utc": "2026-09-11T14:42:27.5386841+00:00",
+          "first_utc": "2026-09-11T14:42:27.6078149+00:00",
+          "engine_samples": 57,
+          "categories": {
+            "worker_wait": 5,
+            "reset_kv": 15,
+            "other_managed": 4,
+            "native_verify_boundary": 24,
+            "native_decode_boundary": 9
+          },
+          "stacks": [
+            {
+              "id": 20,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelVerifyOwned(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,int32,int32,int64)",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.GGML.GgmlBasicOps.Qwen35ModelVerify(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int,int32,int32[],int32[],int32,int[],int,int32[],int32,int32,int,bool,bool,int64)",
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 24
+            },
+            {
+              "id": 45,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlBasicOps.Fill(class TensorSharp.Tensor,float32)",
+                "dynamicClass.InvokeStub_GgmlBasicOps.Fill(class System.Object,pMT: 0x7c785bd2fe30<class System.Object>)",
+                "System.Reflection.RuntimeMethodInfo.Invoke(class System.Object,value class System.Reflection.BindingFlags,class System.Reflection.Binder,class System.Object[],class System.Globalization.CultureInfo)",
+                "TensorSharp.RegisterOp.InvokeRegisteredMethod(class System.Object,class System.Reflection.MethodInfo,class System.Object[])",
+                "TensorSharp.OpRegistry.Invoke(class System.String,class System.Object[])",
+                "TensorSharp.Models.Qwen35Model.ResetGdnLayerCache(int32)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 12
+            },
+            {
+              "id": 22,
+              "frames_leaf_to_root": [
+                "TensorSharp.GGML.GgmlNative.TSGgml_Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.GGML.GgmlNative.Qwen35ModelDecode(value class TensorSharp.GGML.Qwen35LayerDecodeArgs[],int32,bool,int,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,int32,float32,float32,float32,int32,int32,int32,int32,int32,float32,int,int32,int,int32,int64,int64,int64,int,int32,int[])",
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 9
+            },
+            {
+              "id": 9,
+              "frames_leaf_to_root": [
+                "System.Threading.Monitor.Wait(class System.Object,int32)",
+                "System.Threading.ManualResetEventSlim.Wait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.SpinThenBlockingWait(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWaitCore(int32,value class System.Threading.CancellationToken)",
+                "System.Threading.Tasks.Task.InternalWait(int32,value class System.Threading.CancellationToken)",
+                "System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(class System.Threading.Tasks.Task,value class System.Threading.Tasks.ConfigureAwaitOptions)",
+                "System.Runtime.CompilerServices.TaskAwaiter`1[System.Boolean].GetResult()",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 5
+            },
+            {
+              "id": 36,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.ModelBase.InvalidateTensorDeviceCache(class TensorSharp.Tensor)",
+                "TensorSharp.Models.ModelBase.ResetCacheTensor(class TensorSharp.Tensor)",
+                "TensorSharp.Models.Qwen35Model.ResetKVCacheCore()",
+                "TensorSharp.Models.ModelBase.ResetKVCache()",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.EnsureOwnership(class TensorSharp.Runtime.Scheduling.SequenceState)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 3
+            },
+            {
+              "id": 19,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelVerify(class TensorSharp.Tensor,int32,int32,float32[],float32[],int32,int32,float32[],int32[],bool)",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 3
+            },
+            {
+              "id": 21,
+              "frames_leaf_to_root": [
+                "TensorSharp.Models.Qwen35Model.TryFullModelDecodeCore(class TensorSharp.Tensor,int32,int32,float32[])",
+                "TensorSharp.Models.Qwen35Model.ForwardCore(int32[])",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStepPerSequence(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.TryExecutePath(value class TensorSharp.Runtime.Scheduling.ExecutionPathKind,class TensorSharp.Runtime.Scheduling.SchedulerOutput,class TensorSharp.Runtime.Scheduling.ExecutionOptions)",
+                "TensorSharp.Runtime.Scheduling.BatchExecutor.ExecuteStep(class TensorSharp.Runtime.Scheduling.SchedulerOutput)",
+                "TensorSharp.Runtime.Scheduling.InferenceEngine.WorkerLoop()",
+                "System.Threading.Thread+StartHelper.Callback(class System.Object)",
+                "System.Threading.ExecutionContext.RunInternal(class System.Threading.ExecutionContext,class System.Threading.ContextCallback,class System.Object)"
+              ],
+              "engine_worker_loop": true,
+              "unresolved_frame": false,
+              "depth_limit_reached": false,
+              "samples": 1
+            }
+          ],
+          "sample_runs": [
+            {
+              "category": "worker_wait",
+              "first_offset_ms": 0.49799999999999994,
+              "last_offset_ms": 5.816,
+              "samples": 5
+            },
+            {
+              "category": "reset_kv",
+              "first_offset_ms": 7.002000000000001,
+              "last_offset_ms": 23.421,
+              "samples": 15
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 24.573,
+              "last_offset_ms": 25.735999999999997,
+              "samples": 2
+            },
+            {
+              "category": "native_verify_boundary",
+              "first_offset_ms": 26.9,
+              "last_offset_ms": 54.906000000000006,
+              "samples": 24
+            },
+            {
+              "category": "other_managed",
+              "first_offset_ms": 56.119,
+              "last_offset_ms": 57.359,
+              "samples": 2
+            },
+            {
+              "category": "native_decode_boundary",
+              "first_offset_ms": 58.587,
+              "last_offset_ms": 68.459,
+              "samples": 9
+            }
+          ],
+          "gc_reason_spans": [],
+          "thread_contention_events": [
+            {
+              "utc": "2026-09-11T14:42:27.5401383+00:00",
+              "relative_ms": 392.138376,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.5406363+00:00",
+              "relative_ms": 392.636379,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.5407004+00:00",
+              "relative_ms": 392.700489,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.5447429+00:00",
+              "relative_ms": 396.742911,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.5447465+00:00",
+              "relative_ms": 396.746522,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.5447662+00:00",
+              "relative_ms": 396.766282,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.6063082+00:00",
+              "relative_ms": 458.308224,
+              "pid": 148403,
+              "tid": 148493,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.6063669+00:00",
+              "relative_ms": 458.366952,
+              "pid": 148403,
+              "tid": 148496,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            },
+            {
+              "utc": "2026-09-11T14:42:27.6064284+00:00",
+              "relative_ms": 458.428421,
+              "pid": 148403,
+              "tid": 148499,
+              "inside_window": true,
+              "provider": "Microsoft-Windows-DotNETRuntime",
+              "name": "ThreadPoolWorkerThread/Wait",
+              "payload": {
+                "ActiveWorkerThreadCount": "16",
+                "RetiredWorkerThreadCount": "0",
+                "ClrInstanceID": "0"
+              }
+            }
+          ]
+        }
+      ],
+      "full_window_engine_stack_counts": {
+        "9": 122,
+        "17": 4,
+        "18": 29,
+        "19": 15,
+        "20": 123,
+        "21": 3,
+        "22": 161,
+        "23": 1,
+        "25": 6,
+        "27": 10,
+        "36": 31,
+        "45": 38,
+        "47": 1,
+        "48": 1,
+        "53": 1,
+        "72": 1,
+        "73": 1,
+        "74": 1,
+        "75": 26,
+        "76": 2,
+        "77": 2,
+        "78": 71,
+        "79": 5,
+        "80": 129,
+        "81": 40,
+        "82": 217,
+        "83": 27,
+        "84": 74,
+        "85": 429,
+        "86": 18,
+        "87": 2,
+        "88": 1,
+        "89": 1,
+        "90": 19,
+        "94": 1,
+        "95": 21,
+        "96": 1,
+        "116": 10,
+        "117": 1,
+        "119": 1,
+        "151": 1
+      }
+    }
+  }
+}

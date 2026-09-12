@@ -1,0 +1,3338 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": true,
+  "max_tokens_override": null,
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 268.38848553597927,
+      "generated_tokens": 1,
+      "end_to_end_tokens_per_second": 3.7259422586739226,
+      "all_passed": true
+    },
+    {
+      "scenario": "short",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 1185.6342190876603,
+      "generated_tokens": 4,
+      "end_to_end_tokens_per_second": 3.373721790079558,
+      "all_passed": true
+    },
+    {
+      "scenario": "json",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1066.6319448500872,
+      "generated_tokens": 15,
+      "end_to_end_tokens_per_second": 14.062957773225344,
+      "all_passed": true
+    },
+    {
+      "scenario": "json",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 4334.662352688611,
+      "generated_tokens": 60,
+      "end_to_end_tokens_per_second": 13.841908577443062,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_schema",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1712.848766706884,
+      "generated_tokens": 15,
+      "end_to_end_tokens_per_second": 8.757340572944416,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_schema",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 6609.664844349027,
+      "generated_tokens": 60,
+      "end_to_end_tokens_per_second": 9.077616098991369,
+      "all_passed": true
+    },
+    {
+      "scenario": "multi_turn",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 903.722875751555,
+      "generated_tokens": 12,
+      "end_to_end_tokens_per_second": 13.278406823574702,
+      "all_passed": true
+    },
+    {
+      "scenario": "multi_turn",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 4826.962259598076,
+      "generated_tokens": 48,
+      "end_to_end_tokens_per_second": 9.944142385732427,
+      "all_passed": true
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 4397.8547332808375,
+      "generated_tokens": 68,
+      "end_to_end_tokens_per_second": 15.462084157852894,
+      "all_passed": true
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 21731.590471230447,
+      "generated_tokens": 384,
+      "end_to_end_tokens_per_second": 17.67012867780486,
+      "all_passed": false
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 8839.828506112099,
+      "generated_tokens": 139,
+      "end_to_end_tokens_per_second": 15.72428694786235,
+      "all_passed": true
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 41405.74513375759,
+      "generated_tokens": 570,
+      "end_to_end_tokens_per_second": 13.766205587139309,
+      "all_passed": true
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 238.84076438844204,
+      "ttft_ms_samples": [
+        238.84076438844204
+      ],
+      "prefill_tps_median": 117.23291906092632,
+      "prefill_tps_samples": [
+        117.23291906092632
+      ],
+      "conversation_wall_ms_median": 267.56376028060913
+    },
+    "short@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 1027.820204384625,
+      "ttft_ms_samples": [
+        1032.2789875790477,
+        1029.101187363267,
+        862.4854637309909,
+        1026.539221405983
+      ],
+      "prefill_tps_median": 27.242161005132935,
+      "prefill_tps_samples": [
+        27.124450208627223,
+        27.20820881738635,
+        32.46431525799395,
+        27.276113192879517
+      ],
+      "conversation_wall_ms_median": 1179.5643963851035
+    },
+    "json@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 598.2788950204849,
+      "ttft_ms_samples": [
+        598.2788950204849
+      ],
+      "prefill_tps_median": 132.04544010748543,
+      "prefill_tps_samples": [
+        132.04544010748543
+      ],
+      "decode_tps_median": 32.00070968566943,
+      "decode_tps_samples": [
+        32.00070968566943
+      ],
+      "conversation_wall_ms_median": 1065.5921986326575
+    },
+    "json@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 2439.3703332170844,
+      "ttft_ms_samples": [
+        2442.8399791941047,
+        2264.8958591744304,
+        2440.3991354629397,
+        2438.341530971229
+      ],
+      "prefill_tps_median": 32.38541232389588,
+      "prefill_tps_samples": [
+        32.3394085052031,
+        34.880190927982014,
+        32.371753805351936,
+        32.39907084243981
+      ],
+      "decode_tps_median": 7.776627537708555,
+      "decode_tps_samples": [
+        7.77964303138501,
+        7.517544163085249,
+        7.780504754049599,
+        7.773612044032101
+      ],
+      "conversation_wall_ms_median": 4329.672866500914
+    },
+    "json_schema@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 1711.6675768047571,
+      "ttft_ms_samples": [
+        1711.6675768047571
+      ],
+      "prefill_tps_median": 128.5296298073738,
+      "prefill_tps_samples": [
+        128.5296298073738
+      ],
+      "conversation_wall_ms_median": 1711.9485503062606
+    },
+    "json_schema@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 6604.109522886574,
+      "ttft_ms_samples": [
+        6513.356323353946,
+        6605.226043611765,
+        6604.328093118966,
+        6603.890952654183
+      ],
+      "prefill_tps_median": 33.31259111899435,
+      "prefill_tps_samples": [
+        33.776748741839846,
+        33.30696005669218,
+        33.31148860233299,
+        33.31369363565571
+      ],
+      "conversation_wall_ms_median": 6604.974603280425
+    },
+    "multi_turn@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 326.60199608653784,
+      "ttft_ms_samples": [
+        326.60199608653784
+      ],
+      "prefill_tps_median": 104.10224189502877,
+      "prefill_tps_samples": [
+        104.10224189502877
+      ],
+      "conversation_wall_ms_median": 902.9261795803905
+    },
+    "multi_turn@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 1204.5542290434241,
+      "ttft_ms_samples": [
+        1103.4493120387197,
+        1101.4682035893202,
+        1309.2270130291581,
+        1305.6591460481286
+      ],
+      "prefill_tps_median": 28.42647902569092,
+      "prefill_tps_samples": [
+        30.81247106600847,
+        30.867890592942455,
+        25.96952221550502,
+        26.04048698537337
+      ],
+      "conversation_wall_ms_median": 4790.45330081135
+    },
+    "tool_round_trip@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 1368.3141535148025,
+      "ttft_ms_samples": [
+        1368.3141535148025
+      ],
+      "prefill_tps_median": 238.98020725725286,
+      "prefill_tps_samples": [
+        238.98020725725286
+      ],
+      "decode_tps_median": 33.659364113161644,
+      "decode_tps_samples": [
+        33.659364113161644
+      ],
+      "conversation_wall_ms_median": 4396.600103005767
+    },
+    "tool_round_trip@c4": {
+      "passed": 3,
+      "total": 4,
+      "ttft_ms_median": 7042.879194021225,
+      "ttft_ms_samples": [
+        5197.139487601817,
+        7044.52982544899,
+        7042.879194021225
+      ],
+      "prefill_tps_median": 46.42987491217992,
+      "prefill_tps_samples": [
+        62.91922715949497,
+        46.41899574598768,
+        46.42987491217992
+      ],
+      "decode_tps_median": 6.6033686098816045,
+      "decode_tps_samples": [
+        6.5334369009553965,
+        8.15507686969151,
+        6.6033686098816045
+      ],
+      "conversation_wall_ms_median": 18332.601896487176
+    },
+    "agentic@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 1611.8819741532207,
+      "ttft_ms_samples": [
+        1611.8819741532207
+      ],
+      "prefill_tps_median": 238.2308420576072,
+      "prefill_tps_samples": [
+        238.2308420576072
+      ],
+      "decode_tps_median": 33.75626270103599,
+      "decode_tps_samples": [
+        33.75626270103599
+      ],
+      "conversation_wall_ms_median": 8838.919915258884
+    },
+    "agentic@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 8541.843570303172,
+      "ttft_ms_samples": [
+        8544.018900953233,
+        8542.764079757035,
+        8540.923060849309,
+        5396.547952666879
+      ],
+      "prefill_tps_median": 44.95516703144844,
+      "prefill_tps_samples": [
+        44.94372080065953,
+        44.95032245007536,
+        44.96001161282151,
+        71.15659924975446
+      ],
+      "decode_tps_median": 7.040447088122303,
+      "decode_tps_samples": [
+        8.342644057726385,
+        4.110413595688278,
+        8.342921286737406,
+        5.73825011851822
+      ],
+      "conversation_wall_ms_median": 41401.753284968436
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-quality.json",
+  "source_report_sha256": "a2bdf2b8a645d260b459f3c84e807a33b890f30a61fa7f282204741402163c74",
+  "native_sha256": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "aae07cf46cba212c64d976a4cd29ea936a360921426b9d75b544899291596fd4",
+      "validated_content": "42",
+      "total_wall_ms": 267.56376028060913,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "72049d629e9a5e3a37297d8fac425c81c1e5d5b9e50e2d5326bbac0a3970e776",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 238.84076438844204,
+            "prefill_tps": 117.23291906092632,
+            "decode_tps": 0.0,
+            "total_wall_ms": 267.39450357854366,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384482.984157599,
+            "t_first_abs": 4384483.222998363,
+            "t_last_abs": 4384483.222998363,
+            "t_end_abs": 4384483.251552102
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "26fe619e332ca01617f42838686d3aa01d143d87a63327a616c12c2e54f4d0c4",
+      "validated_content": "42",
+      "total_wall_ms": 1184.5036102458835,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "5236e567d00dff58d6c0d132d734f7f46c20a6744b9535d529897b448f4e7ac2",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1032.2789875790477,
+            "prefill_tps": 27.124450208627223,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1184.3114420771599,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384483.260755837,
+            "t_first_abs": 4384484.293034825,
+            "t_last_abs": 4384484.293034825,
+            "t_end_abs": 4384484.445067279
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "d69f7d94af90cf653fb4a03972ce3872bbdccb82afa4d649bb827dd5e1de2de0",
+      "validated_content": "42",
+      "total_wall_ms": 1181.5040772780776,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "badb126f3b8208ae65e14b4812d81dcb1fb0a29bb4ef0c39123b9650f6f5f72d",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1029.101187363267,
+            "prefill_tps": 27.20820881738635,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1181.4110772684216,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384483.263472333,
+            "t_first_abs": 4384484.29257352,
+            "t_last_abs": 4384484.29257352,
+            "t_end_abs": 4384484.44488341
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "c6b95076346c1aa665c2a7fe7e50d9963a69919d8ec557edae9735770c6d6ac6",
+      "validated_content": "42",
+      "total_wall_ms": 1029.1510466486216,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "4151fd1f435d5a18ee76f188038ecabf83212d4a2b8cf438e95df82b18760164",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 862.4854637309909,
+            "prefill_tps": 32.46431525799395,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1029.0380846709013,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384483.264906965,
+            "t_first_abs": 4384484.127392429,
+            "t_last_abs": 4384484.127392429,
+            "t_end_abs": 4384484.29394505
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "5e28ab986d59779a1ac9f2db71409f98b26162e8dd9db9efa6bf9125bf21ad8f",
+      "validated_content": "42",
+      "total_wall_ms": 1177.6247154921293,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "367bc71576862bf9602df8335406434825d3e2fa358e97b518f638349382edbb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1026.539221405983,
+            "prefill_tps": 27.276113192879517,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1177.4665396660566,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384483.267197372,
+            "t_first_abs": 4384484.293736594,
+            "t_last_abs": 4384484.293736594,
+            "t_end_abs": 4384484.444663912
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "fbdfa8dcf797b74452781211392a219711a975f0d03d720bbe680c6991acb644",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 1065.5921986326575,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "4fadf4d4f8ab6ec0aa2cd128145341b2749d4ac88b9929977eeb77704dd50259",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 79,
+            "completion_tokens": 15,
+            "ttft_ms": 598.2788950204849,
+            "prefill_tps": 132.04544010748543,
+            "decode_tps": 32.00070968566943,
+            "total_wall_ms": 1065.2469545602798,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384484.455823257,
+            "t_first_abs": 4384485.054102152,
+            "t_last_abs": 4384485.491592449,
+            "t_end_abs": 4384485.521070211
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "81e50679c16aebe710e7b6a6e925ca84173e0205cebeffc1a84f7012bacd2d43",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 4333.4288680925965,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 79,
+            "completion_tokens": 15,
+            "ttft_ms": 2442.8399791941047,
+            "prefill_tps": 32.3394085052031,
+            "decode_tps": 7.77964303138501,
+            "total_wall_ms": 4333.191892132163,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384485.532248498,
+            "t_first_abs": 4384487.975088477,
+            "t_last_abs": 4384489.774656908,
+            "t_end_abs": 4384489.86544039
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "a792b27336fb1af10957f8bcbb4ea3fd2be316185639c8bffb698cbddd42c5e6",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 4242.84197203815,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "f8e5eedac606d991f77bf977ae3f8ead6f4ee08ae1f5c6840a65400832741350",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 79,
+            "completion_tokens": 15,
+            "ttft_ms": 2264.8958591744304,
+            "prefill_tps": 34.880190927982014,
+            "decode_tps": 7.517544163085249,
+            "total_wall_ms": 4242.595604620874,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384485.532945652,
+            "t_first_abs": 4384487.797841511,
+            "t_last_abs": 4384489.660151821,
+            "t_end_abs": 4384489.775541256
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "00a3f8d46852d570ba2c7c2f1092ec92cc142ec49083d658b2f3f4dc88720fd4",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 4330.217003822327,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "c196723ffe59b41f1623ad61796cf0d263b4b220753b58d0177ea69d45ced4b2",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 79,
+            "completion_tokens": 15,
+            "ttft_ms": 2440.3991354629397,
+            "prefill_tps": 32.371753805351936,
+            "decode_tps": 7.780504754049599,
+            "total_wall_ms": 4329.97374329716,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384485.53512581,
+            "t_first_abs": 4384487.975524945,
+            "t_last_abs": 4384489.774894066,
+            "t_end_abs": 4384489.865099553
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "4358f2ac07a4619232e62ae70c2a27f939e67eb57569ba21ff4e8da17bf7fe47",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 4329.1287291795015,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "cdb7e8f9ca4a54ba019deff1dd302aabfb9d3f72672ff36750535cecca95252b",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 79,
+            "completion_tokens": 15,
+            "ttft_ms": 2438.341530971229,
+            "prefill_tps": 32.39907084243981,
+            "decode_tps": 7.773612044032101,
+            "total_wall_ms": 4328.882655128837,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384485.535822222,
+            "t_first_abs": 4384487.974163753,
+            "t_last_abs": 4384489.775128339,
+            "t_end_abs": 4384489.864704877
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "1df5f3606bd6b59b461a857e58584b4943068118e94c520ededdde345b79f6df",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 1711.9485503062606,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "79c46d3c0b6fb192ec47220a2a0065e0d842a8f5ed49c106f29be1a9f6229bae",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "planet",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "Mars"
+                    ]
+                  },
+                  "moons": {
+                    "type": "integer",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  "habitable": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "moons",
+                  "habitable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 220,
+            "completion_tokens": 15,
+            "ttft_ms": 1711.6675768047571,
+            "prefill_tps": 128.5296298073738,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1711.8320539593697,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384489.876938539,
+            "t_first_abs": 4384491.588606115,
+            "t_last_abs": 4384491.588606115,
+            "t_end_abs": 4384491.588770593
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "f38e8af626dfdea752e37a7c8208a4d36f9d8f8582202ca12a539a42ebd2e0eb",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 6513.615569099784,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "2ee61be9bcda3cab9d3826cb43fea3f76483b2aad1e07f19f0024b0ac7d87444",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "planet",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "Mars"
+                    ]
+                  },
+                  "moons": {
+                    "type": "integer",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  "habitable": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "moons",
+                  "habitable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 220,
+            "completion_tokens": 15,
+            "ttft_ms": 6513.356323353946,
+            "prefill_tps": 33.776748741839846,
+            "decode_tps": 0.0,
+            "total_wall_ms": 6513.516022823751,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384491.601393064,
+            "t_first_abs": 4384498.114749387,
+            "t_last_abs": 4384498.114749387,
+            "t_end_abs": 4384498.114909086
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "dbb778ed381834b9cd320540bc80bf11c3da906dca4047f3fee43daf1fb18ab6",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 6606.273457407951,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "5ce1625b33ca6831b9c89a8ad2e3cc4a92a58a6683f2f7faf4ac9b731ffc8a44",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "planet",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "Mars"
+                    ]
+                  },
+                  "moons": {
+                    "type": "integer",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  "habitable": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "moons",
+                  "habitable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 220,
+            "completion_tokens": 15,
+            "ttft_ms": 6605.226043611765,
+            "prefill_tps": 33.30696005669218,
+            "decode_tps": 0.0,
+            "total_wall_ms": 6606.1505833640695,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384491.602829997,
+            "t_first_abs": 4384498.208056041,
+            "t_last_abs": 4384498.208056041,
+            "t_end_abs": 4384498.208980581
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "dc984da4f5c4429830a94a82d39a00778278f21916efff767893edc0d4cd8041",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 6605.416898615658,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "48d64dae19902a80bef8449afbf20e005357175c20f91b610cc97fb07fed43ae",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "planet",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "Mars"
+                    ]
+                  },
+                  "moons": {
+                    "type": "integer",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  "habitable": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "moons",
+                  "habitable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 220,
+            "completion_tokens": 15,
+            "ttft_ms": 6604.328093118966,
+            "prefill_tps": 33.31148860233299,
+            "decode_tps": 0.0,
+            "total_wall_ms": 6605.220642872155,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384491.604512235,
+            "t_first_abs": 4384498.208840328,
+            "t_last_abs": 4384498.208840328,
+            "t_end_abs": 4384498.209732878
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_schema",
+      "tag": "json_schema-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "3d69b3de630578159818a2e25631b284bcff2df76ad2c649552d530b3ee13be8",
+      "validated_content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+      "total_wall_ms": 6604.532307945192,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "938c2f431cbd58b7f532df3bfed2ec2db528e7fbac8f1117313982a8493b2377",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "planet",
+              "strict": true,
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "enum": [
+                      "Mars"
+                    ]
+                  },
+                  "moons": {
+                    "type": "integer",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  "habitable": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "moons",
+                  "habitable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 220,
+            "completion_tokens": 15,
+            "ttft_ms": 6603.890952654183,
+            "prefill_tps": 33.31369363565571,
+            "decode_tps": 0.0,
+            "total_wall_ms": 6604.451683349907,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"name\":\"Mars\",\"moons\":2,\"habitable\":false}",
+            "t_start_abs": 4384491.605612281,
+            "t_first_abs": 4384498.209503233,
+            "t_last_abs": 4384498.209503233,
+            "t_end_abs": 4384498.210063964
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "0d952379ffaf5c0c497225eaedeb720f885bc29834c124923b5ad83a3aa7f4b2",
+      "validated_content": "{\"code\": \"juniper-5938\"}",
+      "total_wall_ms": 902.9261795803905,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "9a8e9251677109dba3b612dd2e35e7cb766cf28182ecd8e24405c93cf2904cc5",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 34,
+            "completion_tokens": 1,
+            "ttft_ms": 326.60199608653784,
+            "prefill_tps": 104.10224189502877,
+            "decode_tps": 0.0,
+            "total_wall_ms": 382.6816165819764,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "OK",
+            "t_start_abs": 4384498.218710303,
+            "t_first_abs": 4384498.545312299,
+            "t_last_abs": 4384498.545312299,
+            "t_end_abs": 4384498.60139192
+          }
+        },
+        {
+          "request_sha256": "22d7bf89e5499d16a706779160274b6182b86f60f0563375c3f5c5baa0eb16c9",
+          "message_roles": [
+            "user",
+            "assistant",
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 53,
+            "completion_tokens": 11,
+            "ttft_ms": 196.1228922009468,
+            "prefill_tps": 270.23872330873235,
+            "decode_tps": 33.8809200866433,
+            "total_wall_ms": 519.9261298403144,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"juniper-5938\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"juniper-5938\"}",
+            "t_start_abs": 4384498.601531354,
+            "t_first_abs": 4384498.797654246,
+            "t_last_abs": 4384499.092805617,
+            "t_end_abs": 4384499.121457484
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "4bf723bf47641da8cd14cf82cd7363849a780eae6d4d4d2b0194e89663174517",
+      "validated_content": "{\"code\": \"juniper-5938\"}",
+      "total_wall_ms": 4759.661090560257,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "56804ab1fbf5d711f3e07d2c80c58b0b9c05fbb3d78481dd0929be8ea3a8e38e",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 34,
+            "completion_tokens": 1,
+            "ttft_ms": 1103.4493120387197,
+            "prefill_tps": 30.81247106600847,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1309.0413510799408,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "OK",
+            "t_start_abs": 4384499.134687245,
+            "t_first_abs": 4384500.238136557,
+            "t_last_abs": 4384500.238136557,
+            "t_end_abs": 4384500.443728596
+          }
+        },
+        {
+          "request_sha256": "b32f4f1db592452c5855143b4501fa116f4a9a57b123730ba6f3ae56c36efb5e",
+          "message_roles": [
+            "user",
+            "assistant",
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 53,
+            "completion_tokens": 11,
+            "ttft_ms": 1949.814211577177,
+            "prefill_tps": 27.182076982159778,
+            "decode_tps": 7.220071262656074,
+            "total_wall_ms": 3450.241792947054,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"juniper-5938\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"juniper-5938\"}",
+            "t_start_abs": 4384500.443861786,
+            "t_first_abs": 4384502.393675998,
+            "t_last_abs": 4384503.778703879,
+            "t_end_abs": 4384503.894103579
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "7803a1ab6184c2c2b9d2e9f827bfb89fc8febbf549e91cb3c06427d67e4e6c15",
+      "validated_content": "{\"code\": \"juniper-5938\"}",
+      "total_wall_ms": 4758.6905946955085,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "f7bc0bc94b67896b5f500c64976f772f2cb9b1d7c37c45a2b9f7257064d73483",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 34,
+            "completion_tokens": 1,
+            "ttft_ms": 1101.4682035893202,
+            "prefill_tps": 30.867890592942455,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1305.6985633447766,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "OK",
+            "t_start_abs": 4384499.13624581,
+            "t_first_abs": 4384500.237714014,
+            "t_last_abs": 4384500.237714014,
+            "t_end_abs": 4384500.441944374
+          }
+        },
+        {
+          "request_sha256": "f178365f446033c3b9c40155f9002f32032f28e9baf1890cd15a53e93c01f3b3",
+          "message_roles": [
+            "user",
+            "assistant",
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 53,
+            "completion_tokens": 11,
+            "ttft_ms": 1950.3763727843761,
+            "prefill_tps": 27.17424223322429,
+            "decode_tps": 7.215372030811566,
+            "total_wall_ms": 3452.520282007754,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"juniper-5938\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"juniper-5938\"}",
+            "t_start_abs": 4384500.442213033,
+            "t_first_abs": 4384502.392589406,
+            "t_last_abs": 4384503.778519329,
+            "t_end_abs": 4384503.894733315
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "3e167d042bbccc608c3d0d47c032cdca8d2513876261211084560e1f04625856",
+      "validated_content": "{\"code\": \"juniper-5938\"}",
+      "total_wall_ms": 4823.032954707742,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "cccd9b865ab63baca365183c2709245a12db086cc32115fc8e8d8fb1c9662429",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 34,
+            "completion_tokens": 1,
+            "ttft_ms": 1309.2270130291581,
+            "prefill_tps": 25.96952221550502,
+            "decode_tps": 0.0,
+            "total_wall_ms": 2263.354755938053,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "OK",
+            "t_start_abs": 4384499.137479384,
+            "t_first_abs": 4384500.446706397,
+            "t_last_abs": 4384500.446706397,
+            "t_end_abs": 4384501.40083414
+          }
+        },
+        {
+          "request_sha256": "9b0f709b9775189ee23da7d60bbfd4baef633f29ec0f665ba18c6cd0b32eb50e",
+          "message_roles": [
+            "user",
+            "assistant",
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 53,
+            "completion_tokens": 11,
+            "ttft_ms": 1190.0898208841681,
+            "prefill_tps": 44.53445367730652,
+            "decode_tps": 7.676511615110213,
+            "total_wall_ms": 2559.1368805617094,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"juniper-5938\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"juniper-5938\"}",
+            "t_start_abs": 4384501.401150519,
+            "t_first_abs": 4384502.59124034,
+            "t_last_abs": 4384503.89391537,
+            "t_end_abs": 4384503.9602874
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "1647191de7b705a31bdc4c4a105f299b15b680ab170eaef45bae539cc66ea5cc",
+      "validated_content": "{\"code\": \"juniper-5938\"}",
+      "total_wall_ms": 4821.245511062443,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "10e1a2399a8fbf9806f142f635b431834c7b391b5a498314732103b83dfd4d96",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 34,
+            "completion_tokens": 1,
+            "ttft_ms": 1305.6591460481286,
+            "prefill_tps": 26.04048698537337,
+            "decode_tps": 0.0,
+            "total_wall_ms": 2264.858034439385,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "OK"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "OK",
+            "t_start_abs": 4384499.138933166,
+            "t_first_abs": 4384500.444592312,
+            "t_last_abs": 4384500.444592312,
+            "t_end_abs": 4384501.4037912
+          }
+        },
+        {
+          "request_sha256": "d310c1eb8affabcc7d7f9b563f99a2aed0222660eab9bcd90e75a280ffb8b447",
+          "message_roles": [
+            "user",
+            "assistant",
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 53,
+            "completion_tokens": 11,
+            "ttft_ms": 1188.3913073688745,
+            "prefill_tps": 44.59810474156295,
+            "decode_tps": 7.6859364351373864,
+            "total_wall_ms": 2555.9317814186215,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"juniper-5938\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"juniper-5938\"}",
+            "t_start_abs": 4384501.403994633,
+            "t_first_abs": 4384502.59238594,
+            "t_last_abs": 4384503.893463575,
+            "t_end_abs": 4384503.959926414
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "9905147837a0a004dfdec08bfbc542987e37600ae863db8f0c254195c8deab7a",
+      "validated_content": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 4396.600103005767,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "0fa0d4ad45ea44445506539e8904ec368111a418528e182a6cb27624b229529b",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 55,
+            "ttft_ms": 1368.3141535148025,
+            "prefill_tps": 238.98020725725286,
+            "decode_tps": 33.659364113161644,
+            "total_wall_ms": 3001.7856350168586,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_9d1704b1ee8445ca981",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_9d1704b1ee8445ca981",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4384503.977335555,
+            "t_first_abs": 4384505.345649708,
+            "t_last_abs": 4384506.949958091,
+            "t_end_abs": 4384506.97912119
+          }
+        },
+        {
+          "request_sha256": "ffb222d5eba4e2288b971600b61983cde9b942a15d09167df8af746098e5a83d",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 163,
+            "completion_tokens": 13,
+            "ttft_ms": 949.9461138620973,
+            "prefill_tps": 171.58868026451293,
+            "decode_tps": 28.87862067539138,
+            "total_wall_ms": 1394.3405542522669,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4384506.979346987,
+            "t_first_abs": 4384507.929293101,
+            "t_last_abs": 4384508.344825412,
+            "t_end_abs": 4384508.373687541
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "7dc1bd8a516221e253f96da492f3248750fb7d153bd32ed8068b116bd6743bf0",
+      "validated_content": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 18223.719963803887,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "520de74037edd36345c500f57aa2e539d870abaac0eefb70cb11100747cf346f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 55,
+            "ttft_ms": 5197.139487601817,
+            "prefill_tps": 62.91922715949497,
+            "decode_tps": 6.5334369009553965,
+            "total_wall_ms": 13576.628035865724,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_05e20acc1ce44c169b0",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_05e20acc1ce44c169b0",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4384508.397113472,
+            "t_first_abs": 4384513.59425296,
+            "t_last_abs": 4384521.859428061,
+            "t_end_abs": 4384521.973741508
+          }
+        },
+        {
+          "request_sha256": "9e361b1c4768bea39f5744fd291da63c88bd5178ba65d496afef36b34c7d6b6d",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 163,
+            "completion_tokens": 13,
+            "ttft_ms": 2095.728948712349,
+            "prefill_tps": 77.7772335970021,
+            "decode_tps": 4.98228664052159,
+            "total_wall_ms": 4646.61829918623,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4384521.973967752,
+            "t_first_abs": 4384524.069696701,
+            "t_last_abs": 4384526.478229342,
+            "t_end_abs": 4384526.620586052
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "effb0550d780f727c07543d872671191b7a85faa2baa86832dfc9323cb6724e4",
+      "detail": "ValueError: expected exactly one structured tool call and finish_reason=tool_calls",
+      "total_wall_ms": 21728.204984217882,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "d98d0162b0f20ed6ab82dfebabbe4a550c2e83ef1666f3f4947b35b391c4e1ef",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 170,
+            "ttft_ms": 7044.584218412638,
+            "prefill_tps": 46.418637333529276,
+            "decode_tps": 0.0,
+            "total_wall_ms": 21727.9941951856,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4384508.398906796,
+            "t_first_abs": 4384515.443491015,
+            "t_last_abs": 4384515.443491015,
+            "t_end_abs": 4384530.126900991
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "183343bef56425b7af72097195854ca75d48c76d49b2c876942703d0d144b14f",
+      "validated_content": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 18332.601896487176,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "b5d9dc30709fe90b15463c12ccdeb2a15a660e45406c2f649fd3f28f5acf5dbd",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 55,
+            "ttft_ms": 7044.52982544899,
+            "prefill_tps": 46.41899574598768,
+            "decode_tps": 8.15507686969151,
+            "total_wall_ms": 14651.950904168189,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_6a4e7844ac6443c3a63",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_6a4e7844ac6443c3a63",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4384508.399378185,
+            "t_first_abs": 4384515.443908011,
+            "t_last_abs": 4384522.06555007,
+            "t_end_abs": 4384523.051329089
+          }
+        },
+        {
+          "request_sha256": "e62744092346ad68e24c943e1efcfb1b3dc13948cd95a985a3e762104aa080df",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 163,
+            "completion_tokens": 13,
+            "ttft_ms": 1193.9351949840784,
+            "prefill_tps": 136.5233227773084,
+            "decode_tps": 5.053861256140437,
+            "total_wall_ms": 3680.1437605172396,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4384523.051612009,
+            "t_first_abs": 4384524.245547204,
+            "t_last_abs": 4384526.619969333,
+            "t_end_abs": 4384526.73175577
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "bda862485a07bcc40363b08494233f8cc5881d39828814c7fbe019a73161ecdf",
+      "validated_content": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 18991.833879612386,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "a2b050ab58ddf35f4f8807de5979a40d6846772a9d33cad571e67d51e9a606bb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 327,
+            "completion_tokens": 65,
+            "ttft_ms": 7042.879194021225,
+            "prefill_tps": 46.42987491217992,
+            "decode_tps": 6.6033686098816045,
+            "total_wall_ms": 16849.851666018367,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_ebca86ac17914fc0ae5",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll look up the weather for Paris in Celsius.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_ebca86ac17914fc0ae5",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll look up the weather for Paris in Celsius.\n\n",
+            "t_start_abs": 4384508.401400783,
+            "t_first_abs": 4384515.444279977,
+            "t_last_abs": 4384525.13630291,
+            "t_end_abs": 4384525.251252449
+          }
+        },
+        {
+          "request_sha256": "44c7384190bde4a83a5a646ddef0304dc554e44b74fecffdd76ce81d9911af43",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 173,
+            "completion_tokens": 13,
+            "ttft_ms": 1228.0041547492146,
+            "prefill_tps": 140.87900218491555,
+            "decode_tps": 14.03834551906049,
+            "total_wall_ms": 2141.4226926863194,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4384525.251533484,
+            "t_first_abs": 4384526.479537639,
+            "t_last_abs": 4384527.334339224,
+            "t_end_abs": 4384527.392956177
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "7dae62159b31952b8102e58c6a66c559b350ac82d145c69d404528893ef3105b",
+      "validated_content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+      "total_wall_ms": 8838.919915258884,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "c4414cefa64d88fd33d9189b7b99444e10323891a8f154f5e0d52d42d519dc82",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 52,
+            "ttft_ms": 1611.8819741532207,
+            "prefill_tps": 238.2308420576072,
+            "decode_tps": 33.75626270103599,
+            "total_wall_ms": 3151.8187960609794,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_513feaf909364ecaad0",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll start by reading invoice INV-472 to get its unit price and quantity.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_513feaf909364ecaad0",
+                  "type": "function",
+                  "function": {
+                    "name": "read_invoice",
+                    "arguments": "{\"invoice_id\":\"INV-472\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its unit price and quantity.\n\n",
+            "t_start_abs": 4384530.15727824,
+            "t_first_abs": 4384531.769160214,
+            "t_last_abs": 4384533.279990973,
+            "t_end_abs": 4384533.309097036
+          }
+        },
+        {
+          "request_sha256": "9327610388651c7d0507386dead240ff1c1648943c3f7fca43efa27fb653dea5",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 478,
+            "completion_tokens": 69,
+            "ttft_ms": 1756.4832149073482,
+            "prefill_tps": 272.13468135829226,
+            "decode_tps": 31.156193431892262,
+            "total_wall_ms": 3969.786790199578,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_4154310576fd480f984",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Now I'll pass the returned unit_price and quantity to calculate_total.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_4154310576fd480f984",
+                  "type": "function",
+                  "function": {
+                    "name": "calculate_total",
+                    "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll pass the returned unit_price and quantity to calculate_total.\n\n",
+            "t_start_abs": 4384533.309391261,
+            "t_first_abs": 4384535.065874476,
+            "t_last_abs": 4384537.248426082,
+            "t_end_abs": 4384537.279178051
+          }
+        },
+        {
+          "request_sha256": "67de4436108c26126b34c717f7b107c767da3b1276410bdba4370140662872ac",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 278,
+            "completion_tokens": 18,
+            "ttft_ms": 1198.550651781261,
+            "prefill_tps": 231.94680974629,
+            "decode_tps": 34.78081842678936,
+            "total_wall_ms": 1716.4433179423213,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4384537.279469207,
+            "t_first_abs": 4384538.478019859,
+            "t_last_abs": 4384538.966795016,
+            "t_end_abs": 4384538.995912525
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "d58d8e9c4967b5b2d6185f000d3118535525bc87db5147e22180250d15d79feb",
+      "validated_content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+      "total_wall_ms": 41403.05155701935,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "2f48b55b304907201bd50f212127da10f1d9bfb44d9bf378b415c8ffb02bc5ca",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 55,
+            "ttft_ms": 8544.018900953233,
+            "prefill_tps": 44.94372080065953,
+            "decode_tps": 8.342644057726385,
+            "total_wall_ms": 16391.939443536103,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_b4aea0cb7fc642db891",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll start by reading invoice INV-472 to get its details.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_b4aea0cb7fc642db891",
+                  "type": "function",
+                  "function": {
+                    "name": "read_invoice",
+                    "arguments": "{\"invoice_id\":\"INV-472\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its details.\n\n",
+            "t_start_abs": 4384539.021606218,
+            "t_first_abs": 4384547.565625119,
+            "t_last_abs": 4384554.03839318,
+            "t_end_abs": 4384555.413545662
+          }
+        },
+        {
+          "request_sha256": "175aab38cf1b98853f2ff1ebca7156e8bffdcc1b26411fc8b1f06173def17d14",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 475,
+            "completion_tokens": 69,
+            "ttft_ms": 6197.449340485036,
+            "prefill_tps": 76.64443449292071,
+            "decode_tps": 5.983323308023906,
+            "total_wall_ms": 17687.063380144536,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_4a6104ea36ed43d1ba2",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Now I'll pass the returned unit_price and quantity to calculate_total.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_4a6104ea36ed43d1ba2",
+                  "type": "function",
+                  "function": {
+                    "name": "calculate_total",
+                    "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll pass the returned unit_price and quantity to calculate_total.\n\n",
+            "t_start_abs": 4384555.413837337,
+            "t_first_abs": 4384561.611286677,
+            "t_last_abs": 4384572.976208227,
+            "t_end_abs": 4384573.100900717
+          }
+        },
+        {
+          "request_sha256": "3cd65fc0a78b582af705696f3b769f8aed245fbf26b59f8d5872d8f05e7d93b3",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 18,
+            "ttft_ms": 4951.388063840568,
+            "prefill_tps": 55.53998120411813,
+            "decode_tps": 7.5367273161821835,
+            "total_wall_ms": 7323.215367272496,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4384573.101191865,
+            "t_first_abs": 4384578.052579929,
+            "t_last_abs": 4384580.308200875,
+            "t_end_abs": 4384580.424407233
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "1b952a8e63b67ab65eaf213bc9aa34cb7dad2035cdfebbf79a2747a7a58a1dac",
+      "validated_content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+      "total_wall_ms": 41402.48194523156,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "2e00fc9b8833f05fc68332d17a45bab80e9d519bee1890d8cd84d09ec3eb6f20",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 58,
+            "ttft_ms": 8542.764079757035,
+            "prefill_tps": 44.95032245007536,
+            "decode_tps": 4.110413595688278,
+            "total_wall_ms": 22589.071398600936,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_bcb41f3739af4537a35",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll start by reading the invoice, then use its values to calculate the total.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_bcb41f3739af4537a35",
+                  "type": "function",
+                  "function": {
+                    "name": "read_invoice",
+                    "arguments": "{\"invoice_id\":\"INV-472\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading the invoice, then use its values to calculate the total.\n\n",
+            "t_start_abs": 4384539.022506459,
+            "t_first_abs": 4384547.565270538,
+            "t_last_abs": 4384561.432488197,
+            "t_end_abs": 4384561.611577857
+          }
+        },
+        {
+          "request_sha256": "a46dd331da4c1f8bf458aae40193c4fcd4202bd37080f57f8c59cc49c11653ed",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 478,
+            "completion_tokens": 66,
+            "ttft_ms": 3006.4436672255397,
+            "prefill_tps": 158.9918365046622,
+            "decode_tps": 7.6639060880519105,
+            "total_wall_ms": 11560.238623991609,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_30eaa251032e41c28a9",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Now I'll calculate the total using the returned values.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_30eaa251032e41c28a9",
+                  "type": "function",
+                  "function": {
+                    "name": "calculate_total",
+                    "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll calculate the total using the returned values.\n\n",
+            "t_start_abs": 4384561.611772057,
+            "t_first_abs": 4384564.618215724,
+            "t_last_abs": 4384573.099530507,
+            "t_end_abs": 4384573.172010681
+          }
+        },
+        {
+          "request_sha256": "ea07c2bb0e67c6daf7859bda33e4bc57d3bff67cdad4f7791f9b71bcd239e16b",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 275,
+            "completion_tokens": 18,
+            "ttft_ms": 4882.074050605297,
+            "prefill_tps": 56.3285188117752,
+            "decode_tps": 7.543574178847819,
+            "total_wall_ms": 7252.60397978127,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4384573.172214109,
+            "t_first_abs": 4384578.05428816,
+            "t_last_abs": 4384580.307861811,
+            "t_end_abs": 4384580.424818089
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "d6cc93c41de1c4b88e8b9de8ec92a616155cfbe75f86bdfd39901398f1a42951",
+      "validated_content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+      "total_wall_ms": 41401.024624705315,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "8f680ab9056e7f8740b27071c4532cf8fa1ab1f06fcc05da35c2375fb3de3959",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 55,
+            "ttft_ms": 8540.923060849309,
+            "prefill_tps": 44.96001161282151,
+            "decode_tps": 8.342921286737406,
+            "total_wall_ms": 16389.149740338326,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_ef589053ed1743b28f2",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll start by reading invoice INV-472 to get its details.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_ef589053ed1743b28f2",
+                  "type": "function",
+                  "function": {
+                    "name": "read_invoice",
+                    "arguments": "{\"invoice_id\":\"INV-472\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its details.\n\n",
+            "t_start_abs": 4384539.025093549,
+            "t_first_abs": 4384547.56601661,
+            "t_last_abs": 4384554.038569585,
+            "t_end_abs": 4384555.414243289
+          }
+        },
+        {
+          "request_sha256": "a68ccb0674c8cd3896b949168d68a6dcdf548a3b16b2d27c0ca1bd2dda46da57",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 475,
+            "completion_tokens": 70,
+            "ttft_ms": 6195.80817501992,
+            "prefill_tps": 76.66473631560952,
+            "decode_tps": 6.004967050405036,
+            "total_wall_ms": 17757.966032251716,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_2ff224682f2f4984825",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_2ff224682f2f4984825",
+                  "type": "function",
+                  "function": {
+                    "name": "calculate_total",
+                    "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+            "t_start_abs": 4384555.4144706,
+            "t_first_abs": 4384561.610278775,
+            "t_last_abs": 4384573.10076647,
+            "t_end_abs": 4384573.172436632
+          }
+        },
+        {
+          "request_sha256": "c6397ed73bbfc6c5fed9875b6534b87a2ccf6c7ba91d8f7d93e0347f8a7d1ab6",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 276,
+            "completion_tokens": 18,
+            "ttft_ms": 4882.7801160514355,
+            "prefill_tps": 56.525174888111344,
+            "decode_tps": 7.546404502785407,
+            "total_wall_ms": 7253.345800563693,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4384573.172548975,
+            "t_first_abs": 4384578.055329091,
+            "t_last_abs": 4384580.308057525,
+            "t_end_abs": 4384580.425894775
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "5be7b93c99665bece39463eb155624fa2ae68a87e21ee4878e1f391bcb28232d",
+      "validated_content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+      "total_wall_ms": 41400.266024284065,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "fa70deb5793ab73571836b77e37a48e9e5a54b1cbf4501a8700af3bee7e594d0",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 384,
+            "completion_tokens": 55,
+            "ttft_ms": 5396.547952666879,
+            "prefill_tps": 71.15659924975446,
+            "decode_tps": 5.73825011851822,
+            "total_wall_ms": 14923.61844331026,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "read_invoice"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_855300ec2275481bb6b",
+                "type": "function",
+                "function": {
+                  "name": "read_invoice",
+                  "arguments": "{\"invoice_id\":\"INV-472\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll start by reading invoice INV-472 to get its details.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_855300ec2275481bb6b",
+                  "type": "function",
+                  "function": {
+                    "name": "read_invoice",
+                    "arguments": "{\"invoice_id\":\"INV-472\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll start by reading invoice INV-472 to get its details.\n\n",
+            "t_start_abs": 4384539.025514782,
+            "t_first_abs": 4384544.422062735,
+            "t_last_abs": 4384553.832597111,
+            "t_end_abs": 4384553.949133226
+          }
+        },
+        {
+          "request_sha256": "4ae01f3a74f3c66a8c32161c94fc99c7958a5738c2809275367bd8bcb3c77af1",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 475,
+            "completion_tokens": 70,
+            "ttft_ms": 7482.782126404345,
+            "prefill_tps": 63.47906326496891,
+            "decode_tps": 5.977598324869054,
+            "total_wall_ms": 19150.439613498747,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "calculate_total"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_924b6eab1e454644bd6",
+                "type": "function",
+                "function": {
+                  "name": "calculate_total",
+                  "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_924b6eab1e454644bd6",
+                  "type": "function",
+                  "function": {
+                    "name": "calculate_total",
+                    "arguments": "{\"unit_price\":13.75,\"quantity\":5}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Now I'll use the returned unit_price and quantity to calculate the total.\n\n",
+            "t_start_abs": 4384553.949513189,
+            "t_first_abs": 4384561.432295315,
+            "t_last_abs": 4384572.975392768,
+            "t_end_abs": 4384573.099952802
+          }
+        },
+        {
+          "request_sha256": "279704d82ae55904aeb6c29f7bc74afc7c150253c4e309c935a3d1849807f4a8",
+          "message_roles": [
+            "user",
+            "assistant",
+            "tool",
+            "assistant",
+            "tool"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false,
+            "tool_choice": "none"
+          },
+          "metrics": {
+            "prompt_tokens": 276,
+            "completion_tokens": 18,
+            "ttft_ms": 4953.354165889323,
+            "prefill_tps": 55.71981949133393,
+            "decode_tps": 7.542432843947461,
+            "total_wall_ms": 7325.205735862255,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"invoice_id\": \"INV-472\", \"total\": 68.75}",
+            "t_start_abs": 4384573.100377834,
+            "t_first_abs": 4384578.053732,
+            "t_last_abs": 4384580.307646666,
+            "t_end_abs": 4384580.42558357
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": false
+}

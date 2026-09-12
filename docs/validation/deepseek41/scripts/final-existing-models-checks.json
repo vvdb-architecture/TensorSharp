@@ -1,0 +1,77 @@
+{
+  "scope": "Local simulated HTTP/process orchestration using actual portable case validation; no servers, VM jobs, real model inference or downloads.",
+  "checks": [
+    {
+      "name": "all-success",
+      "passed": true,
+      "run_complete": true,
+      "all_cases_passed": true,
+      "owned_servers": 3,
+      "introduced_failed_cases": {
+        "qwen3": {
+          "head-baseline": 0,
+          "earlier-after": 0
+        },
+        "qwen35": {
+          "head-baseline": 0,
+          "earlier-after": 0
+        },
+        "gemma4": {
+          "head-baseline": 0,
+          "earlier-after": 0
+        }
+      }
+    },
+    {
+      "name": "introduced-failure",
+      "passed": true,
+      "run_complete": true,
+      "all_cases_passed": false,
+      "owned_servers": 3,
+      "introduced_failed_cases": {
+        "qwen3": {
+          "head-baseline": 1,
+          "earlier-after": 1
+        },
+        "qwen35": {
+          "head-baseline": 1,
+          "earlier-after": 1
+        },
+        "gemma4": {
+          "head-baseline": 1,
+          "earlier-after": 1
+        }
+      }
+    },
+    {
+      "name": "preexisting-stop",
+      "passed": true,
+      "run_complete": false,
+      "all_cases_passed": false,
+      "owned_servers": 0,
+      "introduced_failed_cases": {
+        "qwen3": {},
+        "qwen35": {},
+        "gemma4": {}
+      }
+    },
+    {
+      "name": "duplicate-case-rejected",
+      "passed": true
+    },
+    {
+      "name": "partial-case-rejected",
+      "passed": true
+    },
+    {
+      "name": "frozen-deployment-mutation-detected",
+      "passed": true
+    },
+    {
+      "name": "existing-deployment-never-overwritten",
+      "passed": true
+    }
+  ],
+  "runner_sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+  "test_sha256": "a5d84de4ff4211d89846a6bf9b42e9639f739d5c796e3de323c3faf400075ebd"
+}

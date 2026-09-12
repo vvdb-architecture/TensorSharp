@@ -1,0 +1,64 @@
+// Independent integration probe using the checkpoint's real GGUF vocabulary.
+// Input is the first GGUF shard (metadata reads only), or saved header JSON {metadata: {...}}.
+// dotnet run --project eng/tests/dsv41-tool-grammar -c Release -p:EngineBin=/absolute/bin -- header.json report.json
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+using TensorSharp.Runtime;
+using TensorSharp.Runtime.Grammar;
+
+if (args.Length != 3)
+    throw new ArgumentException("Usage: Probe <header.json> <case.json> <report.json>");
+JsonElement meta;
+byte[] metadataPayload;
+if (Path.GetExtension(args[0]).Equals(".json", StringComparison.OrdinalIgnoreCase))
+{
+    metadataPayload = File.ReadAllBytes(args[0]);
+    using var document = JsonDocument.Parse(metadataPayload);
+    meta = document.RootElement.GetProperty("metadata").Clone();
+}
+else
+{
+    using var gguf = new GgufFile(args[0]); // Parse tables only; never read tensor payloads.
+    metadataPayload = JsonSerializer.SerializeToUtf8Bytes(gguf.Metadata);
+    using var document = JsonDocument.Parse(metadataPayload);
+    meta = document.RootElement.Clone();
+}
+T Read<T>(string key) => meta.GetProperty(key).Deserialize<T>()!;
+var tokenizer = new BpeTokenizer(Read<string[]>("tokenizer.ggml.tokens"), Read<int[]>("tokenizer.ggml.token_type"),
+    Read<string[]>("tokenizer.ggml.merges"), Read<int>("tokenizer.ggml.bos_token_id"),
+    TensorSharp.Models.ModelBase.ResolveEogTokenIds(Read<string[]>("tokenizer.ggml.tokens"), Read<int>("tokenizer.ggml.eos_token_id")), false, false, Read<string>("tokenizer.ggml.pre"));
+
+using var caseDocument = JsonDocument.Parse(File.ReadAllText(args[1]));
+var item=caseDocument.RootElement;
+var spec=item.GetProperty("spec");
+var tools=spec.GetProperty("tools").EnumerateArray().Select(t=>t.GetProperty("function")).Select(f=>new ToolFunction {
+ Name=f.GetProperty("name").GetString()!, Description=f.GetProperty("description").GetString()!, ParametersSchemaJson=f.GetProperty("parameters").GetRawText()
+}).ToList();
+string prompt=ChatTemplate.RenderDeepSeek41(new(){new ChatMessage{Role="user",Content=spec.GetProperty("messages")[0].GetProperty("content").GetString()}},tools:tools);
+bool referenceEqual=prompt==item.GetProperty("reference_prompt").GetString();
+string raw=item.GetProperty("raw_output").GetString()!;
+const string invokeEnd="</｜DSML｜ invoke>";
+const string callsEnd="</｜DSML｜ calls>";
+string single=raw[..(raw.IndexOf(invokeEnd,StringComparison.Ordinal)+invokeEnd.Length)]+"\n"+callsEnd;
+string correctedNumbers=raw.Replace("string=\"false\">0</", "string=\"false\">5</",StringComparison.Ordinal).Replace("name=\"unit_price\" string=\"false\">5</","name=\"unit_price\" string=\"false\">13.75</",StringComparison.Ordinal);
+var plan=DeepSeek41ToolGrammar.Compile(tools,DeepSeek41ToolChoice.Auto,parallelToolCalls:true);
+var sentinel=plan.NewConstraint(tokenizer,false);var initialMask=sentinel.CurrentMask().ToArray();
+var checks=new List<object>();
+foreach(var (name,text,expectedCount) in new[]{("actual-two-calls-zero-values",raw,2),("valid-stop-after-read-only",single,1),("typed-nonzero-values-remain-available",correctedNumbers,2)}){
+ var c=plan.NewConstraint(tokenizer,false);int[] ids=tokenizer.Encode(text,false).ToArray();int rejected=-1;
+ for(int i=0;i<ids.Length;i++){ulong[] mask=c.CurrentMask();int id=ids[i];if((mask[id>>6]&(1UL<<(id&63)))==0){rejected=i;break;}c.Accept(id);}
+ var parser=new DeepSeek41OutputParser();parser.Init(false,tools);var output=parser.Add(text,true);var calls=output.ToolCalls??new();
+ bool pass=rejected<0&&!c.IsDead&&c.IsComplete&&calls.Count==expectedCount;
+ if(name=="actual-two-calls-zero-values")pass&=JsonSerializer.Serialize(calls[1].Arguments)=="{\"unit_price\":0,\"quantity\":0}";
+ if(name=="typed-nonzero-values-remain-available")pass&=JsonSerializer.Serialize(calls[1].Arguments)=="{\"unit_price\":13.75,\"quantity\":5}";
+ int eos=tokenizer.LookupToken("<｜end▁of▁sentence｜>");var logits=Enumerable.Repeat(7.25f,tokenizer.VocabSize).ToArray();c.ApplyMask(logits,c.IsComplete);bool eosAllowed=logits[eos]==7.25f;pass&=eosAllowed;
+ checks.Add(new{name,pass,token_count=ids.Length,rejected,is_complete=c.IsComplete,is_dead=c.IsDead,eos_id=eos,eos_allowed=eosAllowed,calls=calls.Select(call=>new{call.Name,call.Arguments})});
+}
+bool independent=initialMask.AsSpan().SequenceEqual(sentinel.CurrentMask())&&!sentinel.IsActive;
+File.WriteAllText(args[2],JsonSerializer.Serialize(new{
+ scope="Local grammar/parser/reference-prompt diagnosis; no model inference or logits attribution.",runtime_sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(ChatTemplate).Assembly.Location))).ToLowerInvariant(),reference_prompt_equal=referenceEqual,prompt_tokens=tokenizer.Encode(prompt,false).Count,prompt_sha256=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(prompt))).ToLowerInvariant(),request_state_independent=independent,checks
+},new JsonSerializerOptions{WriteIndented=true})+"\n");
+Console.WriteLine(File.ReadAllText(args[2]));

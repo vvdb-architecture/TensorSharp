@@ -1,0 +1,260 @@
+{
+  "job": {
+    "chunk": 64,
+    "version": "final",
+    "repetitions": 2,
+    "concurrency": 1
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/final/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "64"
+  ],
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "64",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "64",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4",
+    "TS_CB_DEBUG": "1",
+    "TENSORSHARP_LOG_DIR": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-qwen3-json-chunks/final-chunk64-file-logs"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+    "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+    "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+    "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+    "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+  },
+  "weights": {
+    "path": "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "bytes": 639446688,
+    "mtime_ns": 1789100913000000000,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/qwen3-weights.json",
+        "sha256": "b770735d67c06ea1035158091ae9dfe91f763a4af9768b510ba8feff334859c0",
+        "bytes": 208
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "cases": [
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "concurrency": 1,
+      "repeat": 0,
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "ok",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 21,
+            "ttft_ms": 892.9898841306567,
+            "prefill_tps": 100.78501626882009,
+            "decode_tps": 34.735184418375404,
+            "total_wall_ms": 1495.7228088751435,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+            "t_start_abs": 4408732.795572265,
+            "t_first_abs": 4408733.688562149,
+            "t_last_abs": 4408734.264347202,
+            "t_end_abs": 4408734.291295074
+          }
+        }
+      ],
+      "validated_content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+      "total_wall_ms": 1496.1153455078602
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "concurrency": 1,
+      "repeat": 1,
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "recorded_request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+      "status": "ok",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 21,
+            "ttft_ms": 390.69220423698425,
+            "prefill_tps": 230.36036814650188,
+            "decode_tps": 177.36909600581163,
+            "total_wall_ms": 509.5870532095432,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+            "t_start_abs": 4408734.30669827,
+            "t_first_abs": 4408734.697390474,
+            "t_last_abs": 4408734.810149689,
+            "t_end_abs": 4408734.816285323
+          }
+        }
+      ],
+      "validated_content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+      "total_wall_ms": 509.9790580570698
+    }
+  ],
+  "run_complete": true,
+  "timings_qualified_for_comparison": false,
+  "timing_note": "Cold first request, warm second request, debug logging; diagnostic only.",
+  "request_sha256": "e1c5ae800ba0b4c69abce54cb2dd6301f7a8a6329b7a9892d83b8514eefaacfc",
+  "source_deployment": "/workspace/deepseek41-work/regression-final3651-native6b3-json-performance-r2/final/bin",
+  "before": {
+    "utc": "2026-09-11T14:11:55Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.31 W, 300.00 W, 35\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.43 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.46 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.38 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.81 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.63 W, 300.00 W, 33\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.90 W, 300.00 W, 35\n7, NVIDIA A40, 0 MiB, 0 %, 255 MHz, 7251 MHz, 61.12 W, 300.00 W, 41\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1   2\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  65\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 146464 sshd             0.0    1  88\n 146475 python          16.8    1  87\n 147091 ps               0.0    1  90\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "served_model_id": "Qwen3-0.6B-Q8_0",
+  "owned_process_exit_observed": true,
+  "deployment_changed_files": [],
+  "after": {
+    "utc": "2026-09-11T14:12:07Z",
+    "gpu": "index, name, memory.used [MiB], utilization.gpu [%], clocks.current.sm [MHz], clocks.current.memory [MHz], power.draw [W], power.limit [W], temperature.gpu\n0, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.16 W, 300.00 W, 35\n1, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.33 W, 300.00 W, 33\n2, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.50 W, 300.00 W, 33\n3, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 33.48 W, 300.00 W, 33\n4, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 34.75 W, 300.00 W, 34\n5, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 31.62 W, 300.00 W, 33\n6, NVIDIA A40, 0 MiB, 0 %, 210 MHz, 405 MHz, 32.89 W, 300.00 W, 35\n7, NVIDIA A40, 0 MiB, 0 %, 1740 MHz, 7251 MHz, 89.50 W, 300.00 W, 44\n",
+    "processes": "    PID COMMAND         %CPU NLWP PSR\n      1 docker-init      0.0    1   2\n     90 start.sh         0.0    1  68\n    121 nginx            0.0    1  26\n    122 nginx            0.0    1  25\n    143 sshd             0.0    1  65\n    148 start.sh         0.0    1  40\n    155 jupyter-lab      0.0    1  36\n    156 sleep            0.0    1  29\n 141509 sshd             0.0    1  38\n 141520 bash             0.0    1  37\n 146464 sshd             0.0    1  88\n 146475 python          15.6    1  87\n 147212 ps               0.0    1  79\n",
+    "scope": "Process names only; no unrelated command-line arguments or credentials."
+  },
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3-qwen3-json-chunks/final-chunk64-server.log",
+    "sha256": "65b85c6362ab421896e930927add770a5b301960086a183506308c94d5b810ee",
+    "bytes": 17096
+  },
+  "observed_chunks": {
+    "requests": [
+      {
+        "request_id": "chat-a6c3ad69347c483489ecd64cdaf386c4",
+        "prefill_positions": [
+          0,
+          64
+        ],
+        "first_decode_position": 90,
+        "observed_prefill_lengths": [
+          64,
+          26
+        ],
+        "phase_order_valid": true,
+        "matches_expected_chunking": true
+      },
+      {
+        "request_id": "chat-d63e26e16e2a416eb1255f86d465409d",
+        "prefill_positions": [
+          0,
+          64
+        ],
+        "first_decode_position": 90,
+        "observed_prefill_lengths": [
+          64,
+          26
+        ],
+        "phase_order_valid": true,
+        "matches_expected_chunking": true
+      }
+    ],
+    "complete": true,
+    "method": "Consecutive logged P@ positions followed by first D@90, not a claimed native per-kernel trace."
+  },
+  "finalization_errors": [],
+  "all_cases_passed": true
+}

@@ -1,0 +1,218 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "serial_tool_workflows": false,
+  "max_tokens_override": null,
+  "execution_plan": {
+    "scenarios": [
+      "long_8k",
+      "long_32k"
+    ],
+    "concurrency": [
+      1
+    ],
+    "repeats": 1,
+    "expected_cases": 2
+  },
+  "run_complete": true,
+  "waves": [
+    {
+      "scenario": "long_8k",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 21193.753611296415,
+      "generated_tokens": 34,
+      "end_to_end_tokens_per_second": 1.604246261590857,
+      "all_passed": true
+    },
+    {
+      "scenario": "long_32k",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 81435.01260410994,
+      "generated_tokens": 34,
+      "end_to_end_tokens_per_second": 0.41751083364213853,
+      "all_passed": true
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "long_8k@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 19985.29190942645,
+      "ttft_ms_samples": [
+        19985.29190942645
+      ],
+      "prefill_tps_median": 385.5835598961312,
+      "prefill_tps_samples": [
+        385.5835598961312
+      ],
+      "decode_tps_median": 28.298580916837878,
+      "decode_tps_samples": [
+        28.298580916837878
+      ],
+      "conversation_wall_ms_median": 21185.06464920938
+    },
+    "long_32k@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 80239.61950372905,
+      "ttft_ms_samples": [
+        80239.61950372905
+      ],
+      "prefill_tps_median": 381.1708005242796,
+      "prefill_tps_samples": [
+        381.1708005242796
+      ],
+      "decode_tps_median": 28.603754702393385,
+      "decode_tps_samples": [
+        28.603754702393385
+      ],
+      "conversation_wall_ms_median": 81427.5485612452
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long.json",
+  "source_report_sha256": "85eb1332503373c701d5a13057adf9fe4489d30a3cac3dc1f45ebae8ae8a89bf",
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "cases": [
+    {
+      "scenario": "long_8k",
+      "tag": "long_8k-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "7c77bc584dd673ae324f5a245dd73d0d3c71919595845d48ccd476f2a3ad85bb",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 21185.06464920938,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "32c36ee948e2b517779fe629858897b971bca8a8ceee19098598404a0711a1ac",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 7706,
+            "completion_tokens": 34,
+            "ttft_ms": 19985.29190942645,
+            "prefill_tps": 385.5835598961312,
+            "decode_tps": 28.298580916837878,
+            "total_wall_ms": 21184.83434058726,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4404592.62064858,
+            "t_first_abs": 4404612.605940489,
+            "t_last_abs": 4404613.772076703,
+            "t_end_abs": 4404613.80548292
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "long_32k",
+      "tag": "long_32k-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "0ca3e24105a04c6c19ba23e7c3911a5f269b1921d06c20d87e0d9aa38b05e1e7",
+      "validated_content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+      "total_wall_ms": 81427.5485612452,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "7c9cc55b365fb0c1620c7f3e8c206202b20772d6a64ff07bb8aa3db3e63841cb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 30585,
+            "completion_tokens": 34,
+            "ttft_ms": 80239.61950372905,
+            "prefill_tps": 381.1708005242796,
+            "decode_tps": 28.603754702393385,
+            "total_wall_ms": 81427.3331258446,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"ALPHA\": \"silver-4821\", \"BETA\": \"amber-7392\", \"GAMMA\": \"violet-1605\"}",
+            "t_start_abs": 4404613.822275995,
+            "t_first_abs": 4404694.061895499,
+            "t_last_abs": 4404695.215590192,
+            "t_end_abs": 4404695.249609121
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

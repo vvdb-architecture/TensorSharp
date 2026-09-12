@@ -1,0 +1,243 @@
+{
+  "audit_complete": true,
+  "all_checks_passed": true,
+  "scope": "Offline retained-evidence audit. Native library hashes/launch mapping are supplied by the executing parent; this auditor does not load or rehash VM binaries.",
+  "baseline_native_sha256": "1d9209883c7275e545cfb18c4fd53e7ab4eb51bcef6c8d3bc83c328d5c817835",
+  "final_native_sha256": "fa5ac07517e4e1c891a6bc53833246917ba03bd13d112ed67a53bbebccf6891d",
+  "cuda_runs": {
+    "phase1-vision-cuda1": {
+      "checks": 158,
+      "passed": 158,
+      "max_absolute_error": 5.185604095458984e-06,
+      "max_relative_l2": 1.7683900068732328e-06,
+      "report": {
+        "file": "phase2-final/phase1-vision-cuda1.json",
+        "bytes": 20435,
+        "sha256": "e9cdf3101ab88dfabb71acb1ebb42f1d61aa8ecce5c420b3196e57d3fe76589e"
+      },
+      "log": {
+        "file": "phase2-final/phase1-vision-cuda1.log",
+        "bytes": 90587,
+        "sha256": "2b98cda3c91d2b350b752720396038c75de6bd844ac905129ce667e93f660c3d"
+      }
+    },
+    "final-vision-cuda1": {
+      "checks": 158,
+      "passed": 158,
+      "max_absolute_error": 5.185604095458984e-06,
+      "max_relative_l2": 1.7683900068732328e-06,
+      "report": {
+        "file": "phase2-final/final-vision-cuda1.json",
+        "bytes": 20435,
+        "sha256": "e9cdf3101ab88dfabb71acb1ebb42f1d61aa8ecce5c420b3196e57d3fe76589e"
+      },
+      "log": {
+        "file": "phase2-final/final-vision-cuda1.log",
+        "bytes": 90695,
+        "sha256": "c8c4716b14d0fba83f6f4ca63b1d9850fca10bb4852a984dd5b2e20c0c6c66b1"
+      }
+    },
+    "final-text-cuda1": {
+      "checks": 41,
+      "passed": 41,
+      "max_absolute_error": 7.3909759521484375e-06,
+      "max_relative_l2": 2.3931829673529137e-06,
+      "report": {
+        "file": "phase2-final/final-text-cuda1.json",
+        "bytes": 9398,
+        "sha256": "e62100df101de843738422e1684335baa4182c014b274cb222f5292d38aa8fce"
+      },
+      "log": {
+        "file": "phase2-final/final-text-cuda1.log",
+        "bytes": 56136,
+        "sha256": "9423b81787d176739be89aef9b83ea4d103ca0166121ec89d4deb75e728c7bed"
+      }
+    }
+  },
+  "vision_reports_byte_identical": true,
+  "warm_then_advice_log_events": {
+    "warming": [
+      [
+        31,
+        "[dsv41] warming 0.00 GiB of Engram pages with 16 I/O threads..."
+      ]
+    ],
+    "warmed": [
+      [
+        32,
+        "[dsv41] warmed 0.00 GiB of Engram pages in 0.00s (16 I/O threads)"
+      ]
+    ],
+    "advice": [
+      [
+        33,
+        "[dsv41] Engram mmap advice: RANDOM (automatic: parallel I/O; accepted=1, unsupported=0, skipped=0, failed=0)"
+      ]
+    ]
+  },
+  "linux_advice_checks": 61,
+  "scratch": {
+    "complete": true,
+    "trials": 24,
+    "exact_outputs": 24,
+    "groups": [
+      {
+        "tokens": 1,
+        "threads": 1,
+        "pairs": [
+          {
+            "sample": 0,
+            "local_selected_pages_cold": true,
+            "default_ms": 51.554727,
+            "random_ms": 52.472729,
+            "default_over_random": 0.9825051599660464
+          },
+          {
+            "sample": 1,
+            "local_selected_pages_cold": true,
+            "default_ms": 48.272011,
+            "random_ms": 49.825666999999996,
+            "default_over_random": 0.9688181595240862
+          },
+          {
+            "sample": 2,
+            "local_selected_pages_cold": true,
+            "default_ms": 50.144928,
+            "random_ms": 54.516863,
+            "default_over_random": 0.9198058222829145
+          }
+        ],
+        "cold_pairs": 3,
+        "cold_pair_ratio_median": 0.9688181595240862
+      },
+      {
+        "tokens": 1,
+        "threads": 16,
+        "pairs": [
+          {
+            "sample": 0,
+            "local_selected_pages_cold": true,
+            "default_ms": 9.133764000000001,
+            "random_ms": 4.9055349999999995,
+            "default_over_random": 1.8619302481788431
+          },
+          {
+            "sample": 1,
+            "local_selected_pages_cold": true,
+            "default_ms": 8.131991999999999,
+            "random_ms": 5.092992,
+            "default_over_random": 1.5967022920907787
+          },
+          {
+            "sample": 2,
+            "local_selected_pages_cold": true,
+            "default_ms": 8.356801,
+            "random_ms": 4.412603,
+            "default_over_random": 1.8938483702250124
+          }
+        ],
+        "cold_pairs": 3,
+        "cold_pair_ratio_median": 1.8619302481788431
+      },
+      {
+        "tokens": 3,
+        "threads": 1,
+        "pairs": [
+          {
+            "sample": 0,
+            "local_selected_pages_cold": true,
+            "default_ms": 146.436226,
+            "random_ms": 167.793096,
+            "default_over_random": 0.8727190181889247
+          },
+          {
+            "sample": 1,
+            "local_selected_pages_cold": true,
+            "default_ms": 160.90084599999997,
+            "random_ms": 142.004399,
+            "default_over_random": 1.1330694480809709
+          },
+          {
+            "sample": 2,
+            "local_selected_pages_cold": true,
+            "default_ms": 163.984048,
+            "random_ms": 150.22333700000001,
+            "default_over_random": 1.0916016863611542
+          }
+        ],
+        "cold_pairs": 3,
+        "cold_pair_ratio_median": 1.0916016863611542
+      },
+      {
+        "tokens": 3,
+        "threads": 16,
+        "pairs": [
+          {
+            "sample": 0,
+            "local_selected_pages_cold": true,
+            "default_ms": 19.718408,
+            "random_ms": 11.03218,
+            "default_over_random": 1.7873537233801478
+          },
+          {
+            "sample": 1,
+            "local_selected_pages_cold": true,
+            "default_ms": 17.393286,
+            "random_ms": 11.09734,
+            "default_over_random": 1.5673382990878895
+          },
+          {
+            "sample": 2,
+            "local_selected_pages_cold": true,
+            "default_ms": 19.156291999999997,
+            "random_ms": 11.260252,
+            "default_over_random": 1.7012311980229216
+          }
+        ],
+        "cold_pairs": 3,
+        "cold_pair_ratio_median": 1.7012311980229216
+      }
+    ],
+    "scope": "Owned scratch-file timings with local selected-page residency checks. Process fault counters and post-read residency are observations, not physical/network bytes. Filesystem server caches, cross-process activity and full-model performance are not qualified by this summary."
+  },
+  "verified_scratch_preparation_files": 11,
+  "verified_llama_hf_files": 10,
+  "verified_vllm_sglang_sources": 7,
+  "sources": [
+    {
+      "file": "phase2-final/sources/CMakeLists.txt",
+      "bytes": 28544,
+      "sha256": "d83ac9e7ff50cf5863619d575881be77fee3423a83d628cf9eaa2b65fc6d8312"
+    },
+    {
+      "file": "phase2-final/sources/dsv41_engram.h",
+      "bytes": 11669,
+      "sha256": "8cfa5923268c8912c4f84a4b1208d5e6ace474f87c27f8048d3e040d916b6bf3"
+    },
+    {
+      "file": "phase2-final/sources/dsv41_engram_advice.h",
+      "bytes": 3514,
+      "sha256": "c4c983453b57b99d2253b240db3d27bb8278ff352c2b4e101aef3355bfc548ce"
+    },
+    {
+      "file": "phase2-final/sources/dsv41_engram_io.h",
+      "bytes": 4544,
+      "sha256": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+    },
+    {
+      "file": "phase2-final/sources/ggml_ops_deepseek4.cpp",
+      "bytes": 259815,
+      "sha256": "8a88f291052a1c734321af904b77207181d9abeb1498de483c574dee2ac27f57"
+    },
+    {
+      "file": "phase2-final/sources/tests/dsv41_engram_advice_test.cpp",
+      "bytes": 9657,
+      "sha256": "eeda64006fdcede8f114ea43c6540e497c3e031eaceabb13f013b2a8f5a24207"
+    }
+  ],
+  "auditor": {
+    "file": "phase2-final/audit-native.py",
+    "bytes": 6441,
+    "sha256": "f5bcb14c02862975651697358f85917715fe64a20ae3083fa9ba1b43796cfd37"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "scope": "Local runner evidence/control checks only; fake GPU process listing and32-element arrays, no native load, checkpoint read, or GPU execution.",
+  "source_sha256": "e096164a23cee46aa9f6e111a2f5b86e133c72b05a54205e3febe07e2e1905b8",
+  "checks": [
+    {
+      "name": "reference_top10_and_float32_logged_norm_accepted",
+      "passed": true
+    },
+    {
+      "name": "same_shape_same_norm_wrong_reference_top10_rejected",
+      "passed": true
+    },
+    {
+      "name": "same_top10_wrong_reference_norm_rejected",
+      "passed": true
+    },
+    {
+      "name": "zero_native_norm_rejected",
+      "passed": true
+    },
+    {
+      "name": "zero_reference_norm_rejected",
+      "passed": true
+    },
+    {
+      "name": "numerical_and_diagnostic_overrides_cleared_unrelated_environment_preserved",
+      "passed": true
+    },
+    {
+      "name": "resident_gpu_rejected_before_checkpoint_read_or_output_creation",
+      "passed": true
+    },
+    {
+      "name": "existing_output_rejected_before_gpu_inspection",
+      "passed": true
+    }
+  ]
+}

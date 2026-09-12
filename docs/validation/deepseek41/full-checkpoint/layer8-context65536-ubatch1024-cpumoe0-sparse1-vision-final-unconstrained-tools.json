@@ -1,0 +1,198 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "max_tokens_override": null,
+  "waves": [
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 2.9221363365650177,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 5.462835542857647,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1.74754299223423,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    },
+    {
+      "scenario": "agentic",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 6.076990626752377,
+      "generated_tokens": 0,
+      "end_to_end_tokens_per_second": 0.0,
+      "all_passed": false
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "tool_round_trip@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "tool_round_trip@c4": {
+      "passed": 0,
+      "total": 4
+    },
+    "agentic@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "agentic@c4": {
+      "passed": 0,
+      "total": 4
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-vision-final-unconstrained-tools.json",
+  "source_report_sha256": "a1de5b357d6dc1baeb44f3c8ca3dd8ad7e2d0738f166625f45c365d8d34ca860",
+  "native_sha256": "37c1036691d9f4682b89a5b1db633b3df7ea573e1118d8df8f5548d1616f5c88",
+  "cases": [
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "fe24af23d4d1e74a8d5c68716a27d92b7df05a88f94e47e0653fbc6d368aae67",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.697891391813755,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "45b75d8c5c96f5996cb7ae9429344b491f52e97d7781e2b4fe662bf03240ebd6",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.5986813232302666,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "683d03e088f612c279c5a4177930637fef4139b5fbf56da44bcdb8c022ad1e62",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 0.8160732686519623,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "8e858a493cb1626f0094ac928fb06c97b47fa0e73b07d0c1fa0390fc814d77c4",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.6278214752674103,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "57a3c44864ace173cca348d38ef1f3b0e334860e825ca5c3e83bdd4ff6377406",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.0765958577394485,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "899fe612823f73774b6f909bac2345f6dec7e4d76e47d82a137c8215a2ab5326",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.2135254219174385,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "2070b8edd805dd777483862eeeba208b80e5d14bc91a8b79a418fefe392da929",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 3.142920322716236,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "f7b8c7a22b5a24cc9d1eea82ffdd1a5e9972c9fb79703a45a3133bd31183ca44",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.8076896667480469,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "b67f25fdf08123bd5fb2714c988a16a6c3b4330a9d4b6e8bb291c8da295e04f6",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 2.5354288518428802,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    },
+    {
+      "scenario": "agentic",
+      "tag": "agentic-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "e2d3f756965c01a310a272186931ddc79796a14ef6ca89f9e737f4b99edce704",
+      "detail": "ConnectionError: HTTPConnectionPool(host='127.0.0.1', port=5000): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=5000): Failed to establish a new connection: [Errno 111] Connection refused\"))",
+      "total_wall_ms": 1.6765808686614037,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": []
+    }
+  ],
+  "performance_qualified": false
+}

@@ -1,0 +1,147 @@
+{
+  "scope": "Local read-only audit validation using historical CPU4 evidence and explicitly mutated temporary copies; no final6b3 inference or VM activity.",
+  "checks": [
+    {
+      "name": "historical-failure-preserved",
+      "passed": true,
+      "integrity_valid": true,
+      "all_audited_scenarios_passed": false,
+      "issues": []
+    },
+    {
+      "name": "incomplete-outer",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "outer plan is incomplete"
+      ]
+    },
+    {
+      "name": "missing-child",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "long: [Errno 2] No such file or directory: '/var/folders/54/3hgkdrxn62vg0_r6mfdp9xl40000gn/T/tmp2e58jdo9/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-3b88-long.json'",
+        "long: child incomplete/wrong profile",
+        "long: child plan mismatch",
+        "long: checkpoint mismatch",
+        "long: harness source mismatch",
+        "long: sampling mismatch",
+        "long: thinking/stream mismatch",
+        "long: missing/duplicate/unexpected cases",
+        "long: recorded child validation/hash mismatch",
+        "long: warmup failed or missing",
+        "long: wave coverage mismatch",
+        "long: chat completion/recorded turn count mismatch"
+      ]
+    },
+    {
+      "name": "duplicate-case",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "quality: missing/duplicate/unexpected cases",
+        "quality: recorded child validation/hash mismatch",
+        "quality: wave token/success accounting mismatch",
+        "quality: wave token/success accounting mismatch"
+      ]
+    },
+    {
+      "name": "wrong-count",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "quality: missing/duplicate/unexpected cases",
+        "quality: recorded child validation/hash mismatch",
+        "quality: wave token/success accounting mismatch",
+        "quality: chat completion/recorded turn count mismatch"
+      ]
+    },
+    {
+      "name": "wrong-native-counter",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "quality: native counter mismatch"
+      ]
+    },
+    {
+      "name": "wrong-native-sha",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "libGgmlOps.so SHA mismatch"
+      ]
+    },
+    {
+      "name": "wrong-thread-setting",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "launch flag --cpu-moe-threads: expected '1', got '48'"
+      ]
+    },
+    {
+      "name": "short-decode",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "steady: recorded child validation/hash mismatch",
+        "steady: wave token/success accounting mismatch",
+        "steady: decode work is not 512 tokens"
+      ]
+    },
+    {
+      "name": "log-error",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "quality: server/native error events observed"
+      ]
+    },
+    {
+      "name": "preemption",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "quality: scheduler preemptions observed",
+        "quality: recorded preemption lines mismatch"
+      ]
+    },
+    {
+      "name": "serial-policy-followup",
+      "passed": true,
+      "integrity_valid": true,
+      "all_audited_scenarios_passed": true,
+      "issues": []
+    },
+    {
+      "name": "extra-phase-envelope-only",
+      "passed": true,
+      "integrity_valid": true,
+      "all_audited_scenarios_passed": false,
+      "issues": []
+    },
+    {
+      "name": "extra-phase-wrong-exit",
+      "passed": true,
+      "integrity_valid": false,
+      "all_audited_scenarios_passed": false,
+      "issues": [
+        "tools: outer exit disagrees with unaudited phase envelope"
+      ]
+    }
+  ],
+  "audit_sha256": "3a31c30d9f645164475915daa76a8ceb66a407a09c1685c27fffc9b2263a7b6a",
+  "test_sha256": "175637744b95ea6b9bb3d0f0c7631a4ef9b3f4cb36647a23f33a0b20d6a18675"
+}

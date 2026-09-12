@@ -1,0 +1,875 @@
+{
+  "scope": "Original CLI, frozen phase1, and later joint/advice evidence. Every stage retains its native/source identities; compressed logs are lossless.",
+  "files": [
+    {
+      "file": "README.md",
+      "bytes": 9658,
+      "sha256": "f7023fda685a27cad9f2a7de520323cde1ded6e97f102b548ed9ac758acd4eea"
+    },
+    {
+      "file": "audit-cli-gpu-before.py",
+      "bytes": 8661,
+      "sha256": "61b2059b6d992ec8199cc4d62a4a47898553d3288cdbf25c17dbb4291fb861ab"
+    },
+    {
+      "file": "audit-cli-gpu-phase1.py",
+      "bytes": 9788,
+      "sha256": "15e94f82322398257186ebb9c26d96a3ac010c0ef3cec30d8b8b7c9b9cfd159e"
+    },
+    {
+      "file": "audit-cli-gpu-untraced.py",
+      "bytes": 4728,
+      "sha256": "c2e9c16898f952f8b581971b251a22dac057d6a764c38de931e21862ff392681"
+    },
+    {
+      "file": "audit-plan.md",
+      "bytes": 3996,
+      "sha256": "9c4ffc34bfdc704de73f7b537b4768ad170fc636b039d55a0371ab73afef19a3"
+    },
+    {
+      "file": "before/audit.json",
+      "bytes": 141703,
+      "sha256": "155fa3ca059994e06947fd033d41697cac105b356e76c0a86b1e0d1957c6d4cc"
+    },
+    {
+      "file": "before/microbatches.csv",
+      "bytes": 17324,
+      "sha256": "a371080096d2f27e125652879fe20225ad3a631176ddd0d302934524513f00f1"
+    },
+    {
+      "file": "before/user-before-cli.log",
+      "bytes": 5456,
+      "sha256": "73c0bde63d6f4b91d3e5d20e907e8a03ce5726f811bdc4a096d8a3cc0fe586d7"
+    },
+    {
+      "file": "before/user-before-gpu.csv.gz",
+      "bytes": 155184,
+      "sha256": "8066ba6b6883e06afe9ca1b8cca2b103860e3296615f8aefb9f2499c6ca522ad"
+    },
+    {
+      "file": "before/user-before-perf-clean.txt",
+      "bytes": 5229,
+      "sha256": "f24c80a3e59da6897510c321d5dc1c3c9c83dfaecbe8b91dbd5d8efc709a2f82"
+    },
+    {
+      "file": "before/user-before-perf.log.gz",
+      "bytes": 714899,
+      "sha256": "bc84f0bf5c7acb69bf4da3860fe3350cd381bafe1f33a337c5e461730de977b6"
+    },
+    {
+      "file": "curate-cli-gpu-local.py",
+      "bytes": 5600,
+      "sha256": "52892c36cb03cdebd1847d9b94de150373bdb064b7d87077957674dc3f8e9fb7"
+    },
+    {
+      "file": "engram-advice/README.md",
+      "bytes": 3130,
+      "sha256": "9af8a1fef5b34688d29b5a4295f85f44260e7ae4887da90107efbb947ebf0f2b"
+    },
+    {
+      "file": "engram-advice/analyze.py",
+      "bytes": 5776,
+      "sha256": "9a6e41210d2d22893e632c7deae00ab1756de77240137335e9dc0c2d2feee7a6"
+    },
+    {
+      "file": "engram-advice/analyzer-checks.json",
+      "bytes": 418,
+      "sha256": "dbdc3d75436d24d5b6a79d0611bf69435bc6cd80f84646c2b4bfd4ce77f0c619"
+    },
+    {
+      "file": "engram-advice/artifact-manifest.json",
+      "bytes": 2743,
+      "sha256": "c1d613aeda3d1c0edea4681fc681eac55ca83ad222a141a69b843e4264f4d901"
+    },
+    {
+      "file": "engram-advice/baseline-772.cpp",
+      "bytes": 10835,
+      "sha256": "772fef5b26b1cc8ef164701788b944d7e7d5a811bd99f2a0610ac1507fbc3bdb"
+    },
+    {
+      "file": "engram-advice/check-analyze.py",
+      "bytes": 2822,
+      "sha256": "79712cac90a7cfd8179599d04d8bbf2637b21d300a2c2634290d924cfa9f57f8"
+    },
+    {
+      "file": "engram-advice/engram-advice-bench.sha256",
+      "bytes": 86,
+      "sha256": "3f5a5ac1d680637832703c1ed41c6db55ace6716ce060e9ccaefd2946d04b4bb"
+    },
+    {
+      "file": "engram-advice/engram-advice-summary.json",
+      "bytes": 3842,
+      "sha256": "99f11f1e0c115951c8677e4aaa365862f4867ae9c581b4d79040e35befdf9ce2"
+    },
+    {
+      "file": "engram-advice/engram-advice-vm.jsonl",
+      "bytes": 13554,
+      "sha256": "a8d8b7807d1dbb9d9848c789ae41b7382bc51efa538d0142631cd4d62b038fed"
+    },
+    {
+      "file": "engram-advice/engram-advice-vm.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "engram-advice/engram_advice_bench.cpp",
+      "bytes": 11893,
+      "sha256": "e29807413cba49881b67af7b62f9c148c674529e26837549c309acb6d4f6ce53"
+    },
+    {
+      "file": "engram-advice/include/dsv41_engram.h",
+      "bytes": 10676,
+      "sha256": "538aa876645dc17330b85e3637baf9ea5b7633d91dad467f2a62fcb28f7ae01a"
+    },
+    {
+      "file": "engram-advice/include/dsv41_engram_io.h",
+      "bytes": 4544,
+      "sha256": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+    },
+    {
+      "file": "engram-advice/local-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "engram-advice/local-warm.jsonl",
+      "bytes": 1120,
+      "sha256": "dccffb9dee27392c00cfdb9b54b041de03e967350dcd0b33acdf82a9e970f941"
+    },
+    {
+      "file": "engram-advice/manifest.json",
+      "bytes": 1592,
+      "sha256": "7272503b227ccb0dbbbfee4167ee17d8e4c591a3b042f227d54dab193331d1be"
+    },
+    {
+      "file": "engram-advice/preparation.json",
+      "bytes": 897,
+      "sha256": "dfa8fb321f7a9cd6637d18df22c4bfdffbef3096b347d869e0f1407bd3334dc2"
+    },
+    {
+      "file": "engram-advice/results.md",
+      "bytes": 1879,
+      "sha256": "59c2fd4e3d8b11f450e318997802564caf4780fc03f8d6009a7998e9bd564075"
+    },
+    {
+      "file": "engram-joint/README.md",
+      "bytes": 4119,
+      "sha256": "0bdf72c1da12e17bfce434c4d14b3a0d5e89365e57fbc19006ce0150403c7248"
+    },
+    {
+      "file": "engram-joint/asan.log",
+      "bytes": 389,
+      "sha256": "4cce32eb0529adbd3353002c9853f356b6aa0f29d786848f9ce2c75cbd69fbac"
+    },
+    {
+      "file": "engram-joint/audit.json",
+      "bytes": 1955,
+      "sha256": "102abe4a5eb4963cdd37947c395a3e99edcf32218bb68ea1d9f896c7dbe4c4f0"
+    },
+    {
+      "file": "engram-joint/audit.py",
+      "bytes": 2859,
+      "sha256": "2ce5cf27f2858173d3b54c24677e82a1f22bcdc148a08e4fc4cbb0596a73ed81"
+    },
+    {
+      "file": "engram-joint/combined-ctest.log",
+      "bytes": 232,
+      "sha256": "7d884772bb6e2c24e86ee15f159819fb8f65dca6302f83702585fd01fe2ccfa8"
+    },
+    {
+      "file": "engram-joint/combined-native-build.log",
+      "bytes": 5607,
+      "sha256": "a6ec5d71ebab31351457c09803c35075ab4868c7a2ecf103cff2487c7e218d0e"
+    },
+    {
+      "file": "engram-joint/combined-native.json",
+      "bytes": 3468,
+      "sha256": "f77952c12c8ba3bc3f70ace8aab0890dc4b04fab3c1981776394f47e0a6f0f1b"
+    },
+    {
+      "file": "engram-joint/engram-joint-filesystem.jsonl",
+      "bytes": 10872,
+      "sha256": "941f07f610de4964923fbb19ea1675f2b1e4edc816c01c1b47905d863914eadf"
+    },
+    {
+      "file": "engram-joint/engram-joint-test.log",
+      "bytes": 389,
+      "sha256": "ccd96bde7cb7aa23b28452bb070bdcae51180b5d584957eb0c2454e055e24f1b"
+    },
+    {
+      "file": "engram-joint/engram-joint-warm.jsonl",
+      "bytes": 1983,
+      "sha256": "1b2cf644e26bff5dccbbf6e9d66102b8d7c70b9c46cdbadbb8b6f94604e16f3d"
+    },
+    {
+      "file": "engram-joint/native-oracle-threads1.json",
+      "bytes": 9400,
+      "sha256": "198de75b5a7303277d3b73ef1f4c139341078f93930394980808c104f8dbe6b6"
+    },
+    {
+      "file": "engram-joint/native-oracle-threads1.log",
+      "bytes": 1277,
+      "sha256": "a6029a7ff3286ae04f48101fe9c95f3e8730bad5e218551d3aed4ed36e01da10"
+    },
+    {
+      "file": "engram-joint/native-stable-threads1.json",
+      "bytes": 9386,
+      "sha256": "5753d0e0cec09c911513a539dc34d6f7d2a0601fce8447ecaa3c82e33af3219c"
+    },
+    {
+      "file": "engram-joint/native-stable-threads1.log",
+      "bytes": 1278,
+      "sha256": "72ac338510ec3873dd337f2aba52a64e0051737b3954529ee3ac793ee852913f"
+    },
+    {
+      "file": "engram-joint/native-stable-threads16.json",
+      "bytes": 9387,
+      "sha256": "b9b4a6be9b4ad164e18a602376a7fa6237f847e9efe0344a7d5faee39092157e"
+    },
+    {
+      "file": "engram-joint/native-stable-threads16.log",
+      "bytes": 1325,
+      "sha256": "8cbf456d1f57d5eed17d2d6d159eb128e7198122225d8fa06e9d1a07674cbd33"
+    },
+    {
+      "file": "engram-joint/native-syntax.log",
+      "bytes": 4215,
+      "sha256": "09c236d028a7b158aae2378b8e0eddafb45a3b8df6f2a57ddfd600923a3d8b5a"
+    },
+    {
+      "file": "engram-joint/normal.log",
+      "bytes": 389,
+      "sha256": "de59149d45c6730d6697db9c43d6a6462c07226982ef4e98107a3397b8eeed54"
+    },
+    {
+      "file": "engram-joint/report.json",
+      "bytes": 3028,
+      "sha256": "cd9bb2c690cadaf7f873c57c6fede7623d47956bfe31b38ce18535d109f20221"
+    },
+    {
+      "file": "engram-joint/source/TensorSharp.GGML.Native/dsv41_engram.h",
+      "bytes": 11669,
+      "sha256": "8cfa5923268c8912c4f84a4b1208d5e6ace474f87c27f8048d3e040d916b6bf3"
+    },
+    {
+      "file": "engram-joint/source/TensorSharp.GGML.Native/dsv41_engram_io.h",
+      "bytes": 4544,
+      "sha256": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+    },
+    {
+      "file": "engram-joint/source/TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp",
+      "bytes": 16376,
+      "sha256": "76630ac84e88d5e10e1d9930204323740ffb9a522d070234665405c1b03bb409"
+    },
+    {
+      "file": "engram-joint/source/TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp",
+      "bytes": 12248,
+      "sha256": "68fb12af664ffa8d21abecee8c15a6a790c524b0abecfee821498107ecbf7d6a"
+    },
+    {
+      "file": "engram-joint/vm-provenance.json",
+      "bytes": 3118,
+      "sha256": "d9f0d85a539ce4ba738e46a31b09af87626f36ba56b2fb55466214d725dbbcfa"
+    },
+    {
+      "file": "engram-joint/warm-joint.jsonl",
+      "bytes": 1944,
+      "sha256": "6e3032d3672ede9dce9ed55132fef051e605a57a3d82cadf6582ecc760912191"
+    },
+    {
+      "file": "engram-joint/warm-memory.jsonl",
+      "bytes": 1120,
+      "sha256": "54c4787b923337b3896ecfb26a44a2d250ffae75963b07f6d25691817f0fa9f3"
+    },
+    {
+      "file": "local-audit.json",
+      "bytes": 15455,
+      "sha256": "308d4d1c09df6c722a51f8603e6496a19da3e324ceadaf16c86f90ad05589e91"
+    },
+    {
+      "file": "local-backend/README.md",
+      "bytes": 1861,
+      "sha256": "12f8ecf8b8ea0c7fe80ead21d166c73143cff1574be41bd23a99ac9eb21ea8e2"
+    },
+    {
+      "file": "local-backend/build-cpu.log",
+      "bytes": 5486,
+      "sha256": "4dd210eed7350eaa35e6c18ecce66e0238a677ba282b3cf2a3d2926605f7422f"
+    },
+    {
+      "file": "local-backend/build-metal.log",
+      "bytes": 69097,
+      "sha256": "757d3e5ce82710dcda769b93c6f305b5f9b99be8374fb1dc7f947c1a1b844fc0"
+    },
+    {
+      "file": "local-backend/check-backend.py",
+      "bytes": 1298,
+      "sha256": "ddfc8b199bc2b915d3b56ff07a6149e7721a90af360a44aaaa9a651911aa0847"
+    },
+    {
+      "file": "local-backend/cpu-f32-oracle.json",
+      "bytes": 9366,
+      "sha256": "54c30dd9302c05f3bdd493aa27708b622091da0eb1fe8572f8b525c711f528ad"
+    },
+    {
+      "file": "local-backend/cpu-f32-oracle.log",
+      "bytes": 1192,
+      "sha256": "aa7cbb4f21d134430b549778e9e7d7e94d011612485fe91d4324f2189b659673"
+    },
+    {
+      "file": "local-backend/cpu-oracle-before.json",
+      "bytes": 9411,
+      "sha256": "9bb889787e82d8c094339fbd169c96dd436b7cf8dd933a7b84511de28b592b85"
+    },
+    {
+      "file": "local-backend/cpu-oracle-before.log",
+      "bytes": 989,
+      "sha256": "8d1a5932a4d6b1a40fc0fa882c9c05ea020926790e41d49b662bae51a1d67e27"
+    },
+    {
+      "file": "local-backend/cpu-oracle-retry.log",
+      "bytes": 1188,
+      "sha256": "2a4a879210d726851c51d30dd268b28daddc0cb8715887b4185125c8ce04d903"
+    },
+    {
+      "file": "local-backend/cpu-oracle.json",
+      "bytes": 9411,
+      "sha256": "9bb889787e82d8c094339fbd169c96dd436b7cf8dd933a7b84511de28b592b85"
+    },
+    {
+      "file": "local-backend/cpu-oracle.log",
+      "bytes": 480,
+      "sha256": "8e5ffa1fe1b03327ccb85de2e5341d1881162cf5d5c37c177e3010064503d47c"
+    },
+    {
+      "file": "local-backend/cpu-stable-oracle.json",
+      "bytes": 9387,
+      "sha256": "108ec3c32bca2bb6ccd5b1612ac3c6c44b06f7e54e1ffc5189592dea4d151136"
+    },
+    {
+      "file": "local-backend/cpu-stable-oracle.log",
+      "bytes": 1195,
+      "sha256": "ca0a02f8e005e65d8673432aff4a1111c6f762b12c953c600d8ab674cbf718a5"
+    },
+    {
+      "file": "local-backend/manifest.json",
+      "bytes": 4765,
+      "sha256": "b69ecb87f833d4698a98bc2549a4ce428e91a673ea5d2fc5b1dfb3e97cc8d984"
+    },
+    {
+      "file": "local-backend/new-cpu-explicit.json",
+      "bytes": 467,
+      "sha256": "60265ea6809e90d9c34d00b8e35f1e67c50df93c76f9d1e1edbf7b0e31e7b496"
+    },
+    {
+      "file": "local-backend/new-cpu-explicit.log",
+      "bytes": 4131,
+      "sha256": "e51d0cdd1afac656832c3aea5c5bd49b5cb65d84e97e6b1b115e1414800dd21b"
+    },
+    {
+      "file": "local-backend/new-cuda-fallback.json",
+      "bytes": 469,
+      "sha256": "173d317106bd2d93138c4ef1eb96191eca3862770ec732c24ac17d86c8c52a5a"
+    },
+    {
+      "file": "local-backend/new-cuda-fallback.log",
+      "bytes": 4035,
+      "sha256": "53403b319939e3ad870772262c8c50f5c1fd5b7112866581cf7b3df73ac71105"
+    },
+    {
+      "file": "local-backend/new-metal-explicit.json",
+      "bytes": 470,
+      "sha256": "25914b9e51681cfe071cc81c69baad3fd7e4d5d66449ecccc314928be0df16a4"
+    },
+    {
+      "file": "local-backend/new-metal-explicit.log",
+      "bytes": 4037,
+      "sha256": "c5426b0be8081cc6f27968a818ecd9fd0d69e2bba2e21c0d0df1e234a7583109"
+    },
+    {
+      "file": "local-backend/old-cuda-fallback.json",
+      "bytes": 441,
+      "sha256": "0d58475d496e4d2d6980291fb9d3476083997fac252670c6925814b7d241b3cb"
+    },
+    {
+      "file": "local-backend/old-cuda-fallback.log",
+      "bytes": 4336,
+      "sha256": "7f6402384f03fe000a01c2b5abd3d9379e137e4d0392658d88a4e28a33cb24f3"
+    },
+    {
+      "file": "local-backend/source.diff",
+      "bytes": 6951,
+      "sha256": "e7e3b9e8daa522effab7cb6d495ac0317a8353805f2a9ac2a5f9e3bcb5b90717"
+    },
+    {
+      "file": "local-backend/summary.json",
+      "bytes": 4268,
+      "sha256": "532bc1f493d727a41973bad4e1c062cf34c86bba98427815c81597bff9be2370"
+    },
+    {
+      "file": "local-engram-fanout/00.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "local-engram-fanout/01.log",
+      "bytes": 389,
+      "sha256": "812b742b9838773a4f4aafed71463b69fe4608e3776fbfc6be16c9922cd225f0"
+    },
+    {
+      "file": "local-engram-fanout/02.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "local-engram-fanout/03.log",
+      "bytes": 1120,
+      "sha256": "5858795f759ef7faf8fec72f0aa982d4320af5eb8d7540456b3cf150b23b1e3a"
+    },
+    {
+      "file": "local-engram-fanout/04.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "local-engram-fanout/05.log",
+      "bytes": 389,
+      "sha256": "844c680bd7337bd9573ae9d3436a34a5e38bb16951e9a2f8e210a07e23c97931"
+    },
+    {
+      "file": "local-engram-fanout/report.json",
+      "bytes": 2376,
+      "sha256": "ee1a9a98eec1000a21737b58f5127bfa5524c784e6b68c1d8c6ffa3c0b5eb303"
+    },
+    {
+      "file": "local-final-fanout/README.md",
+      "bytes": 962,
+      "sha256": "eaca8b401ccdabc225fd268af6eb2eef3adaafb4e40ea8034e68271e8c568f17"
+    },
+    {
+      "file": "local-final-fanout/audit.json",
+      "bytes": 613,
+      "sha256": "0ff46c91c18bb5060c922c0b6621b9ba6a4973cebd2c2a94d082be0973e226e9"
+    },
+    {
+      "file": "local-final-fanout/build.log",
+      "bytes": 5407,
+      "sha256": "b7ca83a73f33b428f06110f33f54f6fda1140450e41d1343ac91f2b1edc1724f"
+    },
+    {
+      "file": "local-final-fanout/cpu-oracle.json",
+      "bytes": 9387,
+      "sha256": "108ec3c32bca2bb6ccd5b1612ac3c6c44b06f7e54e1ffc5189592dea4d151136"
+    },
+    {
+      "file": "local-final-fanout/cpu-oracle.log",
+      "bytes": 1208,
+      "sha256": "59233926cb673f9fb1bf860d41c2f2ffa1f82ed26fa11b2043dbb10ff9e43529"
+    },
+    {
+      "file": "local-final-fanout/manifest.json",
+      "bytes": 1507,
+      "sha256": "699515f09959f7221024b48b8c07daec91502516ac3c3c5fe54c552e44a3c837"
+    },
+    {
+      "file": "local-final-fanout/run.json",
+      "bytes": 748,
+      "sha256": "61d327e8e5eb94e2b49663cf58a8f445bf968a69bbacd4f843341ed498daa98e"
+    },
+    {
+      "file": "local-final-fanout/summary.json",
+      "bytes": 3633,
+      "sha256": "dcb9451e3c5bbc92b0cd99b7123be41d8a24235141716581aed7e045baae6650"
+    },
+    {
+      "file": "phase1/README.md",
+      "bytes": 3243,
+      "sha256": "e2102cfb806354a709222d57018d64aa10986977589e5793590af48d6d127528"
+    },
+    {
+      "file": "phase1/artifact-manifest.json",
+      "bytes": 3234,
+      "sha256": "01fce1964045cf26bc9e4c75c4f717cd8770bcc1b71e894a2fc6e833b46f1acc"
+    },
+    {
+      "file": "phase1/audit.json",
+      "bytes": 59622,
+      "sha256": "093f06ea9ca2cf6c842182bda1a263faa9537fc05816963fde502169a26cd0cb"
+    },
+    {
+      "file": "phase1/cli-gpu-long-prompt.txt",
+      "bytes": 4951,
+      "sha256": "01798be46bfcf2156a754d49c1547f6d2463b722710ddcb97b2526421bc92e65"
+    },
+    {
+      "file": "phase1/cli-gpu-provenance.json",
+      "bytes": 2091,
+      "sha256": "e6b7336bbcde6f4c388618d64ae7ef4e836660f7c030e7c29f6e8b0bc1f749a6"
+    },
+    {
+      "file": "phase1/deployed-sha256.txt",
+      "bytes": 894,
+      "sha256": "1b2c380e836feb6e8778eb39ce243e6555be39a1eb1c74259a6c1c74b6c1fd31"
+    },
+    {
+      "file": "phase1/engram-io-filesystem.jsonl",
+      "bytes": 10032,
+      "sha256": "06e60253e9daa9a45042e19c58afc15062745596c4a8bc33bf88ae7acc0ed63a"
+    },
+    {
+      "file": "phase1/engram-io-test.log",
+      "bytes": 389,
+      "sha256": "a7b6188d3390f73e821f7d3e9340885a6591891085de4f83673a5fece81eb273"
+    },
+    {
+      "file": "phase1/engram-io-warm-memory.jsonl",
+      "bytes": 1120,
+      "sha256": "a1196b8a8c58cf4ccf48837a191105491b6a1a9bb697231f402dd6d683159d29"
+    },
+    {
+      "file": "phase1/native-decode-build.log",
+      "bytes": 6837,
+      "sha256": "d9098c6b5bba8999d326d2bc0fb0fbeaadd199cc17b7c91a50d6cfb3dccd5917"
+    },
+    {
+      "file": "phase1/sources/ggml_ops_deepseek4.cpp",
+      "bytes": 256294,
+      "sha256": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d"
+    },
+    {
+      "file": "phase1/sources/tests/dsv41_engram_io_bench.cpp",
+      "bytes": 10835,
+      "sha256": "772fef5b26b1cc8ef164701788b944d7e7d5a811bd99f2a0610ac1507fbc3bdb"
+    },
+    {
+      "file": "phase1/sources/tests/dsv41_engram_io_test.cpp",
+      "bytes": 6866,
+      "sha256": "0cb71f52f0304dd172175e0b3c08262c008b300c447a91c4fe1b1ef50bf10ef9"
+    },
+    {
+      "file": "phase1/untraced/audit.json",
+      "bytes": 5661,
+      "sha256": "783447aeec5e7f8d6c23665f5b3c481763da535ca80497b80fa3a3de011de2b6"
+    },
+    {
+      "file": "phase1/untraced/cli-gpu-untraced-input.txt",
+      "bytes": 169,
+      "sha256": "c172d678d12ad13fed7cd80f813eccd68fa3cd701fc34d606ac39543e70d7cee"
+    },
+    {
+      "file": "phase1/untraced/user-after-untraced-gpu.csv.gz",
+      "bytes": 44044,
+      "sha256": "4b9963242c354d3a64822e5ab2887ed834d245cc38965b924607d236f8dfb113"
+    },
+    {
+      "file": "phase1/untraced/user-after-untraced.log",
+      "bytes": 7110,
+      "sha256": "5a95a7baf90a6a179010d577cd50d72d58720ae4dad52b1fb36df4195ff3d721"
+    },
+    {
+      "file": "phase1/user-after-gpu.csv.gz",
+      "bytes": 84444,
+      "sha256": "09ba784f4b6e4c8df997b5cd5c0539e57e93f1023560680b6e704ea2495adb06"
+    },
+    {
+      "file": "phase1/user-after-perf2-clean.txt",
+      "bytes": 6392,
+      "sha256": "b30ff4cf88e60f6328194c8f141c7ef74a4c96d321c05634f9182ea4ba5a10c8"
+    },
+    {
+      "file": "phase1/user-after-perf2.log",
+      "bytes": 26557,
+      "sha256": "7c16285c4569fcc0664cee37f87b09d22352780af462c22765bf02cf8f18e482"
+    },
+    {
+      "file": "phase2-final/README.md",
+      "bytes": 4489,
+      "sha256": "4efec9d8ea1615894081eca972ad2cd161af43637cfcd603e0b60d0389fd05c5"
+    },
+    {
+      "file": "phase2-final/advice-unit-local-checks.json",
+      "bytes": 1705,
+      "sha256": "a06f5a831b2adfc68ac1206d4a3b8c821d7b25393b75ad094feaec9e70f08cec"
+    },
+    {
+      "file": "phase2-final/artifact-manifest.json",
+      "bytes": 4214,
+      "sha256": "9742a3799bfc9a331a53927e0873f8cc3ca5da66e082122441f77f447254fb8c"
+    },
+    {
+      "file": "phase2-final/audit-native.py",
+      "bytes": 6441,
+      "sha256": "f5bcb14c02862975651697358f85917715fe64a20ae3083fa9ba1b43796cfd37"
+    },
+    {
+      "file": "phase2-final/engram-advice-test.log",
+      "bytes": 92,
+      "sha256": "b98ba2e5ae74b00329bed52948301b37823de33bc9fffd6b59e2a68ebe21da1e"
+    },
+    {
+      "file": "phase2-final/final-text-cuda1.json",
+      "bytes": 9398,
+      "sha256": "e62100df101de843738422e1684335baa4182c014b274cb222f5292d38aa8fce"
+    },
+    {
+      "file": "phase2-final/final-text-cuda1.log",
+      "bytes": 56136,
+      "sha256": "9423b81787d176739be89aef9b83ea4d103ca0166121ec89d4deb75e728c7bed"
+    },
+    {
+      "file": "phase2-final/final-vision-cuda1.json",
+      "bytes": 20435,
+      "sha256": "e9cdf3101ab88dfabb71acb1ebb42f1d61aa8ecce5c420b3196e57d3fe76589e"
+    },
+    {
+      "file": "phase2-final/final-vision-cuda1.log",
+      "bytes": 90695,
+      "sha256": "c8c4716b14d0fba83f6f4ca63b1d9850fca10bb4852a984dd5b2e20c0c6c66b1"
+    },
+    {
+      "file": "phase2-final/native-audit.json",
+      "bytes": 7808,
+      "sha256": "8bb53793e1b8f7347f62e39b6ba24a2d5d19db0b8889714fbde3c2199b6b2664"
+    },
+    {
+      "file": "phase2-final/native-final-config-build.log",
+      "bytes": 1709,
+      "sha256": "87e93e80d30afec069ef669e706d702e78d11cd7e816d36a4f88e3a5e8645a53"
+    },
+    {
+      "file": "phase2-final/native-joint-advice-build.log",
+      "bytes": 6837,
+      "sha256": "e3e4d7dd4ba431b63b8eccfa1395a13150bdc33ccc6d31dd937746d7c31a68bf"
+    },
+    {
+      "file": "phase2-final/phase1-vision-cuda1.json",
+      "bytes": 20435,
+      "sha256": "e9cdf3101ab88dfabb71acb1ebb42f1d61aa8ecce5c420b3196e57d3fe76589e"
+    },
+    {
+      "file": "phase2-final/phase1-vision-cuda1.log",
+      "bytes": 90587,
+      "sha256": "2b98cda3c91d2b350b752720396038c75de6bd844ac905129ce667e93f660c3d"
+    },
+    {
+      "file": "phase2-final/qwen-initial-control/README.md",
+      "bytes": 1571,
+      "sha256": "b0f88bcd4f6cc2e06e69faeddc1d85d8176443c05acb04f3b5072b501a5a6aa9"
+    },
+    {
+      "file": "phase2-final/qwen-initial-control/audit.json",
+      "bytes": 3683,
+      "sha256": "6847d60f10489a864332cf8ac8aa4eb152708120f2542b717447b90536e96b3a"
+    },
+    {
+      "file": "phase2-final/qwen-initial-control/cli-gpu-qwen-control-input.txt",
+      "bytes": 150,
+      "sha256": "94f7a9baa3c6981766f931e3fd19999524942b9dfce28131bb27155b4d975912"
+    },
+    {
+      "file": "phase2-final/qwen-initial-control/qwen-after-final.log",
+      "bytes": 5334,
+      "sha256": "4c850e8e72acd81f0fadbff7a7a004afb102241f90422c863314971f7a483c83"
+    },
+    {
+      "file": "phase2-final/qwen-initial-control/qwen-before-final.log",
+      "bytes": 5334,
+      "sha256": "5a9496eb79d466ece3229ea4fec78dd9e6dc59ecec2e915bc6c558f542148b9d"
+    },
+    {
+      "file": "phase2-final/qwen-initial-control/timing-source.json",
+      "bytes": 4409,
+      "sha256": "93e5dee14b1136e112250ab2b1a9fb5fdd7efd1f080c8a3b6280eb16870119a1"
+    },
+    {
+      "file": "phase2-final/sources/CMakeLists.txt",
+      "bytes": 28544,
+      "sha256": "d83ac9e7ff50cf5863619d575881be77fee3423a83d628cf9eaa2b65fc6d8312"
+    },
+    {
+      "file": "phase2-final/sources/dsv41_engram.h",
+      "bytes": 11669,
+      "sha256": "8cfa5923268c8912c4f84a4b1208d5e6ace474f87c27f8048d3e040d916b6bf3"
+    },
+    {
+      "file": "phase2-final/sources/dsv41_engram_advice.h",
+      "bytes": 3514,
+      "sha256": "c4c983453b57b99d2253b240db3d27bb8278ff352c2b4e101aef3355bfc548ce"
+    },
+    {
+      "file": "phase2-final/sources/dsv41_engram_io.h",
+      "bytes": 4544,
+      "sha256": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+    },
+    {
+      "file": "phase2-final/sources/ggml_ops_deepseek4.cpp",
+      "bytes": 259815,
+      "sha256": "8a88f291052a1c734321af904b77207181d9abeb1498de483c574dee2ac27f57"
+    },
+    {
+      "file": "phase2-final/sources/tests/dsv41_engram_advice_test.cpp",
+      "bytes": 9657,
+      "sha256": "eeda64006fdcede8f114ea43c6540e497c3e031eaceabb13f013b2a8f5a24207"
+    },
+    {
+      "file": "sources/dsv41_engram.h",
+      "bytes": 10676,
+      "sha256": "538aa876645dc17330b85e3637baf9ea5b7633d91dad467f2a62fcb28f7ae01a"
+    },
+    {
+      "file": "sources/dsv41_engram_io.h",
+      "bytes": 4544,
+      "sha256": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+    },
+    {
+      "file": "sources/fanout-and-diagnostics.diff",
+      "bytes": 20241,
+      "sha256": "6d4a320364042139ec94984fc02854fa884ce78fb15ee7a29814504d8b5887e4"
+    },
+    {
+      "file": "sources/ggml_ops_deepseek4.cpp",
+      "bytes": 256294,
+      "sha256": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d"
+    },
+    {
+      "file": "sources/tests/dsv41_engram_io_bench.cpp",
+      "bytes": 7840,
+      "sha256": "135f6d264e31fa8ae9c4e05b8135c5bb4da3c8bc533192ab0757300efc7cca7c"
+    },
+    {
+      "file": "sources/tests/dsv41_engram_io_test.cpp",
+      "bytes": 6866,
+      "sha256": "0cb71f52f0304dd172175e0b3c08262c008b300c447a91c4fe1b1ef50bf10ef9"
+    },
+    {
+      "file": "upstream-review/README.md",
+      "bytes": 2048,
+      "sha256": "42ca21dd4f1b4e3dd692e24dda7e8f3c0a7a5705b9fa7c9255756954873c3611"
+    },
+    {
+      "file": "upstream-review/artifact-manifest.json",
+      "bytes": 4069,
+      "sha256": "2940eb721e58075001bea82bf7345cdd0678910561830ca6e8d44fed839e0d95"
+    },
+    {
+      "file": "upstream-review/downloads.json",
+      "bytes": 2192,
+      "sha256": "b0fd58b3704ed0877c9d2ea837274e5f55cf5cb8734b6283b76b010421ab76a0"
+    },
+    {
+      "file": "upstream-review/hf-head.json",
+      "bytes": 11208,
+      "sha256": "dfa54d36705fcefb167245cc5ddad8924f2b344be6a5ce7e3e79ef4b2c158886"
+    },
+    {
+      "file": "upstream-review/hf-patch-README.md",
+      "bytes": 4271,
+      "sha256": "2ed2ec475fba94d18c2d21c855af1d5090ac27a4b98ff27c3f89fc31130f24ed"
+    },
+    {
+      "file": "upstream-review/hf-patch.py",
+      "bytes": 22580,
+      "sha256": "8699042d64765ab4b42f10a773b5903f53756d3aaeb0c147e49d14b9fdc26a28"
+    },
+    {
+      "file": "upstream-review/llama-arch.cpp",
+      "bytes": 82162,
+      "sha256": "ac7a0f75543f8747e777faf49cc0f42011181d6eaed260fb5cd964024d8eee73"
+    },
+    {
+      "file": "upstream-review/llama-head.json",
+      "bytes": 7071,
+      "sha256": "d2b240791e6c39eb0e41fd9fe2e526495a45603e468dc31b46e8a7dd2ab8960e"
+    },
+    {
+      "file": "upstream-review/llama-hf-manifest.json",
+      "bytes": 2221,
+      "sha256": "651da6471fbce4b5a9d349db27e70ab16d1678d8a3fddf41f8c000bae980a1c0"
+    },
+    {
+      "file": "upstream-review/llama-hf-report.json",
+      "bytes": 3431,
+      "sha256": "8c4dfa6d57eff9d3c966ad82dbda6c324dab9b8b93141963347c2e40a0d69f7c"
+    },
+    {
+      "file": "upstream-review/llama-hf-review.md",
+      "bytes": 6478,
+      "sha256": "2107109a931898a95c15704a7b2efb46b356ea586854f78aed451b4aab5697e1"
+    },
+    {
+      "file": "upstream-review/llama-mmap.cpp",
+      "bytes": 27187,
+      "sha256": "3ca6869dfccbdbbafad0802e1a3d7db52174347d36174a982c1a662d7034b9c6"
+    },
+    {
+      "file": "upstream-review/llama-model-loader.cpp",
+      "bytes": 77881,
+      "sha256": "5ef07476310d4678df18a61a6ec0a1ebcbb58c7534ac3c624b9fe0f315a4ab01"
+    },
+    {
+      "file": "upstream-review/python__sglang__kernels__ops__embeddings__engram_gather.py",
+      "bytes": 2634,
+      "sha256": "86ab03bff1767085b5c1c3a22e5ac91bcb646d55a05a80bdcbebc4a761268306"
+    },
+    {
+      "file": "upstream-review/python__sglang__srt__environ.py",
+      "bytes": 99410,
+      "sha256": "27bfe2a3b90c76d8d233fc17d7c46906741c6102208fa3265f5a13b6faaac962"
+    },
+    {
+      "file": "upstream-review/python__sglang__srt__layers__engram.py",
+      "bytes": 38037,
+      "sha256": "e8aba7161f19f0320944dda1aa3608d014620ea808045e810de89bc32d615626"
+    },
+    {
+      "file": "upstream-review/python__sglang__srt__models__deepseek_v4.py",
+      "bytes": 211019,
+      "sha256": "50ea9bfe68d7f77491c8d9211cb1e4707fdbc70d265180e4b71b29d8a244fa35"
+    },
+    {
+      "file": "upstream-review/sglang-head.json",
+      "bytes": 6887,
+      "sha256": "8f3ab2a18230834e7aa7e138eaa46eb0d0bff60c1965b69349b7368ee0702f78"
+    },
+    {
+      "file": "upstream-review/sglang-pr38798.json",
+      "bytes": 56164,
+      "sha256": "1f17005e7de01b74bb05b486ec49b3671640606729194499ce495e61ef04e331"
+    },
+    {
+      "file": "upstream-review/sglang-provenance.json",
+      "bytes": 1867,
+      "sha256": "0968584a553a3f71b39c9c2cb11ffa958d5e5df3333e947e141e8844a6aea5c5"
+    },
+    {
+      "file": "upstream-review/vllm-engram-config.py",
+      "bytes": 3572,
+      "sha256": "e728d89b70fc81d4cbd6a54b2082631a8d56f78634e81ec9eb26deab1639cbbf"
+    },
+    {
+      "file": "upstream-review/vllm-engram.py",
+      "bytes": 38427,
+      "sha256": "ac787367615f7e8f25511ea81cb4286c9a3211fe8d27af08a502bf54ea1244c3"
+    },
+    {
+      "file": "upstream-review/vllm-head.json",
+      "bytes": 83126,
+      "sha256": "2775b639bf02abe445da40cf1d8ee3e6bd7ae9988d8ec512da587681ff5ee97d"
+    },
+    {
+      "file": "upstream-review/vllm-model.py",
+      "bytes": 46137,
+      "sha256": "1f1419b164f62fa9067f63b31d65409023fd0d73c158cf37528ceee76de268b7"
+    },
+    {
+      "file": "upstream-review/vllm-sglang-findings.md",
+      "bytes": 5962,
+      "sha256": "b85c2eed76ada1c3fbf44b7eb7f7cdc2b47f301cc565105a767e15455acc05d3"
+    },
+    {
+      "file": "upstream-review/vllm-sglang-review-provenance.json",
+      "bytes": 3346,
+      "sha256": "8823ca41bf542a5f5bdc1862a7eb9751a4698a8c96397697743dcbed4d183838"
+    }
+  ]
+}

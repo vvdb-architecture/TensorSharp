@@ -1,0 +1,1989 @@
+{
+  "scope": "Diagnostic managed thread-stack sampling, not measured on-CPU time. Raw GC/threading/contention events retained. No kernel/native stack or off-CPU scheduler attribution.",
+  "analysis_complete": true,
+  "target_pid": 148403,
+  "inputs": {
+    "trace": {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.nettrace",
+      "bytes": 6487146,
+      "sha256": "b008b29a225983fe7df6a8fafcd5cb9a030885585d9c087481c0a364b0262f58"
+    },
+    "metadata": {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native-eventpipe.json",
+      "bytes": 2715,
+      "sha256": "8b20b29955afb40e817877f11aa09376f61e1537738df04726b01e995c2ea403"
+    },
+    "requests": {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-final-managed_final-native.json",
+      "bytes": 64816,
+      "sha256": "b95d90b7b0f31c69a387d125ecc005cc8a1d9d9797e021bec333840b0ad07c16"
+    },
+    "parser": {
+      "path": "/private/tmp/deepseek41-reference/trace-analysis/bin/Release/net10.0/Microsoft.Diagnostics.Tracing.TraceEvent.dll",
+      "bytes": 3218504,
+      "sha256": "7ad04f5abbd704e8bd9c7b29f9aeab951f20cdc5d5c8e701f256be52a6e8543e"
+    },
+    "analyzer": {
+      "path": "/private/tmp/deepseek41-reference/trace-analysis/bin/Release/net10.0/trace-analysis.dll",
+      "bytes": 70144,
+      "sha256": "fe90db55466abd0770c049017c68a7ed4312e0fdb859deaef540fc37e92d526f"
+    }
+  },
+  "window": {
+    "start_utc": "2026-09-11T14:42:27.2086572+00:00",
+    "end_utc": "2026-09-11T14:42:29.2513749+00:00",
+    "start_monotonic": 4410556.487387525,
+    "end_monotonic": 4410558.530105198,
+    "anchor": {
+      "Utc": "2026-09-11T14:42:27.194377+00:00",
+      "Monotonic": 4410556.473107235,
+      "Uncertainty": 8.642673492431641E-07
+    },
+    "max_anchor_clock_drift_seconds": 4E-07,
+    "max_anchor_uncertainty_seconds": 9.401701390743256E-07,
+    "alignment_method": "collection_ready UTC plus monotonic delta; no sample-duration to CPU conversion"
+  },
+  "request_windows": [
+    {
+      "Tag": "json-c1-r0-i0",
+      "Concurrency": 1,
+      "Start": "2026-09-11T14:42:27.2096228+00:00",
+      "First": "2026-09-11T14:42:27.2814657+00:00",
+      "End": "2026-09-11T14:42:27.3470874+00:00"
+    },
+    {
+      "Tag": "json-c1-r1-i0",
+      "Concurrency": 1,
+      "Start": "2026-09-11T14:42:27.3610264+00:00",
+      "First": "2026-09-11T14:42:27.4667+00:00",
+      "End": "2026-09-11T14:42:27.5256349+00:00"
+    },
+    {
+      "Tag": "json-c1-r2-i0",
+      "Concurrency": 1,
+      "Start": "2026-09-11T14:42:27.5386841+00:00",
+      "First": "2026-09-11T14:42:27.6078149+00:00",
+      "End": "2026-09-11T14:42:27.6670612+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i0",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:27.6914873+00:00",
+      "First": "2026-09-11T14:42:27.9475535+00:00",
+      "End": "2026-09-11T14:42:28.1742449+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i1",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:27.6930873+00:00",
+      "First": "2026-09-11T14:42:27.8935668+00:00",
+      "End": "2026-09-11T14:42:28.1671815+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i2",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:27.6940959+00:00",
+      "First": "2026-09-11T14:42:27.9480582+00:00",
+      "End": "2026-09-11T14:42:28.1738298+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i3",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:27.6955541+00:00",
+      "First": "2026-09-11T14:42:28.0624315+00:00",
+      "End": "2026-09-11T14:42:28.2433386+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i0",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.25747+00:00",
+      "First": "2026-09-11T14:42:28.5784785+00:00",
+      "End": "2026-09-11T14:42:28.7496963+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i1",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.2588757+00:00",
+      "First": "2026-09-11T14:42:28.6318348+00:00",
+      "End": "2026-09-11T14:42:28.7568483+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i2",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.2601813+00:00",
+      "First": "2026-09-11T14:42:28.6314561+00:00",
+      "End": "2026-09-11T14:42:28.7565063+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i3",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.2616881+00:00",
+      "First": "2026-09-11T14:42:28.653968+00:00",
+      "End": "2026-09-11T14:42:28.7843182+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i0",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.8049533+00:00",
+      "First": "2026-09-11T14:42:29.0465358+00:00",
+      "End": "2026-09-11T14:42:29.234604+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i1",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.8072367+00:00",
+      "First": "2026-09-11T14:42:29.0469321+00:00",
+      "End": "2026-09-11T14:42:29.2349671+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i2",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.8085869+00:00",
+      "First": "2026-09-11T14:42:29.0113311+00:00",
+      "End": "2026-09-11T14:42:29.1576013+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i3",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:28.8103208+00:00",
+      "First": "2026-09-11T14:42:29.0109295+00:00",
+      "End": "2026-09-11T14:42:29.1578719+00:00"
+    }
+  ],
+  "lost_event_callbacks": [],
+  "collection_complete": true,
+  "limitations": [
+    "Per-case sample tallies overlap for concurrent requests; they are temporal correlations, not attribution to a request.",
+    "Unresolved managed/native boundary frames do not reveal native CPU or GPU execution.",
+    "Runtime suspend spans are separated by Reason. SuspendOther includes profiler sampling; GCStart-to-GCStop is not used as pause time.",
+    "Thread and sample counts can vary with runtime sampler scheduling; no exact CPU milliseconds are calculated."
+  ],
+  "thread_metadata": [
+    {
+      "tid": 148405,
+      "thread_index": "0",
+      "name": "Thread (148405)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148540,
+      "thread_index": "1",
+      "name": "Thread (148540)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148403,
+      "thread_index": "2",
+      "name": "Thread (148403)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148477,
+      "thread_index": "3",
+      "name": "Thread (148477)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148478,
+      "thread_index": "4",
+      "name": "Thread (148478)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148479,
+      "thread_index": "5",
+      "name": "Thread (148479)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148516,
+      "thread_index": "6",
+      "name": "Thread (148516)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148480,
+      "thread_index": "7",
+      "name": "Thread (148480)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148481,
+      "thread_index": "8",
+      "name": "Thread (148481)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148482,
+      "thread_index": "9",
+      "name": "Thread (148482)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148488,
+      "thread_index": "10",
+      "name": "Thread (148488)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148489,
+      "thread_index": "11",
+      "name": "Thread (148489)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148490,
+      "thread_index": "12",
+      "name": "Thread (148490)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148491,
+      "thread_index": "13",
+      "name": "Thread (148491)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148492,
+      "thread_index": "14",
+      "name": "Thread (148492) (.NET ThreadPool)",
+      "info": ".NET ThreadPool",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148493,
+      "thread_index": "15",
+      "name": "Thread (148493)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148494,
+      "thread_index": "16",
+      "name": "Thread (148494)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148495,
+      "thread_index": "17",
+      "name": "Thread (148495)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148496,
+      "thread_index": "18",
+      "name": "Thread (148496) (.NET ThreadPool)",
+      "info": ".NET ThreadPool",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148497,
+      "thread_index": "19",
+      "name": "Thread (148497)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148498,
+      "thread_index": "20",
+      "name": "Thread (148498)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148499,
+      "thread_index": "21",
+      "name": "Thread (148499)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148500,
+      "thread_index": "22",
+      "name": "Thread (148500)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148501,
+      "thread_index": "23",
+      "name": "Thread (148501)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148517,
+      "thread_index": "24",
+      "name": "Thread (148517)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148518,
+      "thread_index": "25",
+      "name": "Thread (148518)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148474,
+      "thread_index": "26",
+      "name": "Thread (148474)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148519,
+      "thread_index": "27",
+      "name": "Thread (148519)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148545,
+      "thread_index": "28",
+      "name": "Thread (148545)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148473,
+      "thread_index": "29",
+      "name": "Thread (148473) (.NET Finalizer Thread)",
+      "info": ".NET Finalizer Thread",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148408,
+      "thread_index": "30",
+      "name": "Thread (148408) (.NET Server GC Thread(0))",
+      "info": ".NET Server GC Thread(0)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148415,
+      "thread_index": "31",
+      "name": "Thread (148415) (.NET Server GC Thread(7))",
+      "info": ".NET Server GC Thread(7)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148417,
+      "thread_index": "32",
+      "name": "Thread (148417) (.NET Server GC Thread(9))",
+      "info": ".NET Server GC Thread(9)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148420,
+      "thread_index": "33",
+      "name": "Thread (148420) (.NET Server GC Thread(12))",
+      "info": ".NET Server GC Thread(12)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148421,
+      "thread_index": "34",
+      "name": "Thread (148421) (.NET Server GC Thread(13))",
+      "info": ".NET Server GC Thread(13)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148422,
+      "thread_index": "35",
+      "name": "Thread (148422) (.NET Server GC Thread(14))",
+      "info": ".NET Server GC Thread(14)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148416,
+      "thread_index": "36",
+      "name": "Thread (148416) (.NET Server GC Thread(8))",
+      "info": ".NET Server GC Thread(8)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148418,
+      "thread_index": "37",
+      "name": "Thread (148418) (.NET Server GC Thread(10))",
+      "info": ".NET Server GC Thread(10)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148414,
+      "thread_index": "38",
+      "name": "Thread (148414) (.NET Server GC Thread(6))",
+      "info": ".NET Server GC Thread(6)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148413,
+      "thread_index": "39",
+      "name": "Thread (148413) (.NET Server GC Thread(5))",
+      "info": ".NET Server GC Thread(5)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148419,
+      "thread_index": "40",
+      "name": "Thread (148419) (.NET Server GC Thread(11))",
+      "info": ".NET Server GC Thread(11)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148424,
+      "thread_index": "41",
+      "name": "Thread (148424) (.NET Server GC Thread(16))",
+      "info": ".NET Server GC Thread(16)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148425,
+      "thread_index": "42",
+      "name": "Thread (148425) (.NET Server GC Thread(17))",
+      "info": ".NET Server GC Thread(17)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148410,
+      "thread_index": "43",
+      "name": "Thread (148410) (.NET Server GC Thread(2))",
+      "info": ".NET Server GC Thread(2)",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148411,
+      "thread_index": "44",
+      "name": "Thread (148411)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148423,
+      "thread_index": "45",
+      "name": "Thread (148423)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148409,
+      "thread_index": "46",
+      "name": "Thread (148409)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148412,
+      "thread_index": "47",
+      "name": "Thread (148412)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148483,
+      "thread_index": "48",
+      "name": "Thread (148483)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    },
+    {
+      "tid": 148487,
+      "thread_index": "49",
+      "name": "Thread (148487)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961480427.396
+    }
+  ],
+  "per_thread": [
+    {
+      "tid": 148403,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 0,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148477,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 1,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148478,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1634,
+        "Type=Managed": 14
+      },
+      "stacks": [
+        {
+          "stack_id": 54,
+          "samples": 1258
+        },
+        {
+          "stack_id": 2,
+          "samples": 373
+        },
+        {
+          "stack_id": 60,
+          "samples": 6
+        },
+        {
+          "stack_id": 10,
+          "samples": 2
+        },
+        {
+          "stack_id": 32,
+          "samples": 2
+        },
+        {
+          "stack_id": 98,
+          "samples": 2
+        },
+        {
+          "stack_id": 15,
+          "samples": 1
+        },
+        {
+          "stack_id": 29,
+          "samples": 1
+        },
+        {
+          "stack_id": 65,
+          "samples": 1
+        },
+        {
+          "stack_id": 127,
+          "samples": 1
+        },
+        {
+          "stack_id": 145,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148479,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1635,
+        "Type=Managed": 13
+      },
+      "stacks": [
+        {
+          "stack_id": 3,
+          "samples": 1635
+        },
+        {
+          "stack_id": 12,
+          "samples": 12
+        },
+        {
+          "stack_id": 107,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148516,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1647,
+        "Type=Managed": 1
+      },
+      "stacks": [
+        {
+          "stack_id": 4,
+          "samples": 1647
+        },
+        {
+          "stack_id": 102,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148480,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1633,
+        "Type=Managed": 15
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1635
+        },
+        {
+          "stack_id": 46,
+          "samples": 3
+        },
+        {
+          "stack_id": 16,
+          "samples": 2
+        },
+        {
+          "stack_id": 24,
+          "samples": 1
+        },
+        {
+          "stack_id": 97,
+          "samples": 1
+        },
+        {
+          "stack_id": 99,
+          "samples": 1
+        },
+        {
+          "stack_id": 103,
+          "samples": 1
+        },
+        {
+          "stack_id": 108,
+          "samples": 1
+        },
+        {
+          "stack_id": 68,
+          "samples": 1
+        },
+        {
+          "stack_id": 123,
+          "samples": 1
+        },
+        {
+          "stack_id": 125,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148481,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1647,
+        "Type=Managed": 1
+      },
+      "stacks": [
+        {
+          "stack_id": 6,
+          "samples": 1647
+        },
+        {
+          "stack_id": 104,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148482,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148488,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148489,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148490,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148491,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148492,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1608,
+        "Type=Managed": 40
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1606
+        },
+        {
+          "stack_id": 16,
+          "samples": 14
+        },
+        {
+          "stack_id": 24,
+          "samples": 3
+        },
+        {
+          "stack_id": 55,
+          "samples": 2
+        },
+        {
+          "stack_id": 46,
+          "samples": 2
+        },
+        {
+          "stack_id": 11,
+          "samples": 1
+        },
+        {
+          "stack_id": 13,
+          "samples": 1
+        },
+        {
+          "stack_id": 14,
+          "samples": 1
+        },
+        {
+          "stack_id": 26,
+          "samples": 1
+        },
+        {
+          "stack_id": 28,
+          "samples": 1
+        },
+        {
+          "stack_id": 57,
+          "samples": 1
+        },
+        {
+          "stack_id": 52,
+          "samples": 1
+        },
+        {
+          "stack_id": 100,
+          "samples": 1
+        },
+        {
+          "stack_id": 105,
+          "samples": 1
+        },
+        {
+          "stack_id": 109,
+          "samples": 1
+        },
+        {
+          "stack_id": 121,
+          "samples": 1
+        },
+        {
+          "stack_id": 128,
+          "samples": 1
+        },
+        {
+          "stack_id": 136,
+          "samples": 1
+        },
+        {
+          "stack_id": 138,
+          "samples": 1
+        },
+        {
+          "stack_id": 140,
+          "samples": 1
+        },
+        {
+          "stack_id": 142,
+          "samples": 1
+        },
+        {
+          "stack_id": 143,
+          "samples": 1
+        },
+        {
+          "stack_id": 144,
+          "samples": 1
+        },
+        {
+          "stack_id": 146,
+          "samples": 1
+        },
+        {
+          "stack_id": 148,
+          "samples": 1
+        },
+        {
+          "stack_id": 37,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148493,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1610,
+        "Type=Managed": 38
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1609
+        },
+        {
+          "stack_id": 16,
+          "samples": 14
+        },
+        {
+          "stack_id": 24,
+          "samples": 5
+        },
+        {
+          "stack_id": 139,
+          "samples": 2
+        },
+        {
+          "stack_id": 38,
+          "samples": 1
+        },
+        {
+          "stack_id": 40,
+          "samples": 1
+        },
+        {
+          "stack_id": 56,
+          "samples": 1
+        },
+        {
+          "stack_id": 57,
+          "samples": 1
+        },
+        {
+          "stack_id": 58,
+          "samples": 1
+        },
+        {
+          "stack_id": 61,
+          "samples": 1
+        },
+        {
+          "stack_id": 66,
+          "samples": 1
+        },
+        {
+          "stack_id": 69,
+          "samples": 1
+        },
+        {
+          "stack_id": 46,
+          "samples": 1
+        },
+        {
+          "stack_id": 91,
+          "samples": 1
+        },
+        {
+          "stack_id": 31,
+          "samples": 1
+        },
+        {
+          "stack_id": 124,
+          "samples": 1
+        },
+        {
+          "stack_id": 126,
+          "samples": 1
+        },
+        {
+          "stack_id": 129,
+          "samples": 1
+        },
+        {
+          "stack_id": 133,
+          "samples": 1
+        },
+        {
+          "stack_id": 137,
+          "samples": 1
+        },
+        {
+          "stack_id": 131,
+          "samples": 1
+        },
+        {
+          "stack_id": 154,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148494,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1639,
+        "Type=Managed": 9
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1271
+        },
+        {
+          "stack_id": 5,
+          "samples": 368
+        },
+        {
+          "stack_id": 16,
+          "samples": 3
+        },
+        {
+          "stack_id": 130,
+          "samples": 1
+        },
+        {
+          "stack_id": 134,
+          "samples": 1
+        },
+        {
+          "stack_id": 24,
+          "samples": 1
+        },
+        {
+          "stack_id": 152,
+          "samples": 1
+        },
+        {
+          "stack_id": 56,
+          "samples": 1
+        },
+        {
+          "stack_id": 154,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148495,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148496,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1595,
+        "Type=Managed": 53
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1601
+        },
+        {
+          "stack_id": 16,
+          "samples": 16
+        },
+        {
+          "stack_id": 46,
+          "samples": 4
+        },
+        {
+          "stack_id": 51,
+          "samples": 2
+        },
+        {
+          "stack_id": 24,
+          "samples": 2
+        },
+        {
+          "stack_id": 33,
+          "samples": 1
+        },
+        {
+          "stack_id": 34,
+          "samples": 1
+        },
+        {
+          "stack_id": 35,
+          "samples": 1
+        },
+        {
+          "stack_id": 37,
+          "samples": 1
+        },
+        {
+          "stack_id": 42,
+          "samples": 1
+        },
+        {
+          "stack_id": 43,
+          "samples": 1
+        },
+        {
+          "stack_id": 44,
+          "samples": 1
+        },
+        {
+          "stack_id": 59,
+          "samples": 1
+        },
+        {
+          "stack_id": 62,
+          "samples": 1
+        },
+        {
+          "stack_id": 67,
+          "samples": 1
+        },
+        {
+          "stack_id": 70,
+          "samples": 1
+        },
+        {
+          "stack_id": 49,
+          "samples": 1
+        },
+        {
+          "stack_id": 55,
+          "samples": 1
+        },
+        {
+          "stack_id": 110,
+          "samples": 1
+        },
+        {
+          "stack_id": 112,
+          "samples": 1
+        },
+        {
+          "stack_id": 114,
+          "samples": 1
+        },
+        {
+          "stack_id": 120,
+          "samples": 1
+        },
+        {
+          "stack_id": 126,
+          "samples": 1
+        },
+        {
+          "stack_id": 129,
+          "samples": 1
+        },
+        {
+          "stack_id": 133,
+          "samples": 1
+        },
+        {
+          "stack_id": 137,
+          "samples": 1
+        },
+        {
+          "stack_id": 139,
+          "samples": 1
+        },
+        {
+          "stack_id": 141,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148497,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1622,
+        "Type=Managed": 26
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1621
+        },
+        {
+          "stack_id": 16,
+          "samples": 6
+        },
+        {
+          "stack_id": 46,
+          "samples": 4
+        },
+        {
+          "stack_id": 63,
+          "samples": 1
+        },
+        {
+          "stack_id": 44,
+          "samples": 1
+        },
+        {
+          "stack_id": 92,
+          "samples": 1
+        },
+        {
+          "stack_id": 38,
+          "samples": 1
+        },
+        {
+          "stack_id": 51,
+          "samples": 1
+        },
+        {
+          "stack_id": 118,
+          "samples": 1
+        },
+        {
+          "stack_id": 128,
+          "samples": 1
+        },
+        {
+          "stack_id": 136,
+          "samples": 1
+        },
+        {
+          "stack_id": 138,
+          "samples": 1
+        },
+        {
+          "stack_id": 140,
+          "samples": 1
+        },
+        {
+          "stack_id": 142,
+          "samples": 1
+        },
+        {
+          "stack_id": 143,
+          "samples": 1
+        },
+        {
+          "stack_id": 144,
+          "samples": 1
+        },
+        {
+          "stack_id": 147,
+          "samples": 1
+        },
+        {
+          "stack_id": 149,
+          "samples": 1
+        },
+        {
+          "stack_id": 150,
+          "samples": 1
+        },
+        {
+          "stack_id": 120,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148498,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148499,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1609,
+        "Type=Managed": 39
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1613
+        },
+        {
+          "stack_id": 16,
+          "samples": 13
+        },
+        {
+          "stack_id": 24,
+          "samples": 2
+        },
+        {
+          "stack_id": 46,
+          "samples": 2
+        },
+        {
+          "stack_id": 30,
+          "samples": 1
+        },
+        {
+          "stack_id": 31,
+          "samples": 1
+        },
+        {
+          "stack_id": 39,
+          "samples": 1
+        },
+        {
+          "stack_id": 41,
+          "samples": 1
+        },
+        {
+          "stack_id": 49,
+          "samples": 1
+        },
+        {
+          "stack_id": 50,
+          "samples": 1
+        },
+        {
+          "stack_id": 52,
+          "samples": 1
+        },
+        {
+          "stack_id": 64,
+          "samples": 1
+        },
+        {
+          "stack_id": 68,
+          "samples": 1
+        },
+        {
+          "stack_id": 71,
+          "samples": 1
+        },
+        {
+          "stack_id": 55,
+          "samples": 1
+        },
+        {
+          "stack_id": 93,
+          "samples": 1
+        },
+        {
+          "stack_id": 111,
+          "samples": 1
+        },
+        {
+          "stack_id": 113,
+          "samples": 1
+        },
+        {
+          "stack_id": 115,
+          "samples": 1
+        },
+        {
+          "stack_id": 122,
+          "samples": 1
+        },
+        {
+          "stack_id": 131,
+          "samples": 1
+        },
+        {
+          "stack_id": 153,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148500,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1646,
+        "Type=Managed": 2
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1646
+        },
+        {
+          "stack_id": 132,
+          "samples": 1
+        },
+        {
+          "stack_id": 135,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148501,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1648
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148517,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1644,
+        "Type=Managed": 4
+      },
+      "stacks": [
+        {
+          "stack_id": 8,
+          "samples": 1647
+        },
+        {
+          "stack_id": 106,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148518,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1647,
+        "Type=Managed": 1
+      },
+      "stacks": [
+        {
+          "stack_id": 8,
+          "samples": 1648
+        }
+      ]
+    },
+    {
+      "tid": 148519,
+      "samples": 1648,
+      "missing_stack": 0,
+      "engine_samples": 1648,
+      "sample_types": {
+        "Type=External": 1256,
+        "Type=Managed": 392
+      },
+      "stacks": [
+        {
+          "stack_id": 85,
+          "samples": 429
+        },
+        {
+          "stack_id": 82,
+          "samples": 217
+        },
+        {
+          "stack_id": 22,
+          "samples": 161
+        },
+        {
+          "stack_id": 80,
+          "samples": 129
+        },
+        {
+          "stack_id": 20,
+          "samples": 123
+        },
+        {
+          "stack_id": 9,
+          "samples": 122
+        },
+        {
+          "stack_id": 84,
+          "samples": 74
+        },
+        {
+          "stack_id": 78,
+          "samples": 71
+        },
+        {
+          "stack_id": 81,
+          "samples": 40
+        },
+        {
+          "stack_id": 45,
+          "samples": 38
+        },
+        {
+          "stack_id": 36,
+          "samples": 31
+        },
+        {
+          "stack_id": 18,
+          "samples": 29
+        },
+        {
+          "stack_id": 83,
+          "samples": 27
+        },
+        {
+          "stack_id": 75,
+          "samples": 26
+        },
+        {
+          "stack_id": 95,
+          "samples": 21
+        },
+        {
+          "stack_id": 90,
+          "samples": 19
+        },
+        {
+          "stack_id": 86,
+          "samples": 18
+        },
+        {
+          "stack_id": 19,
+          "samples": 15
+        },
+        {
+          "stack_id": 27,
+          "samples": 10
+        },
+        {
+          "stack_id": 116,
+          "samples": 10
+        },
+        {
+          "stack_id": 25,
+          "samples": 6
+        },
+        {
+          "stack_id": 79,
+          "samples": 5
+        },
+        {
+          "stack_id": 17,
+          "samples": 4
+        },
+        {
+          "stack_id": 21,
+          "samples": 3
+        },
+        {
+          "stack_id": 76,
+          "samples": 2
+        },
+        {
+          "stack_id": 77,
+          "samples": 2
+        },
+        {
+          "stack_id": 87,
+          "samples": 2
+        },
+        {
+          "stack_id": 23,
+          "samples": 1
+        },
+        {
+          "stack_id": 47,
+          "samples": 1
+        },
+        {
+          "stack_id": 48,
+          "samples": 1
+        },
+        {
+          "stack_id": 53,
+          "samples": 1
+        },
+        {
+          "stack_id": 72,
+          "samples": 1
+        },
+        {
+          "stack_id": 73,
+          "samples": 1
+        },
+        {
+          "stack_id": 74,
+          "samples": 1
+        },
+        {
+          "stack_id": 88,
+          "samples": 1
+        },
+        {
+          "stack_id": 89,
+          "samples": 1
+        },
+        {
+          "stack_id": 94,
+          "samples": 1
+        },
+        {
+          "stack_id": 96,
+          "samples": 1
+        },
+        {
+          "stack_id": 117,
+          "samples": 1
+        },
+        {
+          "stack_id": 119,
+          "samples": 1
+        },
+        {
+          "stack_id": 151,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148473,
+      "samples": 1,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=Managed": 1
+      },
+      "stacks": [
+        {
+          "stack_id": 101,
+          "samples": 1
+        }
+      ]
+    }
+  ],
+  "per_request_temporal_sample_counts": {
+    "json-c1-r0-i0": {
+      "before_first_token_all_thread_samples": 1499,
+      "before_first_token_engine_thread_samples": 59,
+      "after_first_token_all_thread_samples": 1301,
+      "after_first_token_engine_thread_samples": 53
+    },
+    "json-c1-r1-i0": {
+      "before_first_token_all_thread_samples": 2175,
+      "before_first_token_engine_thread_samples": 87,
+      "after_first_token_all_thread_samples": 1250,
+      "after_first_token_engine_thread_samples": 50
+    },
+    "json-c1-r2-i0": {
+      "before_first_token_all_thread_samples": 1425,
+      "before_first_token_engine_thread_samples": 57,
+      "after_first_token_all_thread_samples": 1275,
+      "after_first_token_engine_thread_samples": 51
+    },
+    "json-c4-r0-i0": {
+      "before_first_token_all_thread_samples": 5125,
+      "before_first_token_engine_thread_samples": 205,
+      "after_first_token_all_thread_samples": 4655,
+      "after_first_token_engine_thread_samples": 186
+    },
+    "json-c4-r0-i1": {
+      "before_first_token_all_thread_samples": 4000,
+      "before_first_token_engine_thread_samples": 160,
+      "after_first_token_all_thread_samples": 5625,
+      "after_first_token_engine_thread_samples": 225
+    },
+    "json-c4-r0-i2": {
+      "before_first_token_all_thread_samples": 5075,
+      "before_first_token_engine_thread_samples": 203,
+      "after_first_token_all_thread_samples": 4650,
+      "after_first_token_engine_thread_samples": 186
+    },
+    "json-c4-r0-i3": {
+      "before_first_token_all_thread_samples": 7374,
+      "before_first_token_engine_thread_samples": 294,
+      "after_first_token_all_thread_samples": 3751,
+      "after_first_token_engine_thread_samples": 151
+    },
+    "json-c4-r1-i0": {
+      "before_first_token_all_thread_samples": 5351,
+      "before_first_token_engine_thread_samples": 214,
+      "after_first_token_all_thread_samples": 3675,
+      "after_first_token_engine_thread_samples": 147
+    },
+    "json-c4-r1-i1": {
+      "before_first_token_all_thread_samples": 6451,
+      "before_first_token_engine_thread_samples": 258,
+      "after_first_token_all_thread_samples": 2700,
+      "after_first_token_engine_thread_samples": 108
+    },
+    "json-c4-r1-i2": {
+      "before_first_token_all_thread_samples": 6426,
+      "before_first_token_engine_thread_samples": 257,
+      "after_first_token_all_thread_samples": 2700,
+      "after_first_token_engine_thread_samples": 108
+    },
+    "json-c4-r1-i3": {
+      "before_first_token_all_thread_samples": 6876,
+      "before_first_token_engine_thread_samples": 275,
+      "after_first_token_all_thread_samples": 2800,
+      "after_first_token_engine_thread_samples": 112
+    },
+    "json-c4-r2-i0": {
+      "before_first_token_all_thread_samples": 5125,
+      "before_first_token_engine_thread_samples": 205,
+      "after_first_token_all_thread_samples": 4075,
+      "after_first_token_engine_thread_samples": 163
+    },
+    "json-c4-r2-i1": {
+      "before_first_token_all_thread_samples": 5075,
+      "before_first_token_engine_thread_samples": 203,
+      "after_first_token_all_thread_samples": 4075,
+      "after_first_token_engine_thread_samples": 163
+    },
+    "json-c4-r2-i2": {
+      "before_first_token_all_thread_samples": 4300,
+      "before_first_token_engine_thread_samples": 172,
+      "after_first_token_all_thread_samples": 3126,
+      "after_first_token_engine_thread_samples": 125
+    },
+    "json-c4-r2-i3": {
+      "before_first_token_all_thread_samples": 4275,
+      "before_first_token_engine_thread_samples": 171,
+      "after_first_token_all_thread_samples": 3150,
+      "after_first_token_engine_thread_samples": 126
+    }
+  },
+  "session": {
+    "start_utc": "2026-09-11T14:42:27.148Z",
+    "end_utc": "2026-09-11T14:42:29.4140157Z",
+    "duration_ms": 2266.015725,
+    "all_event_count": 74137,
+    "target_events": 74137,
+    "first_target_utc": "2026-09-11T14:42:27.1484927+00:00",
+    "last_target_utc": "2026-09-11T14:42:29.4140157+00:00",
+    "target_sample_count": 41201,
+    "engine_worker_samples": 1648,
+    "first_window_sample_utc": "2026-09-11T14:42:27.2092399+00:00",
+    "last_window_sample_utc": "2026-09-11T14:42:29.2503582+00:00",
+    "missing_stack_samples": 0,
+    "unresolved_frame_samples": 3316,
+    "depth_limit_samples": 0,
+    "has_callstacks": true,
+    "events_lost": 0,
+    "first_time_inversion": "Invalid"
+  },
+  "target_event_counts_full_trace": {
+    "Microsoft-Windows-DotNETRuntime/YieldProcessorMeasurement": 9,
+    "Microsoft-Windows-DotNETRuntime/AppDomainResourceManagement/ThreadCreated": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStart": 1712,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Pause": 5,
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStop": 1712,
+    "Microsoft-DotNETCore-SampleProfiler/Thread/Sample": 42772,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStop": 18,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStart": 1712,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStop": 1712,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThread/Wait": 472,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Sample": 2,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Adjustment": 1,
+    "Microsoft-Windows-DotNETRuntime/Contention/LockCreated": 18,
+    "Microsoft-Windows-DotNETRuntime/Contention/Start": 19,
+    "Microsoft-Windows-DotNETRuntime/Exception/Start": 16,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Start": 16,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Stop": 16,
+    "Microsoft-Windows-DotNETRuntime/Contention/Stop": 19,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Start": 16,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Stop": 16,
+    "Microsoft-Windows-DotNETRuntime/Exception/Stop": 16,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Resume": 4,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStart": 17,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStart": 4,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStop": 4,
+    "Microsoft-Windows-DotNETRuntime/GC/Triggered": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CreateSegment": 9,
+    "Microsoft-Windows-DotNETRuntime/GC/Start": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/CommittedUsage": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/MarkWithType": 126,
+    "Microsoft-Windows-DotNETRuntime/GC/DynamicTraceEvent": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/GlobalHeapHistory": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/PerHeapHistory": 36,
+    "Microsoft-Windows-DotNETRuntime/GC/Stop": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/HeapStats": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/FreeSegment": 26,
+    "Microsoft-DotNETCore-EventPipe/ProcessInfo": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Runtime/Start": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/DCStopInit": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/ILToNativeMapDCStop": 8121,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/DCStopVerbose": 15163,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/ModuleDCStop": 108,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/DomainModuleDCStop": 108,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/AssemblyDCStop": 108,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/AppDomainDCStop": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/GC/SettingsRundown": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/DCStopComplete": 1
+  },
+  "target_event_counts_window": {
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStart": 1650,
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStop": 1650,
+    "Microsoft-DotNETCore-SampleProfiler/Thread/Sample": 41201,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStart": 1650,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStop": 1650,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThread/Wait": 472,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Sample": 2,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Adjustment": 1,
+    "Microsoft-Windows-DotNETRuntime/Contention/LockCreated": 18,
+    "Microsoft-Windows-DotNETRuntime/Contention/Start": 19,
+    "Microsoft-Windows-DotNETRuntime/Exception/Start": 16,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Start": 16,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Stop": 16,
+    "Microsoft-Windows-DotNETRuntime/Contention/Stop": 19,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Start": 16,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Stop": 16,
+    "Microsoft-Windows-DotNETRuntime/Exception/Stop": 16,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Resume": 4,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStart": 17,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStop": 17,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Pause": 4,
+    "Microsoft-Windows-DotNETRuntime/YieldProcessorMeasurement": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStart": 4,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStop": 4,
+    "Microsoft-Windows-DotNETRuntime/GC/Triggered": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CreateSegment": 9,
+    "Microsoft-Windows-DotNETRuntime/GC/Start": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/CommittedUsage": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/MarkWithType": 126,
+    "Microsoft-Windows-DotNETRuntime/GC/DynamicTraceEvent": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/GlobalHeapHistory": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/PerHeapHistory": 36,
+    "Microsoft-Windows-DotNETRuntime/GC/Stop": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/HeapStats": 2,
+    "Microsoft-Windows-DotNETRuntime/GC/FreeSegment": 26
+  },
+  "gc_reason_suspensions": [
+    {
+      "InstanceThread": "0:148408",
+      "Reason": "SuspendForGC",
+      "Start": "2026-09-11T14:42:28.2615681+00:00",
+      "End": "2026-09-11T14:42:28.3024851+00:00",
+      "SpanMilliseconds": 40.917,
+      "WindowOverlapMilliseconds": 40.917
+    },
+    {
+      "InstanceThread": "0:148483",
+      "Reason": "SuspendForGCPrep",
+      "Start": "2026-09-11T14:42:28.4460985+00:00",
+      "End": "2026-09-11T14:42:28.4467614+00:00",
+      "SpanMilliseconds": 0.6629,
+      "WindowOverlapMilliseconds": 0.6629
+    }
+  ],
+  "runtime_suspension_by_reason": [
+    {
+      "reason": "SuspendOther",
+      "count": 1648,
+      "summed_window_overlap_ms": 290.57900000000035,
+      "maximum_span_ms": 41.4188
+    },
+    {
+      "reason": "SuspendForGC",
+      "count": 1,
+      "summed_window_overlap_ms": 40.917,
+      "maximum_span_ms": 40.917
+    },
+    {
+      "reason": "SuspendForGCPrep",
+      "count": 1,
+      "summed_window_overlap_ms": 0.6629,
+      "maximum_span_ms": 0.6629
+    }
+  ],
+  "runtime_suspension_note": "Paired by CLR instance and initiating OS thread; concurrent profiler and GC suspend attempts may overlap. Summed spans are not exclusive stop-the-world time. SuspendOther is not labeled GC (observed sampler cadence).",
+  "runtime_suspension_pairing_issues": [],
+  "integrity_issues": [],
+  "window_integrity_passed": true,
+  "unresolved_stacks_warning": true,
+  "outputs": [
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-final-r3/samples.jsonl",
+      "bytes": 13710125,
+      "sha256": "4ff51d4944cee6e4ba65282aaac49f5b6aff8f045df29954ffe289da843f7077"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-final-r3/runtime-events.jsonl",
+      "bytes": 1796905,
+      "sha256": "79d8811af8b61becb851b6064e605849006cc05441344deade31c10a88a10435"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-final-r3/stacks.json",
+      "bytes": 514252,
+      "sha256": "dea300beccbd948a77d16ace6e549c79c789e47bf3405e0578abba752b17f5e0"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-final-r3/suspensions.json",
+      "bytes": 400235,
+      "sha256": "e2f5c93bf2358b84cf18a065a41906b3314945ab0feeaba3e67eca0f52aead93"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-final-r3/conversion.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

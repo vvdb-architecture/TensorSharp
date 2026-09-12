@@ -1,0 +1,69 @@
+{
+  "scope": "Bounded local synthesis; independent raw-case audit is performed separately. No tests, inference or production changes.",
+  "inputs": [
+    {
+      "path": "/tmp/deepseek41-reference/final-json-performance-r2/run.json",
+      "sha256": "7ba46725c2a73a7131b859855533b09cf864e4f5b6d64ecb494eb6f1eeb16763"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/final-qwen35-json-alternating/run.json",
+      "sha256": "ac4346053850ac62f2b9c6f016fd1f4229025ec06990fff34b8f3fc65472d7bd"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-solo72-final-native-r1/run.json",
+      "sha256": "0256a32cb1594b10c645990f3f0b38af13907cdba27f05583c4f135db717fa0d"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/qwen35-reset-source-review/sources.json",
+      "sha256": "ba905862338106c2e6a1cf8cb65d196f996989846f791d6f7a753c6bd5a51c7a"
+    },
+    {
+      "path": "/tmp/deepseek41-reference/trace-analysis/manifest.json",
+      "sha256": "ed4d79d6258b90a1167481e861082c9fb05b6475060f913d452550c0f90f7336"
+    }
+  ],
+  "retained_latency_observations": [
+    {
+      "stage": "original R2, three solo cases per build, each build native",
+      "qualified": true,
+      "baseline_ttft_ms": 65.0391411036253,
+      "final_ttft_ms": 72.03342206776142
+    },
+    {
+      "stage": "alternating pair1, three solo cases per build, each build native",
+      "qualified": true,
+      "baseline_ttft_ms": 77.2922895848751,
+      "final_ttft_ms": 92.72364061325788
+    },
+    {
+      "stage": "alternating pair2, three solo cases per build, each build native",
+      "qualified": true,
+      "baseline_ttft_ms": 71.53947092592716,
+      "final_ttft_ms": 86.70236356556416
+    },
+    {
+      "stage": "solo72 jobs 0/1, eighteen cases per build, final native fixed",
+      "qualified": true,
+      "baseline_ttft_ms": 67.54043698310852,
+      "final_ttft_ms": 64.3620709888637
+    },
+    {
+      "stage": "solo72 jobs 3/2, eighteen cases per build, final native fixed",
+      "qualified": true,
+      "baseline_ttft_ms": 69.89156268537045,
+      "final_ttft_ms": 65.38190552964807
+    }
+  ],
+  "established": [
+    "All72 latest cases and both whole18 comparisons passed, with final native fixed and observed in all four processes.",
+    "The latest uninstrumented control does not reproduce the earlier solo managed-host penalty.",
+    "Reset/ownership method bodies and relevant Qwen3.5/native source paths are inherited.",
+    "Both profiled outliers included cache-reset residence; no GC-related suspension overlapped six c1 first-token intervals."
+  ],
+  "unresolved": [
+    "The earlier qualified slower final-build observations remain valid historical measurements; they were not fixed by a code change.",
+    "The latest larger fixed-native plan does not isolate every native/build/runtime/cache interaction in the earlier smaller plan.",
+    "Sampled reset residence is not exclusive CPU duration and does not establish the cause of the earlier median gap."
+  ],
+  "recommendation": "No confirmed production correctness defect or reproduced regression mechanism merits a patch now. Keep the frozen release; treat attention-cache preservation and contiguous F32 zero-fill as separate, future optimizations requiring lifecycle and regression evidence."
+}

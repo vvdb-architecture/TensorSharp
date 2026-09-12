@@ -1,0 +1,122 @@
+{
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "companion_sha256": "e7b0debed15706dd2f065879fa62a54f49e5c0472a54fa33d5ff40957f167e0c",
+  "harness_sha256": {
+    "validate_deepseek41_media.py": "e2401cedb88939e2923be60df5d8e89356af8949e07ce860ce729c38699cf87b",
+    "engines.py": "4b8cc36aea1f9be5ea7a3cda9230587bed8b19413371d9f2afb519508ebaac6d",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8",
+    "validate_inference.py": "0ffc6541639616d9b8a73798fee2d5ed48d26e589474a009d4f36a497f951a82"
+  },
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "fixtures": {
+    "sha256": {
+      "ordered-cards.mp4": "7bd626261836db05c66167db95c02cb059b77a5019c2ff981be2c8c8a5789c67",
+      "frame-2.png": "f043c213b4b08a94842cdae897acbb4f5cc8908aab3c5f99f10c8f54bf17c7bc",
+      "frame-1.png": "3c5d04cd6f61635007297c4427f66d638e59f24a319ae03230154726e85258e3",
+      "frame-0.png": "a2e597c35e9299fce55eac8eb3d6306a3cfcb9c7391837bb681b47c39247a92b",
+      "card-1.png": "c1417e2740400aea7d4c54eff13237189d8af5014bd3830d42a506a762a7f920",
+      "card-0.png": "922f16960fb8fa086b6203f4fd212c92e97c165e8b051fbdd0d483f0bc5a0b25"
+    },
+    "cards": [
+      [
+        "4821",
+        "red"
+      ],
+      [
+        "9364",
+        "blue"
+      ]
+    ],
+    "video_codes": [
+      "17",
+      "42",
+      "86"
+    ],
+    "video_seconds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "execution_plan": {
+    "scenarios": [
+      "image_long_context"
+    ],
+    "concurrency": [
+      1
+    ],
+    "expected_cases": 1
+  },
+  "run_complete": true,
+  "scope": "Synthetic OCR, color, optional long text/image context, attachment order, image history and sampled video time labels; no audio validation or broad visual-quality parity.",
+  "waves": [
+    {
+      "scenario": "image_long_context",
+      "concurrency": 1,
+      "passed": 1,
+      "wall_seconds": 21.14083179552108
+    }
+  ],
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-image-long.json",
+  "source_report_sha256": "13f429895ae729f1f5a11e3d9b08248449bb21c5117ae333a7b2d30d2d0fd754",
+  "native_sha256": "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+  "cases": [
+    {
+      "scenario": "image_long_context",
+      "tag": "image_long_context-c1-i0",
+      "status": "ok",
+      "expected": {
+        "code": "4821",
+        "color": "red"
+      },
+      "input_sha256": "7b01500aa09868ade8dc13167f4efb5b46943dc88d703a7473ffb9e62123c537",
+      "wall_seconds": 21.131390516646206,
+      "concurrency": 1,
+      "turns": [
+        {
+          "request_sha256": "8fac03fa6a398f210c7b386abf39dfd909a176a18012dc9ae918c6be5d84434f",
+          "metrics": {
+            "prompt_tokens": 7921,
+            "completion_tokens": 13,
+            "ttft_ms": 20663.87425083667,
+            "prefill_tps": 383.3259873655727,
+            "decode_tps": 27.786864016594972,
+            "total_wall_ms": 21129.27291635424,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"code\": \"4821\", \"color\": \"red\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"code\": \"4821\", \"color\": \"red\"}",
+            "t_start_abs": 4389204.509492947,
+            "t_first_abs": 4389225.173367198,
+            "t_last_abs": 4389225.605225935,
+            "t_end_abs": 4389225.638765863
+          },
+          "expected": {
+            "code": "4821",
+            "color": "red"
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

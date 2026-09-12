@@ -1,0 +1,61 @@
+{
+  "purpose": "DeepSeekV4.1 trained reasoning-end token at existing thinking budget; no full-checkpoint quality claim from managed tests",
+  "environment": "local macOS arm64 .NET10 Release; native builds skipped",
+  "command": "dotnet test InferenceWeb.Tests/InferenceWeb.Tests.csproj -c Release --no-restore -p:TensorSharpSkipGgmlNative=true -p:TensorSharpSkipMlxNative=true -p:TensorSharpSkipCudaNative=true --filter 'Category!=Bench&Requires!=Models&Requires!=Cuda&Requires!=Mlx&Requires!=Video' --logger 'trx;LogFileName=deepseek41-thinking-budget-managed.trx' --results-directory /tmp/dsv41-budget-release-results --verbosity quiet",
+  "counters": {
+    "total": "3416",
+    "executed": "3416",
+    "passed": "3416",
+    "failed": "0",
+    "error": "0",
+    "timeout": "0",
+    "aborted": "0",
+    "inconclusive": "0",
+    "passedButRunAborted": "0",
+    "notRunnable": "0",
+    "notExecuted": "0",
+    "disconnected": "0",
+    "warning": "0",
+    "completed": "0",
+    "inProgress": "0",
+    "pending": "0"
+  },
+  "trx_path": "/tmp/dsv41-budget-release-results/deepseek41-thinking-budget-managed.trx",
+  "trx_sha256": "974d5e30efcd5ccb7adba37b7e1650d0cae88ce0c37545f3be500b0df7104f67",
+  "dedicated_budget_tests": 16,
+  "focused_regression_passed": 331,
+  "debug_full_regression_passed": 3416,
+  "semantics": {
+    "scope": [
+      "deepseek41",
+      "deepseek_v41"
+    ],
+    "default_budget": "existing75percent when max_tokens>=512; TS_THINKING_BUDGET override unchanged",
+    "budget_1536_max2048": "1536 reasoning tokens, one trained closing token, at most511 final tokens",
+    "original_failure_preserved": true,
+    "repetition_guard_unchanged": true,
+    "other_architecture_hard_stop_unchanged": true
+  },
+  "binaries": {
+    "TensorSharp.Runtime.dll": "d853ce1983216159bea66e9276ef91a31f0b157ddd2eef749e701eeb9b6aa229",
+    "TensorSharp.Chat.dll": "dab608dd79e14e0ed1bff82bd75bd6b43c5115df1dd5bc1510ab5338d1a19389"
+  },
+  "test_cases": [
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.NaturalCloseAndRollbackAreCountedFromCommittedHistory",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ParallelRequestsKeepIndependentBudgetAndGrammarState",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.HostInstallsCapabilityOnlyForSupportedThinkingProtocol(architecture: \"deepseek_v41\", budget: 2, expected: True)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.HostInstallsCapabilityOnlyForSupportedThinkingProtocol(architecture: \"qwen35\", budget: 2, expected: False)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ForcedClose_IsForwardedAndActivatesJsonGrammarBeforeAnswer",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.RepetitionGuardStillStopsLoopingReasoningBeforeItsBudget",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ForcedCloseNeverExtendsOriginalMaxTokens(budget: 2, maxTokens: 4, expected: 4)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ForcedCloseOverridesPendingDeviceArgmaxWithoutHostLogits(method: \"TakePendingOrSample\", retainsPending: False)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ForcedCloseNeverExtendsOriginalMaxTokens(budget: 2, maxTokens: 2, expected: 2)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.InvalidEndTokenOrAlreadyActiveGrammarRetainsHardStopFallback",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.HostInstallsCapabilityOnlyForSupportedThinkingProtocol(architecture: \"deepseek41\", budget: 2, expected: True)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.HostInstallsCapabilityOnlyForSupportedThinkingProtocol(architecture: \"deepseek41\", budget: 0, expected: False)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.HostInstallsCapabilityOnlyForSupportedThinkingProtocol(architecture: \"deepseek4\", budget: 2, expected: False)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ForcedCloseOverridesPendingDeviceArgmaxWithoutHostLogits(method: \"PeekPendingOrSample\", retainsPending: True)",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.CancellationDuringForcedTokenForwardDoesNotGenerateFinalAnswer",
+    "InferenceWeb.Tests.DeepSeek41ThinkingBudgetTests.ForcedCloseNeverExtendsOriginalMaxTokens(budget: 2, maxTokens: 3, expected: 3)"
+  ]
+}

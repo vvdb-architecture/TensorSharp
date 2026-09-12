@@ -1,0 +1,72 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final",
+  "phase": "serial-tools",
+  "runner_sha256": "9139670b49d5bbe0c5eb8e818fe50fecbb55ed8a33a38300e410f8470da83375",
+  "execution_plan": {
+    "labels": [
+      "serial-tools"
+    ],
+    "expected_runs": 1
+  },
+  "run_complete": true,
+  "all_passed": true,
+  "runs": [
+    {
+      "label": "serial-tools",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "tool_round_trip,agentic",
+        "--concurrency",
+        "1,4",
+        "--repeats",
+        "1",
+        "--structured-tool-results",
+        "--serial-tool-workflows",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final-serial-tools.json"
+      ],
+      "started_epoch": 1789125509.980486,
+      "wall_seconds": 81.54144501686096,
+      "exit_code": 0,
+      "output": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final-serial-tools.json",
+      "log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final-serial-tools.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe4-cputhreads48-sparse1-compact1-chunk1024-6b3-final-server.log",
+        "byte_start": 640790,
+        "byte_end": 765263,
+        "range_sha256": "5f0c30f58192c2fea510b4a336b1acf7310399d5758fb9865038f1c87160da6c",
+        "prefill_calls": 26,
+        "prefill_tokens": 8279,
+        "prefill_forward_seconds": 40.515,
+        "decode_calls": 1065,
+        "decode_forward_seconds": 37.564,
+        "preemption_lines": []
+      },
+      "child_validation": {
+        "run_complete": true,
+        "expected_cases": 10,
+        "actual_cases": 10,
+        "failed_cases": 0,
+        "all_passed": true,
+        "qualification_status": "complete_passed",
+        "issues": [],
+        "report_sha256": "1f55873d72b3a6ad6d3a7ce361135d096216a0284dbd5b2f631e03e7a5c80ef0"
+      }
+    }
+  ],
+  "children_exit_zero": true
+}

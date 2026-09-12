@@ -1,0 +1,482 @@
+{
+  "scope": "Independent local artifact audit; before/after full-checkpoint VM CLI evidence is pending. No model, benchmark, build or remote command was run by this curator.",
+  "local_artifact_audit_complete": true,
+  "vm_before_after_audited": false,
+  "user_deployment": {
+    "path": "/root/TensorSharp/TensorSharp.Cli/bin",
+    "reported_original_native_sha256": "c68df1f3d0c70269be249c12a9eae9e7e6ae9144e232dda311d4e853c2d048d0",
+    "identity_scope": "Supplied by parent; raw VM identity report pending."
+  },
+  "backend_diagnostics_source": {
+    "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp",
+    "bytes": 256070,
+    "sha256": "4d5688edaf445b9ecc6916183233eb4f2df44838fa677767321b26c0e09d28dd"
+  },
+  "backend_checks": {
+    "old-cuda-fallback": {
+      "backend": "CUDA",
+      "accepted": true,
+      "expected": "accept",
+      "passed": true,
+      "library": "/private/tmp/dsv41-backend-diagnostics/old-metal.dylib",
+      "library_sha256": "b7b46ca7d4571df7f7d6c12ad9096d90c8ed980beb3fbadb4cc9d640e4aac95b",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "new-cuda-fallback": {
+      "backend": "CUDA",
+      "accepted": false,
+      "expected": "reject",
+      "passed": true,
+      "library": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+      "library_sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "new-metal-explicit": {
+      "backend": "Metal",
+      "accepted": false,
+      "expected": "reject",
+      "passed": true,
+      "library": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+      "library_sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    },
+    "new-cpu-explicit": {
+      "backend": "CPU",
+      "accepted": true,
+      "expected": "accept",
+      "passed": true,
+      "library": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.dylib",
+      "library_sha256": "1f8ea374080d41e95e24d3c5a103553a8e6faa33dc59b9f12128bf0b402b8e79",
+      "fixture_sha256": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+      "scope": "Actual native model-load return value and cleanup, no inference and no log-string assertions."
+    }
+  },
+  "oracle_results": [
+    {
+      "name": "cpu-stable-oracle",
+      "passed": 41,
+      "total": 41,
+      "failed_checks": [],
+      "source": {
+        "path": "/tmp/dsv41-backend-diagnostics/cpu-stable-oracle.json",
+        "bytes": 9387,
+        "sha256": "108ec3c32bca2bb6ccd5b1612ac3c6c44b06f7e54e1ffc5189592dea4d151136"
+      }
+    },
+    {
+      "name": "cpu-oracle-before",
+      "passed": 32,
+      "total": 41,
+      "failed_checks": [
+        {
+          "name": "chunk_16_position_16",
+          "max_absolute_error": 8.356571197509766e-05,
+          "relative_l2": 2.649310408742167e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "chunk_1_position_15",
+          "max_absolute_error": 5.555152893066406e-05,
+          "relative_l2": 1.6410702301072888e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "chunk_1_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "chunk_3_position_15",
+          "max_absolute_error": 5.4836273193359375e-05,
+          "relative_l2": 1.6334064639522694e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "chunk_3_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "chunk_5_position_15",
+          "max_absolute_error": 5.4836273193359375e-05,
+          "relative_l2": 1.6334064639522694e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "chunk_5_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_0_position_15",
+          "max_absolute_error": 5.4836273193359375e-05,
+          "relative_l2": 1.6334064639522694e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_0_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        }
+      ],
+      "source": {
+        "path": "/tmp/dsv41-backend-diagnostics/cpu-oracle-before.json",
+        "bytes": 9411,
+        "sha256": "9bb889787e82d8c094339fbd169c96dd436b7cf8dd933a7b84511de28b592b85"
+      }
+    },
+    {
+      "name": "cpu-oracle",
+      "passed": 32,
+      "total": 41,
+      "failed_checks": [
+        {
+          "name": "chunk_16_position_16",
+          "max_absolute_error": 8.356571197509766e-05,
+          "relative_l2": 2.649310408742167e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "chunk_1_position_15",
+          "max_absolute_error": 5.555152893066406e-05,
+          "relative_l2": 1.6410702301072888e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "chunk_1_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "chunk_3_position_15",
+          "max_absolute_error": 5.4836273193359375e-05,
+          "relative_l2": 1.6334064639522694e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "chunk_3_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "chunk_5_position_15",
+          "max_absolute_error": 5.4836273193359375e-05,
+          "relative_l2": 1.6334064639522694e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "chunk_5_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_0_position_15",
+          "max_absolute_error": 5.4836273193359375e-05,
+          "relative_l2": 1.6334064639522694e-05,
+          "argmax": 128,
+          "reference_argmax": 128,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_0_position_16",
+          "max_absolute_error": 8.428096771240234e-05,
+          "relative_l2": 2.6511926989769563e-05,
+          "argmax": 62,
+          "reference_argmax": 62,
+          "passed": false
+        }
+      ],
+      "source": {
+        "path": "/tmp/dsv41-backend-diagnostics/cpu-oracle.json",
+        "bytes": 9411,
+        "sha256": "9bb889787e82d8c094339fbd169c96dd436b7cf8dd933a7b84511de28b592b85"
+      }
+    },
+    {
+      "name": "cpu-f32-oracle",
+      "passed": 35,
+      "total": 41,
+      "failed_checks": [
+        {
+          "name": "chunk_1_position_13",
+          "max_absolute_error": 0.183299720287323,
+          "relative_l2": 0.06304538249969482,
+          "argmax": 134,
+          "reference_argmax": 249,
+          "passed": false
+        },
+        {
+          "name": "reset_other_prompt",
+          "max_absolute_error": 0.009112179279327393,
+          "relative_l2": 0.0037285895086824894,
+          "argmax": 237,
+          "reference_argmax": 237,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_1_position_6",
+          "max_absolute_error": 0.21109232306480408,
+          "relative_l2": 0.06577666848897934,
+          "argmax": 153,
+          "reference_argmax": 153,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_1_position_8",
+          "max_absolute_error": 0.007971882820129395,
+          "relative_l2": 0.00260551692917943,
+          "argmax": 132,
+          "reference_argmax": 132,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_1_position_10",
+          "max_absolute_error": 0.021722227334976196,
+          "relative_l2": 0.007187795825302601,
+          "argmax": 95,
+          "reference_argmax": 95,
+          "passed": false
+        },
+        {
+          "name": "interleaved_slot_1_position_11",
+          "max_absolute_error": 0.009112298488616943,
+          "relative_l2": 0.0037286255974322557,
+          "argmax": 237,
+          "reference_argmax": 237,
+          "passed": false
+        }
+      ],
+      "source": {
+        "path": "/tmp/dsv41-backend-diagnostics/cpu-f32-oracle.json",
+        "bytes": 9366,
+        "sha256": "54c30dd9302c05f3bdd493aa27708b622091da0eb1fe8572f8b525c711f528ad"
+      }
+    }
+  ],
+  "cuda_index_before_after_reports_exactly_equal": true,
+  "fanout_source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp": "0cb71f52f0304dd172175e0b3c08262c008b300c447a91c4fe1b1ef50bf10ef9",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp": "135f6d264e31fa8ae9c4e05b8135c5bb4da3c8bc533192ab0757300efc7cca7c",
+    "TensorSharp.GGML.Native/dsv41_engram_io.h": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec",
+    "TensorSharp.GGML.Native/dsv41_engram.h": "538aa876645dc17330b85e3637baf9ea5b7633d91dad467f2a62fcb28f7ae01a"
+  },
+  "fanout_commands_all_exit_zero": true,
+  "simulated_blocked_rows": [
+    {
+      "log": "01.log",
+      "rows": 24,
+      "threads": 1,
+      "peak": 1,
+      "elapsed_ms": 60.09,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "01.log",
+      "rows": 24,
+      "threads": 16,
+      "peak": 16,
+      "elapsed_ms": 5.06,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "01.log",
+      "rows": 72,
+      "threads": 1,
+      "peak": 1,
+      "elapsed_ms": 179.08,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "01.log",
+      "rows": 72,
+      "threads": 16,
+      "peak": 16,
+      "elapsed_ms": 12.18,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "05.log",
+      "rows": 24,
+      "threads": 1,
+      "peak": 1,
+      "elapsed_ms": 59.13,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "05.log",
+      "rows": 24,
+      "threads": 16,
+      "peak": 16,
+      "elapsed_ms": 5.06,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "05.log",
+      "rows": 72,
+      "threads": 1,
+      "peak": 1,
+      "elapsed_ms": 180.0,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    },
+    {
+      "log": "05.log",
+      "rows": 72,
+      "threads": 16,
+      "peak": 16,
+      "elapsed_ms": 12.15,
+      "scope": "Artificial blocked reads; overlap/bound is the assertion, not a performance threshold."
+    }
+  ],
+  "warm_memory_control": [
+    {
+      "mode": "warm_memory",
+      "tokens": 1,
+      "selected_rows": 24,
+      "head_dim": 256,
+      "threads": 1,
+      "repetitions_per_sample": 200,
+      "exact_output": true,
+      "median_us": 0.375208,
+      "samples_us": [
+        0.375415,
+        0.456665,
+        0.378955,
+        0.37896,
+        0.37646,
+        0.37729,
+        0.37125,
+        0.374165,
+        0.37042,
+        0.375,
+        0.370625,
+        0.37396
+      ]
+    },
+    {
+      "mode": "warm_memory",
+      "tokens": 1,
+      "selected_rows": 24,
+      "head_dim": 256,
+      "threads": 16,
+      "repetitions_per_sample": 200,
+      "exact_output": true,
+      "median_us": 35.247187,
+      "samples_us": [
+        49.646665,
+        40.471875,
+        35.44646,
+        33.92729,
+        35.57625,
+        34.715415,
+        36.20125,
+        32.94375,
+        35.047915,
+        34.37,
+        35.86896,
+        34.437915
+      ]
+    },
+    {
+      "mode": "warm_memory",
+      "tokens": 3,
+      "selected_rows": 72,
+      "head_dim": 256,
+      "threads": 1,
+      "repetitions_per_sample": 200,
+      "exact_output": true,
+      "median_us": 1.14323,
+      "samples_us": [
+        1.13,
+        1.27771,
+        1.213125,
+        1.147085,
+        1.11375,
+        1.18625,
+        1.131455,
+        1.16792,
+        1.115415,
+        1.130625,
+        1.139375,
+        1.172915
+      ]
+    },
+    {
+      "mode": "warm_memory",
+      "tokens": 3,
+      "selected_rows": 72,
+      "head_dim": 256,
+      "threads": 16,
+      "repetitions_per_sample": 200,
+      "exact_output": true,
+      "median_us": 41.234792,
+      "samples_us": [
+        39.97271,
+        38.623545,
+        39.501665,
+        37.99292,
+        37.950205,
+        41.36125,
+        42.44125,
+        41.108335,
+        46.12458,
+        47.622705,
+        47.05875,
+        47.18458
+      ]
+    }
+  ],
+  "limitations": [
+    "Backend tests precede the Engram fanout source change; their full-model oracle results do not validate the later combined source.",
+    "Cached-memory dispatch is slower with 16 workers here; artificial blocking demonstrates overlap only. No universal performance or VM speedup claim.",
+    "Historical model validation native 6b3 and the user original c68d native remain distinct from this local source/test stage.",
+    "Original local setup and strict numerical failures are retained."
+  ],
+  "curator_source": {
+    "path": "/tmp/deepseek41-reference/curate-cli-gpu-local.py",
+    "bytes": 5600,
+    "sha256": "52892c36cb03cdebd1847d9b94de150373bdb064b7d87077957674dc3f8e9fb7"
+  }
+}

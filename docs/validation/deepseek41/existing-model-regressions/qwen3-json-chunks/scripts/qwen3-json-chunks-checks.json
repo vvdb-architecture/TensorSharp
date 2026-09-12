@@ -1,0 +1,107 @@
+{
+  "scope": "Local simulated HTTP/process controls, actual temporary frozen files, retained exactrequest. No model/VM execution or numeric inference.",
+  "runner_source": {
+    "path": "/tmp/deepseek41-reference/run-qwen3-json-chunks.py",
+    "sha256": "b5d3936196c5fe800c4a07e1f3676b06d510db7c3059d8ba8f6eefc2bcb85814",
+    "bytes": 15467
+  },
+  "test_source": {
+    "path": "/tmp/deepseek41-reference/check-qwen3-json-chunks.py",
+    "sha256": "b6f18d72c4de8933e89d430bc1f28d227262c223783ab19205267883cf41402b",
+    "bytes": 12201
+  },
+  "checks": [
+    {
+      "name": "observed-positions-exact-split-256",
+      "passed": true
+    },
+    {
+      "name": "observed-positions-exact-split-76",
+      "passed": true
+    },
+    {
+      "name": "observed-positions-exact-split-64",
+      "passed": true
+    },
+    {
+      "name": "prefill-after-decode-counterexample-rejected",
+      "passed": true
+    },
+    {
+      "name": "empty-trace-is-incomplete",
+      "passed": true
+    },
+    {
+      "name": "wrong-shape-not-inferred-from-env",
+      "passed": true
+    },
+    {
+      "name": "non-solo-trace-rejected",
+      "passed": true
+    },
+    {
+      "name": "pinned-r2-exact-request-and-frozen-files-accepted",
+      "passed": true
+    },
+    {
+      "name": "tamper-rejected-TensorSharp.Runtime.dll",
+      "passed": true
+    },
+    {
+      "name": "tamper-rejected-appsettings.json",
+      "passed": true
+    },
+    {
+      "name": "tamper-rejected-logs/old.jsonl",
+      "passed": true
+    },
+    {
+      "name": "unmeasured-r2-child-tamper-rejected",
+      "passed": true
+    },
+    {
+      "name": "r2-root-tamper-rejected",
+      "passed": true
+    },
+    {
+      "name": "request-mutation-rejected-before-http",
+      "passed": true
+    },
+    {
+      "name": "normal-six-fresh-processes-all-owned-stopped-failures-retained",
+      "passed": true
+    },
+    {
+      "name": "missing_usage-six-fresh-processes-all-owned-stopped-failures-retained",
+      "passed": true
+    },
+    {
+      "name": "execution_exception-six-fresh-processes-all-owned-stopped-failures-retained",
+      "passed": true
+    },
+    {
+      "name": "cleanup_exception-six-fresh-processes-all-owned-stopped-failures-retained",
+      "passed": true
+    },
+    {
+      "name": "source_exception-six-fresh-processes-all-owned-stopped-failures-retained",
+      "passed": true
+    },
+    {
+      "name": "existing-output-rejected-before-launch",
+      "passed": true
+    },
+    {
+      "name": "failed-live-cleanup-retains-marker-through-later-refusal",
+      "passed": true
+    },
+    {
+      "name": "foreign-guard-before-owned-process",
+      "passed": true
+    },
+    {
+      "name": "stop-guard-before-owned-process",
+      "passed": true
+    }
+  ]
+}

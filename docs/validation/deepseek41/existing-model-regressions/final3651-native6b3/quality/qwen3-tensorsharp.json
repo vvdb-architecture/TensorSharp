@@ -1,0 +1,2672 @@
+{
+  "format_version": 2,
+  "engine": "tensorsharp",
+  "model": "qwen3",
+  "weights_id": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+  "weights": {
+    "path": "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "bytes": 639446688,
+    "mtime_ns": 1789100913000000000,
+    "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+    "hash_origin": {
+      "cached_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/qwen3-weights.json",
+        "sha256": "b770735d67c06ea1035158091ae9dfe91f763a4af9768b510ba8feff334859c0",
+        "bytes": 208
+      },
+      "validation": "Matching path, byte size and nanosecond mtime; earlier content SHA reused."
+    }
+  },
+  "profile": "gpu7-context8192-slots4-batch256-f16",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "launch": [
+    "/workspace/deepseek41-work/dotnet/dotnet",
+    "/workspace/deepseek41-work/regression-final3651-native6b3/TensorSharp.Server.Host/bin/TensorSharp.Server.Host.dll",
+    "--model",
+    "/workspace/models/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+    "--backend",
+    "ggml_cuda",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5011",
+    "--max-tokens",
+    "1024",
+    "--kv-cache-dtype",
+    "f16",
+    "--no-spec",
+    "--no-prefix-cache",
+    "--no-webui",
+    "--prefill-chunk-size",
+    "256"
+  ],
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": "7",
+    "MAX_CONTEXT": "8192",
+    "KV_CACHE_DTYPE": "f16",
+    "TS_SCHED_MAX_BATCHED_TOKENS": "256",
+    "TS_SCHED_MAX_RUNNING_SEQS": "4",
+    "TS_SCHED_PREFILL_CHUNK": "256",
+    "TS_SCHED_SOLO_PREFILL_CHUNK": "256",
+    "TS_SCHED_PREFIX_CACHE": "0",
+    "TS_SCHED_STOP_REPETITION": "0",
+    "OMP_NUM_THREADS": "4",
+    "TS_GGML_CPU_THREADS": "4"
+  },
+  "timings_qualified_for_comparison": false,
+  "measurement_note": "Correctness rerun only. Unicode is separate new coverage, not included in historical75 comparison.",
+  "structured_tool_results": false,
+  "serial_tool_workflows": false,
+  "max_tokens_override": null,
+  "run_complete": true,
+  "execution_plan": {
+    "scenarios": [
+      "short",
+      "decode",
+      "json",
+      "multi_turn",
+      "tool_round_trip"
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 1,
+    "expected_cases": 25
+  },
+  "status": "fail",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "b54975f2822e45dd9bf9db2c0daba69430ef998af22384cf80fce83e70cb3e97",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c1-r0-i0]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 37,
+            "completion_tokens": 12,
+            "ttft_ms": 286.29343304783106,
+            "prefill_tps": 129.2380324833312,
+            "decode_tps": 86.96794477599302,
+            "total_wall_ms": 418.4604249894619,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n17 + 25 = 42."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n17 + 25 = 42.",
+            "t_start_abs": 4406262.347702419,
+            "t_first_abs": 4406262.633995852,
+            "t_last_abs": 4406262.760479237,
+            "t_end_abs": 4406262.766162844
+          }
+        }
+      ],
+      "validated_content": "\n\n17 + 25 = 42.",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 418.6912979930639,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "263a7e4e0e46e35d2c8e8e12805befe3385ce70b4f0beccee5e755004fb7da93",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i0]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 37,
+            "completion_tokens": 12,
+            "ttft_ms": 2389.5871052518487,
+            "prefill_tps": 15.483846526741452,
+            "decode_tps": 18.556854337599397,
+            "total_wall_ms": 3003.795159049332,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n17 + 25 = 42."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n17 + 25 = 42.",
+            "t_start_abs": 4406262.776792791,
+            "t_first_abs": 4406265.166379896,
+            "t_last_abs": 4406265.759152777,
+            "t_end_abs": 4406265.78058795
+          }
+        }
+      ],
+      "validated_content": "\n\n17 + 25 = 42.",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 3004.0062461048365,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "9871e19e4cac0622ca626ce06890e1a53424a0863bf19dc07ea6c63dbde17ef3",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i1]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 37,
+            "completion_tokens": 12,
+            "ttft_ms": 2707.6356569305062,
+            "prefill_tps": 13.665058629765872,
+            "decode_tps": 37.48323694830416,
+            "total_wall_ms": 3096.4221777394414,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n17 + 25 = 42."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n17 + 25 = 42.",
+            "t_start_abs": 4406262.778416078,
+            "t_first_abs": 4406265.486051735,
+            "t_last_abs": 4406265.779516251,
+            "t_end_abs": 4406265.874838255
+          }
+        }
+      ],
+      "validated_content": "\n\n17 + 25 = 42.",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 3096.6448076069355,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "27971c3bcb4341abaa0223bc4db729758031ef6c6a2a978827e88deed1bf232b",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i2]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 37,
+            "completion_tokens": 11,
+            "ttft_ms": 2705.8890825137496,
+            "prefill_tps": 13.673879036322987,
+            "decode_tps": 36.61688481851304,
+            "total_wall_ms": 2999.566277489066,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n17 + 25 = 42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n17 + 25 = 42",
+            "t_start_abs": 4406262.780532509,
+            "t_first_abs": 4406265.486421592,
+            "t_last_abs": 4406265.759519646,
+            "t_end_abs": 4406265.780098787
+          }
+        }
+      ],
+      "validated_content": "\n\n17 + 25 = 42",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 2999.799600802362,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "ed889e788f79210f28a803f9b6b9b1c488f493d97d533fbbd689e2a00ff3dee3",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation short-c4-r0-i3]\nWhat is 17 + 25? Reply with only the integer."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 37,
+            "completion_tokens": 12,
+            "ttft_ms": 2702.7366710826755,
+            "prefill_tps": 13.6898279421274,
+            "decode_tps": 37.45015584187134,
+            "total_wall_ms": 3091.2466133013368,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n17 + 25 = 42."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n17 + 25 = 42.",
+            "t_start_abs": 4406262.782898904,
+            "t_first_abs": 4406265.485635575,
+            "t_last_abs": 4406265.779359319,
+            "t_end_abs": 4406265.874145517
+          }
+        }
+      ],
+      "validated_content": "\n\n17 + 25 = 42.",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 3091.536278836429,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "ba480b8f0c6e6eb615210d1d02217841c81480a1dc9c378b33b875e5999c54b8",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c1-r0-i0]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 50,
+            "completion_tokens": 512,
+            "ttft_ms": 322.61824049055576,
+            "prefill_tps": 154.98193754938566,
+            "decode_tps": 177.8037178908658,
+            "total_wall_ms": 3197.9506937786937,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored at that index.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used if a collision occurs.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new ones.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision handling**, and **resizing**. The **average-case complexity** is **O(1)** for lookups, insertions, and deletions. However, in the worst case, it can be **O(1)** if the hash function is perfectly distributed, or **O(n)** if there are many collisions.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert key-value pairs\ninsert(\"apple\", 10)\ninsert(\"banana\", 20)\ninsert(\"orange\", 30)\n\n# Look up the value\nvalue = hash"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored at that index.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used if a collision occurs.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new ones.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision handling**, and **resizing**. The **average-case complexity** is **O(1)** for lookups, insertions, and deletions. However, in the worst case, it can be **O(1)** if the hash function is perfectly distributed, or **O(n)** if there are many collisions.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert key-value pairs\ninsert(\"apple\", 10)\ninsert(\"banana\", 20)\ninsert(\"orange\", 30)\n\n# Look up the value\nvalue = hash",
+            "t_start_abs": 4406265.891603731,
+            "t_first_abs": 4406266.214221971,
+            "t_last_abs": 4406269.088177623,
+            "t_end_abs": 4406269.089554424
+          }
+        }
+      ],
+      "validated_content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored at that index.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used if a collision occurs.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new ones.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision handling**, and **resizing**. The **average-case complexity** is **O(1)** for lookups, insertions, and deletions. However, in the worst case, it can be **O(1)** if the hash function is perfectly distributed, or **O(n)** if there are many collisions.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert key-value pairs\ninsert(\"apple\", 10)\ninsert(\"banana\", 20)\ninsert(\"orange\", 30)\n\n# Look up the value\nvalue = hash",
+      "total_wall_ms": 3198.4951607882977,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "df110cfc1f3a1310926a1e55319c338cbc2271dc644f6e758e8348ec254396d3",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i0]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 50,
+            "completion_tokens": 512,
+            "ttft_ms": 2947.190223261714,
+            "prefill_tps": 16.96531143641757,
+            "decode_tps": 38.776392720369884,
+            "total_wall_ms": 16126.422630622983,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored at that index.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used to find the next bucket.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new values.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision handling**, and **resizing**. The **average-case complexity** is **O(1)** for lookups, insertions, and deletions. However, in the worst case, it can be **O(1)** if the hash function is perfectly distributed, or **O(n)** if there are many collisions.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert elements\nhash_table[0] = \"apple\"\nhash_table[1] = \"banana\"\nhash_table[2] = \"cherry\"\n\n# Look up an element\n"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored at that index.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used to find the next bucket.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new values.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision handling**, and **resizing**. The **average-case complexity** is **O(1)** for lookups, insertions, and deletions. However, in the worst case, it can be **O(1)** if the hash function is perfectly distributed, or **O(n)** if there are many collisions.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert elements\nhash_table[0] = \"apple\"\nhash_table[1] = \"banana\"\nhash_table[2] = \"cherry\"\n\n# Look up an element\n",
+            "t_start_abs": 4406269.10306664,
+            "t_first_abs": 4406272.050256863,
+            "t_last_abs": 4406285.228377987,
+            "t_end_abs": 4406285.229489271
+          }
+        }
+      ],
+      "validated_content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored at that index.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used to find the next bucket.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new values.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision handling**, and **resizing**. The **average-case complexity** is **O(1)** for lookups, insertions, and deletions. However, in the worst case, it can be **O(1)** if the hash function is perfectly distributed, or **O(n)** if there are many collisions.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert elements\nhash_table[0] = \"apple\"\nhash_table[1] = \"banana\"\nhash_table[2] = \"cherry\"\n\n# Look up an element\n",
+      "total_wall_ms": 16126.95184443146,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "4b243c3e75f87fe09595b442d5ebe30001af7bacfbae762cdc64905d4eea0950",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i1]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 50,
+            "completion_tokens": 512,
+            "ttft_ms": 3409.9464770406485,
+            "prefill_tps": 14.66298674675766,
+            "decode_tps": 39.745797846515984,
+            "total_wall_ms": 16270.92982083559,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored in the bucket.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used to find the next bucket.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new ones.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision resolution**, and **resizing**. The average complexity for **insertion** and **deletion** is **O(1)**, **O(1)**, and **O(1)**, respectively. However, in the worst case, it can be **O(n)** if all elements are in the same bucket.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert elements\ninsert(\"apple\", 10)\ninsert(\"banana\", 20)\ninsert(\"orange\", 30)\n\n# Access elements\nprint(hash_table[1"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored in the bucket.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used to find the next bucket.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new ones.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision resolution**, and **resizing**. The average complexity for **insertion** and **deletion** is **O(1)**, **O(1)**, and **O(1)**, respectively. However, in the worst case, it can be **O(n)** if all elements are in the same bucket.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert elements\ninsert(\"apple\", 10)\ninsert(\"banana\", 20)\ninsert(\"orange\", 30)\n\n# Access elements\nprint(hash_table[1",
+            "t_start_abs": 4406269.104660947,
+            "t_first_abs": 4406272.514607424,
+            "t_last_abs": 4406285.371312477,
+            "t_end_abs": 4406285.375590768
+          }
+        }
+      ],
+      "validated_content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to reduce the number of possible keys and allow for fast access and updates.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of indices) where elements are stored. Each bucket is a list or array that stores a value. The hash function maps a key to an index in the array, and the value is stored in the bucket.\n\n#### **1. Collision**\nWhen two keys map to the same index (i.e., they are in the same bucket), this is called a **collision**. There are several types of collisions:\n\n- **Direct Hashing**: The key is directly mapped to an index.\n- **Linear Probing**: The next index is used to find the next bucket.\n- **Quadratic Probing**: The index is determined by a quadratic function.\n- **Dense Hashing**: The hash function is designed to avoid collisions.\n\n---\n\n#### 2. Resizing\nWhen the number of elements exceeds the capacity of the hash table, the table is **resized**. This means the table is **replaced** with a larger array. The resizing process involves:\n\n- Reallocating the array.\n- Replacing the old elements with the new ones.\n- Replacing the old bucket indices with the new ones.\n\nThis process is efficient and allows the hash table to handle large amounts of data.\n\n---\n\n#### 3. Complexity\nThe **complexity** of a hash table depends on the **hash function**, **collision resolution**, and **resizing**. The average complexity for **insertion** and **deletion** is **O(1)**, **O(1)**, and **O(1)**, respectively. However, in the worst case, it can be **O(n)** if all elements are in the same bucket.\n\n---\n\n### **Worked Example: Hash Table with Direct Hashing**\n\nLet’s create a simple hash table using a list as the data structure.\n\n```python\nhash_table = [None] * 10  # Capacity is 10\n\n# Insert elements\ninsert(\"apple\", 10)\ninsert(\"banana\", 20)\ninsert(\"orange\", 30)\n\n# Access elements\nprint(hash_table[1",
+      "total_wall_ms": 16271.114154718816,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "75904718fb0f0dbb4230c3ffe70245ebe098c554ae64417c6fbe7988ae06b850",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i2]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 50,
+            "completion_tokens": 512,
+            "ttft_ms": 3407.957661896944,
+            "prefill_tps": 14.671543769170214,
+            "decode_tps": 39.743888059910276,
+            "total_wall_ms": 16266.37393143028,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to minimize the number of collisions (i.e., when two keys map to the same index) and to manage the storage efficiently.\n\n---\n\n### **How a Hash Table Works**\n\n1. **Key Mapping**:\n   - A hash function is used to compute an index (or \"slot\") for a key.\n   - For example, if a key is `key1`, the hash function might return an index `i`, and the value is stored at that index.\n\n2. **Collision Handling**:\n   - When two keys map to the same index (i.e., a **collision**), the hash table must handle this situation.\n   - There are several methods to handle collisions:\n     - **Separate Chaining**: Each index contains a list of values.\n     - **Doubly Linked Lists**: Each index contains a doubly linked list of values.\n     - **Open Addressing**: The hash table is resized dynamically, and the next available index is used.\n     - **Address Space**: The hash table uses a fixed-size array, and when the array is full, it is resized.\n\n3. **Resizing**:\n   - When the hash table is full (i.e., the number of elements exceeds the size of the array), the table is **resized**.\n   - The resizing process involves:\n     - Reallocating the array.\n     - Replacing the old elements with new ones.\n     - Replacing the old indices with the new ones.\n\n4. **Complexity**:\n   - **Insertion**: O(1) or O(log n) time depending on the collision handling method.\n   - **Lookup**: O(1) or O(log n) time.\n   - **Deletion**: O(1) or O(log n) time.\n\n---\n\n### **Worked Example: Hash Table with Separate Chaining**\n\nLet’s consider a simple hash table implemented with **separate chaining**.\n\n```python\nclass HashTable:\n    def __init__(self, size):\n        self.size = size\n        self.table = [[] for _ in range(size)]\n\n    def insert(self, key):\n        index = hash(key) % self.size  # Compute hash\n        self.table[index].append(key)\n\n    def get"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to minimize the number of collisions (i.e., when two keys map to the same index) and to manage the storage efficiently.\n\n---\n\n### **How a Hash Table Works**\n\n1. **Key Mapping**:\n   - A hash function is used to compute an index (or \"slot\") for a key.\n   - For example, if a key is `key1`, the hash function might return an index `i`, and the value is stored at that index.\n\n2. **Collision Handling**:\n   - When two keys map to the same index (i.e., a **collision**), the hash table must handle this situation.\n   - There are several methods to handle collisions:\n     - **Separate Chaining**: Each index contains a list of values.\n     - **Doubly Linked Lists**: Each index contains a doubly linked list of values.\n     - **Open Addressing**: The hash table is resized dynamically, and the next available index is used.\n     - **Address Space**: The hash table uses a fixed-size array, and when the array is full, it is resized.\n\n3. **Resizing**:\n   - When the hash table is full (i.e., the number of elements exceeds the size of the array), the table is **resized**.\n   - The resizing process involves:\n     - Reallocating the array.\n     - Replacing the old elements with new ones.\n     - Replacing the old indices with the new ones.\n\n4. **Complexity**:\n   - **Insertion**: O(1) or O(log n) time depending on the collision handling method.\n   - **Lookup**: O(1) or O(log n) time.\n   - **Deletion**: O(1) or O(log n) time.\n\n---\n\n### **Worked Example: Hash Table with Separate Chaining**\n\nLet’s consider a simple hash table implemented with **separate chaining**.\n\n```python\nclass HashTable:\n    def __init__(self, size):\n        self.size = size\n        self.table = [[] for _ in range(size)]\n\n    def insert(self, key):\n        index = hash(key) % self.size  # Compute hash\n        self.table[index].append(key)\n\n    def get",
+            "t_start_abs": 4406269.106133275,
+            "t_first_abs": 4406272.514090937,
+            "t_last_abs": 4406285.371413784,
+            "t_end_abs": 4406285.372507206
+          }
+        }
+      ],
+      "validated_content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of elements. It works by mapping keys to **indices** (or values) using a **hash function**, and the **index** is used to access the stored value. The key idea is to minimize the number of collisions (i.e., when two keys map to the same index) and to manage the storage efficiently.\n\n---\n\n### **How a Hash Table Works**\n\n1. **Key Mapping**:\n   - A hash function is used to compute an index (or \"slot\") for a key.\n   - For example, if a key is `key1`, the hash function might return an index `i`, and the value is stored at that index.\n\n2. **Collision Handling**:\n   - When two keys map to the same index (i.e., a **collision**), the hash table must handle this situation.\n   - There are several methods to handle collisions:\n     - **Separate Chaining**: Each index contains a list of values.\n     - **Doubly Linked Lists**: Each index contains a doubly linked list of values.\n     - **Open Addressing**: The hash table is resized dynamically, and the next available index is used.\n     - **Address Space**: The hash table uses a fixed-size array, and when the array is full, it is resized.\n\n3. **Resizing**:\n   - When the hash table is full (i.e., the number of elements exceeds the size of the array), the table is **resized**.\n   - The resizing process involves:\n     - Reallocating the array.\n     - Replacing the old elements with new ones.\n     - Replacing the old indices with the new ones.\n\n4. **Complexity**:\n   - **Insertion**: O(1) or O(log n) time depending on the collision handling method.\n   - **Lookup**: O(1) or O(log n) time.\n   - **Deletion**: O(1) or O(log n) time.\n\n---\n\n### **Worked Example: Hash Table with Separate Chaining**\n\nLet’s consider a simple hash table implemented with **separate chaining**.\n\n```python\nclass HashTable:\n    def __init__(self, size):\n        self.size = size\n        self.table = [[] for _ in range(size)]\n\n    def insert(self, key):\n        index = hash(key) % self.size  # Compute hash\n        self.table[index].append(key)\n\n    def get",
+      "total_wall_ms": 16266.685219481587,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "b9b3b56ba2e0ca4fe51cf8a17e914ef60ebbf8d32bdfbea0d52eac447c63a018",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation decode-c4-r0-i3]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 512,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 50,
+            "completion_tokens": 512,
+            "ttft_ms": 3407.8342439606786,
+            "prefill_tps": 14.6720751129869,
+            "decode_tps": 39.74779617730042,
+            "total_wall_ms": 16264.502384699881,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of data. It works by mapping keys to values using a **hash function**, which converts the key into a unique index (or a value) that corresponds to a specific location in the table. This index is used to access the value stored at that location.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of locations in the table). Each bucket stores a **value** corresponding to a key. The hash function maps the key to a bucket index, and the table is accessed in constant time (O(1)).\n\n---\n\n### **Collision**\n\n**Collision** occurs when two different keys map to the same bucket index. This is a common issue in hash tables. There are several types of collisions:\n\n1. **Direct Hashing**: The key is directly mapped to a bucket index.\n2. **Linear Probing**: The next bucket is checked in order until a free spot is found.\n3. **Quadratic Probing**: The next bucket is checked in a sequence of squares, which is faster than linear probing.\n4. **Doubly Linked Lists**: This is used for better performance in cases of multiple collisions, but it is less common in modern implementations.\n\n---\n\n### **Resizing**\n\nWhen the table is full (i.e., all buckets are occupied), the table **resizes** to increase its size. This is done by **reallocating the buckets** and **recomputing the hash values** for all keys. The resizing process is efficient and ensures that the table remains balanced.\n\n---\n\n### **Complexity**\n\n- **Insertion**: O(1) or O(1) with resizing.\n- **Search**: O(1) or O(1) with resizing.\n- **Deletion**: O(1) or O(1) with resizing.\n\n---\n\n### **Worked Example**\n\nLet’s create a simple hash table with the following properties:\n\n- **Size**: 10\n- **Hash Function**: `key % 10`\n- **Collision Handling**: Linear probing\n\n#### **Step 1: Initialize the Hash Table**\n\n```python\nhash_table = [None] * 10\n```\n\n#### **Step 2: Insert a Key**\n\nSuppose we want to insert the key `5`.\n\n- `5 % 10 = 5`, so the bucket index is 5.\n- Insert `5` into the bucket"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of data. It works by mapping keys to values using a **hash function**, which converts the key into a unique index (or a value) that corresponds to a specific location in the table. This index is used to access the value stored at that location.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of locations in the table). Each bucket stores a **value** corresponding to a key. The hash function maps the key to a bucket index, and the table is accessed in constant time (O(1)).\n\n---\n\n### **Collision**\n\n**Collision** occurs when two different keys map to the same bucket index. This is a common issue in hash tables. There are several types of collisions:\n\n1. **Direct Hashing**: The key is directly mapped to a bucket index.\n2. **Linear Probing**: The next bucket is checked in order until a free spot is found.\n3. **Quadratic Probing**: The next bucket is checked in a sequence of squares, which is faster than linear probing.\n4. **Doubly Linked Lists**: This is used for better performance in cases of multiple collisions, but it is less common in modern implementations.\n\n---\n\n### **Resizing**\n\nWhen the table is full (i.e., all buckets are occupied), the table **resizes** to increase its size. This is done by **reallocating the buckets** and **recomputing the hash values** for all keys. The resizing process is efficient and ensures that the table remains balanced.\n\n---\n\n### **Complexity**\n\n- **Insertion**: O(1) or O(1) with resizing.\n- **Search**: O(1) or O(1) with resizing.\n- **Deletion**: O(1) or O(1) with resizing.\n\n---\n\n### **Worked Example**\n\nLet’s create a simple hash table with the following properties:\n\n- **Size**: 10\n- **Hash Function**: `key % 10`\n- **Collision Handling**: Linear probing\n\n#### **Step 1: Initialize the Hash Table**\n\n```python\nhash_table = [None] * 10\n```\n\n#### **Step 2: Insert a Key**\n\nSuppose we want to insert the key `5`.\n\n- `5 % 10 = 5`, so the bucket index is 5.\n- Insert `5` into the bucket",
+            "t_start_abs": 4406269.107263663,
+            "t_first_abs": 4406272.515097907,
+            "t_last_abs": 4406285.371156585,
+            "t_end_abs": 4406285.371766048
+          }
+        }
+      ],
+      "validated_content": "\n\nA **hash table** is a data structure that allows for **efficient storage and lookup** of data. It works by mapping keys to values using a **hash function**, which converts the key into a unique index (or a value) that corresponds to a specific location in the table. This index is used to access the value stored at that location.\n\n---\n\n### **How a Hash Table Works**\n\nA hash table typically consists of a **bucket** (a group of locations in the table). Each bucket stores a **value** corresponding to a key. The hash function maps the key to a bucket index, and the table is accessed in constant time (O(1)).\n\n---\n\n### **Collision**\n\n**Collision** occurs when two different keys map to the same bucket index. This is a common issue in hash tables. There are several types of collisions:\n\n1. **Direct Hashing**: The key is directly mapped to a bucket index.\n2. **Linear Probing**: The next bucket is checked in order until a free spot is found.\n3. **Quadratic Probing**: The next bucket is checked in a sequence of squares, which is faster than linear probing.\n4. **Doubly Linked Lists**: This is used for better performance in cases of multiple collisions, but it is less common in modern implementations.\n\n---\n\n### **Resizing**\n\nWhen the table is full (i.e., all buckets are occupied), the table **resizes** to increase its size. This is done by **reallocating the buckets** and **recomputing the hash values** for all keys. The resizing process is efficient and ensures that the table remains balanced.\n\n---\n\n### **Complexity**\n\n- **Insertion**: O(1) or O(1) with resizing.\n- **Search**: O(1) or O(1) with resizing.\n- **Deletion**: O(1) or O(1) with resizing.\n\n---\n\n### **Worked Example**\n\nLet’s create a simple hash table with the following properties:\n\n- **Size**: 10\n- **Hash Function**: `key % 10`\n- **Collision Handling**: Linear probing\n\n#### **Step 1: Initialize the Hash Table**\n\n```python\nhash_table = [None] * 10\n```\n\n#### **Step 2: Insert a Key**\n\nSuppose we want to insert the key `5`.\n\n- `5 % 10 = 5`, so the bucket index is 5.\n- Insert `5` into the bucket",
+      "total_wall_ms": 16264.904900453985,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "9ae4c08002382b42bfdf3f4f742a8153fef17df30b75b4991768fa85c4084d0d",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 25,
+            "ttft_ms": 781.1948014423251,
+            "prefill_tps": 115.20813993364064,
+            "decode_tps": 41.34473166689404,
+            "total_wall_ms": 1367.376989684999,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "t_start_abs": 4406285.395942295,
+            "t_first_abs": 4406286.177137096,
+            "t_last_abs": 4406286.75762218,
+            "t_end_abs": 4406286.763319285
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 1367.6023641601205,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "820cc3973263c3e195f42ed80a0e365680660fab31f290df81e48eb9922ce237",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 21,
+            "ttft_ms": 2522.88512699306,
+            "prefill_tps": 35.673443486215284,
+            "decode_tps": 21.181236101236774,
+            "total_wall_ms": 3488.079644739628,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+            "t_start_abs": 4406286.789108918,
+            "t_first_abs": 4406289.311994045,
+            "t_last_abs": 4406290.256226001,
+            "t_end_abs": 4406290.277188563
+          }
+        }
+      ],
+      "validated_content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+      "total_wall_ms": 3488.3335595950484,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "ae2c9d7dc48cf336c794300ad551a4c7876d6befab1767cf51401c8cd5b15752",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 25,
+            "ttft_ms": 2849.6187618002295,
+            "prefill_tps": 31.583172179545535,
+            "decode_tps": 31.238775367354613,
+            "total_wall_ms": 3629.1463086381555,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "t_start_abs": 4406286.790637778,
+            "t_first_abs": 4406289.64025654,
+            "t_last_abs": 4406290.408532496,
+            "t_end_abs": 4406290.419784087
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 3629.406776279211,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "547a37ee875604cbc9f815c54d7c19f45af1bd02a463db20ff46eefc42ca777e",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 25,
+            "ttft_ms": 2847.345511429012,
+            "prefill_tps": 31.60838740460101,
+            "decode_tps": 31.26315200715914,
+            "total_wall_ms": 3626.0865898802876,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+            "t_start_abs": 4406286.793319023,
+            "t_first_abs": 4406289.640664535,
+            "t_last_abs": 4406290.408341447,
+            "t_end_abs": 4406290.419405613
+          }
+        }
+      ],
+      "validated_content": "{\n\n  \"Mars\": {\n    \"moons\": 2,\n    \"habitable\": false\n  }\n}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 3626.3323966413736,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "json",
+      "tag": "json-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "0cf9f851be0434313e02ea4a8da7e3d9a6ed64c770f51c563d705b0eabac35aa",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation json-c4-r0-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text."
+              }
+            ],
+            "tools": null,
+            "response_format": {
+              "type": "json_object"
+            },
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 90,
+            "completion_tokens": 21,
+            "ttft_ms": 2965.669591911137,
+            "prefill_tps": 30.34727814773263,
+            "decode_tps": 35.1687918670255,
+            "total_wall_ms": 3549.639930948615,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+            "t_start_abs": 4406286.794780705,
+            "t_first_abs": 4406289.760450297,
+            "t_last_abs": 4406290.329136309,
+            "t_end_abs": 4406290.344420636
+          }
+        }
+      ],
+      "validated_content": "{\n\n\"name\": \"Mars\",\n\"moons\": 2,\n\"habitable\": false\n}",
+      "total_wall_ms": 3549.868988804519,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "7b4f37453f82e83615e46d2179bef4d8f986c4594787923e463ee33bb6292eeb",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c1-r0-i0]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 41,
+            "completion_tokens": 3,
+            "ttft_ms": 415.33209662884474,
+            "prefill_tps": 98.71618478992494,
+            "decode_tps": 230.5228844144626,
+            "total_wall_ms": 429.40033692866564,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nOK."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nOK.",
+            "t_start_abs": 4406290.439149792,
+            "t_first_abs": 4406290.854481889,
+            "t_last_abs": 4406290.863157817,
+            "t_end_abs": 4406290.868550129
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 429.5174991711974,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "6663a0b07033d180b98e79bd92d2e81bc74feac65ace98294316a18aa4086156",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i0]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 41,
+            "completion_tokens": 3,
+            "ttft_ms": 2253.5127392038703,
+            "prefill_tps": 18.19381771699442,
+            "decode_tps": 6.489172290147628,
+            "total_wall_ms": 2582.069033756852,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nOK."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nOK.",
+            "t_start_abs": 4406290.897385936,
+            "t_first_abs": 4406293.150898675,
+            "t_last_abs": 4406293.459104393,
+            "t_end_abs": 4406293.47945497
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 2582.2298172861338,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "6af248f1dd7e54a70f75874f56c33820ba2d8ba27582e215e7d1c2f1c7eaac04",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i1]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 41,
+            "completion_tokens": 3,
+            "ttft_ms": 2542.0754132792354,
+            "prefill_tps": 16.128553773749253,
+            "decode_tps": 52.35244671723647,
+            "total_wall_ms": 2661.525495350361,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nOK."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nOK.",
+            "t_start_abs": 4406290.89896041,
+            "t_first_abs": 4406293.441035823,
+            "t_last_abs": 4406293.479238431,
+            "t_end_abs": 4406293.560485905
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 2661.7537327110767,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "6dc6b71f91d91163efa078502f770dcaf2b515550c8682d488bd62cf06fd915f",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i2]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 41,
+            "completion_tokens": 3,
+            "ttft_ms": 2539.0948057174683,
+            "prefill_tps": 16.14748685542472,
+            "decode_tps": 52.11549629376522,
+            "total_wall_ms": 2658.7351812049747,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nOK."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nOK.",
+            "t_start_abs": 4406290.901320417,
+            "t_first_abs": 4406293.440415223,
+            "t_last_abs": 4406293.478791525,
+            "t_end_abs": 4406293.560055599
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 2658.8642485439777,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "multi_turn",
+      "tag": "multi_turn-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "77e297f4e7ef10cd465533a18226dd64e5779c13daddef8696201b4c15cd54c0",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation multi_turn-c4-r0-i3]\nRemember the secret code juniper-5938. Acknowledge with exactly \"OK\"."
+              }
+            ],
+            "tools": null,
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 41,
+            "completion_tokens": 3,
+            "ttft_ms": 2537.010632455349,
+            "prefill_tps": 16.16075213698246,
+            "decode_tps": 52.72923563363541,
+            "total_wall_ms": 2655.8141158893704,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\nOK."
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\nOK.",
+            "t_start_abs": 4406290.904428607,
+            "t_first_abs": 4406293.441439239,
+            "t_last_abs": 4406293.479368862,
+            "t_end_abs": 4406293.560242723
+          }
+        }
+      ],
+      "detail": "ValueError: first conversation turn did not acknowledge the code",
+      "total_wall_ms": 2655.941558070481,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "fe24af23d4d1e74a8d5c68716a27d92b7df05a88f94e47e0653fbc6d368aae67",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c1-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 210,
+            "completion_tokens": 27,
+            "ttft_ms": 769.2244658246636,
+            "prefill_tps": 273.0022370971586,
+            "decode_tps": 174.4734100154731,
+            "total_wall_ms": 918.7019066885114,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_6e6638c55e034b8abf4",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_6e6638c55e034b8abf4",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4406293.589597794,
+            "t_first_abs": 4406294.35882226,
+            "t_last_abs": 4406294.507842102,
+            "t_end_abs": 4406294.508299701
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c1-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "\n\n",
+                "tool_calls": [
+                  {
+                    "id": "call_6e6638c55e034b8abf4",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_6e6638c55e034b8abf4",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 110,
+            "completion_tokens": 15,
+            "ttft_ms": 422.92604595422745,
+            "prefill_tps": 260.0927539277283,
+            "decode_tps": 201.200562303137,
+            "total_wall_ms": 497.5328650325537,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4406294.508460873,
+            "t_first_abs": 4406294.931386919,
+            "t_last_abs": 4406295.000969229,
+            "t_end_abs": 4406295.005993738
+          }
+        }
+      ],
+      "validated_content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 1416.6324259713292,
+      "concurrency": 1,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "45b75d8c5c96f5996cb7ae9429344b491f52e97d7781e2b4fe662bf03240ebd6",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 210,
+            "completion_tokens": 27,
+            "ttft_ms": 1916.6296422481537,
+            "prefill_tps": 109.56733391312669,
+            "decode_tps": 12.947142506905319,
+            "total_wall_ms": 3955.3723111748695,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_8ba4d01006e848319e2",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_8ba4d01006e848319e2",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4406295.030588985,
+            "t_first_abs": 4406296.947218628,
+            "t_last_abs": 4406298.955383749,
+            "t_end_abs": 4406298.985961297
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i0]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "\n\n",
+                "tool_calls": [
+                  {
+                    "id": "call_8ba4d01006e848319e2",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_8ba4d01006e848319e2",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 110,
+            "completion_tokens": 15,
+            "ttft_ms": 1485.2709071710706,
+            "prefill_tps": 74.06056327428651,
+            "decode_tps": 7.6602050948864795,
+            "total_wall_ms": 3334.386395290494,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4406298.986165901,
+            "t_first_abs": 4406300.471436808,
+            "t_last_abs": 4406302.299064114,
+            "t_end_abs": 4406302.320552296
+          }
+        }
+      ],
+      "validated_content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 7290.207522921264,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "683d03e088f612c279c5a4177930637fef4139b5fbf56da44bcdb8c022ad1e62",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i1]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 210,
+            "completion_tokens": 27,
+            "ttft_ms": 2984.339860267937,
+            "prefill_tps": 70.36732069153344,
+            "decode_tps": 26.78788449722776,
+            "total_wall_ms": 4739.907223731279,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_5441f46e3c49461b8b8",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_5441f46e3c49461b8b8",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4406295.031491543,
+            "t_first_abs": 4406298.015831403,
+            "t_last_abs": 4406298.986419432,
+            "t_end_abs": 4406299.771398767
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i1]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "\n\n",
+                "tool_calls": [
+                  {
+                    "id": "call_5441f46e3c49461b8b8",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_5441f46e3c49461b8b8",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 110,
+            "completion_tokens": 15,
+            "ttft_ms": 1394.949983805418,
+            "prefill_tps": 78.85587388582954,
+            "decode_tps": 12.137981725311214,
+            "total_wall_ms": 2617.98935290426,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4406299.771618603,
+            "t_first_abs": 4406301.166568587,
+            "t_last_abs": 4406302.319972861,
+            "t_end_abs": 4406302.389607956
+          }
+        }
+      ],
+      "validated_content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 7358.347895555198,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "8e858a493cb1626f0094ac928fb06c97b47fa0e73b07d0c1fa0390fc814d77c4",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i2]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 210,
+            "completion_tokens": 27,
+            "ttft_ms": 3297.1636755391955,
+            "prefill_tps": 63.69110564875371,
+            "decode_tps": 18.0464993997857,
+            "total_wall_ms": 5436.862322501838,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_742875bd426c400cbf8",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_742875bd426c400cbf8",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4406295.035132336,
+            "t_first_abs": 4406298.332296012,
+            "t_last_abs": 4406299.773018638,
+            "t_end_abs": 4406300.471994659
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i2]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "\n\n",
+                "tool_calls": [
+                  {
+                    "id": "call_742875bd426c400cbf8",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_742875bd426c400cbf8",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 110,
+            "completion_tokens": 15,
+            "ttft_ms": 1378.3902674913406,
+            "prefill_tps": 79.80323323103487,
+            "decode_tps": 26.00941682150772,
+            "total_wall_ms": 1987.0253093540668,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4406300.472275647,
+            "t_first_abs": 4406301.850665915,
+            "t_last_abs": 4406302.388932501,
+            "t_end_abs": 4406302.459300957
+          }
+        }
+      ],
+      "validated_content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 7424.394188448787,
+      "concurrency": 4,
+      "repeat": 0
+    },
+    {
+      "scenario": "tool_round_trip",
+      "tag": "tool_round_trip-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "57a3c44864ace173cca348d38ef1f3b0e334860e825ca5c3e83bdd4ff6377406",
+      "turns": [
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i3]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 210,
+            "completion_tokens": 27,
+            "ttft_ms": 3413.4804233908653,
+            "prefill_tps": 61.52078639765313,
+            "decode_tps": 12.867361372181827,
+            "total_wall_ms": 6129.396130330861,
+            "finish_reason": "tool_calls",
+            "tool_calls": [
+              "get_weather"
+            ],
+            "tool_call_details": [
+              {
+                "id": "call_01effe8513fd413bb84",
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                }
+              }
+            ],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n\n",
+              "tool_calls": [
+                {
+                  "id": "call_01effe8513fd413bb84",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                  }
+                }
+              ]
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n\n",
+            "t_start_abs": 4406295.037497617,
+            "t_first_abs": 4406298.450978041,
+            "t_last_abs": 4406300.471594331,
+            "t_end_abs": 4406301.166893748
+          }
+        },
+        {
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "[validation tool_round_trip-c4-r0-i3]\nUse get_weather for Paris in celsius, then report the returned temperature as a JSON object with exactly city and temperature_c. Do not invent weather."
+              },
+              {
+                "role": "assistant",
+                "content": "\n\n",
+                "tool_calls": [
+                  {
+                    "id": "call_01effe8513fd413bb84",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\",\"units\":\"celsius\"}"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "tool_call_id": "call_01effe8513fd413bb84",
+                "content": "{\"city\": \"Paris\", \"temperature_c\": 19}"
+              }
+            ],
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "get_weather",
+                  "description": "Look up the current temperature.",
+                  "parameters": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "units": {
+                        "type": "string",
+                        "enum": [
+                          "celsius"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "units"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            ],
+            "response_format": null,
+            "extra_body": {
+              "temperature": 0,
+              "top_p": 1,
+              "top_k": 0,
+              "seed": 42,
+              "repeat_penalty": 1,
+              "presence_penalty": 0,
+              "frequency_penalty": 0,
+              "think": false,
+              "tool_choice": "none"
+            },
+            "max_tokens": 256,
+            "stream": true
+          },
+          "metrics": {
+            "prompt_tokens": 110,
+            "completion_tokens": 15,
+            "ttft_ms": 802.2674126550555,
+            "prefill_tps": 137.11138987430843,
+            "decode_tps": 28.603244856339636,
+            "total_wall_ms": 1360.2593382820487,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+            "t_start_abs": 4406301.167099903,
+            "t_first_abs": 4406301.969367316,
+            "t_last_abs": 4406302.458822274,
+            "t_end_abs": 4406302.527359242
+          }
+        }
+      ],
+      "validated_content": "\n{\"city\": \"Paris\", \"temperature_c\": 19}",
+      "total_wall_ms": 7490.0970766320825,
+      "concurrency": 4,
+      "repeat": 0
+    }
+  ],
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 419.89926248788834,
+      "generated_tokens": 12,
+      "all_passed": false
+    },
+    {
+      "scenario": "short",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 3099.432000890374,
+      "generated_tokens": 47,
+      "all_passed": false
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 3199.297505430877,
+      "generated_tokens": 512,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 16273.839415982366,
+      "generated_tokens": 2048,
+      "all_passed": true
+    },
+    {
+      "scenario": "json",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1368.2326804846525,
+      "generated_tokens": 25,
+      "all_passed": false
+    },
+    {
+      "scenario": "json",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 3632.393720559776,
+      "generated_tokens": 92,
+      "all_passed": false
+    },
+    {
+      "scenario": "multi_turn",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 430.48493191599846,
+      "generated_tokens": 3,
+      "all_passed": false
+    },
+    {
+      "scenario": "multi_turn",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 2664.52513076365,
+      "generated_tokens": 12,
+      "all_passed": false
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1417.6698364317417,
+      "generated_tokens": 42,
+      "all_passed": true
+    },
+    {
+      "scenario": "tool_round_trip",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 7498.575005680323,
+      "generated_tokens": 168,
+      "all_passed": true
+    }
+  ],
+  "runner_source": {
+    "path": "/workspace/deepseek41-work/run-final-existing-models.py",
+    "sha256": "cb1b1a0caf232fb8386c89d87cf09a492b1429c6b8665a14d5ab39b9e215c5e4",
+    "bytes": 15858
+  },
+  "harness_sha256": {
+    "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+    "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "binary_sha256": {
+    "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+    "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+    "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+    "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+    "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+  },
+  "served_model_id": "Qwen3-0.6B-Q8_0",
+  "warmup": {
+    "scenario": "short",
+    "tag": "warmup",
+    "status": "fail",
+    "input_sha256": "315f1a2eb2a7a2cc67392b990f40f1cd73d2681754c1dbb23c3ff7d7c1bd5f25",
+    "turns": [
+      {
+        "request": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "[validation warmup]\nWhat is 17 + 25? Reply with only the integer."
+            }
+          ],
+          "tools": null,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "max_tokens": 256,
+          "stream": true
+        },
+        "metrics": {
+          "prompt_tokens": 32,
+          "completion_tokens": 11,
+          "ttft_ms": 685.5477429926395,
+          "prefill_tps": 46.67800357756202,
+          "decode_tps": 208.39277688347457,
+          "total_wall_ms": 759.1807683929801,
+          "finish_reason": "stop",
+          "tool_calls": [],
+          "tool_call_details": [],
+          "assistant_message": {
+            "role": "assistant",
+            "content": "\n\n17 + 25 = 42"
+          },
+          "usage_present": true,
+          "decode_timing_source": "stream_window",
+          "server_timings": {},
+          "reasoning_text": "",
+          "output_text": "\n\n17 + 25 = 42",
+          "t_start_abs": 4406261.575617858,
+          "t_first_abs": 4406262.261165601,
+          "t_last_abs": 4406262.309151909,
+          "t_end_abs": 4406262.334798627
+        }
+      }
+    ],
+    "validated_content": "\n\n17 + 25 = 42",
+    "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+    "total_wall_ms": 759.3120411038399
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "short@c4": {
+      "passed": 0,
+      "total": 4
+    },
+    "decode@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 322.61824049055576,
+      "ttft_ms_samples": [
+        322.61824049055576
+      ],
+      "prefill_tps_median": 154.98193754938566,
+      "prefill_tps_samples": [
+        154.98193754938566
+      ],
+      "decode_tps_median": 177.8037178908658,
+      "decode_tps_samples": [
+        177.8037178908658
+      ],
+      "conversation_wall_ms_median": 3198.4951607882977
+    },
+    "decode@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 3407.8959529288113,
+      "ttft_ms_samples": [
+        2947.190223261714,
+        3409.9464770406485,
+        3407.957661896944,
+        3407.8342439606786
+      ],
+      "prefill_tps_median": 14.671809441078556,
+      "prefill_tps_samples": [
+        16.96531143641757,
+        14.66298674675766,
+        14.671543769170214,
+        14.6720751129869
+      ],
+      "decode_tps_median": 39.74484295321313,
+      "decode_tps_samples": [
+        38.776392720369884,
+        39.745797846515984,
+        39.743888059910276,
+        39.74779617730042
+      ],
+      "conversation_wall_ms_median": 16265.795059967786
+    },
+    "json@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "json@c4": {
+      "passed": 2,
+      "total": 4,
+      "ttft_ms_median": 2744.2773594520986,
+      "ttft_ms_samples": [
+        2522.88512699306,
+        2965.669591911137
+      ],
+      "prefill_tps_median": 33.01036081697396,
+      "prefill_tps_samples": [
+        35.673443486215284,
+        30.34727814773263
+      ],
+      "decode_tps_median": 28.175013984131134,
+      "decode_tps_samples": [
+        21.181236101236774,
+        35.1687918670255
+      ],
+      "conversation_wall_ms_median": 3519.101274199784
+    },
+    "multi_turn@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "multi_turn@c4": {
+      "passed": 0,
+      "total": 4
+    },
+    "tool_round_trip@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 769.2244658246636,
+      "ttft_ms_samples": [
+        769.2244658246636
+      ],
+      "prefill_tps_median": 273.0022370971586,
+      "prefill_tps_samples": [
+        273.0022370971586
+      ],
+      "decode_tps_median": 174.4734100154731,
+      "decode_tps_samples": [
+        174.4734100154731
+      ],
+      "conversation_wall_ms_median": 1416.6324259713292
+    },
+    "tool_round_trip@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 3140.7517679035664,
+      "ttft_ms_samples": [
+        1916.6296422481537,
+        2984.339860267937,
+        3297.1636755391955,
+        3413.4804233908653
+      ],
+      "prefill_tps_median": 67.02921317014358,
+      "prefill_tps_samples": [
+        109.56733391312669,
+        70.36732069153344,
+        63.69110564875371,
+        61.52078639765313
+      ],
+      "decode_tps_median": 15.496820953345509,
+      "decode_tps_samples": [
+        12.947142506905319,
+        26.78788449722776,
+        18.0464993997857,
+        12.867361372181827
+      ],
+      "conversation_wall_ms_median": 7391.3710420019925
+    }
+  },
+  "deployment_changed_files": [],
+  "server_log": {
+    "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/qwen3-server.log",
+    "sha256": "888e30600c64c0c41ce16cc1d17632866e97d9b04cb5fb652838450aa702f3e6",
+    "bytes": 86510
+  },
+  "comparisons": {
+    "head-baseline": {
+      "reference_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/quality-baseline/qwen3-tensorsharp.json",
+        "sha256": "236fd1d253106bb2492710d235fb079aad3a33410a9b294c639bc42074707328",
+        "bytes": 120278
+      },
+      "comparable": true,
+      "issues": [],
+      "cases": 25,
+      "baseline_pass": 11,
+      "current_pass": 12,
+      "matching_request_hashes": 25,
+      "matching_generated_outputs": 24,
+      "introduced_failed_cases": [],
+      "changed_output_keys": [
+        [
+          "json",
+          "json-c4-r0-i0",
+          4,
+          0
+        ]
+      ],
+      "scope": "Case-level correctness comparison. Known failures remain failures; no performance claim. Inspect any new failure for the newer assistant-content-only validator before attributing numerical regression."
+    },
+    "earlier-after": {
+      "reference_source": {
+        "path": "/workspace/deepseek41-work/existing-regressions/quality/qwen3-tensorsharp.json",
+        "sha256": "da4b50aba5f2dfd1023c0aa75acef1e5cff9475706bd0e6949af804e6b48e8bc",
+        "bytes": 110006
+      },
+      "comparable": true,
+      "issues": [],
+      "cases": 25,
+      "baseline_pass": 12,
+      "current_pass": 12,
+      "matching_request_hashes": 25,
+      "matching_generated_outputs": 25,
+      "introduced_failed_cases": [],
+      "changed_output_keys": [],
+      "scope": "Case-level correctness comparison. Known failures remain failures; no performance claim. Inspect any new failure for the newer assistant-content-only validator before attributing numerical regression."
+    }
+  },
+  "curation": {
+    "raw_source": {
+      "path": "/workspace/deepseek41-work/existing-regressions/final3651-native6b3/quality/qwen3-tensorsharp.json",
+      "sha256": "9297833edb7c193a08cf93235632921f8d0fc6b6538da09908eb2e39d6083b03",
+      "bytes": 123712
+    },
+    "omitted_fields": [
+      "before",
+      "after"
+    ],
+    "generated_output_modifications": null
+  }
+}

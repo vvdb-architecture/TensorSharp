@@ -1,0 +1,373 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+info: TensorSharp.Server.Host.Startup[1030]
+      Logging initialized: minimumLevel=Information fileLogging=True logDir=/workspace/deepseek41-work/existing-regressions/qwen35-solo72-final-native-r1/job3-baseline-file-logs
+info: TensorSharp.Server.Host.Startup[1010]
+      Speculative decoding configured via CLI: enabled=False algorithm=auto maxDraft=8 pMin=auto (per algorithm) draftModel=(none) (engages for solo sequences)
+info: TensorSharp.Server.Host.Startup[1010]
+      Web UI disabled (--no-webui / TS_NO_WEBUI): wwwroot is not served; API endpoints and /uploads remain available
+info: TensorSharp.Server.Host.Startup[1010]
+      Prefix cache disabled (--no-prefix-cache): the first message of this process will prefill the whole shared prompt, and nothing is kept between launches.
+info: TensorSharp.Server.ModelService[1400]
+      Loading model Qwen3.5-0.8B-Q8_0.gguf (mmproj=, backend=ggml_cuda, fullPath=/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf, mmprojPath=(none))
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 45488 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Model: qwen35, Layers=24, Hidden=1024, Heads=8, KVHeads=2, HeadDim=256, Vocab=248320
+RoPE base=10000000, scale=1, eps=1E-06
+SSM: dInner=2048, dState=128, nGroup=16, dtRank=16, convKernel=4, fullAttnInterval=4
+MRoPE sections: [11, 11, 10, 0]
+Layer types: 6 full attention, 18 recurrent (GatedDeltaNet)
+Loading model weights... done (133 F32 tensors, 187 quantized tensors)
+  Quantized: 761 MB (761 MB file-backed), F32: 1 MB
+  Fused projections: 6 Q+K+V
+  Fused projections: 18 recurrent input packs
+  Fused projections: 24 Gate+Up
+  Device-resident quantized weights: 915 MB across 169 tensors
+Context length: using MAX_CONTEXT=8192; model declares qwen35.context_length=262144.
+info: TensorSharp.Server.ModelService[1401]
+      Loaded model Qwen3.5-0.8B-Q8_0.gguf (architecture=qwen35, backend=ggml_cuda, modelBytes=811843840, mmproj=(none), mmprojBytes=0) in 1327.2 ms
+info: TensorSharp.Server.Host.Startup[1401]
+      Startup model loaded: Qwen3.5-0.8B-Q8_0.gguf architecture=qwen35 backend=ggml_cuda mmproj=(none)
+  Warming up kernels (decode + prefill)...
+    Decode warmup: 105.2 ms
+    Prefill warmup (2048 tokens): starting...
+    Prefill warmup (2048 tokens): completed in 211.2 ms
+info: TensorSharp.Server.Host.Startup[1010]
+      Kernel warmup completed in 341.6 ms
+info: TensorSharp.Server.Host.Startup[1020]
+      Supported backends: cuda, ggml_cuda, ggml_cpu, cpu
+info: TensorSharp.Server.Host.Startup[1010]
+      Server configuration: hostedModel=/workspace/models/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf hostedMmProj=(none) defaultMaxTokens=1024 (server cap) videoFrames=model-default videoFps=model-default videoSize=model-default videoSteps=model-default videoMode=auto videoSampleFps=1 videoMaxFrames=0 listen=http://127.0.0.1:5011
+info: TensorSharp.Server.Host.Startup[1010]
+      Default sampling: temperature=0.8 topK=40 topP=0.9 minP=0 repeatPenalty=1.1 repeatLastN=64 presencePenalty=0 frequencyPenalty=0 seed=-1 stopSequences=(none)
+info: TensorSharp.Server.Host.Startup[1010]
+      Sampling precedence: config (nothing pinned — every request keeps full control)
+info: TensorSharp.Server.Host.Startup[1000]
+      Starting TensorSharp.Server on http://127.0.0.1:5011
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /                          - Web UI (index.html)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /health                    - Health check
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /api/tags                  - List hosted models (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/show                  - Show model details (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/generate              - Generate text (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/chat/ollama           - Chat completion (Ollama)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /v1/chat/completions       - Chat completion (OpenAI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /v1/models                 - List hosted models (OpenAI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/chat                  - Chat (Web UI SSE)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: POST /api/models/load           - Reload hosted model (Web UI)
+info: TensorSharp.Server.Host.Startup[1010]
+      Endpoint: GET  /api/models                - Show hosted model state (Web UI)
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://127.0.0.1:5011
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /workspace/deepseek41-work/regression-qwen35-managed-native-cross-phase-r1/baseline-managed_final-native/bin
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP GET /v1/models from 127.0.0.1 (content-type=, content-length=(none))
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP GET /v1/models -> 200 in 34.1 ms (response content-type=application/json; charset=utf-8)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=501)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-ae6f45942fac46e5980f9 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=512 messages=1 tools=0 skills=0 thinking=False userInput="[validation warmup-decode]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit."
+info: TensorSharp.Server.ModelService[0]
+      InferenceEngine[qwen35] execution capability report:
+      batched paged attention: available (including multimodal)
+      per-sequence fused concurrent decode: available (+ token-batched fused decode)
+      N=1 single-sequence fused fast path: available
+      Speculative decoding: off (not requested)
+      KV snapshot/swap fallback: snapshot only (no cross-sequence reuse)
+      retained fused-cache continuation: on (budget=4)
+info: TensorSharp.Server.ModelService[0]
+      InferenceEngine constructed for fingerprint qwen35|arch=qwen35|L=24|H=8|KV=2|D=256|gdnK=128|gdnV=128|nKHead=16|nVHead=16|convKern=4|dtype=f16 (blocks=256, blockSize=256, kvCapacityTokens=65536, maxBatched=256, config=environment)
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=512 thinking=False tools=0 messages(user=1,assistant=0,system=0) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation warmup-decode]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit." fullInput=[{"role":"user","content":"[validation warmup-decode]\nWrite a detailed explanation of how a hash table works, including collisions, resizing, complexity, and a worked example. Continue until the token limit.","contentChars":180}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=249
+info: TensorSharp.Server.ModelService[0]
+      BatchExecutor execution plan: SingleSequenceFused
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=512 promptTokens=49 kvReused=0 kvReusePercent=0.0 ttftMs=82 elapsedMs=1783.1 tokensPerSec=286.78 finishReason=max_tokens assistantOutput="A hash table is a data structure that uses a table to store key-value pairs. It is designed to provide fast lookup, insertion, and deletion operations by using a hash function to map keys to table indices.\n\n### How a Hash Table Works\n\nThe core mechanism relies on a **hash function** to transform the input key into an integer index within the table. This index is then used to store the key-value pair.\n\n1.  **Collision Resolution**: If multiple keys map to the same index, a collision occurs. The table must handle these collisions to maintain data integrity.\n2.  **Resizing**: If the table is full (all slots occupied), it cannot store more elements. To accommodate more keys, the table size is increased (resizing).\n3.  **Load Factor**: The table size is typically set to $N \times (1 - \alpha)$, where $N$ is the number of slots and $\alpha$ is the load factor (usually 0.75). This ensures the table remains efficient even with high traffic.\n\n### Collision Handling\n\nWhen a collision happens, the table uses a **chain table** (linked list) to resolve it.\n*   **Open Addressing**: If the table is small, the next slot is calculated by adding the hash value modulo the table size.\n*   **Chaining**: If the table is large, the next slot is calculated by adding the hash value to the current index, and the key-value pair is appended to the end of the linked list at that index.\n\n### Complexity Analysis\n\nThe time complexity of a hash table depends on the number of collisions and the resizing strategy:\n\n*   **Average Time Complexity**: $O(1)$ on average.\n    *   With a good hash function and chaining, the expected number of collisions is proportional to the number of keys.\n    *   $T_{avg} = O(1)$ per operation.\n*   **Worst-Case Time Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   This occurs if the hash function is bad (e.g., a linear probing algorithm with a bad initial hash).\n    *   In this scenario, the table fills up one by one, and each insertion takes time proportional to the number of elements.\n*   **Space Complexity**: $O(n)$, where $n$ is the number of keys.\n    *   The table size is proportional to the number"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 1973.9 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=522)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-ccc0aa49d02647369ae49 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-warmup-c1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-warmup-c1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-warmup-c1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":155}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=426
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=201
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=93 kvReused=0 kvReusePercent=0.0 ttftMs=64 elapsedMs=530.7 tokensPerSec=30.15 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 1037.2 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=522)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=522)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-d86b3ff61ad741df9dfef model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-warmup-c4-i1]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=522)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-5266ad4c7c3245909a165 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-warmup-c4-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=522)
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-warmup-c4-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-warmup-c4-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":155}]
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-cbc790eb34014ccca0b8f model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-warmup-c4-i3]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-warmup-c4-i1]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-warmup-c4-i1]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":155}]
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-warmup-c4-i3]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-warmup-c4-i3]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":155}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=426
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=426
+info: TensorSharp.Server.ModelService[0]
+      BatchExecutor execution plan: PerSequenceFused
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-a572f248d90c44ed94378 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-warmup-c4-i2]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-warmup-c4-i2]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-warmup-c4-i2]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":155}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=426
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=426
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=93 kvReused=0 kvReusePercent=0.0 ttftMs=512 elapsedMs=675.2 tokensPerSec=23.70 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=93 kvReused=0 kvReusePercent=0.0 ttftMs=512 elapsedMs=675.2 tokensPerSec=23.70 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 678.6 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 678.7 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=93 kvReused=0 kvReusePercent=0.0 ttftMs=561 elapsedMs=708.0 tokensPerSec=22.60 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=93 kvReused=0 kvReusePercent=0.0 ttftMs=558 elapsedMs=705.2 tokensPerSec=22.69 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 715.1 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 715.0 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-22beb37f913c4b44a29fd model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[0]
+      BatchExecutor execution plan: SingleSequenceFused
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=66 elapsedMs=126.1 tokensPerSec=126.87 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 130.5 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-e336205c57254d03a6a7e model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=81 elapsedMs=139.5 tokensPerSec=114.64 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 143.8 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-71ee8273acab4b78a7cf4 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=80 elapsedMs=135.7 tokensPerSec=117.89 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 139.8 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-b5d05751d1364473a31ad model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=66 elapsedMs=121.6 tokensPerSec=131.50 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 124.8 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-9dbf5dea624f47dcb6224 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=57 elapsedMs=113.0 tokensPerSec=141.51 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 115.6 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-c6396628781743c99eb6d model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=57 elapsedMs=113.1 tokensPerSec=141.44 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 115.7 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-266b9fdd41074d2c86b42 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=120 elapsedMs=175.4 tokensPerSec=91.21 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 178.1 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-b507a4ac0e6a45f18dd11 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=58 elapsedMs=113.8 tokensPerSec=140.50 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 116.4 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-a51580b789054e6db97dd model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=58 elapsedMs=113.2 tokensPerSec=141.23 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 115.8 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-02e7ce8f88004785b7fc8 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=123 elapsedMs=179.0 tokensPerSec=89.36 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 181.5 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-ad6eec4874ad46a3bcde2 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=88 elapsedMs=143.5 tokensPerSec=111.51 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 145.1 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-eaa5f319b2894441bde23 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=58 elapsedMs=115.0 tokensPerSec=139.10 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 117.5 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-8eec603261884a358df68 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=62 elapsedMs=117.8 tokensPerSec=135.79 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 120.8 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-9a8ff4e10cf24de8b81b9 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=117 elapsedMs=172.5 tokensPerSec=92.73 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 175.3 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-7a46438a594241689ec01 model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=58 elapsedMs=114.1 tokensPerSec=140.16 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 116.4 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-d5794d2c5ae749b299f9a model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r0-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r0-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=58 elapsedMs=114.2 tokensPerSec=140.08 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 116.4 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-e6bfd21c8974424dadbca model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r1-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r1-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=58 elapsedMs=113.8 tokensPerSec=140.55 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 116.1 ms (response content-type=text/event-stream)
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1100]
+      HTTP POST /v1/chat/completions from 127.0.0.1 (content-type=application/json, content-length=518)
+info: TensorSharp.Server.OpenAI.ChatCompletions[1500]
+      /v1/chat/completions request: id=chatcmpl-76bbd42675a34916abfab model=Qwen3.5-0.8B-Q8_0 stream=True maxTokens=256 messages=1 tools=0 skills=0 thinking=False userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text."
+info: TensorSharp.Server.ModelService[1500]
+      chat.start arch=qwen35 maxTokens=256 thinking=False tools=0 messages(user=1,assistant=0,system=1) attachments(image=0,audio=0,textFile=0) uploads=[] sampling(temp=0,topK=0,topP=1,minP=0,repeatPenalty=1,repeatLastN=64,presencePenalty=0,frequencyPenalty=0,seed=42,stop=(none)) userInput="[validation json-c1-r2-i0]\nReturn exactly a JSON object with name "Mars", moons 2, and habitable false. Use exactly those three keys and no other text." fullInput=[{"role":"system","content":"You must answer with valid JSON. Return exactly one JSON object and nothing else. Do not include Markdown code fences, explanations, or extra text before or after the JSON.","contentChars":172},{"role":"user","content":"[validation json-c1-r2-i0]\nReturn exactly a JSON object with name \"Mars\", moons 2, and habitable false. Use exactly those three keys and no other text.","contentChars":151}]
+[ChatTemplate] Jinja2 rendering succeeded for 'qwen35', prompt length=422
+info: TensorSharp.Server.ModelService[1501]
+      chat.complete tokens=16 promptTokens=92 kvReused=0 kvReusePercent=0.0 ttftMs=157 elapsedMs=213.2 tokensPerSec=75.02 finishReason=eos assistantOutput="{"name":"Mars","moons":2,"habitable":false}"
+info: TensorSharp.Server.Logging.RequestLoggingMiddleware[1101]
+      HTTP POST /v1/chat/completions -> 200 in 215.8 ms (response content-type=text/event-stream)
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...

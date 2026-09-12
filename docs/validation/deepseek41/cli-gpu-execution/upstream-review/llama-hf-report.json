@@ -1,0 +1,64 @@
+{
+  "observed_utc": "2026-09-11T16:24:43.291798+00:00",
+  "scope": "Read-only local and primary network source research. No source checkout changes, builds, VM calls, inference, or weight downloads. vLLM/SGLang deep-dive belongs to gguf_integration; this note focuses llama.cpp/HF and candidate causal semantics.",
+  "local_llama_revision": "df03399b885831b2a1603b3abb0d8c156808e363",
+  "local_sources_verified_against_commit": {
+    "src/llama-model-loader.h": {
+      "path": "/Users/zhongkaifu/work/llama.cpp/src/llama-model-loader.h",
+      "bytes": 9560,
+      "sha256": "687dac85ea01c1fb0db19a4e53286144e29f351233c411e88932b99553538422"
+    },
+    "src/llama-model-loader.cpp": {
+      "path": "/Users/zhongkaifu/work/llama.cpp/src/llama-model-loader.cpp",
+      "bytes": 77881,
+      "sha256": "5ef07476310d4678df18a61a6ec0a1ebcbb58c7534ac3c624b9fe0f315a4ab01"
+    },
+    "src/llama-mmap.cpp": {
+      "path": "/Users/zhongkaifu/work/llama.cpp/src/llama-mmap.cpp",
+      "bytes": 27187,
+      "sha256": "3ca6869dfccbdbbafad0802e1a3d7db52174347d36174a982c1a662d7034b9c6"
+    },
+    "src/models/gemma4.cpp": {
+      "path": "/Users/zhongkaifu/work/llama.cpp/src/models/gemma4.cpp",
+      "bytes": 23489,
+      "sha256": "d8785e47235425c4eaf7a2b2e9732582efdc5cdabb08692001c33ab902809d26"
+    },
+    "ggml/src/ggml-cpu/ops.cpp": {
+      "path": "/Users/zhongkaifu/work/llama.cpp/ggml/src/ggml-cpu/ops.cpp",
+      "bytes": 417140,
+      "sha256": "dbffc3df9816cc3f7e5428f9fb9afa13db4ac2979899605a057121bb031ba136"
+    },
+    "ggml/src/ggml-cpu/ggml-cpu.c": {
+      "path": "/Users/zhongkaifu/work/llama.cpp/ggml/src/ggml-cpu/ggml-cpu.c",
+      "bytes": 132081,
+      "sha256": "839197aab9a2fb3c509221699e2810a4c4f3f3043416f55e653c380a46ed74cf"
+    }
+  },
+  "upstream_llama_revision": "8172e6577ac2b35de1ec1e5d1c0aaad6c4a2129f",
+  "hf_revision": "dbbd1f37aa33ed18fc38c2e367463bd73c23ed33",
+  "hf_patch_unchanged": {
+    "patch_sha256": "8699042d64765ab4b42f10a773b5903f53756d3aaeb0c147e49d14b9fdc26a28",
+    "readme_sha256": "2ed2ec475fba94d18c2d21c855af1d5090ac27a4b98ff27c3f89fc31130f24ed",
+    "compared_to_retained_baseline": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5"
+  },
+  "tensorsharp_sources": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp",
+      "bytes": 256294,
+      "sha256": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d"
+    },
+    "TensorSharp.GGML.Native/dsv41_engram.h": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/dsv41_engram.h",
+      "bytes": 10676,
+      "sha256": "538aa876645dc17330b85e3637baf9ea5b7633d91dad467f2a62fcb28f7ae01a"
+    },
+    "TensorSharp.GGML.Native/dsv41_engram_io.h": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/dsv41_engram_io.h",
+      "bytes": 4544,
+      "sha256": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec"
+    }
+  },
+  "upstream_architecture_observation": "Pinned llama architecture map contains deepseek4, no deepseek41 or deepseek_v41; no callable V4.1 Engram runtime identified in these sources. Latest source was not built.",
+  "next_candidate": "Joint interleaved lookup of already-known rows from both Engram tables, with bounded additional output staging, all validation before any work, and uploads after drain.",
+  "no_current_hit_rate_evidence": true
+}

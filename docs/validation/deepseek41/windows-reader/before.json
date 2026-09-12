@@ -1,0 +1,65 @@
+{
+  "scope": "Exercise the actual Windows reader-constructor branch with POSIX I/O adapters.\n\nThis is a portable extracted-source resource-lifetime check, not execution on\nWindows. It does not build TensorSharp or change an existing native library.\n",
+  "source": "/tmp/deepseek41-reference/windows-reader/before.cpp",
+  "source_sha256": "edd49ef0071e51e8823c3c7ec2c7b50350400062769252dd98231c5588219e02",
+  "extracted_harness_sha256": "982b5918c45b64fd3aa58a9004f2c4140816fc919ac58267f1a09e4b7f9be09d",
+  "compile_command": [
+    "c++",
+    "-std=c++17",
+    "/var/folders/54/3hgkdrxn62vg0_r6mfdp9xl40000gn/T/dsv41-windows-reader-8wa4ivab/reader.cpp",
+    "-o",
+    "/var/folders/54/3hgkdrxn62vg0_r6mfdp9xl40000gn/T/dsv41-windows-reader-8wa4ivab/reader"
+  ],
+  "exit_code": 1,
+  "stderr": "",
+  "checks": [
+    {
+      "name": "valid",
+      "scenario": 0,
+      "constructed": true,
+      "file_closed": true,
+      "close_count": 1,
+      "passed": true
+    },
+    {
+      "name": "truncated",
+      "scenario": 1,
+      "constructed": false,
+      "file_closed": false,
+      "close_count": 0,
+      "passed": false
+    },
+    {
+      "name": "offset_past_end",
+      "scenario": 2,
+      "constructed": false,
+      "file_closed": false,
+      "close_count": 0,
+      "passed": false
+    },
+    {
+      "name": "seek_failed",
+      "scenario": 3,
+      "constructed": false,
+      "file_closed": false,
+      "close_count": 0,
+      "passed": false
+    },
+    {
+      "name": "tell_failed",
+      "scenario": 4,
+      "constructed": false,
+      "file_closed": false,
+      "close_count": 0,
+      "passed": false
+    },
+    {
+      "name": "open_failed",
+      "scenario": 5,
+      "constructed": false,
+      "file_closed": true,
+      "close_count": 0,
+      "passed": true
+    }
+  ]
+}

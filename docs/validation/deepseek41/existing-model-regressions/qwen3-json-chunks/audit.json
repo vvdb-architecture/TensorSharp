@@ -1,0 +1,208 @@
+{
+  "audit_passed": true,
+  "cases": 12,
+  "paired_build_comparisons": [
+    {
+      "chunk_limit": 256,
+      "repeat": 0,
+      "response_and_counts_identical": true,
+      "identity_sha256": "5f42170c25bea2ca5ec957e36f86fc1b2ceba68dc7ad210027e77d3398487cf3"
+    },
+    {
+      "chunk_limit": 256,
+      "repeat": 1,
+      "response_and_counts_identical": true,
+      "identity_sha256": "5f42170c25bea2ca5ec957e36f86fc1b2ceba68dc7ad210027e77d3398487cf3"
+    },
+    {
+      "chunk_limit": 76,
+      "repeat": 0,
+      "response_and_counts_identical": true,
+      "identity_sha256": "cb64c1a6a0e5507c6746448d86bc9d1223290a0e766a393d946e62c3c979ee24"
+    },
+    {
+      "chunk_limit": 76,
+      "repeat": 1,
+      "response_and_counts_identical": true,
+      "identity_sha256": "cb64c1a6a0e5507c6746448d86bc9d1223290a0e766a393d946e62c3c979ee24"
+    },
+    {
+      "chunk_limit": 64,
+      "repeat": 0,
+      "response_and_counts_identical": true,
+      "identity_sha256": "5f42170c25bea2ca5ec957e36f86fc1b2ceba68dc7ad210027e77d3398487cf3"
+    },
+    {
+      "chunk_limit": 64,
+      "repeat": 1,
+      "response_and_counts_identical": true,
+      "identity_sha256": "5f42170c25bea2ca5ec957e36f86fc1b2ceba68dc7ad210027e77d3398487cf3"
+    }
+  ],
+  "results": [
+    {
+      "version": "baseline",
+      "chunk_limit": 256,
+      "observed_prefill_lengths": [
+        [
+          90
+        ],
+        [
+          90
+        ]
+      ],
+      "semantic_passed": 2,
+      "cases": 2,
+      "completion_tokens": [
+        21,
+        21
+      ],
+      "status": true
+    },
+    {
+      "version": "final",
+      "chunk_limit": 256,
+      "observed_prefill_lengths": [
+        [
+          90
+        ],
+        [
+          90
+        ]
+      ],
+      "semantic_passed": 2,
+      "cases": 2,
+      "completion_tokens": [
+        21,
+        21
+      ],
+      "status": true
+    },
+    {
+      "version": "final",
+      "chunk_limit": 76,
+      "observed_prefill_lengths": [
+        [
+          76,
+          14
+        ],
+        [
+          76,
+          14
+        ]
+      ],
+      "semantic_passed": 0,
+      "cases": 2,
+      "completion_tokens": [
+        25,
+        25
+      ],
+      "status": false
+    },
+    {
+      "version": "baseline",
+      "chunk_limit": 76,
+      "observed_prefill_lengths": [
+        [
+          76,
+          14
+        ],
+        [
+          76,
+          14
+        ]
+      ],
+      "semantic_passed": 0,
+      "cases": 2,
+      "completion_tokens": [
+        25,
+        25
+      ],
+      "status": false
+    },
+    {
+      "version": "baseline",
+      "chunk_limit": 64,
+      "observed_prefill_lengths": [
+        [
+          64,
+          26
+        ],
+        [
+          64,
+          26
+        ]
+      ],
+      "semantic_passed": 2,
+      "cases": 2,
+      "completion_tokens": [
+        21,
+        21
+      ],
+      "status": true
+    },
+    {
+      "version": "final",
+      "chunk_limit": 64,
+      "observed_prefill_lengths": [
+        [
+          64,
+          26
+        ],
+        [
+          64,
+          26
+        ]
+      ],
+      "semantic_passed": 2,
+      "cases": 2,
+      "completion_tokens": [
+        21,
+        21
+      ],
+      "status": true
+    }
+  ],
+  "binary_sha256": {
+    "baseline": {
+      "TensorSharp.Server.Host.dll": "fafc768dd064bfd828ab5f104f0f87ee1c34e6e0673b1be557486c485292ce62",
+      "TensorSharp.Runtime.dll": "abde2278d6c9b885c18dc37e2d93c8f273aecc68568f13c49c31cd0edc4bdc4b",
+      "TensorSharp.Models.dll": "a7e8872e1a775f0040050613b25577301ff5191df68e379ab57291e8195737ee",
+      "TensorSharp.Chat.dll": "b63a9ae7165af2a03ad3d11a76d0a2c45483cdaac300303d0d6a4f2d9e682241",
+      "TensorSharp.Server.dll": "38afc8a53be599b6c487f1113d8c90f21fa02bb5dadcfe2a8a4052abde588b57",
+      "libGgmlOps.so": "e67e4c922138a7038bfc07d110d22eeec0f3f4cf10d545fae2971ca3f7dc3093"
+    },
+    "final": {
+      "TensorSharp.Server.Host.dll": "1e424ad7092e95f37b5f6370e5d2ca4244f452ed9c5d9874f977016c2a67c689",
+      "TensorSharp.Runtime.dll": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+      "TensorSharp.Models.dll": "bbc4efd359ef215b79694bae3647ad13f301f49869c3034981df4ecc73e59510",
+      "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+      "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff",
+      "libGgmlOps.so": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014"
+    }
+  },
+  "weights_id": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031",
+  "run_sha256": "e637bfa6b6fd1134777f61a3b86772f81c61df8baa5d3fd83d31efdbb7bbe414",
+  "child_and_server_log_sha256": {
+    "baseline-chunk256.json": "ff5304b9a28bf66386b1676033c52d8ba9c93a7893a0752d203c7b74d355a01f",
+    "baseline-chunk256-server.log": "85cdbd2cb47fa4ec5aac25b1c6aba5d5f3b4b62521e73d00b652849bd5e12808",
+    "final-chunk256.json": "bea79a729a5a31ac175f0374111526debd11a96201e9afbdf0239bf05322ceee",
+    "final-chunk256-server.log": "003621bd6a47a50a1525153d1706c9ded35b659fbece8855fa43df94786a6012",
+    "final-chunk76.json": "dbec96855be90903224d801652889d15c51eab684990818ac77e403bda178257",
+    "final-chunk76-server.log": "7c3d0dc524794b4c5fed4b4a9d2d826ee7b7e7588c17e202d5034212358474f1",
+    "baseline-chunk76.json": "16cea9efcd8910f9f3aa7826f2646eb7e8d17e8b1ea0a7c2800ed1ff3be35389",
+    "baseline-chunk76-server.log": "47af2e3ef2db9a0b1708afe9e18d13fb0905a2f98460e80e2d740aa394493184",
+    "baseline-chunk64.json": "63472a68c7b535e38e3958e5c148d88b443451091a3e35c5ff598b4222eeb9f0",
+    "baseline-chunk64-server.log": "28fd425c037891ecc1529cee9e3cda7139cf6416b728f7d22221f23bbff78679",
+    "final-chunk64.json": "b7173dfd72f6f9cab0bbd70665acebd10d37952d9e1c9c995ad27d048c461861",
+    "final-chunk64-server.log": "65b85c6362ab421896e930927add770a5b301960086a183506308c94d5b810ee"
+  },
+  "conclusion": "The same exactrequest shows reproducible chunk-dependent semantic output in both preservedbuilds. No introduced within-shape output difference was observed in these six paired comparisons.",
+  "limitations": [
+    "The original concurrent-run chunk lengths were not logged; this does not prove those calls used76+14.",
+    "No token logits or intermediate activation traces were collected, so kernel rounding versus an inherited chunking defect is not resolved.",
+    "Output equality here means recorded assistant response fields and prompt/completion counts, not bitwise internal logits or a sampledtoken-ID trace.",
+    "The four semantic failures remain failures. The diagnostic is not a no-regression or quality-parity blanket pass.",
+    "Timing is unqualified: debug logging, cold firstrequest and warm secondrequest, onlytwo repetitions."
+  ]
+}

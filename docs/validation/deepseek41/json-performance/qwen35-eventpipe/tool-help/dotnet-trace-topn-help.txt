@@ -1,0 +1,15 @@
+Description:
+  Finds the top N methods that have been on the callstack the longest.
+
+Usage:
+  dotnet-trace report <trace_filename> topN [options]
+
+Arguments:
+  <trace_filename>  The file path for the trace being analyzed.
+
+Options:
+  -n, --number    Gives the top N methods on the callstack. [default: 5]
+  --inclusive     Output the top N methods based on inclusive time. If not specified, exclusive time is used by default.
+  -v, --verbose   Output the parameters of each method in full. If not specified, parameters will be truncated.
+  -?, -h, --help  Show help and usage information
+

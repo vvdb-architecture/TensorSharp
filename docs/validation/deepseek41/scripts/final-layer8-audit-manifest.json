@@ -1,0 +1,74 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "raw_dir": "/tmp/deepseek41-reference/final-raw",
+  "qualified_labels": [
+    "quality",
+    "steady",
+    "long",
+    "serial-tools"
+  ],
+  "expected": {
+    "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+    "runtime_sha256": "957c14b102c8a72056216b091e31d93a60f084f006c39f2c18c4339d6523d814",
+    "suite_sha256": "9139670b49d5bbe0c5eb8e818fe50fecbb55ed8a33a38300e410f8470da83375",
+    "harness_sha256": {
+      "validate_inference.py": "b791d4f6474f3ad188bd1e5145296d3b06879b768f94a16ca74a83fe38f6b077",
+      "engines.py": "7a49619e5df4b9e2eeafad2ba32a802bc16ae44a32d35cbc639e5bab1c8956e0",
+      "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+    },
+    "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+    "sampling": {
+      "temperature": 0,
+      "top_p": 1,
+      "top_k": 0,
+      "seed": 42,
+      "repeat_penalty": 1,
+      "presence_penalty": 0,
+      "frequency_penalty": 0
+    },
+    "command_flags": {
+      "--backend": "ggml_cuda",
+      "--tp": "8",
+      "--n-cpu-moe": "0",
+      "--cpu-moe-threads": "32",
+      "--model": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf",
+      "--mmproj": "/workspace/models/DeepSeek-V4.1-Flash-Q2_K/deepseek41.vision.gguf"
+    },
+    "environment": {
+      "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
+      "MAX_CONTEXT": "65536",
+      "TS_DSV4_UBATCH": "1024",
+      "TS_DSV4_NGPU": "8",
+      "KV_CACHE_DTYPE": "f16",
+      "TS_DSV41_TP": "0",
+      "TS_DSV41_SPARSE_FA": "1",
+      "TS_DSV41_COMPACT_RAW_GATHER": "1",
+      "TS_DSV41_ENGRAM_WARM": "1",
+      "TS_DSV41_ENGRAM_THREADS": "16",
+      "TS_DSV4_PERF": "1",
+      "TS_SCHED_MAX_RUNNING_SEQS": "4",
+      "TS_SCHED_PREFILL_CHUNK": "1024",
+      "TS_SCHED_SOLO_PREFILL_CHUNK": "1024",
+      "TS_SCHED_MAX_BATCHED_TOKENS": "4096",
+      "TS_CPU_MOE_THREADS": "32"
+    },
+    "additional_binary_sha256": {
+      "TensorSharp.Chat.dll": "955cceafc0d14ede819ac6143d5f1448e50c51b4ff82e7b5c092ae2be92da13a",
+      "TensorSharp.Server.dll": "216d861c54d471ba9268434cfa53a0d618ab3d5697e73848d487c7189379c4ff"
+    }
+  },
+  "scope": "Reviewed intended final3651/native6b3 profile. The auditor covers placement and serial-tools case/native evidence; other planned phases retain their own complete reports and wrapper checks. Startup/warming are excluded. Root coordinates exclusive inference windows.",
+  "audited_phases": [
+    "placement",
+    "serial-tools"
+  ],
+  "expected_outer_phases": [
+    "placement",
+    "tools",
+    "protocol",
+    "media",
+    "multilingual",
+    "serial-tools",
+    "long-parallel"
+  ]
+}

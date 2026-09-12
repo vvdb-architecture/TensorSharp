@@ -1,0 +1,81 @@
+{
+  "scope": "Local macOS ARM64 metadata-only diagnostic, not VM latency or native inference. Four separate processes baseline/final/final/baseline. Each operation has350mswarmup and5blocks>=100ms. No production source changes.",
+  "runtime_sources": {
+    "baseline": "04a5faa9e641fc0b06de661be1191afbc6edaf50",
+    "final": "local source verified with managed3651 stage; platform-specific assembly hash differs from VM build"
+  },
+  "operations": [
+    {
+      "name": "warmed_factory_and_new_constraint",
+      "run_median_nanoseconds": {
+        "final-2": 100.99592077475991,
+        "baseline-3": 94.2562256112504,
+        "baseline-0": 95.66204695216496,
+        "final-1": 102.48043648467508
+      }
+    },
+    {
+      "name": "warmed_factory_and_initial_mask",
+      "run_median_nanoseconds": {
+        "final-2": 108.60923699838824,
+        "baseline-3": 101.51552527685821,
+        "baseline-0": 104.6709407300798,
+        "final-1": 109.12586905113966
+      }
+    },
+    {
+      "name": "warmed_initial_apply_mask",
+      "run_median_nanoseconds": {
+        "final-2": 98677.12031558185,
+        "baseline-3": 85478.54700854702,
+        "baseline-0": 87367.07423580786,
+        "final-1": 98917.40850642927
+      }
+    },
+    {
+      "name": "warmed_full_response_masks_and_accept",
+      "run_median_nanoseconds": {
+        "final-2": 1036.824643075615,
+        "baseline-3": 1066.0103615896298,
+        "baseline-0": 1058.1993841335013,
+        "final-1": 1034.4639956966555
+      }
+    },
+    {
+      "name": "warmed_full_response_apply_and_accept",
+      "run_median_nanoseconds": {
+        "final-2": 865643.9655172414,
+        "baseline-3": 881096.4912280702,
+        "baseline-0": 919270.6422018348,
+        "final-1": 856854.7008547009
+      }
+    }
+  ],
+  "retained_latency_flag": "Completed VM JSON run Qwen3.5 TTFT regression remains unresolved; this probe does not establish an isolated cause or absence of latency regression.",
+  "cold_mask_run_median_ms": {
+    "final-2": 101.72805,
+    "baseline-3": 36.649,
+    "baseline-0": 99.0452,
+    "final-1": 105.98264999999999
+  },
+  "inputs_identical": true,
+  "source_files_sha256": {
+    "TensorSharp.Runtime/Grammar/DeepSeek41ToolGrammar.cs": "665b5db5d14ac6efe935031030e896b44116bfa98b4de49fb55988d383647f24",
+    "TensorSharp.Runtime/Grammar/GbnfParser.cs": "205e06f3f3100e04219bfb7781427d0d9b57edd5a3bf1e1ec3ab5a86846ac585",
+    "TensorSharp.Runtime/Grammar/Grammar.cs": "49b4e371b7d6edd7bb8e36173930c0dff02ba12244aff5a7f81f602ab952cea3",
+    "TensorSharp.Runtime/Grammar/GrammarConstraint.cs": "c8f759921442f5a335aaa58aaa900a7572a102d45c9db555b8a79d0c8da94992",
+    "TensorSharp.Runtime/Grammar/GrammarLibrary.cs": "8f3a6ce06b872d234d7446053a63fc16cc6ee6946005989c6817ff9086b57a74",
+    "TensorSharp.Runtime/Grammar/GrammarMatcher.cs": "67df3cf9ce025013906ad1336778a97c8618c946b3d10fd21ef0fc1426f4e0db",
+    "TensorSharp.Runtime/Grammar/GrammarTokenVocabulary.cs": "f70097ddb79d298ed9a1a085dabf3a27154564a1e84c6ba1d277acaf13ea9e98",
+    "TensorSharp.Runtime/Grammar/JsonSchemaGrammarCompiler.cs": "07c38a42f222b53e904aead241c7eee946dea5f328958d037e331f3b0a44d1af",
+    "TensorSharp.Runtime/Grammar/RegexToGbnf.cs": "864349f81334293cbceadfd2c85e570f9a4037bcbb7b32abc3d25fcb0be59642"
+  },
+  "artifact_files_sha256": {
+    "Program.cs": "01fd2aa16174350fd4498da288be2e49a4e7c71b96ebbea572b59e309e8240ee",
+    "baseline-0.json": "2cd39b1fb979bd88838dd096f2ed0155d3df05b0b2b086685816b79f902c1749",
+    "baseline-3.json": "4ec7f2f77a7cc82131706fb08ce9a0c65161a7d710f0866ab9e4f418c904d042",
+    "final-1.json": "c43470222b22b8670c6c5397a91446cbc7db99b5d22124c4ca2b4946c002ea94",
+    "final-2.json": "cc21b056cb64f32c2d6916e6212c581c5ee1cb633265b9bd0431c41b0ff4b43a",
+    "probe.csproj": "458bc3124b3f7c82fefb60ffc0dc09a08e405a443a69244ffbffe4810a67ac09"
+  }
+}

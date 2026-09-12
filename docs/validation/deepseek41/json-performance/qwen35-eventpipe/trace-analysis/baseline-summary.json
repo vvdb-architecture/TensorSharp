@@ -1,0 +1,2104 @@
+{
+  "scope": "Diagnostic managed thread-stack sampling, not measured on-CPU time. Raw GC/threading/contention events retained. No kernel/native stack or off-CPU scheduler attribution.",
+  "analysis_complete": true,
+  "target_pid": 148222,
+  "inputs": {
+    "trace": {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.nettrace",
+      "bytes": 6477626,
+      "sha256": "dfe410e0171637f1affd6cce9da17e99a69fd3c034c1f376d43259d82f03f9e1"
+    },
+    "metadata": {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native-eventpipe.json",
+      "bytes": 2727,
+      "sha256": "27576deca9f979e19304b578f512802ab7a71b9b1e51d222ba35968a25870d53"
+    },
+    "requests": {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-final-native-r1/qwen35-baseline-managed_final-native.json",
+      "bytes": 64836,
+      "sha256": "1c57a36d05ee302c0c843bc2e4911cf8b5bbf42c188d2bb15b05f8113ef6b3d8"
+    },
+    "parser": {
+      "path": "/private/tmp/deepseek41-reference/trace-analysis/bin/Release/net10.0/Microsoft.Diagnostics.Tracing.TraceEvent.dll",
+      "bytes": 3218504,
+      "sha256": "7ad04f5abbd704e8bd9c7b29f9aeab951f20cdc5d5c8e701f256be52a6e8543e"
+    },
+    "analyzer": {
+      "path": "/private/tmp/deepseek41-reference/trace-analysis/bin/Release/net10.0/trace-analysis.dll",
+      "bytes": 70144,
+      "sha256": "fe90db55466abd0770c049017c68a7ed4312e0fdb859deaef540fc37e92d526f"
+    }
+  },
+  "window": {
+    "start_utc": "2026-09-11T14:42:13.0281995+00:00",
+    "end_utc": "2026-09-11T14:42:15.1582252+00:00",
+    "start_monotonic": 4410542.306929582,
+    "end_monotonic": 4410544.436955359,
+    "anchor": {
+      "Utc": "2026-09-11T14:42:13.020059+00:00",
+      "Monotonic": 4410542.298789064,
+      "Uncertainty": 1.0542571544647217E-06
+    },
+    "max_anchor_clock_drift_seconds": 5E-07,
+    "max_anchor_uncertainty_seconds": 1.066364347934723E-06,
+    "alignment_method": "collection_ready UTC plus monotonic delta; no sample-duration to CPU conversion"
+  },
+  "request_windows": [
+    {
+      "Tag": "json-c1-r0-i0",
+      "Concurrency": 1,
+      "Start": "2026-09-11T14:42:13.0291991+00:00",
+      "First": "2026-09-11T14:42:13.0995001+00:00",
+      "End": "2026-09-11T14:42:13.1611665+00:00"
+    },
+    {
+      "Tag": "json-c1-r1-i0",
+      "Concurrency": 1,
+      "Start": "2026-09-11T14:42:13.1749484+00:00",
+      "First": "2026-09-11T14:42:13.2484927+00:00",
+      "End": "2026-09-11T14:42:13.3084734+00:00"
+    },
+    {
+      "Tag": "json-c1-r2-i0",
+      "Concurrency": 1,
+      "Start": "2026-09-11T14:42:13.3193135+00:00",
+      "First": "2026-09-11T14:42:13.4636553+00:00",
+      "End": "2026-09-11T14:42:13.5228527+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i0",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:13.5361046+00:00",
+      "First": "2026-09-11T14:42:13.742685+00:00",
+      "End": "2026-09-11T14:42:13.9573988+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i1",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:13.5375304+00:00",
+      "First": "2026-09-11T14:42:13.8482335+00:00",
+      "End": "2026-09-11T14:42:14.0743119+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i2",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:13.5389802+00:00",
+      "First": "2026-09-11T14:42:13.7951095+00:00",
+      "End": "2026-09-11T14:42:13.9635689+00:00"
+    },
+    {
+      "Tag": "json-c4-r0-i3",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:13.5408642+00:00",
+      "First": "2026-09-11T14:42:13.7954878+00:00",
+      "End": "2026-09-11T14:42:13.9631869+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i0",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.0881262+00:00",
+      "First": "2026-09-11T14:42:14.3830582+00:00",
+      "End": "2026-09-11T14:42:14.5561257+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i1",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.0887364+00:00",
+      "First": "2026-09-11T14:42:14.4336882+00:00",
+      "End": "2026-09-11T14:42:14.5627589+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i2",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.0908739+00:00",
+      "First": "2026-09-11T14:42:14.4341776+00:00",
+      "End": "2026-09-11T14:42:14.5630191+00:00"
+    },
+    {
+      "Tag": "json-c4-r1-i3",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.0928491+00:00",
+      "First": "2026-09-11T14:42:14.4567574+00:00",
+      "End": "2026-09-11T14:42:14.590143+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i0",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.6140146+00:00",
+      "First": "2026-09-11T14:42:14.9361771+00:00",
+      "End": "2026-09-11T14:42:15.1059293+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i1",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.6154065+00:00",
+      "First": "2026-09-11T14:42:14.8775128+00:00",
+      "End": "2026-09-11T14:42:15.098871+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i2",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.6166395+00:00",
+      "First": "2026-09-11T14:42:14.9366833+00:00",
+      "End": "2026-09-11T14:42:15.1055921+00:00"
+    },
+    {
+      "Tag": "json-c4-r2-i3",
+      "Concurrency": 4,
+      "Start": "2026-09-11T14:42:14.6189649+00:00",
+      "First": "2026-09-11T14:42:14.9925265+00:00",
+      "End": "2026-09-11T14:42:15.1334893+00:00"
+    }
+  ],
+  "lost_event_callbacks": [],
+  "collection_complete": true,
+  "limitations": [
+    "Per-case sample tallies overlap for concurrent requests; they are temporal correlations, not attribution to a request.",
+    "Unresolved managed/native boundary frames do not reveal native CPU or GPU execution.",
+    "Runtime suspend spans are separated by Reason. SuspendOther includes profiler sampling; GCStart-to-GCStop is not used as pause time.",
+    "Thread and sample counts can vary with runtime sampler scheduling; no exact CPU milliseconds are calculated."
+  ],
+  "thread_metadata": [
+    {
+      "tid": 148224,
+      "thread_index": "0",
+      "name": "Thread (148224)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148353,
+      "thread_index": "1",
+      "name": "Thread (148353)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148222,
+      "thread_index": "2",
+      "name": "Thread (148222)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148296,
+      "thread_index": "3",
+      "name": "Thread (148296)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148297,
+      "thread_index": "4",
+      "name": "Thread (148297)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148298,
+      "thread_index": "5",
+      "name": "Thread (148298)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148329,
+      "thread_index": "6",
+      "name": "Thread (148329)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148299,
+      "thread_index": "7",
+      "name": "Thread (148299) (.NET ThreadPool)",
+      "info": ".NET ThreadPool",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148300,
+      "thread_index": "8",
+      "name": "Thread (148300)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148301,
+      "thread_index": "9",
+      "name": "Thread (148301)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148307,
+      "thread_index": "10",
+      "name": "Thread (148307)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148308,
+      "thread_index": "11",
+      "name": "Thread (148308)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148309,
+      "thread_index": "12",
+      "name": "Thread (148309)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148310,
+      "thread_index": "13",
+      "name": "Thread (148310)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148311,
+      "thread_index": "14",
+      "name": "Thread (148311)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148312,
+      "thread_index": "15",
+      "name": "Thread (148312)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148313,
+      "thread_index": "16",
+      "name": "Thread (148313)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148314,
+      "thread_index": "17",
+      "name": "Thread (148314)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148315,
+      "thread_index": "18",
+      "name": "Thread (148315)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148316,
+      "thread_index": "19",
+      "name": "Thread (148316)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148317,
+      "thread_index": "20",
+      "name": "Thread (148317)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148318,
+      "thread_index": "21",
+      "name": "Thread (148318)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148319,
+      "thread_index": "22",
+      "name": "Thread (148319)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148320,
+      "thread_index": "23",
+      "name": "Thread (148320)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148330,
+      "thread_index": "24",
+      "name": "Thread (148330)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148331,
+      "thread_index": "25",
+      "name": "Thread (148331)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148332,
+      "thread_index": "26",
+      "name": "Thread (148332)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148293,
+      "thread_index": "27",
+      "name": "Thread (148293)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148357,
+      "thread_index": "28",
+      "name": "Thread (148357)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148292,
+      "thread_index": "29",
+      "name": "Thread (148292) (.NET Finalizer Thread)",
+      "info": ".NET Finalizer Thread",
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148227,
+      "thread_index": "30",
+      "name": "Thread (148227)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148233,
+      "thread_index": "31",
+      "name": "Thread (148233)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148238,
+      "thread_index": "32",
+      "name": "Thread (148238)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148229,
+      "thread_index": "33",
+      "name": "Thread (148229)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148240,
+      "thread_index": "34",
+      "name": "Thread (148240)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148235,
+      "thread_index": "35",
+      "name": "Thread (148235)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148242,
+      "thread_index": "36",
+      "name": "Thread (148242)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148239,
+      "thread_index": "37",
+      "name": "Thread (148239)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148232,
+      "thread_index": "38",
+      "name": "Thread (148232)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148241,
+      "thread_index": "39",
+      "name": "Thread (148241)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148231,
+      "thread_index": "40",
+      "name": "Thread (148231)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148237,
+      "thread_index": "41",
+      "name": "Thread (148237)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148243,
+      "thread_index": "42",
+      "name": "Thread (148243)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148228,
+      "thread_index": "43",
+      "name": "Thread (148228)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148230,
+      "thread_index": "44",
+      "name": "Thread (148230)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148236,
+      "thread_index": "45",
+      "name": "Thread (148236)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148244,
+      "thread_index": "46",
+      "name": "Thread (148244)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148234,
+      "thread_index": "47",
+      "name": "Thread (148234)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148381,
+      "thread_index": "48",
+      "name": "Thread (148381)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148382,
+      "thread_index": "49",
+      "name": "Thread (148382)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148383,
+      "thread_index": "50",
+      "name": "Thread (148383)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148384,
+      "thread_index": "51",
+      "name": "Thread (148384)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148385,
+      "thread_index": "52",
+      "name": "Thread (148385)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148386,
+      "thread_index": "53",
+      "name": "Thread (148386)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148302,
+      "thread_index": "54",
+      "name": "Thread (148302)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    },
+    {
+      "tid": 148327,
+      "thread_index": "55",
+      "name": "Thread (148327)",
+      "info": null,
+      "start_relative_ms": 0,
+      "end_relative_ms": 9218961494633.117
+    }
+  ],
+  "per_thread": [
+    {
+      "tid": 148222,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 0,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148296,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 1,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148297,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1656,
+        "Type=Managed": 17
+      },
+      "stacks": [
+        {
+          "stack_id": 59,
+          "samples": 1263
+        },
+        {
+          "stack_id": 2,
+          "samples": 391
+        },
+        {
+          "stack_id": 61,
+          "samples": 9
+        },
+        {
+          "stack_id": 12,
+          "samples": 3
+        },
+        {
+          "stack_id": 123,
+          "samples": 2
+        },
+        {
+          "stack_id": 47,
+          "samples": 1
+        },
+        {
+          "stack_id": 57,
+          "samples": 1
+        },
+        {
+          "stack_id": 120,
+          "samples": 1
+        },
+        {
+          "stack_id": 129,
+          "samples": 1
+        },
+        {
+          "stack_id": 157,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148298,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1656,
+        "Type=Managed": 17
+      },
+      "stacks": [
+        {
+          "stack_id": 3,
+          "samples": 1644
+        },
+        {
+          "stack_id": 48,
+          "samples": 24
+        },
+        {
+          "stack_id": 18,
+          "samples": 2
+        },
+        {
+          "stack_id": 124,
+          "samples": 2
+        },
+        {
+          "stack_id": 81,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148329,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 4,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148299,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1626,
+        "Type=Managed": 47
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1621
+        },
+        {
+          "stack_id": 27,
+          "samples": 11
+        },
+        {
+          "stack_id": 29,
+          "samples": 3
+        },
+        {
+          "stack_id": 10,
+          "samples": 2
+        },
+        {
+          "stack_id": 83,
+          "samples": 2
+        },
+        {
+          "stack_id": 44,
+          "samples": 2
+        },
+        {
+          "stack_id": 13,
+          "samples": 1
+        },
+        {
+          "stack_id": 14,
+          "samples": 1
+        },
+        {
+          "stack_id": 15,
+          "samples": 1
+        },
+        {
+          "stack_id": 16,
+          "samples": 1
+        },
+        {
+          "stack_id": 17,
+          "samples": 1
+        },
+        {
+          "stack_id": 28,
+          "samples": 1
+        },
+        {
+          "stack_id": 32,
+          "samples": 1
+        },
+        {
+          "stack_id": 60,
+          "samples": 1
+        },
+        {
+          "stack_id": 64,
+          "samples": 1
+        },
+        {
+          "stack_id": 68,
+          "samples": 1
+        },
+        {
+          "stack_id": 74,
+          "samples": 1
+        },
+        {
+          "stack_id": 78,
+          "samples": 1
+        },
+        {
+          "stack_id": 82,
+          "samples": 1
+        },
+        {
+          "stack_id": 85,
+          "samples": 1
+        },
+        {
+          "stack_id": 70,
+          "samples": 1
+        },
+        {
+          "stack_id": 92,
+          "samples": 1
+        },
+        {
+          "stack_id": 94,
+          "samples": 1
+        },
+        {
+          "stack_id": 95,
+          "samples": 1
+        },
+        {
+          "stack_id": 97,
+          "samples": 1
+        },
+        {
+          "stack_id": 98,
+          "samples": 1
+        },
+        {
+          "stack_id": 99,
+          "samples": 1
+        },
+        {
+          "stack_id": 100,
+          "samples": 1
+        },
+        {
+          "stack_id": 101,
+          "samples": 1
+        },
+        {
+          "stack_id": 117,
+          "samples": 1
+        },
+        {
+          "stack_id": 130,
+          "samples": 1
+        },
+        {
+          "stack_id": 131,
+          "samples": 1
+        },
+        {
+          "stack_id": 134,
+          "samples": 1
+        },
+        {
+          "stack_id": 138,
+          "samples": 1
+        },
+        {
+          "stack_id": 89,
+          "samples": 1
+        },
+        {
+          "stack_id": 154,
+          "samples": 1
+        },
+        {
+          "stack_id": 152,
+          "samples": 1
+        },
+        {
+          "stack_id": 181,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148300,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 6,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148301,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1649,
+        "Type=Managed": 24
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1235
+        },
+        {
+          "stack_id": 7,
+          "samples": 417
+        },
+        {
+          "stack_id": 27,
+          "samples": 4
+        },
+        {
+          "stack_id": 44,
+          "samples": 3
+        },
+        {
+          "stack_id": 132,
+          "samples": 1
+        },
+        {
+          "stack_id": 135,
+          "samples": 1
+        },
+        {
+          "stack_id": 139,
+          "samples": 1
+        },
+        {
+          "stack_id": 141,
+          "samples": 1
+        },
+        {
+          "stack_id": 83,
+          "samples": 1
+        },
+        {
+          "stack_id": 143,
+          "samples": 1
+        },
+        {
+          "stack_id": 158,
+          "samples": 1
+        },
+        {
+          "stack_id": 161,
+          "samples": 1
+        },
+        {
+          "stack_id": 165,
+          "samples": 1
+        },
+        {
+          "stack_id": 169,
+          "samples": 1
+        },
+        {
+          "stack_id": 171,
+          "samples": 1
+        },
+        {
+          "stack_id": 39,
+          "samples": 1
+        },
+        {
+          "stack_id": 173,
+          "samples": 1
+        },
+        {
+          "stack_id": 182,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148307,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148308,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1654,
+        "Type=Managed": 19
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1658
+        },
+        {
+          "stack_id": 27,
+          "samples": 3
+        },
+        {
+          "stack_id": 29,
+          "samples": 2
+        },
+        {
+          "stack_id": 10,
+          "samples": 1
+        },
+        {
+          "stack_id": 44,
+          "samples": 1
+        },
+        {
+          "stack_id": 65,
+          "samples": 1
+        },
+        {
+          "stack_id": 69,
+          "samples": 1
+        },
+        {
+          "stack_id": 75,
+          "samples": 1
+        },
+        {
+          "stack_id": 79,
+          "samples": 1
+        },
+        {
+          "stack_id": 83,
+          "samples": 1
+        },
+        {
+          "stack_id": 86,
+          "samples": 1
+        },
+        {
+          "stack_id": 121,
+          "samples": 1
+        },
+        {
+          "stack_id": 125,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148309,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1650,
+        "Type=Managed": 23
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1648
+        },
+        {
+          "stack_id": 27,
+          "samples": 6
+        },
+        {
+          "stack_id": 39,
+          "samples": 3
+        },
+        {
+          "stack_id": 44,
+          "samples": 2
+        },
+        {
+          "stack_id": 70,
+          "samples": 1
+        },
+        {
+          "stack_id": 87,
+          "samples": 1
+        },
+        {
+          "stack_id": 118,
+          "samples": 1
+        },
+        {
+          "stack_id": 126,
+          "samples": 1
+        },
+        {
+          "stack_id": 128,
+          "samples": 1
+        },
+        {
+          "stack_id": 140,
+          "samples": 1
+        },
+        {
+          "stack_id": 142,
+          "samples": 1
+        },
+        {
+          "stack_id": 144,
+          "samples": 1
+        },
+        {
+          "stack_id": 150,
+          "samples": 1
+        },
+        {
+          "stack_id": 166,
+          "samples": 1
+        },
+        {
+          "stack_id": 168,
+          "samples": 1
+        },
+        {
+          "stack_id": 174,
+          "samples": 1
+        },
+        {
+          "stack_id": 179,
+          "samples": 1
+        },
+        {
+          "stack_id": 29,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148310,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1624,
+        "Type=Managed": 49
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1617
+        },
+        {
+          "stack_id": 27,
+          "samples": 14
+        },
+        {
+          "stack_id": 29,
+          "samples": 5
+        },
+        {
+          "stack_id": 44,
+          "samples": 3
+        },
+        {
+          "stack_id": 93,
+          "samples": 3
+        },
+        {
+          "stack_id": 77,
+          "samples": 3
+        },
+        {
+          "stack_id": 88,
+          "samples": 2
+        },
+        {
+          "stack_id": 172,
+          "samples": 2
+        },
+        {
+          "stack_id": 11,
+          "samples": 1
+        },
+        {
+          "stack_id": 33,
+          "samples": 1
+        },
+        {
+          "stack_id": 34,
+          "samples": 1
+        },
+        {
+          "stack_id": 35,
+          "samples": 1
+        },
+        {
+          "stack_id": 62,
+          "samples": 1
+        },
+        {
+          "stack_id": 66,
+          "samples": 1
+        },
+        {
+          "stack_id": 71,
+          "samples": 1
+        },
+        {
+          "stack_id": 76,
+          "samples": 1
+        },
+        {
+          "stack_id": 80,
+          "samples": 1
+        },
+        {
+          "stack_id": 84,
+          "samples": 1
+        },
+        {
+          "stack_id": 91,
+          "samples": 1
+        },
+        {
+          "stack_id": 96,
+          "samples": 1
+        },
+        {
+          "stack_id": 122,
+          "samples": 1
+        },
+        {
+          "stack_id": 133,
+          "samples": 1
+        },
+        {
+          "stack_id": 136,
+          "samples": 1
+        },
+        {
+          "stack_id": 152,
+          "samples": 1
+        },
+        {
+          "stack_id": 155,
+          "samples": 1
+        },
+        {
+          "stack_id": 159,
+          "samples": 1
+        },
+        {
+          "stack_id": 167,
+          "samples": 1
+        },
+        {
+          "stack_id": 170,
+          "samples": 1
+        },
+        {
+          "stack_id": 175,
+          "samples": 1
+        },
+        {
+          "stack_id": 183,
+          "samples": 1
+        },
+        {
+          "stack_id": 184,
+          "samples": 1
+        },
+        {
+          "stack_id": 185,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148311,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148312,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148313,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148314,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148315,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148316,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1630,
+        "Type=Managed": 43
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1630
+        },
+        {
+          "stack_id": 27,
+          "samples": 11
+        },
+        {
+          "stack_id": 44,
+          "samples": 4
+        },
+        {
+          "stack_id": 77,
+          "samples": 3
+        },
+        {
+          "stack_id": 29,
+          "samples": 2
+        },
+        {
+          "stack_id": 10,
+          "samples": 1
+        },
+        {
+          "stack_id": 36,
+          "samples": 1
+        },
+        {
+          "stack_id": 37,
+          "samples": 1
+        },
+        {
+          "stack_id": 38,
+          "samples": 1
+        },
+        {
+          "stack_id": 39,
+          "samples": 1
+        },
+        {
+          "stack_id": 40,
+          "samples": 1
+        },
+        {
+          "stack_id": 45,
+          "samples": 1
+        },
+        {
+          "stack_id": 46,
+          "samples": 1
+        },
+        {
+          "stack_id": 49,
+          "samples": 1
+        },
+        {
+          "stack_id": 50,
+          "samples": 1
+        },
+        {
+          "stack_id": 51,
+          "samples": 1
+        },
+        {
+          "stack_id": 52,
+          "samples": 1
+        },
+        {
+          "stack_id": 55,
+          "samples": 1
+        },
+        {
+          "stack_id": 58,
+          "samples": 1
+        },
+        {
+          "stack_id": 63,
+          "samples": 1
+        },
+        {
+          "stack_id": 67,
+          "samples": 1
+        },
+        {
+          "stack_id": 72,
+          "samples": 1
+        },
+        {
+          "stack_id": 89,
+          "samples": 1
+        },
+        {
+          "stack_id": 151,
+          "samples": 1
+        },
+        {
+          "stack_id": 156,
+          "samples": 1
+        },
+        {
+          "stack_id": 152,
+          "samples": 1
+        },
+        {
+          "stack_id": 121,
+          "samples": 1
+        },
+        {
+          "stack_id": 162,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148317,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1659,
+        "Type=Managed": 14
+      },
+      "stacks": [
+        {
+          "stack_id": 5,
+          "samples": 1660
+        },
+        {
+          "stack_id": 27,
+          "samples": 4
+        },
+        {
+          "stack_id": 10,
+          "samples": 1
+        },
+        {
+          "stack_id": 73,
+          "samples": 1
+        },
+        {
+          "stack_id": 137,
+          "samples": 1
+        },
+        {
+          "stack_id": 160,
+          "samples": 1
+        },
+        {
+          "stack_id": 163,
+          "samples": 1
+        },
+        {
+          "stack_id": 164,
+          "samples": 1
+        },
+        {
+          "stack_id": 168,
+          "samples": 1
+        },
+        {
+          "stack_id": 144,
+          "samples": 1
+        },
+        {
+          "stack_id": 44,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "tid": 148318,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148319,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148320,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1673
+      },
+      "stacks": [
+        {
+          "stack_id": 7,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148330,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1671,
+        "Type=Managed": 2
+      },
+      "stacks": [
+        {
+          "stack_id": 8,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148331,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 0,
+      "sample_types": {
+        "Type=External": 1672,
+        "Type=Managed": 1
+      },
+      "stacks": [
+        {
+          "stack_id": 8,
+          "samples": 1673
+        }
+      ]
+    },
+    {
+      "tid": 148332,
+      "samples": 1673,
+      "missing_stack": 0,
+      "engine_samples": 1673,
+      "sample_types": {
+        "Type=External": 1250,
+        "Type=Managed": 423
+      },
+      "stacks": [
+        {
+          "stack_id": 113,
+          "samples": 331
+        },
+        {
+          "stack_id": 109,
+          "samples": 188
+        },
+        {
+          "stack_id": 23,
+          "samples": 179
+        },
+        {
+          "stack_id": 26,
+          "samples": 152
+        },
+        {
+          "stack_id": 9,
+          "samples": 133
+        },
+        {
+          "stack_id": 105,
+          "samples": 123
+        },
+        {
+          "stack_id": 107,
+          "samples": 116
+        },
+        {
+          "stack_id": 22,
+          "samples": 47
+        },
+        {
+          "stack_id": 90,
+          "samples": 42
+        },
+        {
+          "stack_id": 103,
+          "samples": 42
+        },
+        {
+          "stack_id": 112,
+          "samples": 38
+        },
+        {
+          "stack_id": 20,
+          "samples": 34
+        },
+        {
+          "stack_id": 127,
+          "samples": 33
+        },
+        {
+          "stack_id": 146,
+          "samples": 32
+        },
+        {
+          "stack_id": 41,
+          "samples": 28
+        },
+        {
+          "stack_id": 110,
+          "samples": 23
+        },
+        {
+          "stack_id": 111,
+          "samples": 20
+        },
+        {
+          "stack_id": 114,
+          "samples": 20
+        },
+        {
+          "stack_id": 30,
+          "samples": 12
+        },
+        {
+          "stack_id": 104,
+          "samples": 12
+        },
+        {
+          "stack_id": 106,
+          "samples": 10
+        },
+        {
+          "stack_id": 119,
+          "samples": 7
+        },
+        {
+          "stack_id": 177,
+          "samples": 6
+        },
+        {
+          "stack_id": 19,
+          "samples": 5
+        },
+        {
+          "stack_id": 31,
+          "samples": 5
+        },
+        {
+          "stack_id": 24,
+          "samples": 4
+        },
+        {
+          "stack_id": 25,
+          "samples": 4
+        },
+        {
+          "stack_id": 54,
+          "samples": 3
+        },
+        {
+          "stack_id": 153,
+          "samples": 3
+        },
+        {
+          "stack_id": 178,
+          "samples": 3
+        },
+        {
+          "stack_id": 42,
+          "samples": 2
+        },
+        {
+          "stack_id": 116,
+          "samples": 2
+        },
+        {
+          "stack_id": 147,
+          "samples": 2
+        },
+        {
+          "stack_id": 21,
+          "samples": 1
+        },
+        {
+          "stack_id": 43,
+          "samples": 1
+        },
+        {
+          "stack_id": 53,
+          "samples": 1
+        },
+        {
+          "stack_id": 56,
+          "samples": 1
+        },
+        {
+          "stack_id": 102,
+          "samples": 1
+        },
+        {
+          "stack_id": 108,
+          "samples": 1
+        },
+        {
+          "stack_id": 115,
+          "samples": 1
+        },
+        {
+          "stack_id": 145,
+          "samples": 1
+        },
+        {
+          "stack_id": 148,
+          "samples": 1
+        },
+        {
+          "stack_id": 149,
+          "samples": 1
+        },
+        {
+          "stack_id": 176,
+          "samples": 1
+        },
+        {
+          "stack_id": 180,
+          "samples": 1
+        }
+      ]
+    }
+  ],
+  "per_request_temporal_sample_counts": {
+    "json-c1-r0-i0": {
+      "before_first_token_all_thread_samples": 1400,
+      "before_first_token_engine_thread_samples": 56,
+      "after_first_token_all_thread_samples": 1246,
+      "after_first_token_engine_thread_samples": 49
+    },
+    "json-c1-r1-i0": {
+      "before_first_token_all_thread_samples": 1450,
+      "before_first_token_engine_thread_samples": 58,
+      "after_first_token_all_thread_samples": 1225,
+      "after_first_token_engine_thread_samples": 49
+    },
+    "json-c1-r2-i0": {
+      "before_first_token_all_thread_samples": 2900,
+      "before_first_token_engine_thread_samples": 116,
+      "after_first_token_all_thread_samples": 1200,
+      "after_first_token_engine_thread_samples": 48
+    },
+    "json-c4-r0-i0": {
+      "before_first_token_all_thread_samples": 4075,
+      "before_first_token_engine_thread_samples": 163,
+      "after_first_token_all_thread_samples": 4309,
+      "after_first_token_engine_thread_samples": 172
+    },
+    "json-c4-r0-i1": {
+      "before_first_token_all_thread_samples": 6153,
+      "before_first_token_engine_thread_samples": 247,
+      "after_first_token_all_thread_samples": 4550,
+      "after_first_token_engine_thread_samples": 182
+    },
+    "json-c4-r0-i2": {
+      "before_first_token_all_thread_samples": 5050,
+      "before_first_token_engine_thread_samples": 202,
+      "after_first_token_all_thread_samples": 3375,
+      "after_first_token_engine_thread_samples": 135
+    },
+    "json-c4-r0-i3": {
+      "before_first_token_all_thread_samples": 5047,
+      "before_first_token_engine_thread_samples": 201,
+      "after_first_token_all_thread_samples": 3353,
+      "after_first_token_engine_thread_samples": 135
+    },
+    "json-c4-r1-i0": {
+      "before_first_token_all_thread_samples": 5875,
+      "before_first_token_engine_thread_samples": 235,
+      "after_first_token_all_thread_samples": 3478,
+      "after_first_token_engine_thread_samples": 139
+    },
+    "json-c4-r1-i1": {
+      "before_first_token_all_thread_samples": 6875,
+      "before_first_token_engine_thread_samples": 275,
+      "after_first_token_all_thread_samples": 2600,
+      "after_first_token_engine_thread_samples": 104
+    },
+    "json-c4-r1-i2": {
+      "before_first_token_all_thread_samples": 6850,
+      "before_first_token_engine_thread_samples": 274,
+      "after_first_token_all_thread_samples": 2575,
+      "after_first_token_engine_thread_samples": 103
+    },
+    "json-c4-r1-i3": {
+      "before_first_token_all_thread_samples": 7275,
+      "before_first_token_engine_thread_samples": 291,
+      "after_first_token_all_thread_samples": 2675,
+      "after_first_token_engine_thread_samples": 107
+    },
+    "json-c4-r2-i0": {
+      "before_first_token_all_thread_samples": 6162,
+      "before_first_token_engine_thread_samples": 247,
+      "after_first_token_all_thread_samples": 2875,
+      "after_first_token_engine_thread_samples": 115
+    },
+    "json-c4-r2-i1": {
+      "before_first_token_all_thread_samples": 5047,
+      "before_first_token_engine_thread_samples": 201,
+      "after_first_token_all_thread_samples": 3803,
+      "after_first_token_engine_thread_samples": 153
+    },
+    "json-c4-r2-i2": {
+      "before_first_token_all_thread_samples": 6125,
+      "before_first_token_engine_thread_samples": 245,
+      "after_first_token_all_thread_samples": 2825,
+      "after_first_token_engine_thread_samples": 113
+    },
+    "json-c4-r2-i3": {
+      "before_first_token_all_thread_samples": 6644,
+      "before_first_token_engine_thread_samples": 266,
+      "after_first_token_all_thread_samples": 2850,
+      "after_first_token_engine_thread_samples": 114
+    }
+  },
+  "session": {
+    "start_utc": "2026-09-11T14:42:12.942Z",
+    "end_utc": "2026-09-11T14:42:15.316359Z",
+    "duration_ms": 2374.359029,
+    "all_event_count": 75227,
+    "target_events": 75227,
+    "first_target_utc": "2026-09-11T14:42:12.942208+00:00",
+    "last_target_utc": "2026-09-11T14:42:15.316359+00:00",
+    "target_sample_count": 41825,
+    "engine_worker_samples": 1673,
+    "first_window_sample_utc": "2026-09-11T14:42:13.0288141+00:00",
+    "last_window_sample_utc": "2026-09-11T14:42:15.157626+00:00",
+    "missing_stack_samples": 0,
+    "unresolved_frame_samples": 3365,
+    "depth_limit_samples": 0,
+    "has_callstacks": true,
+    "events_lost": 0,
+    "first_time_inversion": "Invalid"
+  },
+  "target_event_counts_full_trace": {
+    "Microsoft-Windows-DotNETRuntime/YieldProcessorMeasurement": 9,
+    "Microsoft-Windows-DotNETRuntime/AppDomainResourceManagement/ThreadCreated": 9,
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStart": 1758,
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStop": 1758,
+    "Microsoft-DotNETCore-SampleProfiler/Thread/Sample": 43885,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStart": 1758,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStop": 1758,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Pause": 6,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStop": 26,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThread/Wait": 486,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Sample": 2,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Adjustment": 1,
+    "Microsoft-Windows-DotNETRuntime/Contention/LockCreated": 17,
+    "Microsoft-Windows-DotNETRuntime/Contention/Start": 22,
+    "Microsoft-Windows-DotNETRuntime/Contention/Stop": 22,
+    "Microsoft-Windows-DotNETRuntime/Exception/Start": 18,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Start": 17,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Stop": 17,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Start": 18,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Stop": 18,
+    "Microsoft-Windows-DotNETRuntime/Exception/Stop": 18,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Resume": 5,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStart": 25,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStart": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStop": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/Triggered": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CreateSegment": 24,
+    "Microsoft-Windows-DotNETRuntime/GC/Start": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CommittedUsage": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CreateConcurrentThread": 6,
+    "Microsoft-Windows-DotNETRuntime/GC/Stop": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/HeapStats": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/GlobalHeapHistory": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/PerHeapHistory": 18,
+    "Microsoft-DotNETCore-EventPipe/ProcessInfo": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Runtime/Start": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/DCStopInit": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/ILToNativeMapDCStop": 8083,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/DCStopVerbose": 15101,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/ModuleDCStop": 108,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/DomainModuleDCStop": 108,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/AssemblyDCStop": 108,
+    "Microsoft-Windows-DotNETRuntimeRundown/Loader/AppDomainDCStop": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/GC/SettingsRundown": 1,
+    "Microsoft-Windows-DotNETRuntimeRundown/Method/DCStopComplete": 1
+  },
+  "target_event_counts_window": {
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStart": 1676,
+    "Microsoft-Windows-DotNETRuntime/GC/SuspendEEStop": 1676,
+    "Microsoft-DotNETCore-SampleProfiler/Thread/Sample": 41825,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStart": 1676,
+    "Microsoft-Windows-DotNETRuntime/GC/RestartEEStop": 1676,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThread/Wait": 486,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Sample": 2,
+    "Microsoft-Windows-DotNETRuntime/ThreadPoolWorkerThreadAdjustment/Adjustment": 1,
+    "Microsoft-Windows-DotNETRuntime/Contention/LockCreated": 17,
+    "Microsoft-Windows-DotNETRuntime/Contention/Start": 22,
+    "Microsoft-Windows-DotNETRuntime/Contention/Stop": 22,
+    "Microsoft-Windows-DotNETRuntime/Exception/Start": 18,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Start": 17,
+    "Microsoft-Windows-DotNETRuntime/ExceptionFinally/Stop": 17,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Start": 18,
+    "Microsoft-Windows-DotNETRuntime/ExceptionCatch/Stop": 18,
+    "Microsoft-Windows-DotNETRuntime/Exception/Stop": 18,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Resume": 5,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStart": 25,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/BackgroundJitStop": 25,
+    "Microsoft-Windows-DotNETRuntime/YieldProcessorMeasurement": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStart": 3,
+    "Microsoft-Windows-DotNETRuntime/GC/FinalizersStop": 3,
+    "Microsoft-Windows-DotNETRuntime/TieredCompilation/Pause": 5,
+    "Microsoft-Windows-DotNETRuntime/GC/Triggered": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CreateSegment": 24,
+    "Microsoft-Windows-DotNETRuntime/GC/Start": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/CommittedUsage": 1,
+    "Microsoft-Windows-DotNETRuntime/AppDomainResourceManagement/ThreadCreated": 6,
+    "Microsoft-Windows-DotNETRuntime/GC/CreateConcurrentThread": 6,
+    "Microsoft-Windows-DotNETRuntime/GC/Stop": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/HeapStats": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/GlobalHeapHistory": 1,
+    "Microsoft-Windows-DotNETRuntime/GC/PerHeapHistory": 18
+  },
+  "gc_reason_suspensions": [
+    {
+      "InstanceThread": "0:148227",
+      "Reason": "SuspendForGCPrep",
+      "Start": "2026-09-11T14:42:14.9092609+00:00",
+      "End": "2026-09-11T14:42:14.9101159+00:00",
+      "SpanMilliseconds": 0.855,
+      "WindowOverlapMilliseconds": 0.855
+    },
+    {
+      "InstanceThread": "0:148227",
+      "Reason": "SuspendForGC",
+      "Start": "2026-09-11T14:42:14.9101186+00:00",
+      "End": "2026-09-11T14:42:14.9150976+00:00",
+      "SpanMilliseconds": 4.979,
+      "WindowOverlapMilliseconds": 4.979
+    },
+    {
+      "InstanceThread": "0:148302",
+      "Reason": "SuspendForGCPrep",
+      "Start": "2026-09-11T14:42:14.9498968+00:00",
+      "End": "2026-09-11T14:42:14.9519516+00:00",
+      "SpanMilliseconds": 2.0548,
+      "WindowOverlapMilliseconds": 2.0548
+    }
+  ],
+  "runtime_suspension_by_reason": [
+    {
+      "reason": "SuspendOther",
+      "count": 1673,
+      "summed_window_overlap_ms": 345.9069000000002,
+      "maximum_span_ms": 22.7184
+    },
+    {
+      "reason": "SuspendForGCPrep",
+      "count": 2,
+      "summed_window_overlap_ms": 2.9098,
+      "maximum_span_ms": 2.0548
+    },
+    {
+      "reason": "SuspendForGC",
+      "count": 1,
+      "summed_window_overlap_ms": 4.979,
+      "maximum_span_ms": 4.979
+    }
+  ],
+  "runtime_suspension_note": "Paired by CLR instance and initiating OS thread; concurrent profiler and GC suspend attempts may overlap. Summed spans are not exclusive stop-the-world time. SuspendOther is not labeled GC (observed sampler cadence).",
+  "runtime_suspension_pairing_issues": [],
+  "integrity_issues": [],
+  "window_integrity_passed": true,
+  "unresolved_stacks_warning": true,
+  "outputs": [
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-baseline-r3/samples.jsonl",
+      "bytes": 13858125,
+      "sha256": "11c95f76e8557c14653316cfc9cf92a7f83f46b639cc303284edc3aa808d29dd"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-baseline-r3/runtime-events.jsonl",
+      "bytes": 1798729,
+      "sha256": "f9533007d2edb5d6dd6d94d1ed4f853ea73198e33decb3388f4cff280a3619e9"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-baseline-r3/stacks.json",
+      "bytes": 724342,
+      "sha256": "de85d4ccf8e6c85ceb2fbd87ef4f8d14ee50e0640b6fdfdb3d3fd9cfb1370008"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-baseline-r3/suspensions.json",
+      "bytes": 406479,
+      "sha256": "094f0d58ac0d7d995f99ecc74becdfb20632a9f98fb8f281070dc2f53d46cb3b"
+    },
+    {
+      "path": "/private/tmp/deepseek41-reference/qwen35-eventpipe-analysis-baseline-r3/conversion.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

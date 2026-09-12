@@ -1,0 +1,1889 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-4608",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "max_tokens_override": null,
+  "waves": [
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 314.2592879012227,
+      "generated_tokens": 1,
+      "end_to_end_tokens_per_second": 3.182085744158874,
+      "all_passed": true
+    },
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 289.30033929646015,
+      "generated_tokens": 1,
+      "end_to_end_tokens_per_second": 3.4566153722179056,
+      "all_passed": true
+    },
+    {
+      "scenario": "short",
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 254.62473463267088,
+      "generated_tokens": 1,
+      "end_to_end_tokens_per_second": 3.927348226568127,
+      "all_passed": true
+    },
+    {
+      "scenario": "short",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 1264.3309170380235,
+      "generated_tokens": 4,
+      "end_to_end_tokens_per_second": 3.163728693252942,
+      "all_passed": true
+    },
+    {
+      "scenario": "short",
+      "concurrency": 4,
+      "repeat": 1,
+      "wall_ms": 1270.33403608948,
+      "generated_tokens": 4,
+      "end_to_end_tokens_per_second": 3.1487781058857243,
+      "all_passed": true
+    },
+    {
+      "scenario": "short",
+      "concurrency": 4,
+      "repeat": 2,
+      "wall_ms": 1190.5459119006991,
+      "generated_tokens": 4,
+      "end_to_end_tokens_per_second": 3.359803229775511,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 15293.265046551824,
+      "generated_tokens": 512,
+      "end_to_end_tokens_per_second": 33.47878941753127,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_ms": 14984.24746003002,
+      "generated_tokens": 512,
+      "end_to_end_tokens_per_second": 34.16921679688906,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_ms": 15019.501933827996,
+      "generated_tokens": 512,
+      "end_to_end_tokens_per_second": 34.0890132213264,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 61996.59118242562,
+      "generated_tokens": 2048,
+      "end_to_end_tokens_per_second": 33.03407430859769,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 4,
+      "repeat": 1,
+      "wall_ms": 62611.053260974586,
+      "generated_tokens": 2048,
+      "end_to_end_tokens_per_second": 32.709879379660855,
+      "all_passed": true
+    },
+    {
+      "scenario": "decode",
+      "concurrency": 4,
+      "repeat": 2,
+      "wall_ms": 61995.317096821964,
+      "generated_tokens": 2048,
+      "end_to_end_tokens_per_second": 33.03475320243157,
+      "all_passed": true
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short@c1": {
+      "passed": 3,
+      "total": 3,
+      "ttft_ms_median": 257.08439387381077,
+      "ttft_ms_samples": [
+        257.4773048982024,
+        257.08439387381077,
+        222.550961188972
+      ],
+      "prefill_tps_median": 108.91365118702511,
+      "prefill_tps_samples": [
+        108.7474486773513,
+        108.91365118702511,
+        125.81388033738799
+      ],
+      "conversation_wall_ms_median": 288.0655853077769
+    },
+    "short@c4": {
+      "passed": 12,
+      "total": 12,
+      "ttft_ms_median": 1052.7310869656503,
+      "ttft_ms_samples": [
+        859.8846001550555,
+        1084.6508257091045,
+        1079.7880878672004,
+        1079.1667979210615,
+        1056.7111149430275,
+        1056.075507774949,
+        1054.0824346244335,
+        1051.3797393068671,
+        1016.7963160201907,
+        1014.4842462614179,
+        1013.6557146906853,
+        1012.3108755797148
+      ],
+      "prefill_tps_median": 26.59752949694785,
+      "prefill_tps_samples": [
+        32.562508963355086,
+        25.81475930901047,
+        25.931013978220168,
+        25.945942790252644,
+        26.497308113873316,
+        26.51325572258876,
+        26.563387340740878,
+        26.63167165315482,
+        27.537471919247196,
+        27.60023145079456,
+        27.622791046508464,
+        27.659487490900844
+      ],
+      "conversation_wall_ms_median": 1255.7148300111294
+    },
+    "decode@c1": {
+      "passed": 3,
+      "total": 3,
+      "ttft_ms_median": 323.33830557763577,
+      "ttft_ms_samples": [
+        344.38407327979803,
+        321.59607950598,
+        323.33830557763577
+      ],
+      "prefill_tps_median": 136.0803815724682,
+      "prefill_tps_samples": [
+        127.76432888129467,
+        136.81758828525093,
+        136.0803815724682
+      ],
+      "decode_tps_median": 34.775186463944834,
+      "decode_tps_samples": [
+        34.18580438843018,
+        34.85405919046715,
+        34.775186463944834
+      ],
+      "conversation_wall_ms_median": 15018.582596443594
+    },
+    "decode@c4": {
+      "passed": 12,
+      "total": 12,
+      "ttft_ms_median": 1391.7576186358929,
+      "ttft_ms_samples": [
+        1218.7161277979612,
+        1393.022820353508,
+        1390.4924169182777,
+        1389.4245196133852,
+        1334.0291632339358,
+        1332.6141573488712,
+        1533.773441798985,
+        1532.5839081779122,
+        1464.3505048006773,
+        1287.3107874765992,
+        1460.0030984729528,
+        1457.7999459579587
+      ],
+      "prefill_tps_median": 31.61472642407753,
+      "prefill_tps_samples": [
+        36.103567513709244,
+        31.58598650152343,
+        31.64346634663163,
+        31.667787187348065,
+        32.98278719284951,
+        33.01780921158339,
+        28.68741810289254,
+        28.709684191002346,
+        30.047450972804587,
+        34.17978038252075,
+        30.136922343535094,
+        30.182467849583052
+      ],
+      "decode_tps_median": 8.432046024027837,
+      "decode_tps_samples": [
+        8.421655533354308,
+        8.432731035585299,
+        8.432622955029336,
+        8.432549661362273,
+        8.349098456228205,
+        8.349126059946748,
+        8.367161196810985,
+        8.367399482274953,
+        8.44242750730922,
+        8.431542386693403,
+        8.44214123831081,
+        8.44221561209969
+      ],
+      "conversation_wall_ms_median": 61990.7849910669
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-4608-steady.json",
+  "source_report_sha256": "caa58eee7a821d5ff51a105653824c706f8a76a3d4b907d8275f91e04db9dfec",
+  "native_sha256": "4608dd0d59cb049befa9d689917337322740e140db38d7cb0e2c1d7c9080e573",
+  "cases": [
+    {
+      "scenario": "short",
+      "tag": "short-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "b54975f2822e45dd9bf9db2c0daba69430ef998af22384cf80fce83e70cb3e97",
+      "validated_content": "42",
+      "total_wall_ms": 312.47440353035927,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "72049d629e9a5e3a37297d8fac425c81c1e5d5b9e50e2d5326bbac0a3970e776",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 257.4773048982024,
+            "prefill_tps": 108.7474486773513,
+            "decode_tps": 0.0,
+            "total_wall_ms": 312.28595692664385,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384661.344348194,
+            "t_first_abs": 4384661.601825499,
+            "t_last_abs": 4384661.601825499,
+            "t_end_abs": 4384661.656634151
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "3446756a8e374e02baf7fd42902a58673d39c91b1280f9ca91460af9c4eb9fb9",
+      "validated_content": "42",
+      "total_wall_ms": 288.0655853077769,
+      "concurrency": 1,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "2280fde87813d0c5ec8354c1b3899ca3778b3979cef7855bd4912f37caa8d1ad",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 257.08439387381077,
+            "prefill_tps": 108.91365118702511,
+            "decode_tps": 0.0,
+            "total_wall_ms": 287.9171259701252,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384661.666392407,
+            "t_first_abs": 4384661.923476801,
+            "t_last_abs": 4384661.923476801,
+            "t_end_abs": 4384661.954309533
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "970e1fdfc95f5442b403e3def2b14f018654a984146f444c49b1c7211608cde9",
+      "validated_content": "42",
+      "total_wall_ms": 253.6398796364665,
+      "concurrency": 1,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "1495ebaf5dac8e43c687d34dc0b526edf1cc2d6e5ca6500e3ac4a75db81fab86",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 222.550961188972,
+            "prefill_tps": 125.81388033738799,
+            "decode_tps": 0.0,
+            "total_wall_ms": 253.49575653672218,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384661.965724312,
+            "t_first_abs": 4384662.188275273,
+            "t_last_abs": 4384662.188275273,
+            "t_end_abs": 4384662.219220068
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "263a7e4e0e46e35d2c8e8e12805befe3385ce70b4f0beccee5e755004fb7da93",
+      "validated_content": "42",
+      "total_wall_ms": 1085.1838290691376,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "5236e567d00dff58d6c0d132d734f7f46c20a6744b9535d529897b448f4e7ac2",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 859.8846001550555,
+            "prefill_tps": 32.562508963355086,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1084.9337819963694,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384662.229914973,
+            "t_first_abs": 4384663.089799573,
+            "t_last_abs": 4384663.089799573,
+            "t_end_abs": 4384663.314848755
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "9871e19e4cac0622ca626ce06890e1a53424a0863bf19dc07ea6c63dbde17ef3",
+      "validated_content": "42",
+      "total_wall_ms": 1260.3212678804994,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "badb126f3b8208ae65e14b4812d81dcb1fb0a29bb4ef0c39123b9650f6f5f72d",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1084.6508257091045,
+            "prefill_tps": 25.81475930901047,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1260.1527236402035,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384662.232168974,
+            "t_first_abs": 4384663.3168198,
+            "t_last_abs": 4384663.3168198,
+            "t_end_abs": 4384663.492321698
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "27971c3bcb4341abaa0223bc4db729758031ef6c6a2a978827e88deed1bf232b",
+      "validated_content": "42",
+      "total_wall_ms": 1256.5766340121627,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "4151fd1f435d5a18ee76f188038ecabf83212d4a2b8cf438e95df82b18760164",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1079.7880878672004,
+            "prefill_tps": 25.931013978220168,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1256.391548551619,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384662.234418288,
+            "t_first_abs": 4384663.314206376,
+            "t_last_abs": 4384663.314206376,
+            "t_end_abs": 4384663.490809836
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "ed889e788f79210f28a803f9b6b9b1c488f493d97d533fbbd689e2a00ff3dee3",
+      "validated_content": "42",
+      "total_wall_ms": 1254.853026010096,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "367bc71576862bf9602df8335406434825d3e2fa358e97b518f638349382edbb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1079.1667979210615,
+            "prefill_tps": 25.945942790252644,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1254.6974755823612,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384662.23688956,
+            "t_first_abs": 4384663.316056358,
+            "t_last_abs": 4384663.316056358,
+            "t_end_abs": 4384663.491587035
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r1-i0",
+      "status": "ok",
+      "input_sha256": "e366eb15555a773306881447cc535bd7eee0be9548c094b3c15c666f0e9454ea",
+      "validated_content": "42",
+      "total_wall_ms": 1268.9911350607872,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "4cfc85d36f86d46f3fbe76e2e5b19d98a3de46aeda2b58b6b436893527d6f995",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1056.7111149430275,
+            "prefill_tps": 26.497308113873316,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1268.7958283349872,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384663.503834322,
+            "t_first_abs": 4384664.560545437,
+            "t_last_abs": 4384664.560545437,
+            "t_end_abs": 4384664.77263015
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r1-i1",
+      "status": "ok",
+      "input_sha256": "c37d43f5a0289643095d6b567b64a6f8926c12940805f472d41527563016f3c1",
+      "validated_content": "42",
+      "total_wall_ms": 1266.8327195569873,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "f97bc22b61e00073c4c82fad79deb0525de998bcee842ae907f0c1b3dc4a8211",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1056.075507774949,
+            "prefill_tps": 26.51325572258876,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1266.64415653795,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384663.505674931,
+            "t_first_abs": 4384664.561750439,
+            "t_last_abs": 4384664.561750439,
+            "t_end_abs": 4384664.772319088
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r1-i2",
+      "status": "ok",
+      "input_sha256": "eb67e2ad9e7f8ff9eb0fd5c325b51a304319e2e746c734b2dea4a7b9892e5b93",
+      "validated_content": "42",
+      "total_wall_ms": 1263.3478324860334,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "973f1a68f469cc7e7416f2c6bcff0fc5e17dabef096238ca3ddbd0f2ec626180",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1054.0824346244335,
+            "prefill_tps": 26.563387340740878,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1263.1858875975013,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384663.508181276,
+            "t_first_abs": 4384664.56226371,
+            "t_last_abs": 4384664.56226371,
+            "t_end_abs": 4384664.771367163
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r1-i3",
+      "status": "ok",
+      "input_sha256": "d52534d7f3d6e8d1243c4ea73969979bf0e8051fcf77875533fe83ab85592f59",
+      "validated_content": "42",
+      "total_wall_ms": 1261.398489587009,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "71395fa7808f7119732f4ca508cec9f430fab67a9b59c92e657e3b7e586aaa9e",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1051.3797393068671,
+            "prefill_tps": 26.63167165315482,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1261.2375831231475,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384663.509825132,
+            "t_first_abs": 4384664.561204871,
+            "t_last_abs": 4384664.561204871,
+            "t_end_abs": 4384664.771062715
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r2-i0",
+      "status": "ok",
+      "input_sha256": "480b19bc513addd05ac530ba8844b3caceae633c30d76b425599b3646173b3ae",
+      "validated_content": "42",
+      "total_wall_ms": 1189.253581687808,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "21707eed8efb31535bf6206272191820d93c25085af01924074dafd45c99a7a1",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1016.7963160201907,
+            "prefill_tps": 27.537471919247196,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1189.1504181548953,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384664.790109718,
+            "t_first_abs": 4384665.806906034,
+            "t_last_abs": 4384665.806906034,
+            "t_end_abs": 4384665.979260136
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r2-i1",
+      "status": "ok",
+      "input_sha256": "4e59afe2ea9b8ee8d2e587b9a5affa9883fa2bccd2a94ddaf94246499b7608c0",
+      "validated_content": "42",
+      "total_wall_ms": 1186.9155196473002,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "338d09b6d8a991d6edf482ada32f3bb11acb7f05f85671ca59ed12db5257f4a1",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1014.4842462614179,
+            "prefill_tps": 27.60023145079456,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1186.7818888276815,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384664.791968621,
+            "t_first_abs": 4384665.806452868,
+            "t_last_abs": 4384665.806452868,
+            "t_end_abs": 4384665.97875051
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r2-i2",
+      "status": "ok",
+      "input_sha256": "bdc6ae8b119265288fd3bbbf26a4d6dc6464dbb69be9073d1359e1868964a610",
+      "validated_content": "42",
+      "total_wall_ms": 1185.3234693408012,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "fe67bfb8dfa94f04cbba72c110c0246dc19a6e8d1d581829aed39d22b180b2c0",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1013.6557146906853,
+            "prefill_tps": 27.622791046508464,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1185.2201642468572,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384664.793887362,
+            "t_first_abs": 4384665.807543077,
+            "t_last_abs": 4384665.807543077,
+            "t_end_abs": 4384665.979107526
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short",
+      "tag": "short-c4-r2-i3",
+      "status": "ok",
+      "input_sha256": "120ed11826b0634b22819232bca2b179360039cf44240c5c0e1ca6e9eca1b0a3",
+      "validated_content": "42",
+      "total_wall_ms": 1183.8515475392342,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "d9cb8ad545ef1bb7f4c3919b9ae2341e40f013cb65436a373abfe20bc076297a",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 28,
+            "completion_tokens": 1,
+            "ttft_ms": 1012.3108755797148,
+            "prefill_tps": 27.659487490900844,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1183.7279917672276,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4384664.795707988,
+            "t_first_abs": 4384665.808018863,
+            "t_last_abs": 4384665.808018863,
+            "t_end_abs": 4384665.979435979
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "ba480b8f0c6e6eb615210d1d02217841c81480a1dc9c378b33b875e5999c54b8",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Structure\n\nA hash table consists of:\n\n- **An array (or buckets)**: A contiguous block of memory, often called the \"bucket array\" or \"table.\"\n- **A hash function**: `h(key) → index` (or bucket) where the key-value pair will be stored.\n- **A capacity**: The number of buckets (often a power of two or a prime number).\n- **A size (or count)**: The number of stored entries.\n- **A load factor**: `size / capacity`, used to decide when to resize.\n\nEach bucket can hold one or more entries. When multiple keys hash to the same bucket, we have a **collision**.\n\n---\n\n## 2. Hash Functions\n\nA good hash function should:\n\n- Be **deterministic**: same key → same hash.\n- Be **fast** to compute.\n- **Distribute keys uniformly** across buckets to minimize collisions.\n- Use all bits of the key (avoid clustering).\n\nCommon hash functions:\n\n- **Division method**: `h(k) = k mod m` where `m` is the capacity (often a prime number).\n- **Multiplication method**: `h(k) = floor(m * frac(k * A))` where `A` is a constant (0 < A < 1), often `A ≈ 0.6180339887` (golden ratio).\n- **Universal hashing**: Randomly choose a hash function from a family to avoid worst-case scenarios.\n\nFor strings, common approaches include:\n\n- **Polynomial rolling hash**: `h(s) = (s[0] * p^(n-1) + s[1] * p^(n-2) + ... + s[n-1]) mod m` where `p` is a prime number.\n- **Java's `hashCode()`**: For strings, it's `s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]` (with overflow wrapping).\n\n---\n\n## 3. Collision Resolution\n\nCollisions occur when two different keys hash to the",
+      "total_wall_ms": 15292.527362704277,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "ba20834446d40fc45b4bdd1534e709cf15f0ac83deaca6148537b8a9dbe12910",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 344.38407327979803,
+            "prefill_tps": 127.76432888129467,
+            "decode_tps": 34.18580438843018,
+            "total_wall_ms": 15292.348328977823,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Structure\n\nA hash table consists of:\n\n- **An array (or buckets)**: A contiguous block of memory, often called the \"bucket array\" or \"table.\"\n- **A hash function**: `h(key) → index` (or bucket) where the key-value pair will be stored.\n- **A capacity**: The number of buckets (often a power of two or a prime number).\n- **A size (or count)**: The number of stored entries.\n- **A load factor**: `size / capacity`, used to decide when to resize.\n\nEach bucket can hold one or more entries. When multiple keys hash to the same bucket, we have a **collision**.\n\n---\n\n## 2. Hash Functions\n\nA good hash function should:\n\n- Be **deterministic**: same key → same hash.\n- Be **fast** to compute.\n- **Distribute keys uniformly** across buckets to minimize collisions.\n- Use all bits of the key (avoid clustering).\n\nCommon hash functions:\n\n- **Division method**: `h(k) = k mod m` where `m` is the capacity (often a prime number).\n- **Multiplication method**: `h(k) = floor(m * frac(k * A))` where `A` is a constant (0 < A < 1), often `A ≈ 0.6180339887` (golden ratio).\n- **Universal hashing**: Randomly choose a hash function from a family to avoid worst-case scenarios.\n\nFor strings, common approaches include:\n\n- **Polynomial rolling hash**: `h(s) = (s[0] * p^(n-1) + s[1] * p^(n-2) + ... + s[n-1]) mod m` where `p` is a prime number.\n- **Java's `hashCode()`**: For strings, it's `s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]` (with overflow wrapping).\n\n---\n\n## 3. Collision Resolution\n\nCollisions occur when two different keys hash to the"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Structure\n\nA hash table consists of:\n\n- **An array (or buckets)**: A contiguous block of memory, often called the \"bucket array\" or \"table.\"\n- **A hash function**: `h(key) → index` (or bucket) where the key-value pair will be stored.\n- **A capacity**: The number of buckets (often a power of two or a prime number).\n- **A size (or count)**: The number of stored entries.\n- **A load factor**: `size / capacity`, used to decide when to resize.\n\nEach bucket can hold one or more entries. When multiple keys hash to the same bucket, we have a **collision**.\n\n---\n\n## 2. Hash Functions\n\nA good hash function should:\n\n- Be **deterministic**: same key → same hash.\n- Be **fast** to compute.\n- **Distribute keys uniformly** across buckets to minimize collisions.\n- Use all bits of the key (avoid clustering).\n\nCommon hash functions:\n\n- **Division method**: `h(k) = k mod m` where `m` is the capacity (often a prime number).\n- **Multiplication method**: `h(k) = floor(m * frac(k * A))` where `A` is a constant (0 < A < 1), often `A ≈ 0.6180339887` (golden ratio).\n- **Universal hashing**: Randomly choose a hash function from a family to avoid worst-case scenarios.\n\nFor strings, common approaches include:\n\n- **Polynomial rolling hash**: `h(s) = (s[0] * p^(n-1) + s[1] * p^(n-2) + ... + s[n-1]) mod m` where `p` is a prime number.\n- **Java's `hashCode()`**: For strings, it's `s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]` (with overflow wrapping).\n\n---\n\n## 3. Collision Resolution\n\nCollisions occur when two different keys hash to the",
+            "t_start_abs": 4384665.992565597,
+            "t_first_abs": 4384666.336949671,
+            "t_last_abs": 4384681.284674586,
+            "t_end_abs": 4384681.284913926
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c1-r1-i0",
+      "status": "ok",
+      "input_sha256": "70e91b39c6e26c5f78ab7c77b76ddaf02a1f261f6d1f2050d44e2e4784adc340",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. It provides average-case constant time complexity for insert, delete, and lookup operations, making it one of the most efficient and widely used data structures in computer science.\n\n## Core Components\n\nA hash table consists of several key components:\n\n1. **Array/Bucket Array**: A contiguous block of memory (often called the \"table\" or \"bucket array\") that stores the data. The size is typically a prime number to help distribute keys more uniformly.\n\n2. **Hash Function**: A function that converts a key into an array index. A good hash function should:\n   - Be deterministic (same key always produces same hash)\n   - Distribute keys uniformly across the array\n   - Be fast to compute\n   - Minimize collisions\n\n3. **Load Factor**: The ratio of the number of stored entries to the total number of buckets. This is a critical metric that determines when to resize the table.\n\n4. **Collision Resolution Method**: The strategy used when two different keys hash to the same index.\n\n## How Hash Tables Work\n\n### Basic Operation\n\n1. **Insertion**: \n   - Compute the hash of the key\n   - Map the hash to an index in the array\n   - Store the key-value pair at that index (or handle collision if occupied)\n\n2. **Lookup**:\n   - Compute the hash of the key\n   - Find the index using the hash\n   - Compare the key at that index with the target key\n   - If they match, return the value\n   - If not, follow the collision resolution strategy to find the correct entry\n\n3. **Deletion**:\n   - Find the entry using the same process as lookup\n   - Remove the entry (or mark it as deleted)\n\n### Example in Pseudocode\n\n```\nclass HashTable:\n    function put(key, value):\n        index = hash(key) % array_size\n        if array[index] is empty:\n            array[index] = (key, value)\n        else:\n            handle_collision(index, key, value)\n    \n    function get(key):\n        index = hash(key) % array_size\n        if array[index] matches key:\n            return array[index].value\n        else:\n            return search_collision_chain(index, key)\n```\n\n## Collision Resolution\n\nCollisions occur",
+      "total_wall_ms": 14983.381781727076,
+      "concurrency": 1,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "9a98bf16735c2ae0fb41975cd57cab4c17cb4408d398a25f302794b16ae3475b",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 321.59607950598,
+            "prefill_tps": 136.81758828525093,
+            "decode_tps": 34.85405919046715,
+            "total_wall_ms": 14983.044873923063,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. It provides average-case constant time complexity for insert, delete, and lookup operations, making it one of the most efficient and widely used data structures in computer science.\n\n## Core Components\n\nA hash table consists of several key components:\n\n1. **Array/Bucket Array**: A contiguous block of memory (often called the \"table\" or \"bucket array\") that stores the data. The size is typically a prime number to help distribute keys more uniformly.\n\n2. **Hash Function**: A function that converts a key into an array index. A good hash function should:\n   - Be deterministic (same key always produces same hash)\n   - Distribute keys uniformly across the array\n   - Be fast to compute\n   - Minimize collisions\n\n3. **Load Factor**: The ratio of the number of stored entries to the total number of buckets. This is a critical metric that determines when to resize the table.\n\n4. **Collision Resolution Method**: The strategy used when two different keys hash to the same index.\n\n## How Hash Tables Work\n\n### Basic Operation\n\n1. **Insertion**: \n   - Compute the hash of the key\n   - Map the hash to an index in the array\n   - Store the key-value pair at that index (or handle collision if occupied)\n\n2. **Lookup**:\n   - Compute the hash of the key\n   - Find the index using the hash\n   - Compare the key at that index with the target key\n   - If they match, return the value\n   - If not, follow the collision resolution strategy to find the correct entry\n\n3. **Deletion**:\n   - Find the entry using the same process as lookup\n   - Remove the entry (or mark it as deleted)\n\n### Example in Pseudocode\n\n```\nclass HashTable:\n    function put(key, value):\n        index = hash(key) % array_size\n        if array[index] is empty:\n            array[index] = (key, value)\n        else:\n            handle_collision(index, key, value)\n    \n    function get(key):\n        index = hash(key) % array_size\n        if array[index] matches key:\n            return array[index].value\n        else:\n            return search_collision_chain(index, key)\n```\n\n## Collision Resolution\n\nCollisions occur"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. It provides average-case constant time complexity for insert, delete, and lookup operations, making it one of the most efficient and widely used data structures in computer science.\n\n## Core Components\n\nA hash table consists of several key components:\n\n1. **Array/Bucket Array**: A contiguous block of memory (often called the \"table\" or \"bucket array\") that stores the data. The size is typically a prime number to help distribute keys more uniformly.\n\n2. **Hash Function**: A function that converts a key into an array index. A good hash function should:\n   - Be deterministic (same key always produces same hash)\n   - Distribute keys uniformly across the array\n   - Be fast to compute\n   - Minimize collisions\n\n3. **Load Factor**: The ratio of the number of stored entries to the total number of buckets. This is a critical metric that determines when to resize the table.\n\n4. **Collision Resolution Method**: The strategy used when two different keys hash to the same index.\n\n## How Hash Tables Work\n\n### Basic Operation\n\n1. **Insertion**: \n   - Compute the hash of the key\n   - Map the hash to an index in the array\n   - Store the key-value pair at that index (or handle collision if occupied)\n\n2. **Lookup**:\n   - Compute the hash of the key\n   - Find the index using the hash\n   - Compare the key at that index with the target key\n   - If they match, return the value\n   - If not, follow the collision resolution strategy to find the correct entry\n\n3. **Deletion**:\n   - Find the entry using the same process as lookup\n   - Remove the entry (or mark it as deleted)\n\n### Example in Pseudocode\n\n```\nclass HashTable:\n    function put(key, value):\n        index = hash(key) % array_size\n        if array[index] is empty:\n            array[index] = (key, value)\n        else:\n            handle_collision(index, key, value)\n    \n    function get(key):\n        index = hash(key) % array_size\n        if array[index] matches key:\n            return array[index].value\n        else:\n            return search_collision_chain(index, key)\n```\n\n## Collision Resolution\n\nCollisions occur",
+            "t_start_abs": 4384681.298764826,
+            "t_first_abs": 4384681.620360905,
+            "t_last_abs": 4384696.28149398,
+            "t_end_abs": 4384696.2818097
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c1-r2-i0",
+      "status": "ok",
+      "input_sha256": "6edbacacbc9f40aa810d9f889d9d98ef0765c4cf2d966792b3f1478ea05425c6",
+      "validated_content": "I'll explain hash tables comprehensively, covering their structure, operations, collision handling, resizing, complexity, and a worked example.\n\n## What is a Hash Table?\n\nA hash table (also called a hash map) is a data structure that stores key-value pairs and provides fast average-case lookup, insertion, and deletion. Instead of searching through elements one by one (as in a linear search), a hash table uses a **hash function** to compute an index into an array of \"buckets\" or \"slots,\" allowing near-constant-time access to data.\n\nHash tables are the backbone of many real-world systems:\n- **Databases** use them for indexing and caching.\n- **Language runtimes** (Python's `dict`, Java's `HashMap`, JavaScript's `Map`) rely on them.\n- **Caches** like Redis and Memcached use hash tables for fast lookups.\n- **Compilers and interpreters** use symbol tables built on hash tables.\n\n## Core Components\n\nA hash table consists of:\n\n1. **An array of buckets** (or slots), each capable of holding one or more entries.\n2. **A hash function** that maps each key to an index in that array.\n3. **A collision resolution strategy** for when two keys map to the same index.\n4. **A load factor threshold** that triggers resizing when the table gets too full.\n\n## The Hash Function\n\nThe hash function takes a key and produces an integer, which is then mapped (via modulo) into the range of array indices. A good hash function:\n\n- Is **fast** to compute.\n- **Distributes keys uniformly** across the array to minimize collisions.\n- Is **deterministic** — the same key always produces the same hash.\n\nFor example, a simple hash function for string keys might sum the ASCII values of characters and take modulo the array size. Real-world implementations use more sophisticated algorithms (like MurmurHash or SipHash) to avoid patterns in the data that could cause clustering.\n\n## Collisions\n\nA **collision** occurs when two different keys hash to the same index. Since the number of possible keys is usually much larger than the array size, collisions are inevitable. There are two main strategies for handling them:\n\n### 1. Separate Chaining\n\nEach bucket holds a **linked list** (or another structure) of all entries that hash to that index. When a lookup occurs, you traverse the list to find the matching key.\n\n- **Pros:** Simple, works well",
+      "total_wall_ms": 15018.582596443594,
+      "concurrency": 1,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "0208b5d161735a17bf545debe5b83c6b0cc8cf3b9c74ed8295a04ef153f332cb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 323.33830557763577,
+            "prefill_tps": 136.0803815724682,
+            "decode_tps": 34.775186463944834,
+            "total_wall_ms": 15018.113067373633,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "I'll explain hash tables comprehensively, covering their structure, operations, collision handling, resizing, complexity, and a worked example.\n\n## What is a Hash Table?\n\nA hash table (also called a hash map) is a data structure that stores key-value pairs and provides fast average-case lookup, insertion, and deletion. Instead of searching through elements one by one (as in a linear search), a hash table uses a **hash function** to compute an index into an array of \"buckets\" or \"slots,\" allowing near-constant-time access to data.\n\nHash tables are the backbone of many real-world systems:\n- **Databases** use them for indexing and caching.\n- **Language runtimes** (Python's `dict`, Java's `HashMap`, JavaScript's `Map`) rely on them.\n- **Caches** like Redis and Memcached use hash tables for fast lookups.\n- **Compilers and interpreters** use symbol tables built on hash tables.\n\n## Core Components\n\nA hash table consists of:\n\n1. **An array of buckets** (or slots), each capable of holding one or more entries.\n2. **A hash function** that maps each key to an index in that array.\n3. **A collision resolution strategy** for when two keys map to the same index.\n4. **A load factor threshold** that triggers resizing when the table gets too full.\n\n## The Hash Function\n\nThe hash function takes a key and produces an integer, which is then mapped (via modulo) into the range of array indices. A good hash function:\n\n- Is **fast** to compute.\n- **Distributes keys uniformly** across the array to minimize collisions.\n- Is **deterministic** — the same key always produces the same hash.\n\nFor example, a simple hash function for string keys might sum the ASCII values of characters and take modulo the array size. Real-world implementations use more sophisticated algorithms (like MurmurHash or SipHash) to avoid patterns in the data that could cause clustering.\n\n## Collisions\n\nA **collision** occurs when two different keys hash to the same index. Since the number of possible keys is usually much larger than the array size, collisions are inevitable. There are two main strategies for handling them:\n\n### 1. Separate Chaining\n\nEach bucket holds a **linked list** (or another structure) of all entries that hash to that index. When a lookup occurs, you traverse the list to find the matching key.\n\n- **Pros:** Simple, works well"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "I'll explain hash tables comprehensively, covering their structure, operations, collision handling, resizing, complexity, and a worked example.\n\n## What is a Hash Table?\n\nA hash table (also called a hash map) is a data structure that stores key-value pairs and provides fast average-case lookup, insertion, and deletion. Instead of searching through elements one by one (as in a linear search), a hash table uses a **hash function** to compute an index into an array of \"buckets\" or \"slots,\" allowing near-constant-time access to data.\n\nHash tables are the backbone of many real-world systems:\n- **Databases** use them for indexing and caching.\n- **Language runtimes** (Python's `dict`, Java's `HashMap`, JavaScript's `Map`) rely on them.\n- **Caches** like Redis and Memcached use hash tables for fast lookups.\n- **Compilers and interpreters** use symbol tables built on hash tables.\n\n## Core Components\n\nA hash table consists of:\n\n1. **An array of buckets** (or slots), each capable of holding one or more entries.\n2. **A hash function** that maps each key to an index in that array.\n3. **A collision resolution strategy** for when two keys map to the same index.\n4. **A load factor threshold** that triggers resizing when the table gets too full.\n\n## The Hash Function\n\nThe hash function takes a key and produces an integer, which is then mapped (via modulo) into the range of array indices. A good hash function:\n\n- Is **fast** to compute.\n- **Distributes keys uniformly** across the array to minimize collisions.\n- Is **deterministic** — the same key always produces the same hash.\n\nFor example, a simple hash function for string keys might sum the ASCII values of characters and take modulo the array size. Real-world implementations use more sophisticated algorithms (like MurmurHash or SipHash) to avoid patterns in the data that could cause clustering.\n\n## Collisions\n\nA **collision** occurs when two different keys hash to the same index. Since the number of possible keys is usually much larger than the array size, collisions are inevitable. There are two main strategies for handling them:\n\n### 1. Separate Chaining\n\nEach bucket holds a **linked list** (or another structure) of all entries that hash to that index. When a lookup occurs, you traverse the list to find the matching key.\n\n- **Pros:** Simple, works well",
+            "t_start_abs": 4384696.301989675,
+            "t_first_abs": 4384696.62532798,
+            "t_last_abs": 4384711.319713603,
+            "t_end_abs": 4384711.320102742
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "df110cfc1f3a1310926a1e55319c338cbc2271dc644f6e758e8348ec254396d3",
+      "validated_content": "hash table works by mapping keys to values through a hash function, which converts a key into an index in an array (or bucket list). The main operations are insertion, lookup, and deletion. Because multiple keys can hash to the same index, collisions must be handled. Common collision strategies include separate chaining (each bucket holds a linked list, tree, or dynamic array of entries) and open addressing (probing sequences to find another slot). Resizing (rehashing) occurs when the load factor exceeds a threshold, typically around 0.75 for separate chaining or 0.5–0.7 for open addressing. During resizing, a new table is allocated (often double the size), and all existing entries are rehashed into the new table. This keeps average-case operations O(1), though worst-case can degrade to O(n) if many keys collide or if the hash function is poor. With a good hash function and resizing, operations remain near constant time on average.\n\nWorked example: Suppose we have a hash table with an initial capacity of 8 and use separate chaining. Keys are strings, and the hash function returns the sum of ASCII values modulo capacity. Insert \"cat\": ASCII sum = 99+97+116 = 312; 312 % 8 = 0, so store at bucket 0. Insert \"act\": 97+99+116 = 312; 312 % 8 = 0, so also bucket 0. Insert \"dog\": 100+111+103 = 314; 314 % 8 = 2, so bucket 2. Now lookup \"act\": compute hash 312 % 8 = 0, search bucket 0, find \"act\" among entries. If we used open addressing with linear probing, after inserting \"cat\" at bucket 0, inserting \"act\" would find bucket 0 occupied, probe to bucket 1, and store there. Lookup \"act\" would compute hash 0, see bucket 0 occupied by \"cat\", probe to bucket 1, find \"act\". This shows how collisions are resolved. Complexity: average-case O(1) for insert, delete, and search when load factor is low. Worst-case O(n) if all keys collide or if the hash function is poor. With resizing, the table grows, and the load factor is kept below a threshold, maintaining performance. Resizing itself takes O(n) time, but amortized over many operations",
+      "total_wall_ms": 61896.33705280721,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "254c84eb31705f14f833bbdd728bb76f3f1abc4a5ad8044acbb46d053d918aed",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1218.7161277979612,
+            "prefill_tps": 36.103567513709244,
+            "decode_tps": 8.421655533354308,
+            "total_wall_ms": 61895.93082200736,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "hash table works by mapping keys to values through a hash function, which converts a key into an index in an array (or bucket list). The main operations are insertion, lookup, and deletion. Because multiple keys can hash to the same index, collisions must be handled. Common collision strategies include separate chaining (each bucket holds a linked list, tree, or dynamic array of entries) and open addressing (probing sequences to find another slot). Resizing (rehashing) occurs when the load factor exceeds a threshold, typically around 0.75 for separate chaining or 0.5–0.7 for open addressing. During resizing, a new table is allocated (often double the size), and all existing entries are rehashed into the new table. This keeps average-case operations O(1), though worst-case can degrade to O(n) if many keys collide or if the hash function is poor. With a good hash function and resizing, operations remain near constant time on average.\n\nWorked example: Suppose we have a hash table with an initial capacity of 8 and use separate chaining. Keys are strings, and the hash function returns the sum of ASCII values modulo capacity. Insert \"cat\": ASCII sum = 99+97+116 = 312; 312 % 8 = 0, so store at bucket 0. Insert \"act\": 97+99+116 = 312; 312 % 8 = 0, so also bucket 0. Insert \"dog\": 100+111+103 = 314; 314 % 8 = 2, so bucket 2. Now lookup \"act\": compute hash 312 % 8 = 0, search bucket 0, find \"act\" among entries. If we used open addressing with linear probing, after inserting \"cat\" at bucket 0, inserting \"act\" would find bucket 0 occupied, probe to bucket 1, and store there. Lookup \"act\" would compute hash 0, see bucket 0 occupied by \"cat\", probe to bucket 1, find \"act\". This shows how collisions are resolved. Complexity: average-case O(1) for insert, delete, and search when load factor is low. Worst-case O(n) if all keys collide or if the hash function is poor. With resizing, the table grows, and the load factor is kept below a threshold, maintaining performance. Resizing itself takes O(n) time, but amortized over many operations"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "hash table works by mapping keys to values through a hash function, which converts a key into an index in an array (or bucket list). The main operations are insertion, lookup, and deletion. Because multiple keys can hash to the same index, collisions must be handled. Common collision strategies include separate chaining (each bucket holds a linked list, tree, or dynamic array of entries) and open addressing (probing sequences to find another slot). Resizing (rehashing) occurs when the load factor exceeds a threshold, typically around 0.75 for separate chaining or 0.5–0.7 for open addressing. During resizing, a new table is allocated (often double the size), and all existing entries are rehashed into the new table. This keeps average-case operations O(1), though worst-case can degrade to O(n) if many keys collide or if the hash function is poor. With a good hash function and resizing, operations remain near constant time on average.\n\nWorked example: Suppose we have a hash table with an initial capacity of 8 and use separate chaining. Keys are strings, and the hash function returns the sum of ASCII values modulo capacity. Insert \"cat\": ASCII sum = 99+97+116 = 312; 312 % 8 = 0, so store at bucket 0. Insert \"act\": 97+99+116 = 312; 312 % 8 = 0, so also bucket 0. Insert \"dog\": 100+111+103 = 314; 314 % 8 = 2, so bucket 2. Now lookup \"act\": compute hash 312 % 8 = 0, search bucket 0, find \"act\" among entries. If we used open addressing with linear probing, after inserting \"cat\" at bucket 0, inserting \"act\" would find bucket 0 occupied, probe to bucket 1, and store there. Lookup \"act\" would compute hash 0, see bucket 0 occupied by \"cat\", probe to bucket 1, find \"act\". This shows how collisions are resolved. Complexity: average-case O(1) for insert, delete, and search when load factor is low. Worst-case O(n) if all keys collide or if the hash function is poor. With resizing, the table grows, and the load factor is kept below a threshold, maintaining performance. Resizing itself takes O(n) time, but amortized over many operations",
+            "t_start_abs": 4384711.336101119,
+            "t_first_abs": 4384712.554817247,
+            "t_last_abs": 4384773.231723109,
+            "t_end_abs": 4384773.232031941
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "4b243c3e75f87fe09595b442d5ebe30001af7bacfbae762cdc64905d4eea0950",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Typically resizing occurs when α exceeds a threshold (e.g., 0.75).\n\n2. Basic Operations\n\nInsertion:\n1. Compute hash(key) % m to find bucket index.\n2. If bucket empty, store entry.\n3. If bucket occupied, handle collision (chaining or open addressing).\n\nLookup:\n1. Compute same hash to find bucket.\n2. Search within bucket (and probe sequence for open addressing) to find matching key.\n\nDeletion:\n1. Find bucket, remove entry, and possibly mark as deleted (for open addressing) or remove from chain.\n\n3. Collision Resolution\n\nCollisions occur when two keys hash to the same bucket. Two main strategies:\n\n**Separate Chaining**:\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup traverses the list comparing keys.\n- Simple but extra memory overhead.\n\n**Open Addressing**:\n- All entries stored in the table itself.\n- On collision, probe other slots using a probe sequence (linear, quadratic, double hashing).\n- Requires careful deletion handling (tombstones or backward-shift deletion).\n- Higher load factors cause more probing, degrading performance.\n\n4. Resizing (Rehashing)\n\nWhen load factor exceeds threshold (e.g., 0.75), the table size is increased (often doubled) and all entries are rehashed into the new table. This maintains O(1) average performance. Resizing is O(n) amortized because each element is moved once per resize, and the cost is spread over many operations.\n\n5. Complexity Analysis\n\n- **Average case**: O(1) for insert, delete, and lookup, assuming uniform hashing and α < 1.\n- **Worst case**: O(n) when",
+      "total_wall_ms": 61991.27866141498,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "04c8496178b656a7fd163aad5e4306ee8edf3e91efd9f8d89c43d43c3e402ac8",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1393.022820353508,
+            "prefill_tps": 31.58598650152343,
+            "decode_tps": 8.432731035585299,
+            "total_wall_ms": 61990.857074037194,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Typically resizing occurs when α exceeds a threshold (e.g., 0.75).\n\n2. Basic Operations\n\nInsertion:\n1. Compute hash(key) % m to find bucket index.\n2. If bucket empty, store entry.\n3. If bucket occupied, handle collision (chaining or open addressing).\n\nLookup:\n1. Compute same hash to find bucket.\n2. Search within bucket (and probe sequence for open addressing) to find matching key.\n\nDeletion:\n1. Find bucket, remove entry, and possibly mark as deleted (for open addressing) or remove from chain.\n\n3. Collision Resolution\n\nCollisions occur when two keys hash to the same bucket. Two main strategies:\n\n**Separate Chaining**:\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup traverses the list comparing keys.\n- Simple but extra memory overhead.\n\n**Open Addressing**:\n- All entries stored in the table itself.\n- On collision, probe other slots using a probe sequence (linear, quadratic, double hashing).\n- Requires careful deletion handling (tombstones or backward-shift deletion).\n- Higher load factors cause more probing, degrading performance.\n\n4. Resizing (Rehashing)\n\nWhen load factor exceeds threshold (e.g., 0.75), the table size is increased (often doubled) and all entries are rehashed into the new table. This maintains O(1) average performance. Resizing is O(n) amortized because each element is moved once per resize, and the cost is spread over many operations.\n\n5. Complexity Analysis\n\n- **Average case**: O(1) for insert, delete, and lookup, assuming uniform hashing and α < 1.\n- **Worst case**: O(n) when"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Typically resizing occurs when α exceeds a threshold (e.g., 0.75).\n\n2. Basic Operations\n\nInsertion:\n1. Compute hash(key) % m to find bucket index.\n2. If bucket empty, store entry.\n3. If bucket occupied, handle collision (chaining or open addressing).\n\nLookup:\n1. Compute same hash to find bucket.\n2. Search within bucket (and probe sequence for open addressing) to find matching key.\n\nDeletion:\n1. Find bucket, remove entry, and possibly mark as deleted (for open addressing) or remove from chain.\n\n3. Collision Resolution\n\nCollisions occur when two keys hash to the same bucket. Two main strategies:\n\n**Separate Chaining**:\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup traverses the list comparing keys.\n- Simple but extra memory overhead.\n\n**Open Addressing**:\n- All entries stored in the table itself.\n- On collision, probe other slots using a probe sequence (linear, quadratic, double hashing).\n- Requires careful deletion handling (tombstones or backward-shift deletion).\n- Higher load factors cause more probing, degrading performance.\n\n4. Resizing (Rehashing)\n\nWhen load factor exceeds threshold (e.g., 0.75), the table size is increased (often doubled) and all entries are rehashed into the new table. This maintains O(1) average performance. Resizing is O(n) amortized because each element is moved once per resize, and the cost is spread over many operations.\n\n5. Complexity Analysis\n\n- **Average case**: O(1) for insert, delete, and lookup, assuming uniform hashing and α < 1.\n- **Worst case**: O(n) when",
+            "t_start_abs": 4384711.338674433,
+            "t_first_abs": 4384712.731697253,
+            "t_last_abs": 4384773.328910403,
+            "t_end_abs": 4384773.329531507
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "75904718fb0f0dbb4230c3ffe70245ebe098c554ae64417c6fbe7988ae06b850",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). Instead of searching linearly, it computes an index from the key using a hash function:\n\n```\nindex = hash(key) % capacity\n```\n\nThis lets us jump directly to the slot where the value should be, giving near-constant-time access.\n\n---\n\n## 2. Components\n\n- **Array/Buckets**: Fixed-size array of slots (often called buckets).\n- **Hash function**: Converts a key into an integer, then maps it into the array range.\n- **Load factor (α)**: `α = number of entries / number of buckets`. When α exceeds a threshold (commonly 0.75), the table is resized.\n- **Collision handling**: Since different keys can hash to the same index, we need a strategy to resolve collisions.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute** keys uniformly across buckets to minimize collisions.\n\nCommon approaches:\n- **Division method**: `hash(key) % capacity` (capacity often prime).\n- **Multiplication method**: multiply by a constant, take fractional part.\n- **String hashing**: e.g., polynomial rolling hash: `h = (h * p + char) % m`.\n\n---\n\n## 4. Collision Resolution\n\nTwo main strategies:\n\n### a) Separate Chaining\nEach bucket holds a linked list (or dynamic array) of entries. When a collision occurs, the new entry is appended to the list at that bucket. Lookup requires traversing the list to find the matching key.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers; cache-unfriendly.\n\n### b) Open Addressing\nAll entries live in the main array. When a slot is occupied, we probe other slots until an empty one is found (for insertion) or the key is found (for lookup).\n\nProbing sequences:\n- **Linear probing**: `(hash + i) % capacity` for i =",
+      "total_wall_ms": 61989.78886473924,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "12c42639b0e4319ccd466170fd1a1ba7704c62ed881deb4580876556448d92cf",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1390.4924169182777,
+            "prefill_tps": 31.64346634663163,
+            "decode_tps": 8.432622955029336,
+            "total_wall_ms": 61989.37961179763,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). Instead of searching linearly, it computes an index from the key using a hash function:\n\n```\nindex = hash(key) % capacity\n```\n\nThis lets us jump directly to the slot where the value should be, giving near-constant-time access.\n\n---\n\n## 2. Components\n\n- **Array/Buckets**: Fixed-size array of slots (often called buckets).\n- **Hash function**: Converts a key into an integer, then maps it into the array range.\n- **Load factor (α)**: `α = number of entries / number of buckets`. When α exceeds a threshold (commonly 0.75), the table is resized.\n- **Collision handling**: Since different keys can hash to the same index, we need a strategy to resolve collisions.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute** keys uniformly across buckets to minimize collisions.\n\nCommon approaches:\n- **Division method**: `hash(key) % capacity` (capacity often prime).\n- **Multiplication method**: multiply by a constant, take fractional part.\n- **String hashing**: e.g., polynomial rolling hash: `h = (h * p + char) % m`.\n\n---\n\n## 4. Collision Resolution\n\nTwo main strategies:\n\n### a) Separate Chaining\nEach bucket holds a linked list (or dynamic array) of entries. When a collision occurs, the new entry is appended to the list at that bucket. Lookup requires traversing the list to find the matching key.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers; cache-unfriendly.\n\n### b) Open Addressing\nAll entries live in the main array. When a slot is occupied, we probe other slots until an empty one is found (for insertion) or the key is found (for lookup).\n\nProbing sequences:\n- **Linear probing**: `(hash + i) % capacity` for i ="
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). Instead of searching linearly, it computes an index from the key using a hash function:\n\n```\nindex = hash(key) % capacity\n```\n\nThis lets us jump directly to the slot where the value should be, giving near-constant-time access.\n\n---\n\n## 2. Components\n\n- **Array/Buckets**: Fixed-size array of slots (often called buckets).\n- **Hash function**: Converts a key into an integer, then maps it into the array range.\n- **Load factor (α)**: `α = number of entries / number of buckets`. When α exceeds a threshold (commonly 0.75), the table is resized.\n- **Collision handling**: Since different keys can hash to the same index, we need a strategy to resolve collisions.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute** keys uniformly across buckets to minimize collisions.\n\nCommon approaches:\n- **Division method**: `hash(key) % capacity` (capacity often prime).\n- **Multiplication method**: multiply by a constant, take fractional part.\n- **String hashing**: e.g., polynomial rolling hash: `h = (h * p + char) % m`.\n\n---\n\n## 4. Collision Resolution\n\nTwo main strategies:\n\n### a) Separate Chaining\nEach bucket holds a linked list (or dynamic array) of entries. When a collision occurs, the new entry is appended to the list at that bucket. Lookup requires traversing the list to find the matching key.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers; cache-unfriendly.\n\n### b) Open Addressing\nAll entries live in the main array. When a slot is occupied, we probe other slots until an empty one is found (for insertion) or the key is found (for lookup).\n\nProbing sequences:\n- **Linear probing**: `(hash + i) % capacity` for i =",
+            "t_start_abs": 4384711.340792748,
+            "t_first_abs": 4384712.731285165,
+            "t_last_abs": 4384773.329274987,
+            "t_end_abs": 4384773.33017236
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "b9b3b56ba2e0ca4fe51cf8a17e914ef60ebbf8d32bdfbea0d52eac447c63a018",
+      "validated_content": "Hash Table Explained (Part 1: Fundamentals)\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. The core idea is to convert a key into an array index so that insertions, deletions, and lookups can be performed in average-case constant time, O(1). Hash tables are the backbone of many language features and libraries: Python's dict, Java's HashMap, C++'s unordered_map, JavaScript's object property access, and database indexes all rely on hashing.\n\nAt its core, a hash table consists of:\n- An array (often called a bucket array or table) of size m.\n- A hash function h(key) that maps a key to an integer in [0, m-1].\n- A collision resolution strategy for when two keys map to the same index.\n\nThe ideal hash function should be:\n- Fast to compute.\n- Deterministic (same key always yields same hash).\n- Uniform: keys should be spread evenly across the table to minimize collisions.\n\nA simple example: suppose we have a table of size 10 and keys are integers. A trivial hash function is h(k) = k mod 10. Then key 42 goes to bucket 2, key 17 to bucket 7, etc. But real-world keys are often strings, objects, or complex data. For strings, a common approach is to compute a polynomial rolling hash: treat the string as a base-b number, e.g., h(\"cat\") = (ASCII('c') * b^2 + ASCII('a') * b + ASCII('t')) mod m. This ensures that different strings tend to map to different buckets.\n\nCollisions are inevitable when the number of possible keys exceeds the table size, or even when they don't, because the hash function compresses the key space into a smaller index space. When two keys hash to the same index, we need a collision resolution strategy. The two main families are separate chaining and open addressing.\n\nSeparate chaining: Each bucket holds a pointer to a linked list (or another container) of all key-value pairs that hash to that bucket. When a collision occurs, the new entry is simply appended to the list at that bucket. Lookup requires traversing the list to find the matching key. The load factor α = n/m (number of entries / table size) determines average list length. With good hashing, average lookup time is O(1 +",
+      "total_wall_ms": 61988.66470437497,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "985479f00dfe5f32c9409b0728c99b3826b8824a07bb74fdc902c5b21771d29f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1389.4245196133852,
+            "prefill_tps": 31.667787187348065,
+            "decode_tps": 8.432549661362273,
+            "total_wall_ms": 61988.256492652,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained (Part 1: Fundamentals)\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. The core idea is to convert a key into an array index so that insertions, deletions, and lookups can be performed in average-case constant time, O(1). Hash tables are the backbone of many language features and libraries: Python's dict, Java's HashMap, C++'s unordered_map, JavaScript's object property access, and database indexes all rely on hashing.\n\nAt its core, a hash table consists of:\n- An array (often called a bucket array or table) of size m.\n- A hash function h(key) that maps a key to an integer in [0, m-1].\n- A collision resolution strategy for when two keys map to the same index.\n\nThe ideal hash function should be:\n- Fast to compute.\n- Deterministic (same key always yields same hash).\n- Uniform: keys should be spread evenly across the table to minimize collisions.\n\nA simple example: suppose we have a table of size 10 and keys are integers. A trivial hash function is h(k) = k mod 10. Then key 42 goes to bucket 2, key 17 to bucket 7, etc. But real-world keys are often strings, objects, or complex data. For strings, a common approach is to compute a polynomial rolling hash: treat the string as a base-b number, e.g., h(\"cat\") = (ASCII('c') * b^2 + ASCII('a') * b + ASCII('t')) mod m. This ensures that different strings tend to map to different buckets.\n\nCollisions are inevitable when the number of possible keys exceeds the table size, or even when they don't, because the hash function compresses the key space into a smaller index space. When two keys hash to the same index, we need a collision resolution strategy. The two main families are separate chaining and open addressing.\n\nSeparate chaining: Each bucket holds a pointer to a linked list (or another container) of all key-value pairs that hash to that bucket. When a collision occurs, the new entry is simply appended to the list at that bucket. Lookup requires traversing the list to find the matching key. The load factor α = n/m (number of entries / table size) determines average list length. With good hashing, average lookup time is O(1 +"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained (Part 1: Fundamentals)\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. The core idea is to convert a key into an array index so that insertions, deletions, and lookups can be performed in average-case constant time, O(1). Hash tables are the backbone of many language features and libraries: Python's dict, Java's HashMap, C++'s unordered_map, JavaScript's object property access, and database indexes all rely on hashing.\n\nAt its core, a hash table consists of:\n- An array (often called a bucket array or table) of size m.\n- A hash function h(key) that maps a key to an integer in [0, m-1].\n- A collision resolution strategy for when two keys map to the same index.\n\nThe ideal hash function should be:\n- Fast to compute.\n- Deterministic (same key always yields same hash).\n- Uniform: keys should be spread evenly across the table to minimize collisions.\n\nA simple example: suppose we have a table of size 10 and keys are integers. A trivial hash function is h(k) = k mod 10. Then key 42 goes to bucket 2, key 17 to bucket 7, etc. But real-world keys are often strings, objects, or complex data. For strings, a common approach is to compute a polynomial rolling hash: treat the string as a base-b number, e.g., h(\"cat\") = (ASCII('c') * b^2 + ASCII('a') * b + ASCII('t')) mod m. This ensures that different strings tend to map to different buckets.\n\nCollisions are inevitable when the number of possible keys exceeds the table size, or even when they don't, because the hash function compresses the key space into a smaller index space. When two keys hash to the same index, we need a collision resolution strategy. The two main families are separate chaining and open addressing.\n\nSeparate chaining: Each bucket holds a pointer to a linked list (or another container) of all key-value pairs that hash to that bucket. When a collision occurs, the new entry is simply appended to the list at that bucket. Lookup requires traversing the list to find the matching key. The load factor α = n/m (number of entries / table size) determines average list length. With good hashing, average lookup time is O(1 +",
+            "t_start_abs": 4384711.342793673,
+            "t_first_abs": 4384712.732218193,
+            "t_last_abs": 4384773.330734718,
+            "t_end_abs": 4384773.331050166
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r1-i0",
+      "status": "ok",
+      "input_sha256": "a0c00005079afe5f26bf2efbed9144d65b1a9f622c319d33e1a309d198d442b5",
+      "validated_content": "Hash tables are one of the most important and widely used data structures in computer science. They provide a way to store and retrieve data efficiently, often achieving average-case constant time complexity for lookups, insertions, and deletions. In this explanation, we'll cover how hash tables work, including collisions, resizing, complexity, and a worked example.\n\n### What is a Hash Table?\n\nA hash table (also called a hash map) is a data structure that maps keys to values for efficient lookup. It uses a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. The idea is to store key-value pairs in an array, where the position of each pair is determined by a hash function applied to the key.\n\n### Components of a Hash Table\n\n1. **Keys and Values**: The data we want to store consists of key-value pairs. Keys are unique identifiers, and values are the data associated with those keys.\n\n2. **Hash Function**: A hash function takes a key and returns an integer (hash code). This integer is used as an index into an array of buckets. The hash function should be deterministic (same key always produces same hash code), fast to compute, and should distribute keys uniformly across the array to minimize collisions.\n\n3. **Array/Buckets**: The underlying storage is typically an array of buckets (or slots). Each bucket can hold one or more key-value pairs. The size of the array is usually a prime number to reduce collisions.\n\n4. **Collision Resolution**: Since multiple keys can hash to the same index, we need a way to handle collisions. Common methods include separate chaining (each bucket is a linked list of entries) and open addressing (probing to find next available slot).\n\n### How Hash Tables Work\n\n1. **Insertion**: When inserting a key-value pair, the hash function is applied to the key to compute an index. The key-value pair is then stored at that index. If the index is already occupied by a different key, a collision has occurred, and we need to resolve it.\n\n2. **Lookup**: To retrieve a value for a given key, we compute the hash code of the key, go to the corresponding index, and then compare the key with the key(s) stored there. If it matches, we return the value. If not, we use the collision resolution method to find the correct entry.\n\n3. **Deletion**: Deletion involves finding the key using the same process as lookup, then",
+      "total_wall_ms": 62539.39266037196,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "2e98b9bacca7002d96af6c8a1b8cf0b5ae114231735ddc8294a5709527a6065b",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1334.0291632339358,
+            "prefill_tps": 32.98278719284951,
+            "decode_tps": 8.349098456228205,
+            "total_wall_ms": 62539.090275764465,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash tables are one of the most important and widely used data structures in computer science. They provide a way to store and retrieve data efficiently, often achieving average-case constant time complexity for lookups, insertions, and deletions. In this explanation, we'll cover how hash tables work, including collisions, resizing, complexity, and a worked example.\n\n### What is a Hash Table?\n\nA hash table (also called a hash map) is a data structure that maps keys to values for efficient lookup. It uses a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. The idea is to store key-value pairs in an array, where the position of each pair is determined by a hash function applied to the key.\n\n### Components of a Hash Table\n\n1. **Keys and Values**: The data we want to store consists of key-value pairs. Keys are unique identifiers, and values are the data associated with those keys.\n\n2. **Hash Function**: A hash function takes a key and returns an integer (hash code). This integer is used as an index into an array of buckets. The hash function should be deterministic (same key always produces same hash code), fast to compute, and should distribute keys uniformly across the array to minimize collisions.\n\n3. **Array/Buckets**: The underlying storage is typically an array of buckets (or slots). Each bucket can hold one or more key-value pairs. The size of the array is usually a prime number to reduce collisions.\n\n4. **Collision Resolution**: Since multiple keys can hash to the same index, we need a way to handle collisions. Common methods include separate chaining (each bucket is a linked list of entries) and open addressing (probing to find next available slot).\n\n### How Hash Tables Work\n\n1. **Insertion**: When inserting a key-value pair, the hash function is applied to the key to compute an index. The key-value pair is then stored at that index. If the index is already occupied by a different key, a collision has occurred, and we need to resolve it.\n\n2. **Lookup**: To retrieve a value for a given key, we compute the hash code of the key, go to the corresponding index, and then compare the key with the key(s) stored there. If it matches, we return the value. If not, we use the collision resolution method to find the correct entry.\n\n3. **Deletion**: Deletion involves finding the key using the same process as lookup, then"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash tables are one of the most important and widely used data structures in computer science. They provide a way to store and retrieve data efficiently, often achieving average-case constant time complexity for lookups, insertions, and deletions. In this explanation, we'll cover how hash tables work, including collisions, resizing, complexity, and a worked example.\n\n### What is a Hash Table?\n\nA hash table (also called a hash map) is a data structure that maps keys to values for efficient lookup. It uses a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. The idea is to store key-value pairs in an array, where the position of each pair is determined by a hash function applied to the key.\n\n### Components of a Hash Table\n\n1. **Keys and Values**: The data we want to store consists of key-value pairs. Keys are unique identifiers, and values are the data associated with those keys.\n\n2. **Hash Function**: A hash function takes a key and returns an integer (hash code). This integer is used as an index into an array of buckets. The hash function should be deterministic (same key always produces same hash code), fast to compute, and should distribute keys uniformly across the array to minimize collisions.\n\n3. **Array/Buckets**: The underlying storage is typically an array of buckets (or slots). Each bucket can hold one or more key-value pairs. The size of the array is usually a prime number to reduce collisions.\n\n4. **Collision Resolution**: Since multiple keys can hash to the same index, we need a way to handle collisions. Common methods include separate chaining (each bucket is a linked list of entries) and open addressing (probing to find next available slot).\n\n### How Hash Tables Work\n\n1. **Insertion**: When inserting a key-value pair, the hash function is applied to the key to compute an index. The key-value pair is then stored at that index. If the index is already occupied by a different key, a collision has occurred, and we need to resolve it.\n\n2. **Lookup**: To retrieve a value for a given key, we compute the hash code of the key, go to the corresponding index, and then compare the key with the key(s) stored there. If it matches, we return the value. If not, we use the collision resolution method to find the correct entry.\n\n3. **Deletion**: Deletion involves finding the key using the same process as lookup, then",
+            "t_start_abs": 4384773.353496638,
+            "t_first_abs": 4384774.687525801,
+            "t_last_abs": 4384835.891738769,
+            "t_end_abs": 4384835.892586914
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r1-i1",
+      "status": "ok",
+      "input_sha256": "21a8d37794e908934e12f53d09f3a2fe8da59f88012506a723f56be0730de4c6",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). Instead of searching linearly, it computes an index from the key using a hash function:\n\n```\nindex = hash(key) % capacity\n```\n\nThis lets us jump directly to the slot where the key-value pair should live, giving near-constant-time operations.\n\n---\n\n## 2. Components\n\n- **Array/Buckets**: Fixed-size array of slots (often called buckets).\n- **Hash function**: Converts a key into an integer, then maps it into the array range.\n- **Load factor (α)**: `α = number of entries / number of buckets`. Used to decide when to resize.\n- **Collision handling**: Since different keys can hash to the same index, we need a strategy to resolve collisions.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute** keys uniformly across buckets to minimize collisions.\n\nCommon approaches:\n- **Division method**: `hash(key) % m` where `m` is the number of buckets.\n- **Multiplication method**: Multiply by a constant, take fractional part, multiply by `m`.\n- **String hashing**: e.g., polynomial rolling hash: `h = (h * p + char_value) % m`.\n\n---\n\n## 4. Collisions\n\nCollisions occur when two different keys hash to the same index. Two main strategies:\n\n### 4.1 Separate Chaining\nEach bucket holds a linked list (or dynamic array) of entries. On collision, the new entry is appended to the list. Lookup requires searching the list.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers, cache-unfriendly.\n\n### 4.2 Open Addressing\nAll entries live in the main array. On collision, probe other slots until an empty one is found.\n\n- **Linear probing**: Check `(hash + i) % m` for i = 0, 1, 2, ...\n- **Quad",
+      "total_wall_ms": 62538.38810697198,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "c562e32ebe8d5083bc181c078340223f269645f9bee64a72dcc11a9caca8988d",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1332.6141573488712,
+            "prefill_tps": 33.01780921158339,
+            "decode_tps": 8.349126059946748,
+            "total_wall_ms": 62537.904920987785,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). Instead of searching linearly, it computes an index from the key using a hash function:\n\n```\nindex = hash(key) % capacity\n```\n\nThis lets us jump directly to the slot where the key-value pair should live, giving near-constant-time operations.\n\n---\n\n## 2. Components\n\n- **Array/Buckets**: Fixed-size array of slots (often called buckets).\n- **Hash function**: Converts a key into an integer, then maps it into the array range.\n- **Load factor (α)**: `α = number of entries / number of buckets`. Used to decide when to resize.\n- **Collision handling**: Since different keys can hash to the same index, we need a strategy to resolve collisions.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute** keys uniformly across buckets to minimize collisions.\n\nCommon approaches:\n- **Division method**: `hash(key) % m` where `m` is the number of buckets.\n- **Multiplication method**: Multiply by a constant, take fractional part, multiply by `m`.\n- **String hashing**: e.g., polynomial rolling hash: `h = (h * p + char_value) % m`.\n\n---\n\n## 4. Collisions\n\nCollisions occur when two different keys hash to the same index. Two main strategies:\n\n### 4.1 Separate Chaining\nEach bucket holds a linked list (or dynamic array) of entries. On collision, the new entry is appended to the list. Lookup requires searching the list.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers, cache-unfriendly.\n\n### 4.2 Open Addressing\nAll entries live in the main array. On collision, probe other slots until an empty one is found.\n\n- **Linear probing**: Check `(hash + i) % m` for i = 0, 1, 2, ...\n- **Quad"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). Instead of searching linearly, it computes an index from the key using a hash function:\n\n```\nindex = hash(key) % capacity\n```\n\nThis lets us jump directly to the slot where the key-value pair should live, giving near-constant-time operations.\n\n---\n\n## 2. Components\n\n- **Array/Buckets**: Fixed-size array of slots (often called buckets).\n- **Hash function**: Converts a key into an integer, then maps it into the array range.\n- **Load factor (α)**: `α = number of entries / number of buckets`. Used to decide when to resize.\n- **Collision handling**: Since different keys can hash to the same index, we need a strategy to resolve collisions.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute** keys uniformly across buckets to minimize collisions.\n\nCommon approaches:\n- **Division method**: `hash(key) % m` where `m` is the number of buckets.\n- **Multiplication method**: Multiply by a constant, take fractional part, multiply by `m`.\n- **String hashing**: e.g., polynomial rolling hash: `h = (h * p + char_value) % m`.\n\n---\n\n## 4. Collisions\n\nCollisions occur when two different keys hash to the same index. Two main strategies:\n\n### 4.1 Separate Chaining\nEach bucket holds a linked list (or dynamic array) of entries. On collision, the new entry is appended to the list. Lookup requires searching the list.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers, cache-unfriendly.\n\n### 4.2 Open Addressing\nAll entries live in the main array. On collision, probe other slots until an empty one is found.\n\n- **Linear probing**: Check `(hash + i) % m` for i = 0, 1, 2, ...\n- **Quad",
+            "t_start_abs": 4384773.355335341,
+            "t_first_abs": 4384774.687949498,
+            "t_last_abs": 4384835.891960113,
+            "t_end_abs": 4384835.893240262
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r1-i2",
+      "status": "ok",
+      "input_sha256": "1c5273067147cbfa6541ade5a3958db653c0533cedbbc0a227333a9e2a9d0894",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Typically kept below ~0.75 for open addressing or ~1.0 for separate chaining (though resizing happens before exceeding these).\n\n## 2. Hash Function\n\nA hash function h(k) maps a key k to an integer in [0, m-1]. Requirements:\n- Deterministic (same key → same hash).\n- Fast to compute.\n- Uniform distribution to minimize collisions.\n\nCommon approaches:\n- **Division method**: h(k) = k mod m, where m is prime.\n- **Multiplication method**: h(k) = floor(m * frac(k * A)) with A ≈ 0.6180339887 (Knuth's suggestion).\n- **String hashing**: e.g., polynomial rolling hash: h(s) = (s[0]*p^(n-1) + s[1]*p^(n-2) + ... + s[n-1]) mod m, with p a prime (e.g., 31 or 37).\n\n## 3. Collisions\n\nCollisions occur when two keys hash to the same index. Two main strategies:\n\n### 3.1 Separate Chaining\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup: hash to bucket, then search the list (equality check).\n- Worst-case O(n) if all keys collide, but average O(1 + n/m) ≈ O(1) if α ≈ constant.\n\n### 3.2 Open Addressing\n- All entries stored in the array itself.\n- Probing sequence to find next slot when collision occurs.\n- Types:\n  - **Linear probing**: h(k) + i mod m, i = 0,1,2,...\n  - **Quadratic probing**: h(k)",
+      "total_wall_ms": 62606.524720788,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "450f00145fe298b3a4354827232c775c0433f9549b4ec983a8f6fd752ef1f691",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1533.773441798985,
+            "prefill_tps": 28.68741810289254,
+            "decode_tps": 8.367161196810985,
+            "total_wall_ms": 62606.13355692476,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Typically kept below ~0.75 for open addressing or ~1.0 for separate chaining (though resizing happens before exceeding these).\n\n## 2. Hash Function\n\nA hash function h(k) maps a key k to an integer in [0, m-1]. Requirements:\n- Deterministic (same key → same hash).\n- Fast to compute.\n- Uniform distribution to minimize collisions.\n\nCommon approaches:\n- **Division method**: h(k) = k mod m, where m is prime.\n- **Multiplication method**: h(k) = floor(m * frac(k * A)) with A ≈ 0.6180339887 (Knuth's suggestion).\n- **String hashing**: e.g., polynomial rolling hash: h(s) = (s[0]*p^(n-1) + s[1]*p^(n-2) + ... + s[n-1]) mod m, with p a prime (e.g., 31 or 37).\n\n## 3. Collisions\n\nCollisions occur when two keys hash to the same index. Two main strategies:\n\n### 3.1 Separate Chaining\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup: hash to bucket, then search the list (equality check).\n- Worst-case O(n) if all keys collide, but average O(1 + n/m) ≈ O(1) if α ≈ constant.\n\n### 3.2 Open Addressing\n- All entries stored in the array itself.\n- Probing sequence to find next slot when collision occurs.\n- Types:\n  - **Linear probing**: h(k) + i mod m, i = 0,1,2,...\n  - **Quadratic probing**: h(k)"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Typically kept below ~0.75 for open addressing or ~1.0 for separate chaining (though resizing happens before exceeding these).\n\n## 2. Hash Function\n\nA hash function h(k) maps a key k to an integer in [0, m-1]. Requirements:\n- Deterministic (same key → same hash).\n- Fast to compute.\n- Uniform distribution to minimize collisions.\n\nCommon approaches:\n- **Division method**: h(k) = k mod m, where m is prime.\n- **Multiplication method**: h(k) = floor(m * frac(k * A)) with A ≈ 0.6180339887 (Knuth's suggestion).\n- **String hashing**: e.g., polynomial rolling hash: h(s) = (s[0]*p^(n-1) + s[1]*p^(n-2) + ... + s[n-1]) mod m, with p a prime (e.g., 31 or 37).\n\n## 3. Collisions\n\nCollisions occur when two keys hash to the same index. Two main strategies:\n\n### 3.1 Separate Chaining\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup: hash to bucket, then search the list (equality check).\n- Worst-case O(n) if all keys collide, but average O(1 + n/m) ≈ O(1) if α ≈ constant.\n\n### 3.2 Open Addressing\n- All entries stored in the array itself.\n- Probing sequence to find next slot when collision occurs.\n- Types:\n  - **Linear probing**: h(k) + i mod m, i = 0,1,2,...\n  - **Quadratic probing**: h(k)",
+            "t_start_abs": 4384773.356812852,
+            "t_first_abs": 4384774.890586294,
+            "t_last_abs": 4384835.962673706,
+            "t_end_abs": 4384835.962946409
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r1-i3",
+      "status": "ok",
+      "input_sha256": "ce367981134a4d9a6c513c2b4a6dad132d5dd8684932d3f7838e4f54fd4e8bb2",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Default thresholds often 0.75.\n- **Collision Resolution**: Handling when two keys hash to the same bucket.\n\n---\n\n## 2. Hash Function\n\nA hash function converts a key into an integer index. Requirements:\n\n- **Deterministic**: Same key → same index.\n- **Uniform**: Keys spread evenly across buckets.\n- **Fast**: O(1) ideally.\n\nCommon approaches:\n\n- **Division method**: h(k) = k mod m, where m is prime.\n- **Multiplication method**: h(k) = floor(m * frac(k * A)) with 0 < A < 1.\n- **String hashing**: e.g., polynomial rolling hash: h = (h * 31 + char) mod m.\n\nExample: For key \"cat\" and m = 16:\n- ASCII sum: 99 + 97 + 116 = 312; 312 mod 16 = 8.\n- Or polynomial: ((('c')*31 + 'a')*31 + 't') mod 16.\n\n---\n\n## 3. Collision Resolution\n\nCollisions occur when two keys hash to the same bucket. Two main strategies:\n\n### 3.1 Separate Chaining\n\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup: hash to bucket, then search list.\n- Worst-case: O(n) if all keys collide, but average O(1 + n/m).\n\n### 3.2 Open Addressing\n\n- All entries stored in the array itself.\n- Probing sequence to find next empty slot.\n- Types:\n  - **Linear probing**: h(k) + i mod m, i = 0,1,2,...\n  - **Quadratic probing**: h(k)",
+      "total_wall_ms": 62603.7422362715,
+      "concurrency": 4,
+      "repeat": 1,
+      "turns": [
+        {
+          "request_sha256": "997aabd7401fbd861489299f1a7f51758676bfa95f94b164f320cdcb8f2e44c2",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1532.5839081779122,
+            "prefill_tps": 28.709684191002346,
+            "decode_tps": 8.367399482274953,
+            "total_wall_ms": 62603.296004235744,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Default thresholds often 0.75.\n- **Collision Resolution**: Handling when two keys hash to the same bucket.\n\n---\n\n## 2. Hash Function\n\nA hash function converts a key into an integer index. Requirements:\n\n- **Deterministic**: Same key → same index.\n- **Uniform**: Keys spread evenly across buckets.\n- **Fast**: O(1) ideally.\n\nCommon approaches:\n\n- **Division method**: h(k) = k mod m, where m is prime.\n- **Multiplication method**: h(k) = floor(m * frac(k * A)) with 0 < A < 1.\n- **String hashing**: e.g., polynomial rolling hash: h = (h * 31 + char) mod m.\n\nExample: For key \"cat\" and m = 16:\n- ASCII sum: 99 + 97 + 116 = 312; 312 mod 16 = 8.\n- Or polynomial: ((('c')*31 + 'a')*31 + 't') mod 16.\n\n---\n\n## 3. Collision Resolution\n\nCollisions occur when two keys hash to the same bucket. Two main strategies:\n\n### 3.1 Separate Chaining\n\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup: hash to bucket, then search list.\n- Worst-case: O(n) if all keys collide, but average O(1 + n/m).\n\n### 3.2 Open Addressing\n\n- All entries stored in the array itself.\n- Probing sequence to find next empty slot.\n- Types:\n  - **Linear probing**: h(k) + i mod m, i = 0,1,2,...\n  - **Quadratic probing**: h(k)"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Components\n\n- **Array/Buckets**: A fixed-size array where each slot can hold one or more entries.\n- **Hash Function**: Maps a key to an array index (bucket).\n- **Load Factor (α)**: α = n / m, where n = number of entries, m = number of buckets. Default thresholds often 0.75.\n- **Collision Resolution**: Handling when two keys hash to the same bucket.\n\n---\n\n## 2. Hash Function\n\nA hash function converts a key into an integer index. Requirements:\n\n- **Deterministic**: Same key → same index.\n- **Uniform**: Keys spread evenly across buckets.\n- **Fast**: O(1) ideally.\n\nCommon approaches:\n\n- **Division method**: h(k) = k mod m, where m is prime.\n- **Multiplication method**: h(k) = floor(m * frac(k * A)) with 0 < A < 1.\n- **String hashing**: e.g., polynomial rolling hash: h = (h * 31 + char) mod m.\n\nExample: For key \"cat\" and m = 16:\n- ASCII sum: 99 + 97 + 116 = 312; 312 mod 16 = 8.\n- Or polynomial: ((('c')*31 + 'a')*31 + 't') mod 16.\n\n---\n\n## 3. Collision Resolution\n\nCollisions occur when two keys hash to the same bucket. Two main strategies:\n\n### 3.1 Separate Chaining\n\n- Each bucket holds a linked list (or dynamic array) of entries.\n- On collision, append to the list.\n- Lookup: hash to bucket, then search list.\n- Worst-case: O(n) if all keys collide, but average O(1 + n/m).\n\n### 3.2 Open Addressing\n\n- All entries stored in the array itself.\n- Probing sequence to find next empty slot.\n- Types:\n  - **Linear probing**: h(k) + i mod m, i = 0,1,2,...\n  - **Quadratic probing**: h(k)",
+            "t_start_abs": 4384773.358767039,
+            "t_first_abs": 4384774.891350947,
+            "t_last_abs": 4384835.961699158,
+            "t_end_abs": 4384835.962063043
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r2-i0",
+      "status": "ok",
+      "input_sha256": "a70a5735bda98ccf8cdf47cbba89b9a76a9db259265b0947fbdcfd1c5e961546",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion, making it one of the most important data structures in computer science. This explanation covers the core mechanics, collision handling, resizing, complexity analysis, and a worked example.\n\n## 1. Core Components\n\nA hash table consists of:\n\n- **An array (or bucket array)**: A contiguous block of memory holding entries.\n- **A hash function**: Maps a key to an array index.\n- **A capacity**: The number of buckets (often a power of two).\n- **A size (or count)**: The number of stored entries.\n- **A load factor**: size / capacity, used to trigger resizing.\n\n## 2. The Hash Function\n\nA hash function takes a key and produces an integer, then reduces it modulo the capacity to get an index. Good hash functions:\n\n- Are **fast** to compute.\n- Distribute keys **uniformly** across buckets.\n- Use all bits of the key (avoid clustering).\n\nExample: for string keys, a common approach is polynomial rolling hash:\n\n```\nh = 0\nfor each character c in key:\n    h = h * 31 + ord(c)\nindex = h % capacity\n```\n\nThe multiplier 31 (or 33, 37, etc.) is chosen to be prime-ish so that similar keys don't collide too often.\n\n## 3. Collisions\n\nCollisions occur when two distinct keys hash to the same index. Since the number of possible keys is usually much larger than the number of buckets, collisions are inevitable. Two main strategies handle them:\n\n### 3.1 Separate Chaining\n\nEach bucket holds a pointer to a linked list (or dynamic array) of entries. On collision, the new entry is appended to the list. Lookup requires scanning the list for the matching key.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers, cache-unfriendly traversal.\n\n### 3.2 Open Addressing\n\nAll entries live in the main array. On collision, the algorithm probes other slots until an empty one is found (for insertion) or the key matches (for lookup). Common probing sequences:\n\n- **Linear probing**: index + i, i = 0, 1, 2, ...\n- **Quadratic probing**:",
+      "total_wall_ms": 61992.93095897883,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "1f25887f121c12094ce2cfb2fe10003d724edd747b91baf7f20f03747aeda133",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1464.3505048006773,
+            "prefill_tps": 30.047450972804587,
+            "decode_tps": 8.44242750730922,
+            "total_wall_ms": 61992.62655060738,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion, making it one of the most important data structures in computer science. This explanation covers the core mechanics, collision handling, resizing, complexity analysis, and a worked example.\n\n## 1. Core Components\n\nA hash table consists of:\n\n- **An array (or bucket array)**: A contiguous block of memory holding entries.\n- **A hash function**: Maps a key to an array index.\n- **A capacity**: The number of buckets (often a power of two).\n- **A size (or count)**: The number of stored entries.\n- **A load factor**: size / capacity, used to trigger resizing.\n\n## 2. The Hash Function\n\nA hash function takes a key and produces an integer, then reduces it modulo the capacity to get an index. Good hash functions:\n\n- Are **fast** to compute.\n- Distribute keys **uniformly** across buckets.\n- Use all bits of the key (avoid clustering).\n\nExample: for string keys, a common approach is polynomial rolling hash:\n\n```\nh = 0\nfor each character c in key:\n    h = h * 31 + ord(c)\nindex = h % capacity\n```\n\nThe multiplier 31 (or 33, 37, etc.) is chosen to be prime-ish so that similar keys don't collide too often.\n\n## 3. Collisions\n\nCollisions occur when two distinct keys hash to the same index. Since the number of possible keys is usually much larger than the number of buckets, collisions are inevitable. Two main strategies handle them:\n\n### 3.1 Separate Chaining\n\nEach bucket holds a pointer to a linked list (or dynamic array) of entries. On collision, the new entry is appended to the list. Lookup requires scanning the list for the matching key.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers, cache-unfriendly traversal.\n\n### 3.2 Open Addressing\n\nAll entries live in the main array. On collision, the algorithm probes other slots until an empty one is found (for insertion) or the key matches (for lookup). Common probing sequences:\n\n- **Linear probing**: index + i, i = 0, 1, 2, ...\n- **Quadratic probing**:"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function to compute an index into an array of buckets or slots. It provides average-case O(1) lookup, insertion, and deletion, making it one of the most important data structures in computer science. This explanation covers the core mechanics, collision handling, resizing, complexity analysis, and a worked example.\n\n## 1. Core Components\n\nA hash table consists of:\n\n- **An array (or bucket array)**: A contiguous block of memory holding entries.\n- **A hash function**: Maps a key to an array index.\n- **A capacity**: The number of buckets (often a power of two).\n- **A size (or count)**: The number of stored entries.\n- **A load factor**: size / capacity, used to trigger resizing.\n\n## 2. The Hash Function\n\nA hash function takes a key and produces an integer, then reduces it modulo the capacity to get an index. Good hash functions:\n\n- Are **fast** to compute.\n- Distribute keys **uniformly** across buckets.\n- Use all bits of the key (avoid clustering).\n\nExample: for string keys, a common approach is polynomial rolling hash:\n\n```\nh = 0\nfor each character c in key:\n    h = h * 31 + ord(c)\nindex = h % capacity\n```\n\nThe multiplier 31 (or 33, 37, etc.) is chosen to be prime-ish so that similar keys don't collide too often.\n\n## 3. Collisions\n\nCollisions occur when two distinct keys hash to the same index. Since the number of possible keys is usually much larger than the number of buckets, collisions are inevitable. Two main strategies handle them:\n\n### 3.1 Separate Chaining\n\nEach bucket holds a pointer to a linked list (or dynamic array) of entries. On collision, the new entry is appended to the list. Lookup requires scanning the list for the matching key.\n\n- **Pros**: Simple, works well with high load factors.\n- **Cons**: Extra memory for pointers, cache-unfriendly traversal.\n\n### 3.2 Open Addressing\n\nAll entries live in the main array. On collision, the algorithm probes other slots until an empty one is found (for insertion) or the key matches (for lookup). Common probing sequences:\n\n- **Linear probing**: index + i, i = 0, 1, 2, ...\n- **Quadratic probing**:",
+            "t_start_abs": 4384835.993568372,
+            "t_first_abs": 4384837.457918877,
+            "t_last_abs": 4384897.98553366,
+            "t_end_abs": 4384897.986194923
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r2-i1",
+      "status": "ok",
+      "input_sha256": "0f33694c25dfeea3f7229f49dcb2e58eeedfcd80de2bbfe1267862ddd4ab7ad7",
+      "validated_content": "Hash tables are one of the most important and widely used data structures in computer science. They provide a way to store and retrieve data efficiently, often achieving constant time complexity for basic operations. This explanation covers how hash tables work, including hashing, collisions, resizing, complexity, and a worked example.\n\n## 1. Introduction to Hash Tables\n\nA hash table (also called a hash map) is a data structure that maps keys to values for efficient lookup, insertion, and deletion. It uses a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. The idea is to store key-value pairs in an array, using a hash function to compute an index for each key. The goal is to distribute keys uniformly across the array to minimize collisions.\n\nHash tables are used in many contexts, such as database indexing, caching, compiler symbol tables, and more. They are the backbone of many programming languages' associative arrays (e.g., Python's dict, Java's HashMap, C++'s unordered_map).\n\n## 2. Basic Components\n\n- **Keys and Values**: The data we want to store. Each key is unique, and we associate a value with it.\n- **Hash Function**: A function that takes a key and returns an integer (hash code). This integer is used as an index into an array of buckets.\n- **Array (or Bucket Array)**: An array of buckets, each of which can hold one or more key-value pairs. The size of this array is typically a prime number to reduce collisions.\n- **Collision Resolution**: When two keys hash to the same index, we need a way to handle it. Common methods are separate chaining (linked lists) and open addressing (probing).\n\n## 3. How Hashing Works\n\nThe hash function takes a key and computes an integer hash code. Ideally, the hash function should be fast to compute, uniformly distribute keys across the array, and minimize collisions. The hash code is then mapped to an index in the array, typically by taking the modulo of the hash code with the array size.\n\nFor example, if the array size is 16, and the hash code is 12345, then the index is 12345 % 16 = 9 (since 12345 = 16 * 771 + 9). So the key-value pair would be stored at index 9.\n\n## 4. Collision Resolution\n\nCollisions occur when two different keys hash to the same index",
+      "total_wall_ms": 61893.73510237783,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "5062c90755282af0ba7e3a111bec5846c4450969922f457e95efbae64772f245",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1287.3107874765992,
+            "prefill_tps": 34.17978038252075,
+            "decode_tps": 8.431542386693403,
+            "total_wall_ms": 61893.54424737394,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash tables are one of the most important and widely used data structures in computer science. They provide a way to store and retrieve data efficiently, often achieving constant time complexity for basic operations. This explanation covers how hash tables work, including hashing, collisions, resizing, complexity, and a worked example.\n\n## 1. Introduction to Hash Tables\n\nA hash table (also called a hash map) is a data structure that maps keys to values for efficient lookup, insertion, and deletion. It uses a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. The idea is to store key-value pairs in an array, using a hash function to compute an index for each key. The goal is to distribute keys uniformly across the array to minimize collisions.\n\nHash tables are used in many contexts, such as database indexing, caching, compiler symbol tables, and more. They are the backbone of many programming languages' associative arrays (e.g., Python's dict, Java's HashMap, C++'s unordered_map).\n\n## 2. Basic Components\n\n- **Keys and Values**: The data we want to store. Each key is unique, and we associate a value with it.\n- **Hash Function**: A function that takes a key and returns an integer (hash code). This integer is used as an index into an array of buckets.\n- **Array (or Bucket Array)**: An array of buckets, each of which can hold one or more key-value pairs. The size of this array is typically a prime number to reduce collisions.\n- **Collision Resolution**: When two keys hash to the same index, we need a way to handle it. Common methods are separate chaining (linked lists) and open addressing (probing).\n\n## 3. How Hashing Works\n\nThe hash function takes a key and computes an integer hash code. Ideally, the hash function should be fast to compute, uniformly distribute keys across the array, and minimize collisions. The hash code is then mapped to an index in the array, typically by taking the modulo of the hash code with the array size.\n\nFor example, if the array size is 16, and the hash code is 12345, then the index is 12345 % 16 = 9 (since 12345 = 16 * 771 + 9). So the key-value pair would be stored at index 9.\n\n## 4. Collision Resolution\n\nCollisions occur when two different keys hash to the same index"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash tables are one of the most important and widely used data structures in computer science. They provide a way to store and retrieve data efficiently, often achieving constant time complexity for basic operations. This explanation covers how hash tables work, including hashing, collisions, resizing, complexity, and a worked example.\n\n## 1. Introduction to Hash Tables\n\nA hash table (also called a hash map) is a data structure that maps keys to values for efficient lookup, insertion, and deletion. It uses a hash function to compute an index into an array of buckets or slots, from which the desired value can be found. The idea is to store key-value pairs in an array, using a hash function to compute an index for each key. The goal is to distribute keys uniformly across the array to minimize collisions.\n\nHash tables are used in many contexts, such as database indexing, caching, compiler symbol tables, and more. They are the backbone of many programming languages' associative arrays (e.g., Python's dict, Java's HashMap, C++'s unordered_map).\n\n## 2. Basic Components\n\n- **Keys and Values**: The data we want to store. Each key is unique, and we associate a value with it.\n- **Hash Function**: A function that takes a key and returns an integer (hash code). This integer is used as an index into an array of buckets.\n- **Array (or Bucket Array)**: An array of buckets, each of which can hold one or more key-value pairs. The size of this array is typically a prime number to reduce collisions.\n- **Collision Resolution**: When two keys hash to the same index, we need a way to handle it. Common methods are separate chaining (linked lists) and open addressing (probing).\n\n## 3. How Hashing Works\n\nThe hash function takes a key and computes an integer hash code. Ideally, the hash function should be fast to compute, uniformly distribute keys across the array, and minimize collisions. The hash code is then mapped to an index in the array, typically by taking the modulo of the hash code with the array size.\n\nFor example, if the array size is 16, and the hash code is 12345, then the index is 12345 % 16 = 9 (since 12345 = 16 * 771 + 9). So the key-value pair would be stored at index 9.\n\n## 4. Collision Resolution\n\nCollisions occur when two different keys hash to the same index",
+            "t_start_abs": 4384835.99439085,
+            "t_first_abs": 4384837.281701637,
+            "t_last_abs": 4384897.887457567,
+            "t_end_abs": 4384897.887935097
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r2-i2",
+      "status": "ok",
+      "input_sha256": "855fe53ef5d73319e16c4a7d28e052b6ad7b914fb3f2113e506362d4c2421f3a",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values by computing an index from the key. It provides average-case O(1) lookup, insertion, and deletion. This explanation covers the core mechanics, collision handling, resizing, complexity, and a worked example.\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (or bucket array). A hash function converts each key into an integer index:\n\n```\nindex = hash(key) % capacity\n```\n\nThe key is stored at that index. Lookups recompute the same index and retrieve the value.\n\n## 2. Components\n\n- **Bucket array**: An array of size `capacity`, often a power of two.\n- **Hash function**: Maps keys to indices, ideally uniformly.\n- **Load factor (α)**: `α = n / capacity`, where `n` is the number of stored entries. When α exceeds a threshold (e.g., 0.75), the table resizes.\n\n## 3. Collisions\n\nTwo keys can hash to the same index. Common collision resolutions:\n\n### Separate Chaining\nEach bucket holds a linked list (or another structure) of entries. On collision, the new entry is appended to the list. Lookup traverses the list comparing keys.\n\n### Open Addressing\nIf the target slot is occupied, probe other slots until an empty one is found (for insertion) or the key matches (for lookup). Probing sequences include:\n\n- **Linear probing**: `(hash(key) + i) % capacity`\n- **Quadratic probing**: `(hash(key) + i²) % capacity`\n- **Double hashing**: `(hash(key) + i * hash2(key)) % capacity`\n\nDeletion in open addressing requires tombstones (markers) to keep probe sequences intact.\n\n## 4. Resizing (Rehashing)\n\nWhen the load factor exceeds a threshold (e.g., 0.75), the table doubles its capacity and rehashes all entries. This keeps average chain length short and maintains O(1) average performance.\n\n## 5. Complexity\n\n| Operation | Average | Worst |\n|-----------|---------|-------|\n| Insert    | O(1)    | O(n)   |\n| Delete    | O(1)    | O(n)   |\n| Search    | O(1)    | O(n)   |\n\nWorst case occurs when all keys hash to the same bucket, turning",
+      "total_wall_ms": 61990.291320718825,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "c6721456e898bfcd4454d6d79105a1f71049aaf59e0880313809558b04666e06",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1460.0030984729528,
+            "prefill_tps": 30.136922343535094,
+            "decode_tps": 8.44214123831081,
+            "total_wall_ms": 61989.925438538194,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values by computing an index from the key. It provides average-case O(1) lookup, insertion, and deletion. This explanation covers the core mechanics, collision handling, resizing, complexity, and a worked example.\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (or bucket array). A hash function converts each key into an integer index:\n\n```\nindex = hash(key) % capacity\n```\n\nThe key is stored at that index. Lookups recompute the same index and retrieve the value.\n\n## 2. Components\n\n- **Bucket array**: An array of size `capacity`, often a power of two.\n- **Hash function**: Maps keys to indices, ideally uniformly.\n- **Load factor (α)**: `α = n / capacity`, where `n` is the number of stored entries. When α exceeds a threshold (e.g., 0.75), the table resizes.\n\n## 3. Collisions\n\nTwo keys can hash to the same index. Common collision resolutions:\n\n### Separate Chaining\nEach bucket holds a linked list (or another structure) of entries. On collision, the new entry is appended to the list. Lookup traverses the list comparing keys.\n\n### Open Addressing\nIf the target slot is occupied, probe other slots until an empty one is found (for insertion) or the key matches (for lookup). Probing sequences include:\n\n- **Linear probing**: `(hash(key) + i) % capacity`\n- **Quadratic probing**: `(hash(key) + i²) % capacity`\n- **Double hashing**: `(hash(key) + i * hash2(key)) % capacity`\n\nDeletion in open addressing requires tombstones (markers) to keep probe sequences intact.\n\n## 4. Resizing (Rehashing)\n\nWhen the load factor exceeds a threshold (e.g., 0.75), the table doubles its capacity and rehashes all entries. This keeps average chain length short and maintains O(1) average performance.\n\n## 5. Complexity\n\n| Operation | Average | Worst |\n|-----------|---------|-------|\n| Insert    | O(1)    | O(n)   |\n| Delete    | O(1)    | O(n)   |\n| Search    | O(1)    | O(n)   |\n\nWorst case occurs when all keys hash to the same bucket, turning"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values by computing an index from the key. It provides average-case O(1) lookup, insertion, and deletion. This explanation covers the core mechanics, collision handling, resizing, complexity, and a worked example.\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (or bucket array). A hash function converts each key into an integer index:\n\n```\nindex = hash(key) % capacity\n```\n\nThe key is stored at that index. Lookups recompute the same index and retrieve the value.\n\n## 2. Components\n\n- **Bucket array**: An array of size `capacity`, often a power of two.\n- **Hash function**: Maps keys to indices, ideally uniformly.\n- **Load factor (α)**: `α = n / capacity`, where `n` is the number of stored entries. When α exceeds a threshold (e.g., 0.75), the table resizes.\n\n## 3. Collisions\n\nTwo keys can hash to the same index. Common collision resolutions:\n\n### Separate Chaining\nEach bucket holds a linked list (or another structure) of entries. On collision, the new entry is appended to the list. Lookup traverses the list comparing keys.\n\n### Open Addressing\nIf the target slot is occupied, probe other slots until an empty one is found (for insertion) or the key matches (for lookup). Probing sequences include:\n\n- **Linear probing**: `(hash(key) + i) % capacity`\n- **Quadratic probing**: `(hash(key) + i²) % capacity`\n- **Double hashing**: `(hash(key) + i * hash2(key)) % capacity`\n\nDeletion in open addressing requires tombstones (markers) to keep probe sequences intact.\n\n## 4. Resizing (Rehashing)\n\nWhen the load factor exceeds a threshold (e.g., 0.75), the table doubles its capacity and rehashes all entries. This keeps average chain length short and maintains O(1) average performance.\n\n## 5. Complexity\n\n| Operation | Average | Worst |\n|-----------|---------|-------|\n| Insert    | O(1)    | O(n)   |\n| Delete    | O(1)    | O(n)   |\n| Search    | O(1)    | O(n)   |\n\nWorst case occurs when all keys hash to the same bucket, turning",
+            "t_start_abs": 4384835.997461234,
+            "t_first_abs": 4384837.457464333,
+            "t_last_abs": 4384897.987131579,
+            "t_end_abs": 4384897.987386673
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "decode",
+      "tag": "decode-c4-r2-i3",
+      "status": "ok",
+      "input_sha256": "cb04c98ab1273bf6b1299714835cf825c764f130a7862788a43892e9665f407b",
+      "validated_content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). The index for each key is computed by a **hash function**:\n\n```\nindex = hash(key) mod capacity\n```\n\nSince the number of possible keys is usually much larger than the table size, multiple keys can map to the same index — this is called a **collision**.\n\n---\n\n## 2. Structure\n\nA typical hash table consists of:\n\n- **An array of buckets** (each bucket holds one or more entries).\n- **A hash function** `h(k)` that converts a key `k` into an integer.\n- **A compression function** (often modulo the capacity) to fit the hash into the array range.\n- **A collision resolution strategy** (chaining or open addressing).\n\n### 2.1 Load Factor\n\nThe **load factor** `α = n / m` where `n` is the number of stored entries and `m` is the number of buckets. When `α` exceeds a threshold (commonly 0.75 for open addressing, or 1.0 for chaining), the table is **resized** (typically doubled) and all entries are rehashed.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute keys uniformly** across the table to minimize collisions.\n\nCommon hash functions:\n\n- **Division method**: `h(k) = k mod m` where `m` is prime.\n- **Multiplication method**: `h(k) = floor(m * (k * A mod 1))` where `A` is a constant (0 < A < 1).\n- **String hashing**: e.g., polynomial rolling hash: `h(s) = (s[0] * p^(n-1) + s[1] * p^(n-2) + ... ) mod m`.\n\n---\n\n## 4. Collision Resolution\n\n### 4.1 Separate Chaining\n\nEach bucket holds a **linked list** (or dynamic array)",
+      "total_wall_ms": 61988.01157902926,
+      "concurrency": 4,
+      "repeat": 2,
+      "turns": [
+        {
+          "request_sha256": "f8e432e45dfb1eda7042d4579384010ca6b0419b2d0f7d34a1ac2a2d31ee4736",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 512,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "metrics": {
+            "prompt_tokens": 44,
+            "completion_tokens": 512,
+            "ttft_ms": 1457.7999459579587,
+            "prefill_tps": 30.182467849583052,
+            "decode_tps": 8.44221561209969,
+            "total_wall_ms": 61987.639906816185,
+            "finish_reason": "length",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). The index for each key is computed by a **hash function**:\n\n```\nindex = hash(key) mod capacity\n```\n\nSince the number of possible keys is usually much larger than the table size, multiple keys can map to the same index — this is called a **collision**.\n\n---\n\n## 2. Structure\n\nA typical hash table consists of:\n\n- **An array of buckets** (each bucket holds one or more entries).\n- **A hash function** `h(k)` that converts a key `k` into an integer.\n- **A compression function** (often modulo the capacity) to fit the hash into the array range.\n- **A collision resolution strategy** (chaining or open addressing).\n\n### 2.1 Load Factor\n\nThe **load factor** `α = n / m` where `n` is the number of stored entries and `m` is the number of buckets. When `α` exceeds a threshold (commonly 0.75 for open addressing, or 1.0 for chaining), the table is **resized** (typically doubled) and all entries are rehashed.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute keys uniformly** across the table to minimize collisions.\n\nCommon hash functions:\n\n- **Division method**: `h(k) = k mod m` where `m` is prime.\n- **Multiplication method**: `h(k) = floor(m * (k * A mod 1))` where `A` is a constant (0 < A < 1).\n- **String hashing**: e.g., polynomial rolling hash: `h(s) = (s[0] * p^(n-1) + s[1] * p^(n-2) + ... ) mod m`.\n\n---\n\n## 4. Collision Resolution\n\n### 4.1 Separate Chaining\n\nEach bucket holds a **linked list** (or dynamic array)"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "Hash Table Explained\n\nA hash table (hash map) is a data structure that maps keys to values using a hash function. It provides average-case O(1) lookup, insertion, and deletion. Below is a detailed explanation covering structure, hashing, collisions, resizing, complexity, and a worked example.\n\n---\n\n## 1. Core Idea\n\nA hash table stores key-value pairs in an array (often called a \"bucket array\" or \"table\"). The index for each key is computed by a **hash function**:\n\n```\nindex = hash(key) mod capacity\n```\n\nSince the number of possible keys is usually much larger than the table size, multiple keys can map to the same index — this is called a **collision**.\n\n---\n\n## 2. Structure\n\nA typical hash table consists of:\n\n- **An array of buckets** (each bucket holds one or more entries).\n- **A hash function** `h(k)` that converts a key `k` into an integer.\n- **A compression function** (often modulo the capacity) to fit the hash into the array range.\n- **A collision resolution strategy** (chaining or open addressing).\n\n### 2.1 Load Factor\n\nThe **load factor** `α = n / m` where `n` is the number of stored entries and `m` is the number of buckets. When `α` exceeds a threshold (commonly 0.75 for open addressing, or 1.0 for chaining), the table is **resized** (typically doubled) and all entries are rehashed.\n\n---\n\n## 3. Hash Functions\n\nA good hash function should:\n\n- Be **deterministic** (same key → same hash).\n- Be **fast** to compute.\n- **Distribute keys uniformly** across the table to minimize collisions.\n\nCommon hash functions:\n\n- **Division method**: `h(k) = k mod m` where `m` is prime.\n- **Multiplication method**: `h(k) = floor(m * (k * A mod 1))` where `A` is a constant (0 < A < 1).\n- **String hashing**: e.g., polynomial rolling hash: `h(s) = (s[0] * p^(n-1) + s[1] * p^(n-2) + ... ) mod m`.\n\n---\n\n## 4. Collision Resolution\n\n### 4.1 Separate Chaining\n\nEach bucket holds a **linked list** (or dynamic array)",
+            "t_start_abs": 4384835.998969038,
+            "t_first_abs": 4384837.456768984,
+            "t_last_abs": 4384897.985902979,
+            "t_end_abs": 4384897.986608945
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

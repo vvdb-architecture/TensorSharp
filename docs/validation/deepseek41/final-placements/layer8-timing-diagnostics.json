@@ -1,0 +1,599 @@
+{
+  "analysis_source": {
+    "path": "/tmp/deepseek41-reference/analyze-layer-timing.py",
+    "sha256": "bfc0d6de61089a57d6217990ead5c956769e647c05f065bce83a305228991bdb",
+    "bytes": 5876
+  },
+  "profiles": {
+    "baseline": {
+      "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long-parallel.json",
+        "sha256": "e798d8a72b428dcdc7fa8f50525019e5cfbc0870ae2190a2f4e02b26b874a4f6",
+        "bytes": 787890
+      },
+      "phase_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long-parallel-runs.json",
+        "sha256": "11b69b19a9af83f296e1d9f2cabd332f03304fc2252dd7c19bdee2e2ac7a5e61",
+        "bytes": 1886
+      },
+      "csv_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long-parallel-gpu.csv",
+        "sha256": "4f5811e172a30af6bab50bf5c099a4cd6271ffa6f97e024f17719e3dca9b19d3",
+        "bytes": 155445
+      },
+      "cases_32k": [
+        {
+          "tag": "long_32k-c4-r0-i0",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 353977.5011492893,
+          "request_wall_ms": 358174.19900000095,
+          "decode_tps": 8.060057965660018,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.094263358972967,
+          "t_start_abs": 4388374.141215173,
+          "t_first_abs": 4388728.118716322,
+          "t_last_abs": 4388732.212979681,
+          "t_end_abs": 4388732.315414173
+        },
+        {
+          "tag": "long_32k-c4-r0-i1",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 294409.6892531961,
+          "request_wall_ms": 356563.02057392895,
+          "decode_tps": 0.5320856125395753,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 62.020094553008676,
+          "t_start_abs": 4388374.147278468,
+          "t_first_abs": 4388668.556967721,
+          "t_last_abs": 4388730.577062274,
+          "t_end_abs": 4388730.710299042
+        },
+        {
+          "tag": "long_32k-c4-r0-i2",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 353974.811273627,
+          "request_wall_ms": 358169.9130255729,
+          "decode_tps": 8.063378065505404,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.092577544040978,
+          "t_start_abs": 4388374.145830932,
+          "t_first_abs": 4388728.120642206,
+          "t_last_abs": 4388732.21321975,
+          "t_end_abs": 4388732.315743958
+        },
+        {
+          "tag": "long_32k-c4-r0-i3",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 353977.71784849465,
+          "request_wall_ms": 358173.05159009993,
+          "decode_tps": 8.061215178956866,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.093675614334643,
+          "t_start_abs": 4388374.141430895,
+          "t_first_abs": 4388728.119148743,
+          "t_last_abs": 4388732.212824358,
+          "t_end_abs": 4388732.314482485
+        }
+      ],
+      "first_token_spread_seconds": 59.56367448437959,
+      "last_token_spread_seconds": 1.636157475411892,
+      "native_both_waves_and_warmup": {
+        "server_log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-server.log",
+        "byte_start": 729901,
+        "byte_end": 783984,
+        "range_sha256": "740f0a867202dab20570fe21c0de0ce50269285357400ac14d60fdcf4ddf48a8",
+        "prefill_calls": 213,
+        "prefill_tokens": 153187,
+        "prefill_forward_seconds": 462.436,
+        "decode_calls": 291,
+        "decode_forward_seconds": 10.283,
+        "preemption_lines": []
+      },
+      "mean_native_decode_call_ms": 35.33676975945017,
+      "telemetry": {
+        "sample_count": 1888,
+        "first_sample": "2026/09/11 08:30:49.049",
+        "last_sample": "2026/09/11 08:38:43.086",
+        "per_device": {
+          "0": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1515.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 51.0,
+              "median": 52.0,
+              "max": 58.0
+            },
+            "power_w": {
+              "min": 111.39,
+              "median": 131.885,
+              "max": 175.59
+            }
+          },
+          "1": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1515.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 50.0,
+              "max": 56.0
+            },
+            "power_w": {
+              "min": 115.82,
+              "median": 135.95999999999998,
+              "max": 192.56
+            }
+          },
+          "2": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1545.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 49.0,
+              "max": 56.0
+            },
+            "power_w": {
+              "min": 113.89,
+              "median": 131.735,
+              "max": 189.02
+            }
+          },
+          "3": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1545.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 50.0,
+              "max": 56.0
+            },
+            "power_w": {
+              "min": 111.99,
+              "median": 131.675,
+              "max": 178.0
+            }
+          },
+          "4": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1545.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 50.0,
+              "max": 55.0
+            },
+            "power_w": {
+              "min": 115.09,
+              "median": 133.23,
+              "max": 173.38
+            }
+          },
+          "5": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1560.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 44.0,
+              "median": 45.0,
+              "max": 52.0
+            },
+            "power_w": {
+              "min": 91.32,
+              "median": 112.825,
+              "max": 150.41
+            }
+          },
+          "6": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1575.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 47.0,
+              "median": 48.0,
+              "max": 54.0
+            },
+            "power_w": {
+              "min": 92.82,
+              "median": 116.62,
+              "max": 154.82
+            }
+          },
+          "7": {
+            "samples": 236,
+            "sm_mhz": {
+              "min": 1575.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 47.0,
+              "median": 48.0,
+              "max": 55.0
+            },
+            "power_w": {
+              "min": 92.07,
+              "median": 113.77,
+              "max": 177.07
+            }
+          }
+        }
+      },
+      "full_server_log_available_locally": false
+    },
+    "final": {
+      "profile": "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+      "report_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long-parallel.json",
+        "sha256": "53d06c61203a2012d216f9a62b5c44fd267935b07c026de39ee4684462645f01",
+        "bytes": 788123
+      },
+      "phase_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long-parallel-runs.json",
+        "sha256": "a5020756a286d11e68b88da64c009f3e789ae5cad6d4048c4096cd7700f567d7",
+        "bytes": 2615
+      },
+      "csv_source": {
+        "path": "/tmp/deepseek41-reference/final-raw/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long-parallel-gpu.csv",
+        "sha256": "973f10ea3ed17abda16d3d8d228bd14ef57a622e994461d829004d0cbb4fff1d",
+        "bytes": 134319
+      },
+      "cases_32k": [
+        {
+          "tag": "long_32k-c4-r0-i0",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 321450.77744685113,
+          "request_wall_ms": 326189.2048260197,
+          "decode_tps": 7.129077286454469,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.628930038772523,
+          "t_start_abs": 4405196.156436934,
+          "t_first_abs": 4405517.607214381,
+          "t_last_abs": 4405522.23614442,
+          "t_end_abs": 4405522.34564176
+        },
+        {
+          "tag": "long_32k-c4-r0-i1",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 321447.4426135421,
+          "request_wall_ms": 326187.6967707649,
+          "decode_tps": 7.129100600332052,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.628914901055396,
+          "t_start_abs": 4405196.159378297,
+          "t_first_abs": 4405517.60682091,
+          "t_last_abs": 4405522.235735811,
+          "t_end_abs": 4405522.347075067
+        },
+        {
+          "tag": "long_32k-c4-r0-i2",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 321442.68654845655,
+          "request_wall_ms": 326182.9662043601,
+          "decode_tps": 7.128710460787317,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.629168231971562,
+          "t_start_abs": 4405196.163690165,
+          "t_first_abs": 4405517.606376713,
+          "t_last_abs": 4405522.235544945,
+          "t_end_abs": 4405522.346656369
+        },
+        {
+          "tag": "long_32k-c4-r0-i3",
+          "status": "ok",
+          "prompt_tokens": 30585,
+          "completion_tokens": 34,
+          "ttft_ms": 321186.0495461151,
+          "request_wall_ms": 326078.37435789406,
+          "decode_tps": 6.932008901663405,
+          "decode_timing_source": "stream_window",
+          "decode_window_seconds": 4.7605247581377625,
+          "t_start_abs": 4405196.157889267,
+          "t_first_abs": 4405517.343938814,
+          "t_last_abs": 4405522.104463572,
+          "t_end_abs": 4405522.236263625
+        }
+      ],
+      "first_token_spread_seconds": 0.2632755674421787,
+      "last_token_spread_seconds": 0.13168084807693958,
+      "native_both_waves_and_warmup": {
+        "server_log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+        "byte_start": 1359263,
+        "byte_end": 1409913,
+        "range_sha256": "0b358c7ecd05cfc7943f42e181ec93c8388fd1dac082ab05d65d972b4b9756f1",
+        "prefill_calls": 153,
+        "prefill_tokens": 153187,
+        "prefill_forward_seconds": 402.237,
+        "decode_calls": 282,
+        "decode_forward_seconds": 9.965,
+        "preemption_lines": []
+      },
+      "mean_native_decode_call_ms": 35.336879432624116,
+      "telemetry": {
+        "sample_count": 1632,
+        "first_sample": "2026/09/11 13:11:39.671",
+        "last_sample": "2026/09/11 13:18:31.508",
+        "per_device": {
+          "0": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1530.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 52.0,
+              "median": 52.0,
+              "max": 58.0
+            },
+            "power_w": {
+              "min": 112.35,
+              "median": 119.225,
+              "max": 175.3
+            }
+          },
+          "1": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1515.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 50.0,
+              "max": 56.0
+            },
+            "power_w": {
+              "min": 117.2,
+              "median": 130.24,
+              "max": 187.69
+            }
+          },
+          "2": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1545.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 48.0,
+              "median": 49.0,
+              "max": 55.0
+            },
+            "power_w": {
+              "min": 113.77,
+              "median": 127.79499999999999,
+              "max": 187.81
+            }
+          },
+          "3": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1530.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 50.0,
+              "max": 56.0
+            },
+            "power_w": {
+              "min": 111.85,
+              "median": 129.48000000000002,
+              "max": 176.31
+            }
+          },
+          "4": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1545.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 49.0,
+              "median": 50.0,
+              "max": 55.0
+            },
+            "power_w": {
+              "min": 115.71,
+              "median": 118.44,
+              "max": 170.83
+            }
+          },
+          "5": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1560.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 44.0,
+              "median": 45.0,
+              "max": 52.0
+            },
+            "power_w": {
+              "min": 91.11,
+              "median": 95.285,
+              "max": 153.32
+            }
+          },
+          "6": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1575.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 46.0,
+              "median": 48.0,
+              "max": 54.0
+            },
+            "power_w": {
+              "min": 92.58,
+              "median": 98.57,
+              "max": 179.35
+            }
+          },
+          "7": {
+            "samples": 204,
+            "sm_mhz": {
+              "min": 1575.0,
+              "median": 1740.0,
+              "max": 1740.0
+            },
+            "memory_mhz": {
+              "min": 7251.0,
+              "median": 7251.0,
+              "max": 7251.0
+            },
+            "temperature_c": {
+              "min": 47.0,
+              "median": 47.0,
+              "max": 55.0
+            },
+            "power_w": {
+              "min": 91.74,
+              "median": 113.34,
+              "max": 165.38
+            }
+          }
+        }
+      },
+      "full_server_log_available_locally": true
+    }
+  },
+  "interpretation": [
+    "The 11.56% lower final median short-response SSE decode rate is retained; this metric is not sustained 512-token throughput.",
+    "Both use 33 streamed intervals for 34 generated tokens. The old early request overlaps about 59.56 seconds of remaining prefill, while final first tokens arrive within about 0.263 seconds. This shows different scheduling overlap; it does not establish a kernel regression or remove the measured per-request decline.",
+    "Across both long waves and warmup, native decode averages are effectively equal at the recorded millisecond log precision. Nine extra old calls match the nine extra old 8k fenced-response tokens. The old full server log is absent locally, so old 32k-only native time cannot be independently reconstructed.",
+    "GPU clock medians match, but both contain lower SM clock samples. Periodic samples cannot establish all in-flight clocks or rule out short contention. No clock-causality claim is made."
+  ],
+  "future_json_warmup_observation": {
+    "runner_source": {
+      "path": "/tmp/deepseek41-reference/run-final-json-performance.py",
+      "sha256": "5794b097b7e8c03ed1a15cf23cade12aa9553372590e49df2e0cf6408edff6dd",
+      "bytes": 33219
+    },
+    "scope": "Runner design only; no execution results from this separate run are audited here. Each new immutable host performs an unmeasured 512-token decode warmup followed by a JSON c1 request and JSON c4 wave, retained separately from the 90 timed JSON requests.",
+    "comparison_requirements": "Compare the first JSON c1 warmup only when exact initial/full requests, outputs, finish reasons and prompt/completion counts match. Report raw TTFT and whole-request wall, not just decode throughput.",
+    "limitations": "One first-use observation per model/version; telemetry starts after warmups. Therefore it can flag a first-use difference, but cannot qualify its timing, isolate grammar compilation, prove a systematic cold-use regression, or substitute for the repeated measured groups."
+  }
+}

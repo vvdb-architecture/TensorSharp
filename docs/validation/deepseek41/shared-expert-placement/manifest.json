@@ -1,0 +1,118 @@
+{
+  "scope": "V4.1-only explicit shared-expert GEMM placement, including CPU-MoE/TP; no global weight-buffer usage or other-architecture policy changes. No full-model performance/quality claim.",
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "preserved_preceding_candidate_sha256": "8e66aaf4e724d4da9442f14ff01a901db038b89a9e1daa0df9d701ceeb5dc242",
+  "archive": "/workspace/deepseek41-work/native-v41-shared-pins-6b3b5ab3.so",
+  "old_control": "Same test-enabled binary, TS_DSV41_TEST_LEGACY_SHARED_PLACEMENT=1 disables only new V41 shared projection pins; preserves all earlier math, allocation and scheduling. This is an isolated former-behavior control, not execution of an unmodified8e66binary.",
+  "results": {
+    "local_placement_oracle": 384,
+    "local_slot_recovery": 158,
+    "cuda2_placement_oracle": 597,
+    "cuda2_slot_recovery": 230,
+    "native_ctests": {
+      "passed": 13,
+      "failed": 0,
+      "seconds": 43.7
+    }
+  },
+  "observed_five_layer_fixture": [
+    {
+      "mode": "tp0_cpumoe0_legacy",
+      "misplaced_per_shape": {
+        "gate": 0,
+        "up": 0,
+        "down": 0
+      },
+      "max_relative_l2": 9.062792969416478e-07
+    },
+    {
+      "mode": "tp0_cpumoe0_pinned",
+      "misplaced_per_shape": {
+        "gate": 0,
+        "up": 0,
+        "down": 0
+      },
+      "max_relative_l2": 9.062792969416478e-07
+    },
+    {
+      "mode": "tp0_cpumoe1_legacy",
+      "misplaced_per_shape": {
+        "gate": 1,
+        "up": 1,
+        "down": 0
+      },
+      "max_relative_l2": 8.974342335932306e-07
+    },
+    {
+      "mode": "tp0_cpumoe1_pinned",
+      "misplaced_per_shape": {
+        "gate": 0,
+        "up": 0,
+        "down": 0
+      },
+      "max_relative_l2": 8.534059361409163e-07
+    },
+    {
+      "mode": "tp2_cpumoe0_legacy",
+      "misplaced_per_shape": {
+        "gate": 5,
+        "up": 5,
+        "down": 0
+      },
+      "max_relative_l2": 9.028062208926713e-07
+    },
+    {
+      "mode": "tp2_cpumoe0_pinned",
+      "misplaced_per_shape": {
+        "gate": 0,
+        "up": 0,
+        "down": 0
+      },
+      "max_relative_l2": 8.99024314549024e-07
+    },
+    {
+      "mode": "tp2_cpumoe1_legacy",
+      "misplaced_per_shape": {
+        "gate": 5,
+        "up": 5,
+        "down": 0
+      },
+      "max_relative_l2": 8.494495773447852e-07
+    },
+    {
+      "mode": "tp2_cpumoe1_pinned",
+      "misplaced_per_shape": {
+        "gate": 0,
+        "up": 0,
+        "down": 0
+      },
+      "max_relative_l2": 8.879389383764646e-07
+    }
+  ],
+  "source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "386a0d64d70afc2c65b500f96f6d88d44125d23c1a77cf9637738039e74c5869",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp": "edd49ef0071e51e8823c3c7ec2c7b50350400062769252dd98231c5588219e02",
+    "eng/tests/dsv41-shared-placement.py": "3eb012889b4108e56a8bbccdfba51e3616896613518280cd6d7cbdb3a761f375",
+    "eng/tests/dsv41-failure-state.py": "a5d24142df113f4f2abe59cdd20829f22117aa5eb8b63d9b381e1add300a5680"
+  },
+  "artifact_sha256": {
+    "native-shared-placement-recovery-cuda2.log": "8cbb061a6fb7bb43859700bf4df32ea426b32b210fd44be4bad9e0a4785d3bdd",
+    "local-build.log": "e853aed59bfd3161a64b5efade38ecc67cfd8823d7c706f970ea792f3fcee08c",
+    "native-shared-placement-ctest.log": "9562761747e5a57e745d75f4a2d91070cb0a112138c0cb741f31c3b8ac2a8c22",
+    "native-shared-placement-recovery-cuda2.json": "91997d9f73511d7b414bddcf873646d32ec6a52419454f4fa1f8549397e3614d",
+    "local-cpu.json": "94c9ffe65fcb2c80ae93496c1f7216fd283a1656643fcbc9774b4a85c3c0cac2",
+    "native-shared-placement-build.log": "4176473da340744c9b1c32377e477d1a959afaf8c041752c0958785991d4a499",
+    "local-cpu.log": "e85d053cc6310973c46d7dce46cb04710a43586acce69143cac21b1cd32f96ce",
+    "local-recovery.log": "68316be82f9c61d15229fd01f58b39f780635220a289259a5781303c5cc845bd",
+    "native-shared-placement-cuda2.log": "454f8e4499b590a0dbeb10b7c25bc0f462aec2ce9b4c49de1065e537cd7f6812",
+    "local-recovery.json": "f796f161e779e2cdccc2b7997a191221612c8c86b6683298171abd96c5ae417f",
+    "native-shared-placement-cuda2.json": "48be05b7f881a974002e947b721cf707f364d859a52b7219b3d519da51edbb53"
+  },
+  "commands": {
+    "local_build": "cmake --build /tmp/tensorsharp-scheduler-capacity-build --target GgmlOps -j 6",
+    "remote_build": "cmake --build /workspace/TensorSharp/TensorSharp.GGML.Native/build --target GgmlOps -j 12",
+    "cuda2_placement": "CUDA_VISIBLE_DEVICES=2,3 /workspace/deepseek41-work/reference-venv/bin/python /workspace/deepseek41-work/reference/tests/dsv41-shared-placement.py /workspace/deepseek41-work/fixture-cuda-index --library /workspace/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.so --backend CUDA --gpus 2 --report /workspace/deepseek41-work/native-shared-placement-cuda2.json",
+    "cuda2_recovery": "CUDA_VISIBLE_DEVICES=2,3 TS_CPU_MOE_THREADS=1 /workspace/deepseek41-work/reference-venv/bin/python /workspace/deepseek41-work/reference/tests/dsv41-failure-state.py /workspace/deepseek41-work/fixture-cuda-index --vision-fixture /workspace/deepseek41-work/vision-fixture-f32 --library /workspace/TensorSharp/TensorSharp.GGML.Native/build/libGgmlOps.so --backend CUDA --gpus 2 --tp 2 --report /workspace/deepseek41-work/native-shared-placement-recovery-cuda2.json",
+    "remote_ctest": "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 ctest --test-dir /workspace/TensorSharp/TensorSharp.GGML.Native/build --output-on-failure"
+  }
+}

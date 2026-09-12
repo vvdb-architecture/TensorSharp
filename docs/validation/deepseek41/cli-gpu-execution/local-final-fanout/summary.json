@@ -1,0 +1,88 @@
+{
+  "scope": "Final combined backend diagnostics/guard plus Engram small-batch fanout, local macOS explicit CPU stable-fixture inference only. No VM or full-checkpoint inference in this lane.",
+  "passed": 41,
+  "total": 41,
+  "atol": 2e-05,
+  "rtol": 2e-05,
+  "max_absolute_error": 5.163252353668213e-06,
+  "max_relative_l2": 1.3734153299083118e-06,
+  "all_greedy_tokens_match_reference": true,
+  "source": {
+    "path": "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp",
+    "size_bytes": 256294,
+    "sha256": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d"
+  },
+  "library": {
+    "path": "/tmp/dsv41-backend-diagnostics/final-fanout/libGgmlOps.dylib",
+    "size_bytes": 3526912,
+    "sha256": "ec84fb46750f343dcdf5a291adffd27f15fdedffdb0b90f587fd54809ed48541"
+  },
+  "build": {
+    "argv": [
+      "cmake",
+      "--build",
+      "/tmp/tensorsharp-scheduler-capacity-build",
+      "--target",
+      "GgmlOps",
+      "-j6"
+    ],
+    "cwd": "/Users/zhongkaifu/work/TensorSharp",
+    "exit_code": 0,
+    "log": "build.log"
+  },
+  "test": {
+    "command": [
+      "/tmp/deepseek41-reference/venv/bin/python",
+      "eng/tests/dsv41-inference.py",
+      "/tmp/deepseek41-reference/fixture-stable",
+      "--library",
+      "/tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib",
+      "--backend",
+      "CPU",
+      "--report",
+      "/tmp/dsv41-backend-diagnostics/final-fanout/cpu-oracle.json"
+    ],
+    "cwd": "/Users/zhongkaifu/work/TensorSharp",
+    "explicit_environment": {
+      "PYTHONPATH": "/Users/zhongkaifu/work/llama.cpp/gguf-py",
+      "TS_DSV4_FA": "0"
+    },
+    "removed_inherited_override_names": [],
+    "source_sha256": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d",
+    "library_sha256": "ec84fb46750f343dcdf5a291adffd27f15fdedffdb0b90f587fd54809ed48541",
+    "exit_code": 0
+  },
+  "inputs": {
+    "/Users/zhongkaifu/work/TensorSharp/eng/tests/dsv41-inference.py": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/eng/tests/dsv41-inference.py",
+      "size_bytes": 6853,
+      "sha256": "24b18cdb3efba737a3ecd444f6f79bcdf37277ddddb3c63dddaa69831d16a188"
+    },
+    "/Users/zhongkaifu/work/TensorSharp/eng/dsv41-reference.py": {
+      "path": "/Users/zhongkaifu/work/TensorSharp/eng/dsv41-reference.py",
+      "size_bytes": 24037,
+      "sha256": "edceac05fe13735abb7f473f3d7747352996e95381d6185f1afcd6f28193b432"
+    },
+    "/tmp/deepseek41-reference/fixture-stable/deepseek41-fixture.gguf": {
+      "path": "/tmp/deepseek41-reference/fixture-stable/deepseek41-fixture.gguf",
+      "size_bytes": 24549536,
+      "sha256": "f3917170dd3b8bf2b3220a1c41ff5a6dfd81517b2ae37079afbf5224d7dca99d"
+    },
+    "/tmp/deepseek41-reference/fixture-stable/deepseek41.config.json": {
+      "path": "/tmp/deepseek41-reference/fixture-stable/deepseek41.config.json",
+      "size_bytes": 2138,
+      "sha256": "591475827cbe2db8382a3cd57d177875b49d60f05b6538c17df4f5a1e57ae10d"
+    },
+    "/tmp/deepseek41-reference/fixture-stable/deepseek41.engram.bin": {
+      "path": "/tmp/deepseek41-reference/fixture-stable/deepseek41.engram.bin",
+      "size_bytes": 1192,
+      "sha256": "d9f9c28124c59c1df587ccd9eef24297c5eefa0aad1bcccc1939b8ded2f5f126"
+    },
+    "/tmp/deepseek41-reference/fixture-stable/tokens.json": {
+      "path": "/tmp/deepseek41-reference/fixture-stable/tokens.json",
+      "size_bytes": 63,
+      "sha256": "5a4eaf21b55013a77789388c7c1dc4d8581378a91bab7385b762e3234ab6da1f"
+    }
+  },
+  "parent_backend_checks": "../summary.json; not rerun because this final delta changes only Engram row scheduling and its startup label."
+}

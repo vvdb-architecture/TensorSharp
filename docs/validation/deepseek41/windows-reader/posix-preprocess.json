@@ -1,0 +1,36 @@
+{
+  "scope": "Local macOS POSIX preprocessing, no Windows execution or Linux binary identity claim. Both compilers exclude the edited _WIN32 branch.",
+  "outputs_identical": true,
+  "results": [
+    {
+      "mode": "before",
+      "sha256": "43c36c698bd0cb48f315d6f41f02b5fcc02e912cb7f438a5e3755e2723757e84",
+      "command": [
+        "/usr/bin/c++",
+        "-std=c++17",
+        "-DNDEBUG",
+        "-E",
+        "-P",
+        "-I/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native",
+        "-I/Users/zhongkaifu/work/TensorSharp/ExternalProjects/ggml/include",
+        "-I/Users/zhongkaifu/work/TensorSharp/ExternalProjects/ggml/src",
+        "/tmp/deepseek41-reference/windows-reader/before.cpp"
+      ]
+    },
+    {
+      "mode": "after",
+      "sha256": "43c36c698bd0cb48f315d6f41f02b5fcc02e912cb7f438a5e3755e2723757e84",
+      "command": [
+        "/usr/bin/c++",
+        "-std=c++17",
+        "-DNDEBUG",
+        "-E",
+        "-P",
+        "-I/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native",
+        "-I/Users/zhongkaifu/work/TensorSharp/ExternalProjects/ggml/include",
+        "-I/Users/zhongkaifu/work/TensorSharp/ExternalProjects/ggml/src",
+        "/Users/zhongkaifu/work/TensorSharp/TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp"
+      ]
+    }
+  ]
+}

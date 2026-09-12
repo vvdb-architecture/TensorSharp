@@ -1,0 +1,50 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+  "phase": "long-parallel",
+  "runs": [
+    {
+      "label": "long-parallel",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "long_8k,long_32k",
+        "--concurrency",
+        "4",
+        "--repeats",
+        "1",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long-parallel.json"
+      ],
+      "started_epoch": 1789115448.9839613,
+      "wall_seconds": 474.250492811203,
+      "exit_code": 1,
+      "output": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long-parallel.json",
+      "log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-long-parallel.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-server.log",
+        "byte_start": 729901,
+        "byte_end": 783984,
+        "range_sha256": "740f0a867202dab20570fe21c0de0ce50269285357400ac14d60fdcf4ddf48a8",
+        "prefill_calls": 213,
+        "prefill_tokens": 153187,
+        "prefill_forward_seconds": 462.436,
+        "decode_calls": 291,
+        "decode_forward_seconds": 10.283,
+        "preemption_lines": []
+      }
+    }
+  ]
+}

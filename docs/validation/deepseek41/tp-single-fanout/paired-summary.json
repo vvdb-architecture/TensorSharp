@@ -1,0 +1,71 @@
+{
+  "scope": "Exclusive paired synthetic MoE microbenchmark, parent confirmed full model ready/idle and other validation jobs stopped. Enclosing CPU backend fixed to one thread. No end-to-end performance claim.",
+  "source": "Exact per-pair logs and start/end GPU clock/process snapshots are now copied alongside this summary in native-single-fanout-paired.json.",
+  "native_sha256": "8e66aaf4e724d4da9442f14ff01a901db038b89a9e1daa0df9d701ceeb5dc242",
+  "pairs": 180,
+  "bitwise_equal": true,
+  "failures": 0,
+  "results": [
+    {
+      "ranks": 2,
+      "tokens": 1,
+      "pairs": 30,
+      "two_fanout_median_ms": 0.1548055,
+      "single_fanout_median_ms": 0.145893,
+      "ratio": 1.0610892914670342,
+      "single_fanout_faster_pairs": 30
+    },
+    {
+      "ranks": 2,
+      "tokens": 16,
+      "pairs": 30,
+      "two_fanout_median_ms": 0.4235235,
+      "single_fanout_median_ms": 0.41335,
+      "ratio": 1.024612314019596,
+      "single_fanout_faster_pairs": 25
+    },
+    {
+      "ranks": 4,
+      "tokens": 1,
+      "pairs": 30,
+      "two_fanout_median_ms": 0.232696,
+      "single_fanout_median_ms": 0.1966865,
+      "ratio": 1.1830806893203143,
+      "single_fanout_faster_pairs": 30
+    },
+    {
+      "ranks": 4,
+      "tokens": 16,
+      "pairs": 30,
+      "two_fanout_median_ms": 0.7338495,
+      "single_fanout_median_ms": 0.6981065,
+      "ratio": 1.051199924366841,
+      "single_fanout_faster_pairs": 27
+    },
+    {
+      "ranks": 8,
+      "tokens": 1,
+      "pairs": 30,
+      "two_fanout_median_ms": 0.282318,
+      "single_fanout_median_ms": 0.2355465,
+      "ratio": 1.1985658882641008,
+      "single_fanout_faster_pairs": 29
+    },
+    {
+      "ranks": 8,
+      "tokens": 16,
+      "pairs": 30,
+      "two_fanout_median_ms": 1.2919875,
+      "single_fanout_median_ms": 1.2368995,
+      "ratio": 1.0445371673284694,
+      "single_fanout_faster_pairs": 27
+    }
+  ],
+  "remote_artifacts": [
+    "native-single-fanout-paired.json",
+    "native-single-fanout-pairs-cuda2.log",
+    "native-single-fanout-pairs-cuda4.log",
+    "native-single-fanout-pairs-cuda8.log",
+    "run-single-fanout-pairs.py"
+  ]
+}

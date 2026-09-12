@@ -1,0 +1,18 @@
+BEGIN managed-tests
+VSTest version 18.6.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:36.42]     InferenceWeb.Tests.RetainedFusedCacheTests.SequentialRequestIdReuse_DiscardsOldRetainedMetadataAndHolder [FAIL]
+  Failed InferenceWeb.Tests.RetainedFusedCacheTests.SequentialRequestIdReuse_DiscardsOldRetainedMetadataAndHolder [8 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   16
+  Stack Trace:
+     at InferenceWeb.Tests.RetainedFusedCacheTests.SequentialRequestIdReuse_DiscardsOldRetainedMetadataAndHolder() in /workspace/TensorSharp/InferenceWeb.Tests/RetainedFusedCacheTests.cs:line 851
+--- End of stack trace from previous location ---
+Results File: /workspace/deepseek41-work/test-results/managed-final3635-correctness.trx
+
+Failed!  - Failed:     1, Passed:  3634, Skipped:     0, Total:  3635, Duration: 1 m 7 s - InferenceWeb.Tests.dll (net10.0)
+END managed-tests exit=1

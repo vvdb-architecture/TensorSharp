@@ -1,0 +1,37 @@
+{
+  "git_head": "3347b06b39bf705f6a69c85053ca9704a0c30e4f",
+  "source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp": "0cb71f52f0304dd172175e0b3c08262c008b300c447a91c4fe1b1ef50bf10ef9",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp": "772fef5b26b1cc8ef164701788b944d7e7d5a811bd99f2a0610ac1507fbc3bdb"
+  },
+  "vm_working_directory": "/root/TensorSharp/TensorSharp.Cli/bin",
+  "native_before_sha256": "c68df1f3d0c70269be249c12a9eae9e7e6ae9144e232dda311d4e853c2d048d0",
+  "native_after_sha256": "1d9209883c7275e545cfb18c4fd53e7ab4eb51bcef6c8d3bc83c328d5c817835",
+  "command": "./TensorSharp.Cli --model /workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf --interactive --max-tokens 20000 --think --backend ggml_cuda",
+  "build_command": "cmake --build /root/TensorSharp/TensorSharp.GGML.Native/build --target GgmlOps -j 8",
+  "build_configuration": {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CUDA_ARCHITECTURES": "86-real",
+    "CMAKE_CUDA_COMPILER": "/usr/local/cuda/bin/nvcc",
+    "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+    "GGML_CUDA": "ON",
+    "GGML_VULKAN": "ON"
+  },
+  "deployment": "Copied final native library to the existing app directory after the old CLI process exited normally; managed binaries unchanged. Original native backup is outside Git at /workspace/deepseek41-work/cli-gpu-report/native-before-c68df1f3.so.",
+  "diagnostic_controls": {
+    "before": "TS_DSV4_PERF=3",
+    "after": "TS_DSV4_PERF=2",
+    "interactive": [
+      "/reset (before only; after starts fresh)",
+      "/temp 0",
+      "/seed 42",
+      "/max 128",
+      "What is 31 plus 47? Give a brief answer."
+    ]
+  },
+  "limitations": [
+    "Different tracing levels and uncontrolled filesystem cache prohibit an end-to-end before/after speedup claim from these diagnostic runs.",
+    "Historical /workspace/TensorSharp runs and native6b3 benchmarks are separate builds, not this user deployment."
+  ]
+}

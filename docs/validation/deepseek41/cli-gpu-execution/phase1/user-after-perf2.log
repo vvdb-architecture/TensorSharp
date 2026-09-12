@@ -1,0 +1,347 @@
+
+  ████████╗███████╗███╗   ██╗███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗ 
+  ╚══██╔══╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+     ██║   █████╗  ██╔██╗ ██║███████╗██║   ██║██████╔╝███████╗███████║███████║██████╔╝██████╔╝
+     ██║   ██╔══╝  ██║╚██╗██║╚════██║██║   ██║██╔══██╗╚════██║██╔══██║██╔══██║██╔══██╗██╔═══╝ 
+     ██║   ███████╗██║ ╚████║███████║╚██████╔╝██║  ██║███████║██║  ██║██║  ██║██║  ██║██║     
+     ╚═╝   ╚══════╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
+
+                           Open-Source Deep Learning / AI C# Library
+                           https://github.com/zhongkaifu/TensorSharp
+
+16:10:40 info: TensorSharp.Cli[1700] tensorsharp-cli started: argv=8 logLevel=Information logDir=logs fileLogging=True consoleLogging=True
+16:10:40 info: TensorSharp.Cli[1400] Loading model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf on backend GgmlCuda kvCacheDtype=auto (path=/workspace/models/DeepSeek-V4.1-Flash-Q2_K/DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf)
+ggml_cuda_init: found 8 CUDA devices (Total VRAM: 363904 MiB):
+  Device 0: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 1: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 2: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 3: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 4: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 5: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 6: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+  Device 7: NVIDIA A40, compute capability 8.6, VMM: yes, VRAM: 45488 MiB
+Backend: GgmlCuda
+Context length: using GGUF metadata deepseek41.context_length=1048576.
+Model: deepseek41 (native whole-model executor), Layers=40, Hidden=5120, Heads=64, HeadDim=512, Vocab=129280
+[dsv4] compute devices initialized: 8 GPU(s)
+[dsv4]   compute device 0: backend=CUDA0, device=CUDA0 (NVIDIA A40)
+[dsv4]   compute device 1: backend=CUDA1, device=CUDA1 (NVIDIA A40)
+[dsv4]   compute device 2: backend=CUDA2, device=CUDA2 (NVIDIA A40)
+[dsv4]   compute device 3: backend=CUDA3, device=CUDA3 (NVIDIA A40)
+[dsv4]   compute device 4: backend=CUDA4, device=CUDA4 (NVIDIA A40)
+[dsv4]   compute device 5: backend=CUDA5, device=CUDA5 (NVIDIA A40)
+[dsv4]   compute device 6: backend=CUDA6, device=CUDA6 (NVIDIA A40)
+[dsv4]   compute device 7: backend=CUDA7, device=CUDA7 (NVIDIA A40)
+[dsv4] auxiliary CPU worker pool: threads=32, persistent=yes
+[dsv4] routed-expert CPU offload: 0 of 40 layer(s); 40 layer(s) on GPUs
+[dsv41] Engram sparse prefill/decode reads: 16 persistent I/O threads
+[dsv4] host weights are served from the GGUF mapping (60.1 GiB, no private copy)
+[dsv4] prefaulted 0.0 GiB of mmapped host experts in 0.0s
+[dsv4] loaded 186.3 GiB across 8 GPU(s) in 209.0s (0.89 GiB/s, 16 load threads; host weights mmapped; n_ctx=65536, ring=512, csa_rows=33024, hca_rows=65792)
+[dsv4]   device 0: layers 0..4 (5), 20.7 GiB free after load
+[dsv4]   device 1: layers 5..9 (5), 20.9 GiB free after load
+[dsv4]   device 2: layers 10..14 (5), 20.9 GiB free after load
+[dsv4]   device 3: layers 15..19 (5), 20.9 GiB free after load
+[dsv4]   device 4: layers 20..24 (5), 20.9 GiB free after load
+[dsv4]   device 5: layers 25..29 (5), 20.9 GiB free after load
+[dsv4]   device 6: layers 30..34 (5), 20.9 GiB free after load
+[dsv4]   device 7: layers 35..39 (5), 20.4 GiB free after load
+[dsv4] fused ops: on
+[dsv4] hyper-connection ops: native
+[dsv4] flash attention: on
+16:14:32 info: TensorSharp.Cli[1401] Loaded model DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf architecture=deepseek41 contextLength=65536 kvCacheDtype=f32 elapsedMs=232063.4
+[dsv4] ubatch nt=1 p0=0: build 8.78ms alloc 0.00ms inputs 13.68ms compute 243.26ms (nodes 3187, splits 565)
+[dsv4] forward 1 tokens in 0.266s (3.8 tok/s)
+16:14:32 info: TensorSharp.Cli[1010] Kernel warmup completed in 269.0 ms
+16:14:32 info: TensorSharp.Cli[1700] Entering interactive chat mode (model=DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf, backend=GgmlCuda, thinking=True)
+  Chat sampling: temp=0.8 top_k=40 top_p=0.95 min_p=0.05 repeat_penalty=1
+
+=== TensorSharp interactive chat ===
+Model: DeepSeek-V4.1-Flash-Q2_K-00001-of-00007.gguf
+Backend: GgmlCuda
+Architecture: deepseek41
+Context length: 65536 tokens
+Max tokens per reply: 20000
+Thinking: on
+Sampling: temp=0.8 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+Type /help to see all available commands. Use /exit or Ctrl+D to leave.
+===============================
+
+[turn 1]> temperature updated.
+temp=0 topK=40 topP=0.95 minP=0.05 repPen=1 presPen=0 freqPen=0 seed=random stop=(none)
+
+[turn 1]> Seed set to 42 (deterministic).
+
+[turn 1]> Max tokens per reply set to 128.
+
+[turn 1]> [dsv4] ubatch nt=43 p0=0: build 8.48ms alloc 0.00ms inputs 382.02ms compute 577.21ms (nodes 3304, splits 577)
+[dsv4] forward 43 tokens in 0.968s (44.4 tok/s)
+
+Assistant: 
+[thinking] The[dsv4] ubatch nt=1 p0=43: build 8.36ms alloc 0.00ms inputs 12.78ms compute 30.29ms (nodes 3304, splits 577)
+[dsv4] forward 1 tokens in 0.052s (19.2 tok/s)
+ user[dsv4] ubatch nt=1 p0=44: build 0.01ms alloc 0.00ms inputs 12.62ms compute 51.64ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.065s (15.4 tok/s)
+ asks[dsv4] ubatch nt=1 p0=45: build 0.01ms alloc 0.00ms inputs 18.25ms compute 70.36ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.089s (11.2 tok/s)
+:[dsv4] ubatch nt=1 p0=46: build 0.01ms alloc 0.00ms inputs 14.52ms compute 26.83ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.042s (23.9 tok/s)
+ "[dsv4] ubatch nt=1 p0=47: build 0.01ms alloc 0.00ms inputs 13.74ms compute 27.15ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.042s (24.1 tok/s)
+What[dsv4] ubatch nt=1 p0=48: build 0.01ms alloc 0.00ms inputs 12.72ms compute 26.95ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.040s (24.8 tok/s)
+ is[dsv4] ubatch nt=1 p0=49: build 0.01ms alloc 0.00ms inputs 10.72ms compute 27.20ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.039s (26.0 tok/s)
+ [dsv4] ubatch nt=1 p0=50: build 0.01ms alloc 0.00ms inputs 9.49ms compute 27.01ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.037s (27.1 tok/s)
+31[dsv4] ubatch nt=1 p0=51: build 0.01ms alloc 0.00ms inputs 0.68ms compute 26.96ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.6 tok/s)
+ plus[dsv4] ubatch nt=1 p0=52: build 0.00ms alloc 0.00ms inputs 0.66ms compute 26.71ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (36.2 tok/s)
+ [dsv4] ubatch nt=1 p0=53: build 0.01ms alloc 0.00ms inputs 0.73ms compute 26.88ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.7 tok/s)
+47[dsv4] ubatch nt=1 p0=54: build 0.00ms alloc 0.00ms inputs 0.62ms compute 26.69ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (36.2 tok/s)
+?[dsv4] ubatch nt=1 p0=55: build 0.01ms alloc 0.00ms inputs 0.68ms compute 26.91ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (36.0 tok/s)
+ Give[dsv4] ubatch nt=1 p0=56: build 0.00ms alloc 0.00ms inputs 0.79ms compute 26.70ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.7 tok/s)
+ a[dsv4] ubatch nt=1 p0=57: build 0.01ms alloc 0.00ms inputs 0.70ms compute 27.21ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.5 tok/s)
+ brief[dsv4] ubatch nt=1 p0=58: build 0.01ms alloc 0.00ms inputs 0.87ms compute 27.09ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.2 tok/s)
+ answer[dsv4] ubatch nt=1 p0=59: build 0.01ms alloc 0.00ms inputs 0.74ms compute 27.24ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.2 tok/s)
+."[dsv4] ubatch nt=1 p0=60: build 0.01ms alloc 0.00ms inputs 15.38ms compute 26.97ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.043s (23.4 tok/s)
+ I[dsv4] ubatch nt=1 p0=61: build 0.01ms alloc 0.00ms inputs 16.18ms compute 27.83ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.045s (22.4 tok/s)
+ need[dsv4] ubatch nt=1 p0=62: build 0.01ms alloc 0.00ms inputs 18.41ms compute 27.12ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.046s (21.6 tok/s)
+ to[dsv4] ubatch nt=1 p0=63: build 0.01ms alloc 0.00ms inputs 11.99ms compute 27.03ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.040s (25.2 tok/s)
+ provide[dsv4] ubatch nt=1 p0=64: build 0.01ms alloc 0.00ms inputs 12.54ms compute 26.94ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.040s (24.9 tok/s)
+ a[dsv4] ubatch nt=1 p0=65: build 0.01ms alloc 0.00ms inputs 16.12ms compute 26.98ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.044s (22.9 tok/s)
+ brief[dsv4] ubatch nt=1 p0=66: build 0.00ms alloc 0.00ms inputs 17.06ms compute 27.02ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.045s (22.3 tok/s)
+ answer[dsv4] ubatch nt=1 p0=67: build 0.01ms alloc 0.00ms inputs 7.53ms compute 27.10ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.035s (28.4 tok/s)
+.[dsv4] ubatch nt=1 p0=68: build 0.00ms alloc 0.00ms inputs 0.62ms compute 26.70ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.8 tok/s)
+ [dsv4] ubatch nt=1 p0=69: build 0.01ms alloc 0.00ms inputs 13.47ms compute 26.91ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.041s (24.4 tok/s)
+31[dsv4] ubatch nt=1 p0=70: build 0.00ms alloc 0.00ms inputs 14.00ms compute 26.55ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.041s (24.3 tok/s)
+ +[dsv4] ubatch nt=1 p0=71: build 0.01ms alloc 0.00ms inputs 20.01ms compute 27.09ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.048s (20.9 tok/s)
+ [dsv4] ubatch nt=1 p0=72: build 0.00ms alloc 0.00ms inputs 16.19ms compute 26.99ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.044s (22.8 tok/s)
+47[dsv4] ubatch nt=1 p0=73: build 0.01ms alloc 0.00ms inputs 13.03ms compute 28.45ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.042s (23.7 tok/s)
+ =[dsv4] ubatch nt=1 p0=74: build 0.01ms alloc 0.00ms inputs 15.18ms compute 27.65ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.043s (23.0 tok/s)
+ [dsv4] ubatch nt=1 p0=75: build 0.01ms alloc 0.00ms inputs 13.27ms compute 27.99ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.042s (23.7 tok/s)
+78[dsv4] ubatch nt=1 p0=76: build 0.01ms alloc 0.00ms inputs 14.54ms compute 27.60ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.043s (23.3 tok/s)
+.[dsv4] ubatch nt=1 p0=77: build 0.01ms alloc 0.00ms inputs 11.97ms compute 27.54ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.040s (24.9 tok/s)
+ Just[dsv4] ubatch nt=1 p0=78: build 0.01ms alloc 0.00ms inputs 19.08ms compute 27.81ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.048s (21.0 tok/s)
+ answer[dsv4] ubatch nt=1 p0=79: build 0.01ms alloc 0.00ms inputs 20.53ms compute 28.19ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.050s (20.1 tok/s)
+ briefly[dsv4] ubatch nt=1 p0=80: build 0.01ms alloc 0.00ms inputs 26.90ms compute 28.77ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.057s (17.7 tok/s)
+.[dsv4] ubatch nt=1 p0=81: build 0.01ms alloc 0.00ms inputs 29.50ms compute 29.50ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.060s (16.6 tok/s)
+[dsv4] ubatch nt=1 p0=82: build 0.01ms alloc 0.00ms inputs 14.40ms compute 30.14ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.045s (22.0 tok/s)
+
+[answer] 78[dsv4] ubatch nt=1 p0=83: build 0.01ms alloc 0.00ms inputs 19.16ms compute 30.45ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.051s (19.8 tok/s)
+
+[turn complete: tokens=41 prefillMs=973 decodeMs=1749 tps=23.4 ttftMs=4 reason=eos kvPlan=Reset]
+16:14:35 info: TensorSharp.Cli[1501] interactive.turn complete tokens=41 promptTokens=43 kvPlan=Reset prefillMs=973 decodeMs=1749 tps=23.4 ttftMs=4 reason=eos
+
+[turn 2]> No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> [dsv4] ubatch nt=43 p0=0: build 0.04ms alloc 0.00ms inputs 3.17ms compute 302.34ms (nodes 3304, splits 577, reused)
+[dsv4] forward 43 tokens in 0.306s (140.4 tok/s)
+
+Assistant: 
+[thinking] The[dsv4] ubatch nt=1 p0=43: build 0.01ms alloc 0.00ms inputs 0.95ms compute 36.60ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.038s (26.4 tok/s)
+ user[dsv4] ubatch nt=1 p0=44: build 0.01ms alloc 0.00ms inputs 0.77ms compute 29.98ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.031s (32.3 tok/s)
+ asks[dsv4] ubatch nt=1 p0=45: build 0.01ms alloc 0.00ms inputs 0.86ms compute 39.72ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.041s (24.3 tok/s)
+:[dsv4] ubatch nt=1 p0=46: build 0.01ms alloc 0.00ms inputs 0.67ms compute 39.65ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.041s (24.5 tok/s)
+ "[dsv4] ubatch nt=1 p0=47: build 0.01ms alloc 0.00ms inputs 0.85ms compute 27.28ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (34.9 tok/s)
+What[dsv4] ubatch nt=1 p0=48: build 0.01ms alloc 0.00ms inputs 0.87ms compute 27.04ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.4 tok/s)
+ is[dsv4] ubatch nt=1 p0=49: build 0.01ms alloc 0.00ms inputs 0.80ms compute 27.32ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (35.0 tok/s)
+ [dsv4] ubatch nt=1 p0=50: build 0.01ms alloc 0.00ms inputs 0.69ms compute 27.03ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.5 tok/s)
+31[dsv4] ubatch nt=1 p0=51: build 0.01ms alloc 0.00ms inputs 0.82ms compute 27.21ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.3 tok/s)
+ plus[dsv4] ubatch nt=1 p0=52: build 0.02ms alloc 0.00ms inputs 0.85ms compute 27.07ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.1 tok/s)
+ [dsv4] ubatch nt=1 p0=53: build 0.01ms alloc 0.00ms inputs 0.73ms compute 27.29ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (35.1 tok/s)
+47[dsv4] ubatch nt=1 p0=54: build 0.01ms alloc 0.00ms inputs 0.76ms compute 26.92ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.6 tok/s)
+?[dsv4] ubatch nt=1 p0=55: build 0.01ms alloc 0.00ms inputs 0.75ms compute 27.20ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.3 tok/s)
+ Give[dsv4] ubatch nt=1 p0=56: build 0.01ms alloc 0.00ms inputs 0.68ms compute 27.04ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.5 tok/s)
+ a[dsv4] ubatch nt=1 p0=57: build 0.01ms alloc 0.00ms inputs 0.88ms compute 27.21ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (35.0 tok/s)
+ brief[dsv4] ubatch nt=1 p0=58: build 0.01ms alloc 0.00ms inputs 0.79ms compute 26.91ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.8 tok/s)
+ answer[dsv4] ubatch nt=1 p0=59: build 0.01ms alloc 0.00ms inputs 0.82ms compute 27.23ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (35.0 tok/s)
+."[dsv4] ubatch nt=1 p0=60: build 0.01ms alloc 0.00ms inputs 0.70ms compute 27.13ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.5 tok/s)
+ I[dsv4] ubatch nt=1 p0=61: build 0.01ms alloc 0.00ms inputs 0.84ms compute 27.17ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.2 tok/s)
+ need[dsv4] ubatch nt=1 p0=62: build 0.01ms alloc 0.00ms inputs 0.65ms compute 26.89ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.8 tok/s)
+ to[dsv4] ubatch nt=1 p0=63: build 0.01ms alloc 0.00ms inputs 0.72ms compute 28.01ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (34.4 tok/s)
+ provide[dsv4] ubatch nt=1 p0=64: build 0.01ms alloc 0.00ms inputs 0.83ms compute 28.22ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.029s (34.1 tok/s)
+ a[dsv4] ubatch nt=1 p0=65: build 0.01ms alloc 0.00ms inputs 0.89ms compute 27.58ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (34.8 tok/s)
+ brief[dsv4] ubatch nt=1 p0=66: build 0.01ms alloc 0.00ms inputs 0.78ms compute 26.91ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.4 tok/s)
+ answer[dsv4] ubatch nt=1 p0=67: build 0.01ms alloc 0.00ms inputs 0.85ms compute 27.20ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (35.0 tok/s)
+.[dsv4] ubatch nt=1 p0=68: build 0.01ms alloc 0.00ms inputs 0.78ms compute 27.03ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.4 tok/s)
+ [dsv4] ubatch nt=1 p0=69: build 0.01ms alloc 0.00ms inputs 0.86ms compute 27.13ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.1 tok/s)
+31[dsv4] ubatch nt=1 p0=70: build 0.01ms alloc 0.00ms inputs 0.77ms compute 26.95ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.6 tok/s)
+ +[dsv4] ubatch nt=1 p0=71: build 0.01ms alloc 0.00ms inputs 0.86ms compute 27.04ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.2 tok/s)
+ [dsv4] ubatch nt=1 p0=72: build 0.01ms alloc 0.00ms inputs 0.77ms compute 26.65ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.9 tok/s)
+47[dsv4] ubatch nt=1 p0=73: build 0.01ms alloc 0.00ms inputs 0.74ms compute 26.86ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.6 tok/s)
+ =[dsv4] ubatch nt=1 p0=74: build 0.01ms alloc 0.00ms inputs 0.76ms compute 26.70ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.7 tok/s)
+ [dsv4] ubatch nt=1 p0=75: build 0.01ms alloc 0.00ms inputs 0.79ms compute 26.96ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.3 tok/s)
+78[dsv4] ubatch nt=1 p0=76: build 0.01ms alloc 0.00ms inputs 0.68ms compute 26.69ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.9 tok/s)
+.[dsv4] ubatch nt=1 p0=77: build 0.01ms alloc 0.00ms inputs 0.82ms compute 27.03ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.2 tok/s)
+ Just[dsv4] ubatch nt=1 p0=78: build 0.01ms alloc 0.00ms inputs 0.78ms compute 26.66ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (35.8 tok/s)
+ answer[dsv4] ubatch nt=1 p0=79: build 0.01ms alloc 0.00ms inputs 0.82ms compute 26.88ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.5 tok/s)
+ briefly[dsv4] ubatch nt=1 p0=80: build 0.01ms alloc 0.00ms inputs 0.70ms compute 26.71ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.028s (36.1 tok/s)
+.[dsv4] ubatch nt=1 p0=81: build 0.01ms alloc 0.00ms inputs 0.72ms compute 26.93ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.028s (35.7 tok/s)
+[dsv4] ubatch nt=1 p0=82: build 0.01ms alloc 0.00ms inputs 0.85ms compute 27.68ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.029s (34.6 tok/s)
+
+[answer] 78[dsv4] ubatch nt=1 p0=83: build 0.01ms alloc 0.00ms inputs 0.87ms compute 28.06ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (34.0 tok/s)
+
+[turn complete: tokens=41 prefillMs=308 decodeMs=1224 tps=33.5 ttftMs=0 reason=eos kvPlan=Reset]
+16:15:28 info: TensorSharp.Cli[1501] interactive.turn complete tokens=41 promptTokens=43 kvPlan=Reset prefillMs=308 decodeMs=1224 tps=33.5 ttftMs=0 reason=eos
+
+[turn 2]> No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> Thinking is now off.
+
+[turn 1]> Max tokens per reply set to 256.
+
+[turn 1]> [dsv4] ubatch nt=25 p0=0: build 23.86ms alloc 0.00ms inputs 265.47ms compute 180.84ms (nodes 3304, splits 577)
+[dsv4] forward 25 tokens in 0.471s (53.1 tok/s)
+
+Assistant: {"[dsv4] ubatch nt=1 p0=25: build 0.01ms alloc 0.00ms inputs 16.33ms compute 30.90ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.048s (21.0 tok/s)
+sum[dsv4] ubatch nt=1 p0=26: build 0.01ms alloc 0.00ms inputs 14.28ms compute 30.58ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.045s (22.1 tok/s)
+":[dsv4] ubatch nt=1 p0=27: build 0.01ms alloc 0.00ms inputs 15.98ms compute 42.07ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.059s (17.1 tok/s)
+ [dsv4] ubatch nt=1 p0=28: build 0.01ms alloc 0.00ms inputs 15.79ms compute 48.08ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.065s (15.5 tok/s)
+112[dsv4] ubatch nt=1 p0=29: build 0.01ms alloc 0.00ms inputs 16.44ms compute 29.39ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.047s (21.5 tok/s)
+,[dsv4] ubatch nt=1 p0=30: build 0.01ms alloc 0.00ms inputs 14.71ms compute 27.71ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.043s (23.2 tok/s)
+ "[dsv4] ubatch nt=1 p0=31: build 0.01ms alloc 0.00ms inputs 16.50ms compute 27.91ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.045s (22.2 tok/s)
+difference[dsv4] ubatch nt=1 p0=32: build 0.01ms alloc 0.00ms inputs 14.69ms compute 28.06ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.044s (23.0 tok/s)
+":[dsv4] ubatch nt=1 p0=33: build 0.01ms alloc 0.00ms inputs 16.06ms compute 27.39ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.044s (22.7 tok/s)
+ [dsv4] ubatch nt=1 p0=34: build 0.01ms alloc 0.00ms inputs 12.51ms compute 27.78ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.041s (24.4 tok/s)
+54[dsv4] ubatch nt=1 p0=35: build 0.01ms alloc 0.00ms inputs 13.47ms compute 27.44ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.041s (24.2 tok/s)
+}[dsv4] ubatch nt=1 p0=36: build 0.01ms alloc 0.00ms inputs 16.16ms compute 27.11ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.044s (22.8 tok/s)
+
+[turn complete: tokens=12 prefillMs=471 decodeMs=570 tps=21.0 ttftMs=0 reason=eos kvPlan=Reset]
+
+[turn 2]> 16:15:54 info: TensorSharp.Cli[1501] interactive.turn complete tokens=12 promptTokens=25 kvPlan=Reset prefillMs=471 decodeMs=570 tps=21.0 ttftMs=0 reason=eos
+[KV cache] Truncating from 0 to 37
+[dsv4] ubatch nt=18 p0=37: build 9.67ms alloc 0.00ms inputs 138.20ms compute 137.74ms (nodes 3304, splits 577)
+[dsv4] forward 18 tokens in 0.286s (62.9 tok/s)
+
+Assistant: {"[dsv4] ubatch nt=1 p0=55: build 0.01ms alloc 0.00ms inputs 0.87ms compute 27.12ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.029s (35.0 tok/s)
+product[dsv4] ubatch nt=1 p0=56: build 0.01ms alloc 0.00ms inputs 28.50ms compute 27.07ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.056s (17.8 tok/s)
+":[dsv4] ubatch nt=1 p0=57: build 0.01ms alloc 0.00ms inputs 15.69ms compute 27.55ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.044s (22.7 tok/s)
+ [dsv4] ubatch nt=1 p0=58: build 0.01ms alloc 0.00ms inputs 14.92ms compute 27.25ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.043s (23.3 tok/s)
+240[dsv4] ubatch nt=1 p0=59: build 0.01ms alloc 0.00ms inputs 13.55ms compute 27.67ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.042s (23.9 tok/s)
+7[dsv4] ubatch nt=1 p0=60: build 0.01ms alloc 0.00ms inputs 20.57ms compute 27.71ms (nodes 3187, splits 565, reused)
+[dsv4] forward 1 tokens in 0.049s (20.4 tok/s)
+}[dsv4] ubatch nt=1 p0=61: build 0.01ms alloc 0.00ms inputs 21.73ms compute 28.44ms (nodes 3304, splits 577, reused)
+[dsv4] forward 1 tokens in 0.051s (19.6 tok/s)
+
+[turn complete: tokens=7 prefillMs=287 decodeMs=317 tps=22.1 ttftMs=0 reason=eos kvPlan=PartialReuse]
+
+[turn 3]> 16:15:54 info: TensorSharp.Cli[1501] interactive.turn complete tokens=7 promptTokens=55 kvPlan=PartialReuse prefillMs=287 decodeMs=317 tps=22.1 ttftMs=0 reason=eos
+No pending attachments.
+Conversation history and KV cache cleared.
+
+[turn 1]> 
+[turn 1]> Text file attached: /workspace/deepseek41-work/cli-gpu-report/cli-gpu-long-prompt.txt (4951 chars). 1 text file(s) queued for next turn.
+
+[turn 1 (1 attachment pending)]> [dsv4] ubatch nt=256 p0=0: build 48.13ms alloc 0.00ms inputs 1260.78ms compute 1049.88ms (nodes 3480, splits 593)
+[dsv4] ubatch nt=256 p0=256: build 0.06ms alloc 0.00ms inputs 949.76ms compute 869.63ms (nodes 3480, splits 593, reused)
+[dsv4] ubatch nt=256 p0=512: build 0.08ms alloc 0.00ms inputs 945.76ms compute 846.27ms (nodes 3480, splits 593, reused)
+[dsv4] ubatch nt=256 p0=768: build 0.04ms alloc 0.00ms inputs 908.45ms compute 837.42ms (nodes 3480, splits 593, reused)
+[dsv4] ubatch nt=256 p0=1024: build 0.04ms alloc 0.00ms inputs 859.03ms compute 845.63ms (nodes 3480, splits 593, reused)
+[dsv4] ubatch nt=256 p0=1280: build 0.03ms alloc 0.00ms inputs 877.24ms compute 848.86ms (nodes 3480, splits 593, reused)
+[dsv4] ubatch nt=21 p0=1536: build 14.55ms alloc 0.00ms inputs 179.83ms compute 157.99ms (nodes 3480, splits 593)
+[dsv4] forward 1557 tokens in 11.503s (135.4 tok/s)
+
+Assistant: amber[dsv4] ubatch nt=1 p0=1557: build 8.50ms alloc 0.00ms inputs 28.36ms compute 44.51ms (nodes 3272, splits 669)
+[dsv4] forward 1 tokens in 0.082s (12.2 tok/s)
+-[dsv4] ubatch nt=1 p0=1558: build 11.25ms alloc 0.00ms inputs 11.40ms compute 39.21ms (nodes 3155, splits 657)
+[dsv4] forward 1 tokens in 0.063s (16.0 tok/s)
+047[dsv4] ubatch nt=1 p0=1559: build 0.01ms alloc 0.00ms inputs 11.40ms compute 68.98ms (nodes 3272, splits 669, reused)
+[dsv4] forward 1 tokens in 0.081s (12.3 tok/s)
+
+[turn complete: tokens=3 prefillMs=11504 decodeMs=228 tps=13.2 ttftMs=0 reason=eos kvPlan=Reset]
+
+[turn 2]> 16:17:20 info: TensorSharp.Cli[1501] interactive.turn complete tokens=3 promptTokens=1557 kvPlan=Reset prefillMs=11504 decodeMs=228 tps=13.2 ttftMs=0 reason=eos
+16:18:24 info: TensorSharp.Cli[1701] tensorsharp-cli completed

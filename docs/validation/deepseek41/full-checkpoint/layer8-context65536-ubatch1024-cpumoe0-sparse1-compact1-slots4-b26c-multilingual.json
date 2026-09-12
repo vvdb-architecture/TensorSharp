@@ -1,0 +1,705 @@
+{
+  "format_version": 1,
+  "engine": "tensorsharp",
+  "url": "http://127.0.0.1:5000",
+  "harness_sha256": {
+    "validate_inference.py": "0ffc6541639616d9b8a73798fee2d5ed48d26e589474a009d4f36a497f951a82",
+    "engines.py": "4b8cc36aea1f9be5ea7a3cda9230587bed8b19413371d9f2afb519508ebaac6d",
+    "scenarios.py": "b327e85d6292702e0addf678ddbb72b708e179a4b4c1ea3caeeaebe72e8233b8"
+  },
+  "model": "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+  "weights_id": "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+  "thinking": false,
+  "stream": true,
+  "sampling": {
+    "temperature": 0,
+    "top_p": 1,
+    "top_k": 0,
+    "seed": 42,
+    "repeat_penalty": 1,
+    "presence_penalty": 0,
+    "frequency_penalty": 0
+  },
+  "structured_tool_results": false,
+  "max_tokens_override": null,
+  "execution_plan": {
+    "scenarios": [
+      "short_zh",
+      "json_unicode"
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "repeats": 1,
+    "expected_cases": 10
+  },
+  "run_complete": true,
+  "waves": [
+    {
+      "scenario": "short_zh",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 317.86052137613297,
+      "generated_tokens": 1,
+      "end_to_end_tokens_per_second": 3.1460339763825935,
+      "all_passed": true
+    },
+    {
+      "scenario": "short_zh",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 1267.611620016396,
+      "generated_tokens": 4,
+      "end_to_end_tokens_per_second": 3.1555406536493105,
+      "all_passed": true
+    },
+    {
+      "scenario": "json_unicode",
+      "concurrency": 1,
+      "repeat": 0,
+      "wall_ms": 1359.0229004621506,
+      "generated_tokens": 21,
+      "end_to_end_tokens_per_second": 15.452278245538556,
+      "all_passed": false
+    },
+    {
+      "scenario": "json_unicode",
+      "concurrency": 4,
+      "repeat": 0,
+      "wall_ms": 6019.584374502301,
+      "generated_tokens": 84,
+      "end_to_end_tokens_per_second": 13.954451798334517,
+      "all_passed": false
+    }
+  ],
+  "not_covered": {
+    "image": "requires a released, compatible vision companion and separate media validation",
+    "audio": "no audio validation in this suite",
+    "video": "requires compatible vision companion and separate media validation"
+  },
+  "summary": {
+    "short_zh@c1": {
+      "passed": 1,
+      "total": 1,
+      "ttft_ms_median": 273.55148270726204,
+      "ttft_ms_samples": [
+        273.55148270726204
+      ],
+      "prefill_tps_median": 113.32418926485693,
+      "prefill_tps_samples": [
+        113.32418926485693
+      ],
+      "conversation_wall_ms_median": 316.7123571038246
+    },
+    "short_zh@c4": {
+      "passed": 4,
+      "total": 4,
+      "ttft_ms_median": 1106.6982154734433,
+      "ttft_ms_samples": [
+        906.0936607420444,
+        1109.782561659813,
+        1107.000150717795,
+        1106.3962802290916
+      ],
+      "prefill_tps_median": 28.011251734223656,
+      "prefill_tps_samples": [
+        34.212798679788335,
+        27.933399812694642,
+        28.003609556782042,
+        28.018893911665273
+      ],
+      "conversation_wall_ms_median": 1261.1001995392144
+    },
+    "json_unicode@c1": {
+      "passed": 0,
+      "total": 1
+    },
+    "json_unicode@c4": {
+      "passed": 0,
+      "total": 4
+    }
+  },
+  "source_report": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c-multilingual.json",
+  "source_report_sha256": "25cd53e84626f5e4118d307c2d2eb721fd263b3080116ce3cf1ec6036fc69cbd",
+  "native_sha256": "b26cac3e40ff67b6de077063cd7a3c68e683220f0bc60237edf728ec6d218f1f",
+  "cases": [
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c1-r0-i0",
+      "status": "ok",
+      "input_sha256": "2422b4f1f697adc35671f61ad16c66b67a840f5821caf0a49aabbf27ab54b440",
+      "validated_content": "42",
+      "total_wall_ms": 316.7123571038246,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "4f7fc2fce06aae12646639d348eb4f98b0f82765fb97d79250d1c25b4fc0e905",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 273.55148270726204,
+            "prefill_tps": 113.32418926485693,
+            "decode_tps": 0.0,
+            "total_wall_ms": 316.5721343830228,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4389109.083041723,
+            "t_first_abs": 4389109.356593206,
+            "t_last_abs": 4389109.356593206,
+            "t_end_abs": 4389109.399613857
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i0",
+      "status": "ok",
+      "input_sha256": "e6ec82e87f770024480997cff0612021d72366503fe493798fb4bc182710bb93",
+      "validated_content": "42",
+      "total_wall_ms": 1110.8985114842653,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "e5272ae7e36bfa02a6208b1a06f30f291e21915ef27e14cb716c75bdd3fa7dfb",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 906.0936607420444,
+            "prefill_tps": 34.212798679788335,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1110.8066821470857,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4389109.405478619,
+            "t_first_abs": 4389110.31157228,
+            "t_last_abs": 4389110.31157228,
+            "t_end_abs": 4389110.516285301
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i1",
+      "status": "ok",
+      "input_sha256": "8a02d80cab6c3593f03bc5570f6647cfd56c82f406bccec0933ed5f727d4caf9",
+      "validated_content": "42",
+      "total_wall_ms": 1263.3656226098537,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "ddb3135c07ec19d06718d1124d5b6bab87bdfe6864bac199cbe9b4527c87aa43",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 1109.782561659813,
+            "prefill_tps": 27.933399812694642,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1263.1761645898223,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4389109.407637208,
+            "t_first_abs": 4389110.517419769,
+            "t_last_abs": 4389110.517419769,
+            "t_end_abs": 4389110.670813372
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i2",
+      "status": "ok",
+      "input_sha256": "8598ba5670fddbcf3a12a1839c1c888e4f61cd4f84b5538af0661e00aef9bb78",
+      "validated_content": "42",
+      "total_wall_ms": 1261.7080816999078,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "75135cb0cab01f7b5d881780d17b469493f38bdc9cbd4400b29ed3dab3170ba3",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 1107.000150717795,
+            "prefill_tps": 28.003609556782042,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1261.584979481995,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4389109.40995629,
+            "t_first_abs": 4389110.516956441,
+            "t_last_abs": 4389110.516956441,
+            "t_end_abs": 4389110.67154127
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "short_zh",
+      "tag": "short_zh-c4-r0-i3",
+      "status": "ok",
+      "input_sha256": "c56ee2f6f83f1dbe5c50ba8610a483295e0d89858bc07686512d242607f2b104",
+      "validated_content": "42",
+      "total_wall_ms": 1260.492317378521,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "1223b269739d054b9787335104e9d22dc36da09b1b5fb47ebfb89ff9e6c3d15f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": null,
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 31,
+            "completion_tokens": 1,
+            "ttft_ms": 1106.3962802290916,
+            "prefill_tps": 28.018893911665273,
+            "decode_tps": 0.0,
+            "total_wall_ms": 1260.3699192404747,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "42"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "42",
+            "t_start_abs": 4389109.411565761,
+            "t_first_abs": 4389110.517962041,
+            "t_last_abs": 4389110.517962041,
+            "t_end_abs": 4389110.67193568
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c1-r0-i0",
+      "status": "fail",
+      "input_sha256": "23e88c78b88cba4d02ebcd47c442ccb886e043aee866d01be04a8e46148783c7",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 1358.027401380241,
+      "concurrency": 1,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "fc2e0d52aadb1f101bbdcb448c6a7aa8c48307c09436cc3c6e93fc6586b7fa50",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 21,
+            "ttft_ms": 706.9299090653658,
+            "prefill_tps": 123.06736337556147,
+            "decode_tps": 32.170591391353845,
+            "total_wall_ms": 1357.715723104775,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+            "t_start_abs": 4389110.686848777,
+            "t_first_abs": 4389111.393778686,
+            "t_last_abs": 4389112.015464491,
+            "t_end_abs": 4389112.0445645
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i0",
+      "status": "fail",
+      "input_sha256": "b6497f035d3cf206781f875717d0e3f15d1332b2e036fee217c8ddef93568777",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 6017.759754322469,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "c05cd5bd2b09ea4fc7a2aa9bc4d34208dc7d32d79afbb9343ccc2a9753d415af",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 21,
+            "ttft_ms": 2990.5350003391504,
+            "prefill_tps": 29.09178457705177,
+            "decode_tps": 6.852344580512332,
+            "total_wall_ms": 6017.506101168692,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+            "t_start_abs": 4389112.051526931,
+            "t_first_abs": 4389115.042061931,
+            "t_last_abs": 4389117.960770961,
+            "t_end_abs": 4389118.069033032
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i1",
+      "status": "fail",
+      "input_sha256": "5703cbb23c2529bed0ab35fcc736a66a0a6c409c756ace0090095b49137b346f",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 6017.683740705252,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "ac55bf4d20628ef321740353d85373cdc1c2877a7ef92ae95c044a2fd8af0478",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 21,
+            "ttft_ms": 2988.6904172599316,
+            "prefill_tps": 29.109739669779074,
+            "decode_tps": 6.848911571025246,
+            "total_wall_ms": 6017.460294999182,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+            "t_start_abs": 4389112.052626069,
+            "t_first_abs": 4389115.041316486,
+            "t_last_abs": 4389117.961488515,
+            "t_end_abs": 4389118.070086364
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i2",
+      "status": "fail",
+      "input_sha256": "f12b3d7c440e64cd0f0b6e58257b794d7de645a9a96d40d9963eb6a0c8603706",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 6016.188338398933,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "6bdf34c805154ba5d057626f3d4837020ac37a59e65920416171dfe9bf4d9703",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 21,
+            "ttft_ms": 2988.2295709103346,
+            "prefill_tps": 29.11422898927284,
+            "decode_tps": 6.850995946833799,
+            "total_wall_ms": 6015.951840206981,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+            "t_start_abs": 4389112.053471784,
+            "t_first_abs": 4389115.041701355,
+            "t_last_abs": 4389117.960984939,
+            "t_end_abs": 4389118.069423624
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "json_unicode",
+      "tag": "json_unicode-c4-r0-i3",
+      "status": "fail",
+      "input_sha256": "8f0d19deddb9d39625c5cbade5ec41b090657f9bc72be6d3d4bbee2cf261fdf4",
+      "validated_content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+      "detail": "ValueError: final answer failed the scenario's semantic/structural check",
+      "total_wall_ms": 5907.703896053135,
+      "concurrency": 4,
+      "repeat": 0,
+      "turns": [
+        {
+          "request_sha256": "363c27b07ad8366b0a63c8e6c74f3eccd936ed0791c02c371dc920ac6700750f",
+          "message_roles": [
+            "user"
+          ],
+          "max_tokens": 256,
+          "response_format": {
+            "type": "json_object"
+          },
+          "extra_body": {
+            "temperature": 0,
+            "top_p": 1,
+            "top_k": 0,
+            "seed": 42,
+            "repeat_penalty": 1,
+            "presence_penalty": 0,
+            "frequency_penalty": 0,
+            "think": false
+          },
+          "tool_choice": null,
+          "parallel_tool_calls": null,
+          "metrics": {
+            "prompt_tokens": 87,
+            "completion_tokens": 21,
+            "ttft_ms": 2758.9831138029695,
+            "prefill_tps": 31.533357186836714,
+            "decode_tps": 6.619874525933573,
+            "total_wall_ms": 5907.426114194095,
+            "finish_reason": "stop",
+            "tool_calls": [],
+            "tool_call_details": [],
+            "assistant_message": {
+              "role": "assistant",
+              "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}"
+            },
+            "usage_present": true,
+            "decode_timing_source": "stream_window",
+            "server_timings": {},
+            "reasoning_text": "",
+            "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"火箭\"}",
+            "t_start_abs": 4389112.054204824,
+            "t_first_abs": 4389114.813187938,
+            "t_last_abs": 4389117.834393238,
+            "t_end_abs": 4389117.961630939
+          }
+        }
+      ]
+    }
+  ],
+  "performance_qualified": true
+}

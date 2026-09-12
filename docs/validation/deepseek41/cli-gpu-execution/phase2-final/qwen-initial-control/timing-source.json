@@ -1,0 +1,40 @@
+{
+  "scope": "Read-only current source timing semantics; this does not attribute the observed stalls to Console.Write or prove identical terminal conditions.",
+  "source": {
+    "file": "TensorSharp.Cli/InteractiveSession.cs",
+    "sha256": "50f9cf2b8427b7e56128747ce9a33efe524699b7d4f8e16064b6f6f5fe516e1a",
+    "bytes": 113400
+  },
+  "ranges": [
+    {
+      "first_line": 1644,
+      "last_line": 1654,
+      "text": "            Console.WriteLine();\n            Console.Write(\"Assistant: \");\n\n            string finishReason = \"max_tokens\";\n            var decodeSw = Stopwatch.StartNew();\n            long firstTokenMs = 0;\n            bool firstTokenSeen = false;\n            bool inThinkingBlock = false;\n            // Rendered counterpart of `renderHistory`: we prefer to\n            // splice the assistant turn back in with raw token ids so the next\n            // prefill can reuse the cache without re-tokenising."
+    },
+    {
+      "first_line": 1668,
+      "last_line": 1682,
+      "text": "                generatedTokens.Add(token);\n                _model.Tokenizer.AppendTokenBytes(token, rawBytes);\n                int validLen = FindValidUtf8Length(rawBytes);\n                string decoded = Encoding.UTF8.GetString(rawBytes.GetRange(0, validLen).ToArray());\n                string piece = prevCharLen < decoded.Length ? decoded.Substring(prevCharLen) : string.Empty;\n                prevCharLen = decoded.Length;\n\n                if (!firstTokenSeen)\n                {\n                    firstTokenSeen = true;\n                    firstTokenMs = (long)decodeSw.Elapsed.TotalMilliseconds;\n                }\n\n                if (piece.Length > 0)\n                {"
+    },
+    {
+      "first_line": 1703,
+      "last_line": 1715,
+      "text": "                                inThinkingBlock = false;\n                            }\n                            Console.Write(parsed.Content);\n                            assistantContentBuffer += parsed.Content;\n                        }\n                    }\n                    else\n                    {\n                        Console.Write(piece);\n                        assistantContentBuffer += piece;\n                    }\n                }\n"
+    },
+    {
+      "first_line": 1787,
+      "last_line": 1800,
+      "text": "                        finishReason = \"eos\";\n                        break;\n                    }\n\n                    if (!EmitToken(nextToken))\n                        break;\n\n                    logits = _model.Forward(new[] { nextToken });\n                    _kvCache.RecordAppend(nextToken, logits);\n                }\n            }\n            decodeSw.Stop();\n\n            if (useParser)"
+    },
+    {
+      "first_line": 1817,
+      "last_line": 1835,
+      "text": "            }\n\n            Console.WriteLine();\n\n            double tokensPerSec = generatedTokens.Count > 0\n                ? generatedTokens.Count / Math.Max(decodeSw.Elapsed.TotalSeconds, 1e-9)\n                : 0;\n            string specSummary = specStats == null\n                ? string.Empty\n                : $\" spec=window{specWindow}/accepted{specStats.TokensAccepted}of{specStats.TokensDrafted}\" +\n                  $\"({specStats.AcceptanceRate:P0})\";\n            Console.WriteLine($\"[turn complete: tokens={generatedTokens.Count} prefillMs={prefillMs:F0} decodeMs={decodeSw.Elapsed.TotalMilliseconds:F0} tps={tokensPerSec:F1} ttftMs={firstTokenMs} reason={finishReason} kvPlan={planKind}{specSummary}]\");\n\n            _log.LogInformation(LogEventIds.ChatCompleted,\n                \"interactive.turn complete tokens={Tokens} promptTokens={PromptTokens} kvPlan={KvPlan} prefillMs={PrefillMs:F0} decodeMs={DecodeMs:F0} tps={TokensPerSec:F1} ttftMs={Ttft} reason={Reason}\",\n                generatedTokens.Count, promptTokenCount, planKind, prefillMs,\n                decodeSw.Elapsed.TotalMilliseconds, tokensPerSec, firstTokenMs, finishReason);\n\n            if (specStats != null)"
+    }
+  ],
+  "conclusions": [
+    "decodeSw includes synchronous Console.Write(piece) and subsequent Forward calls.",
+    "ttftMs is measured from decodeSw after prompt processing, before the first Console.Write; it is not end-to-end prompt TTFT.",
+    "The source does not establish which operation caused the long initial before/after observations."
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "status": "Local and CUDA correctness/recovery passed; exclusive paired synthetic CUDA microbench passed180 bitwise pairs and improved medians in all six shapes. Candidate retained for final full-model validation; no end-to-end gain claimed.",
+  "scope": "One per-rank submit+drain fanout replaces separate submit and synchronization fanouts. The previous dispatch remains only in test-enabled builds.",
+  "preserved_local_control_sha256": "ef7473574eedc9ee50906de7d4204864c65afb6bc2a58a330be42f14525dd115",
+  "results": {
+    "cpu_standard_comparisons": 96,
+    "cpu_checkpoint_shape_comparisons": 24,
+    "cpu_failure_lifecycle_checks": 63,
+    "cpu_slot_failure_oracle_checks": 158,
+    "cpu_bitwise_pairs": 18,
+    "cuda2_failure_lifecycle_checks": 63,
+    "cuda2_slot_failure_oracle_checks": 230,
+    "remote_ctests": {
+      "passed": 13,
+      "failed": 0,
+      "seconds": 47.63
+    },
+    "cuda_bitwise_pairs": 180
+  },
+  "paired_fixture": {
+    "embedding": 5120,
+    "hidden": 2304,
+    "experts": 8,
+    "top_k": 6,
+    "gate_up": "Q2_K",
+    "down": "Q3_K",
+    "tokens": [
+      1,
+      16
+    ],
+    "ranks": [
+      2,
+      4,
+      8
+    ],
+    "warmups_per_mode": 10,
+    "paired_iteration_order": "Alternating",
+    "timing_scope": "Exclusive target VM interval for CUDA comparisons; CPU4 model resident and ready but endpoint-idle; other validation jobs stopped. Parent owns final full-model validation."
+  },
+  "artifact_sha256": {
+    "local-build.log": "c9334352e46274d0b0c0f3a6e4a986d533f4062e2ab75fea68d2f0efe7abe81c",
+    "local-results.json": "d7988ae5d744e01dcb2c3a356533f88b4e30f8a1bdb610990e92e060e9a42372",
+    "local-failures.log": "f71428167d25c721658bea980996085c1e3b7f079b7504cf2f7ec7101cfd5a68",
+    "local-standard.log": "d2b0510f993cbf044a7d6314d1f26db965a45f2d19c15fb3785eb2ad5e1001bc",
+    "local-checkpoint-shape.log": "70d83bb258e5e9469e0c6419ae71fa9dfab66a382ecc40e4c9a2a18a6d85e2db",
+    "local-paired.log": "ea768a873f34c018c433712c229ac5281ab5e31c39feb6b4390635fa9848fd07",
+    "local-slots.json": "3d0637072325fc1eec7075d25b6a25c413c3cb6f0a2917e02d547f07ea939ea4",
+    "local-slots.log": "fe45872b8ec027f05dfe2812aa1cce78fd96d7b55414d261ceaf8266605874fd",
+    "native-single-fanout-build.log": "09d50ab0eeefd23e0329c2357b6ce95073b70d2f2d9d598f727e10c85670e223",
+    "native-single-fanout-slots-cuda2.json": "92b31867bbb94c0e7058bafaeb27b07253ece9c076f76ff90c83d2e5e3b7570a",
+    "native-single-fanout-ctest.log": "4e4d4fa1a75d6d45810cb51f2bebc6c0ec8b961ebfd3b78b474910d8ac39cb89",
+    "native-single-fanout-slots-cuda2.log": "56792cfe985ca5730ed5d754b63dd67a6d162e76cb0d4747eb63d372a929a094",
+    "native-single-fanout-cuda2-failures.log": "4d911da397863ee91f052d5f02993ac44e6f49afef772ac33153c1b38ca54256",
+    "test-export-guard.json": "76b013fee60c5225be6d3f89329068b2af2b5702c7fc1951a38d262f0ce94e6a",
+    "paired-summary.json": "a1bd3a0a88e3c4e3b1f871086d02411aee0be66754c276bb7a75304c02736d98",
+    "native-single-fanout-paired.json": "c71f1162ab548fa735ef9147b8e726cad1d675515dc619b896afec07be1e89d1",
+    "native-single-fanout-pairs-cuda2.log": "5e565073104abfc713f60729c5eb2e32029e8b3eb0ed8206009e79990c9221cf",
+    "native-single-fanout-pairs-cuda4.log": "1858912b794451909715962c5f5dd3d79554a70b844fb0a73075d12b13027e1b",
+    "native-single-fanout-pairs-cuda8.log": "f147c6ee77e0adc3299ffa43375764f85b14ecff13fc5466da4c3a36fc12ebd0",
+    "run-single-fanout-pairs.py": "55b74eadbc4602f35ea674b5709c54c71d1c78a9190ed2b4012ae85b2a8e6c84"
+  },
+  "local_initial_candidate_sha256": "d0d4d5b6403e2bda65e3c53f05503ed7dec8d93be3e9626c329b8a58b7bf233e",
+  "local_current_native_sha256": "415ae8ac03c5670ab2ed7ce266ff8994cd197a5316278f57961f8248a881452a",
+  "remote_native_sha256": "8e66aaf4e724d4da9442f14ff01a901db038b89a9e1daa0df9d701ceeb5dc242",
+  "initial_source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp": "edd49ef0071e51e8823c3c7ec2c7b50350400062769252dd98231c5588219e02",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.h": "29cd25c581d6721206eb2d783e13758061123041752fa158e39eb94892162581",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "b7a9ec1cd035718369715dd147cb2beb4d0f62ceb5dc4a3af0c9913e01e9219e",
+    "TensorSharp.GGML.Native/tests/dsv41_tp_test.cpp": "2c48dcbaf674e9cebc1aa6ebb462da483c81e7596ac21ff0ffe8ff01ec5c1b4b"
+  },
+  "source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.cpp": "edd49ef0071e51e8823c3c7ec2c7b50350400062769252dd98231c5588219e02",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_tp.h": "29cd25c581d6721206eb2d783e13758061123041752fa158e39eb94892162581",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "1e12349598de4256da82030761b577f50d0e56f4ce0c1a8058a813b28b77991b",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41_vision_text.inc": "a5446cf0c8efbe23d17566bf176526c1f9d13b67549b0f934eabc797b1c33cf9",
+    "TensorSharp.GGML.Native/ggml_ops_moe.cpp": "6ca0afe478d6b3bcc6642f9a2ca7db24fbd9471de33b543a427183c798399fc9",
+    "TensorSharp.GGML.Native/ggml_ops_internal.h": "8fc6a0769e2c6024f36e6d1eeea60a168cc3835c0a2284313a75a0f217d935ed",
+    "TensorSharp.GGML.Native/CMakeLists.txt": "558de50d53e91152d3ea2d71dca6240cbafe093edfb976de7ad66883c2b79acb",
+    "TensorSharp.GGML.Native/tests/dsv41_tp_test.cpp": "2c48dcbaf674e9cebc1aa6ebb462da483c81e7596ac21ff0ffe8ff01ec5c1b4b"
+  },
+  "candidate_followup_changes": "Only test-only export alias and startup CPU pool log follow the initial local numerical candidate; remote CUDA/CTest results include both.",
+  "paired_measurement": "paired-summary.json",
+  "remote_artifacts": [
+    "native-single-fanout-paired.json",
+    "native-single-fanout-pairs-cuda2.log",
+    "native-single-fanout-pairs-cuda4.log",
+    "native-single-fanout-pairs-cuda8.log",
+    "run-single-fanout-pairs.py"
+  ]
+}

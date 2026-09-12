@@ -1,0 +1,35 @@
+[
+  {
+    "name": "standard",
+    "command": [
+      "/tmp/tensorsharp-scheduler-capacity-build/GgmlOpsDsv41TpTest"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 1.014196041,
+    "log": "/tmp/dsv41-single-fanout-standard.log",
+    "timing_scope": "Local diagnostic only; no GPU or full-checkpoint performance claim"
+  },
+  {
+    "name": "checkpoint-shape",
+    "command": [
+      "/tmp/tensorsharp-scheduler-capacity-build/GgmlOpsDsv41TpTest",
+      "--checkpoint-shape"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 6.0246661669999995,
+    "log": "/tmp/dsv41-single-fanout-checkpoint-shape.log",
+    "timing_scope": "Local diagnostic only; no GPU or full-checkpoint performance claim"
+  },
+  {
+    "name": "paired",
+    "command": [
+      "/tmp/tensorsharp-scheduler-capacity-build/GgmlOpsDsv41TpTest",
+      "--fanout-pairs",
+      "3"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 19.207327,
+    "log": "/tmp/dsv41-single-fanout-paired.log",
+    "timing_scope": "Local diagnostic only; no GPU or full-checkpoint performance claim"
+  }
+]

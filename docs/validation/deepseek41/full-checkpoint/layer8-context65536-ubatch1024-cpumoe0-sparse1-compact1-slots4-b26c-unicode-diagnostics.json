@@ -1,0 +1,240 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-b26c",
+  "performance_qualified": false,
+  "reason": "Diagnostic controls during managed build/TP fixture window",
+  "cases": [
+    {
+      "label": "same-prompt-no-format",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "[validation json_unicode-c1-r0-i0]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+          }
+        ],
+        "tools": null,
+        "response_format": null,
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "metrics": {
+        "prompt_tokens": 51,
+        "completion_tokens": 22,
+        "ttft_ms": 468.59550662338734,
+        "prefill_tps": 108.835870765165,
+        "decode_tps": 32.37455600037522,
+        "total_wall_ms": 1145.638668909669,
+        "finish_reason": "stop",
+        "tool_calls": [],
+        "tool_call_details": [],
+        "assistant_message": {
+          "role": "assistant",
+          "content": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}"
+        },
+        "usage_present": true,
+        "decode_timing_source": "stream_window",
+        "server_timings": {},
+        "reasoning_text": "",
+        "output_text": "{\"city\": \"北京\", \"message\": \"你好，世界\", \"emoji\": \"🚀\"}",
+        "t_start_abs": 4389797.934650512,
+        "t_first_abs": 4389798.403246019,
+        "t_last_abs": 4389799.051903564,
+        "t_end_abs": 4389799.080289181
+      }
+    },
+    {
+      "label": "same-prompt-schema",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "[validation json_unicode-c1-r0-i0]\n把以下字段原样写入 JSON，不添加其他内容：city 为 \"北京\"，message 为 \"你好，世界\"，emoji 为 \"🚀\"。"
+          }
+        ],
+        "tools": null,
+        "response_format": {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "unicode",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "city": {
+                  "type": "string",
+                  "enum": [
+                    "北京"
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "enum": [
+                    "你好，世界"
+                  ]
+                },
+                "emoji": {
+                  "type": "string",
+                  "enum": [
+                    "🚀"
+                  ]
+                }
+              },
+              "required": [
+                "city",
+                "message",
+                "emoji"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "metrics": {
+        "prompt_tokens": 256,
+        "completion_tokens": 46,
+        "ttft_ms": 2746.7900356277823,
+        "prefill_tps": 93.19969734835989,
+        "decode_tps": 0.0,
+        "total_wall_ms": 2747.1118681132793,
+        "finish_reason": "stop",
+        "tool_calls": [],
+        "tool_call_details": [],
+        "assistant_message": {
+          "role": "assistant",
+          "content": "{\"city\":\"\\u5317\\u4EAC\",\"message\":\"\\u4F60\\u597D\\uFF0C\\u4E16\\u754C\",\"emoji\":\"\\uD83D\\uDE80\"}"
+        },
+        "usage_present": true,
+        "decode_timing_source": "stream_window",
+        "server_timings": {},
+        "reasoning_text": "",
+        "output_text": "{\"city\":\"\\u5317\\u4EAC\",\"message\":\"\\u4F60\\u597D\\uFF0C\\u4E16\\u754C\",\"emoji\":\"\\uD83D\\uDE80\"}",
+        "t_start_abs": 4389799.09074622,
+        "t_first_abs": 4389801.837536256,
+        "t_last_abs": 4389801.837536256,
+        "t_end_abs": 4389801.837858088
+      }
+    },
+    {
+      "label": "plain-copy",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Reply with the exact glyph between quotes: \"🚀\". Do not translate it."
+          }
+        ],
+        "tools": null,
+        "response_format": null,
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "metrics": {
+        "prompt_tokens": 21,
+        "completion_tokens": 2,
+        "ttft_ms": 222.8830335661769,
+        "prefill_tps": 94.21982312424343,
+        "decode_tps": 0.0,
+        "total_wall_ms": 250.02398807555437,
+        "finish_reason": "stop",
+        "tool_calls": [],
+        "tool_call_details": [],
+        "assistant_message": {
+          "role": "assistant",
+          "content": "🚀"
+        },
+        "usage_present": true,
+        "decode_timing_source": "stream_window",
+        "server_timings": {},
+        "reasoning_text": "",
+        "output_text": "🚀",
+        "t_start_abs": 4389801.844190126,
+        "t_first_abs": 4389802.06707316,
+        "t_last_abs": 4389802.06707316,
+        "t_end_abs": 4389802.094214114
+      }
+    },
+    {
+      "label": "english-json",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "Return only a JSON object with emoji equal to the exact glyph \"🚀\". Do not translate the glyph to a word."
+          }
+        ],
+        "tools": null,
+        "response_format": {
+          "type": "json_object"
+        },
+        "extra_body": {
+          "temperature": 0,
+          "top_p": 1,
+          "top_k": 0,
+          "seed": 42,
+          "repeat_penalty": 1,
+          "presence_penalty": 0,
+          "frequency_penalty": 0,
+          "think": false
+        },
+        "max_tokens": 256,
+        "stream": true
+      },
+      "metrics": {
+        "prompt_tokens": 66,
+        "completion_tokens": 7,
+        "ttft_ms": 518.5951050370932,
+        "prefill_tps": 127.26691663485576,
+        "decode_tps": 34.55972601001521,
+        "total_wall_ms": 721.9508504495025,
+        "finish_reason": "stop",
+        "tool_calls": [],
+        "tool_call_details": [],
+        "assistant_message": {
+          "role": "assistant",
+          "content": "{\"emoji\": \"�\"}"
+        },
+        "usage_present": true,
+        "decode_timing_source": "stream_window",
+        "server_timings": {},
+        "reasoning_text": "",
+        "output_text": "{\"emoji\": \"�\"}",
+        "t_start_abs": 4389802.099993728,
+        "t_first_abs": 4389802.618588833,
+        "t_last_abs": 4389802.792201321,
+        "t_end_abs": 4389802.821944579
+      }
+    }
+  ]
+}

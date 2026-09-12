@@ -1,0 +1,88 @@
+--- docs/validation/deepseek41/smoke18-reference/previous-reviewed/dsv41-final-smoke18-e096164a.py
++++ eng/tests/dsv41-final-smoke18.py
+@@ -66,13 +66,33 @@
+     return environment, removed
+ 
+ 
++def trace_coverage(directory, prompt_count, vocab_size, n_layers=40, embedding_size=5120):
++    """Check stable stage names/sizes; native and Python stage sets differ."""
++    expected = {f"p000000_v41.{layer:02d}.{stage}.f32": prompt_count * embedding_size * 4
++                for layer in range(n_layers) for stage in ("attn_output", "ffn_output")}
++    expected[f"p000000_v41.{n_layers:02d}.logits.f32"] = vocab_size * 4
++    missing, wrong_sizes = [], []
++    for name, size in expected.items():
++        path = directory / name
++        if not path.is_file():
++            missing.append(name)
++        elif path.stat().st_size != size:
++            wrong_sizes.append(dict(file=name, expected_bytes=size, actual_bytes=path.stat().st_size))
++    return dict(complete=not missing and not wrong_sizes, required_files=len(expected),
++                scope="Per-layer attention/FFN outputs and terminal last-row logits, with exact F32 byte sizes; not every intermediate.",
++                missing=missing, wrong_sizes=wrong_sizes)
++
++
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--work", type=Path, default=Path("/workspace/deepseek41-work"))
+     parser.add_argument("--repo", type=Path, default=Path("/workspace/TensorSharp"))
+     parser.add_argument("--output", type=Path, help="Must not already exist")
+     parser.add_argument("--checkpoint-manifest", type=Path, help="Previously verified seven-shard SHA manifest")
+-    parser.add_argument("--trace", action="store_true", help="Retain first-forward layer traces; diagnostic I/O only")
++    tracing = parser.add_mutually_exclusive_group()
++    tracing.add_argument("--trace", action="store_true", help="Retain first-forward layer traces; diagnostic I/O only")
++    tracing.add_argument("--trace-after", action="store_true",
++                         help="Keep primary generation untraced, then replay the prompt in a fresh slot for layer diagnostics")
+     args = parser.parse_args()
+     work, repo = args.work.resolve(), args.repo.resolve()
+     output = (args.output or work / "final-smoke18-6b3").resolve()
+@@ -131,9 +151,12 @@
+                "--context", "4096", "--ubatch", "128", "--threads", "24", "--cpu-moe", "0", "--steps", "2"]
+     if args.trace:
+         command += ["--trace-dir", str(output / "trace")]
++    elif args.trace_after:
++        command += ["--trace-after-dir", str(output / "trace-after")]
+     paths = [library, reference_log, reference_path, tokens, smoke_source, Path(__file__).resolve(),
+              checkpoint_manifest, model.parent / "deepseek41.engram.bin", model.parent / "deepseek41.config.json"]
+     manifest = dict(scope=__doc__, command=command, explicit_environment=settings,
++                    trace_mode="fresh_slot_after_untraced_primary" if args.trace_after else "primary" if args.trace else "none",
+                     removed_override_names=sorted(set(removed)), gpu_processes_before=processes.stdout,
+                     reference_provenance=dict(recorded_summary=reference_summary, layer_sequence=layers,
+                                               trace_position_prefixes=dict(prefixes), embedding_shape=list(embedding.shape),
+@@ -158,11 +181,36 @@
+     comparison = dict(scope="Native GGUF logits versus retained F32-matrix-input reference; strict tolerance is reported, not relaxed.")
+     try:
+         report = json.loads(report_path.read_text())
+-        if completed.returncode or not report.get("passed") or report["library_sha256"] != NATIVE_SHA or report["prompt_tokens"] != PROMPT:
++        if not report.get("passed") or report["library_sha256"] != NATIVE_SHA or report["prompt_tokens"] != PROMPT:
+             raise RuntimeError("Native smoke failed or did not use the reviewed inputs")
++        if report.get("first_forward_traced") is not args.trace:
++            raise RuntimeError("Primary tracing mode does not match the requested control")
+         native = np.load(output / "smoke.first-logits.npy").astype(np.float64)
+         comparison.update(final_native=metrics(native, reference), generated_tokens=report["generated_tokens"],
+                           expected_generated_tokens=[22, 1], generated_tokens_match=report["generated_tokens"] == [22, 1])
++        if args.trace_after:
++            diagnostic = report.get("trace_diagnostic", {})
++            comparison["traced_diagnostic"] = {"execution": diagnostic,
++                "scope": "Fresh-slot traced graph may change fusion and is not the primary production-path comparison."}
++            if diagnostic.get("complete"):
++                traced_path = output / "smoke.traced-first-logits.npy"
++                traced = np.load(traced_path).astype(np.float64)
++                coverage = trace_coverage(output / "trace-after", len(PROMPT), len(native))
++                comparison["traced_diagnostic"].update(vs_primary=metrics(traced, native),
++                                                       vs_reference=metrics(traced, reference),
++                                                       logits_sha256=sha(traced_path), trace_coverage=coverage)
++                if coverage["complete"]:
++                    terminal = np.fromfile(output / "trace-after/p000000_v41.40.logits.f32", dtype="<f4")
++                    same = np.array_equal(terminal.view(np.uint32), traced.astype(np.float32).view(np.uint32))
++                    comparison["traced_diagnostic"]["terminal_trace_matches_returned_logits"] = bool(same)
++                    if not same:
++                        comparison["error"] = "Terminal trace differs from returned diagnostic logits; primary metrics remain retained"
++                else:
++                    comparison["error"] = "Requested trace has incomplete stage coverage; primary metrics remain retained"
++            else:
++                comparison["error"] = "Requested fresh-slot trace did not complete; primary metrics remain retained"
++        if completed.returncode:
++            comparison["error"] = f"Smoke process exited {completed.returncode}; primary metrics remain retained"
+         old_path = work / "smoke-first-logits.f32"
+         if old_path.exists():
+             old = np.fromfile(old_path, dtype="<f4").astype(np.float64)

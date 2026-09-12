@@ -1,0 +1,10 @@
+dotnet-trace profiles:
+	dotnet-common                        - Lightweight .NET runtime diagnostics designed to stay low overhead.
+	                                       Includes GC, AssemblyLoader, Loader, JIT, Exceptions, Threading, JittedMethodILToNativeMap, and Compilation events
+	                                       Equivalent to --providers "Microsoft-Windows-DotNETRuntime:0x100003801D:4".
+	dotnet-sampled-thread-time (collect) - Samples .NET thread stacks (~100 Hz) to estimate how much wall clock time code is using.
+	gc-verbose                           - Tracks GC collections and samples object allocations.
+	gc-collect                           - Tracks GC collections only at very low overhead.
+	database                             - Captures ADO.NET and Entity Framework database commands
+	cpu-sampling (collect-linux)         - Kernel CPU sampling events for measuring CPU usage.
+	thread-time (collect-linux)          - Kernel thread context switch events for measuring CPU usage and wall clock time

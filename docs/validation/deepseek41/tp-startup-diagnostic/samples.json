@@ -1,0 +1,53 @@
+{
+  "scope": "Small read-only /proc stat/io/status/task-stat/wchan samples and fd2-log tails during unqualified startup; no ptrace, checkpoint reads, profile, edit, restart or inference request.",
+  "pid": 141037,
+  "native_sha256": "6b3b5ab3c333c59423bc10efe9f18b5f0483fd0a478823647471c5de7e736014",
+  "log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+  "samples": [
+    {
+      "unix_time": 1789126714.8750048,
+      "minor_faults": 9139038,
+      "major_faults": 645976,
+      "user_ticks": 13739,
+      "system_ticks": 42665,
+      "rss_pages": 8984375,
+      "rchar": 3262433664,
+      "phase": "Completed routed weight upload; Engram page warming active",
+      "utc": "2026-09-11T11:38:34.875005+00:00"
+    },
+    {
+      "unix_time": 1789126753.1436312,
+      "minor_faults": 9575245,
+      "major_faults": 742157,
+      "user_ticks": 13833,
+      "system_ticks": 46878,
+      "rss_pages": 12820535,
+      "rchar": 3262433664,
+      "phase": "Engram page warming active; log records weight upload completed in559.5seconds",
+      "utc": "2026-09-11T11:39:13.143631+00:00"
+    },
+    {
+      "unix_time": 1789128690.861308,
+      "rss_kib": 64662184,
+      "rchar": 4234003545,
+      "phase": "Server listening; retained log shows /health200",
+      "utc": "2026-09-11T12:11:30.861308+00:00"
+    }
+  ],
+  "first_pair_delta": {
+    "unix_time": 38.26862645149231,
+    "minor_faults": 436207,
+    "major_faults": 96181,
+    "user_ticks": 94,
+    "system_ticks": 4213,
+    "rss_pages": 3836160,
+    "rchar": 0
+  },
+  "observed_worker_state": "Seven established TP rank worker threads were sleeping on futexes; newer active I/O workers waited in FUSE/page-fault paths.",
+  "native_log_excerpt": [
+    "[dsv4] loaded186.3GiB across8GPU(s) in559.5s (0.33GiB/s,16load threads; host weights mmapped)",
+    "[dsv41] warming60.08GiB of Engram pages with16I/O threads..."
+  ],
+  "inference": "Increasing RSS and fault counters with completed TP upload and active Engram warming demonstrate progress, not a frozen TP rank pool. mmap page faults need not increase process rchar.",
+  "limitations": "Startup cache/warming conditions differ from prior runs; this does not establish a startup regression. The separately reported prepare-helper missing --report argument was diagnosed by root, not by these samples."
+}

@@ -1,0 +1,78 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "commands": [
+    {
+      "command": [
+        "clang++",
+        "-std=c++17",
+        "-O2",
+        "-pthread",
+        "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp",
+        "-o",
+        "/tmp/deepseek41-reference/engram-decode-fanout/test"
+      ],
+      "exit_code": 0,
+      "log": "00.log"
+    },
+    {
+      "command": [
+        "/tmp/deepseek41-reference/engram-decode-fanout/test"
+      ],
+      "exit_code": 0,
+      "log": "01.log"
+    },
+    {
+      "command": [
+        "clang++",
+        "-std=c++17",
+        "-O3",
+        "-pthread",
+        "TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp",
+        "-o",
+        "/tmp/deepseek41-reference/engram-decode-fanout/bench"
+      ],
+      "exit_code": 0,
+      "log": "02.log"
+    },
+    {
+      "command": [
+        "/tmp/deepseek41-reference/engram-decode-fanout/bench",
+        "--warm-memory"
+      ],
+      "exit_code": 0,
+      "log": "03.log"
+    },
+    {
+      "command": [
+        "clang++",
+        "-std=c++17",
+        "-O1",
+        "-g",
+        "-pthread",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp",
+        "-o",
+        "/tmp/deepseek41-reference/engram-decode-fanout/test-sanitized"
+      ],
+      "exit_code": 0,
+      "log": "04.log"
+    },
+    {
+      "command": [
+        "/tmp/deepseek41-reference/engram-decode-fanout/test-sanitized"
+      ],
+      "exit_code": 0,
+      "log": "05.log"
+    }
+  ],
+  "source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "24246c67729630b9e6c95c8f660068d06f0b53f8b523e7c935c1e5c0e5d6609d",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp": "0cb71f52f0304dd172175e0b3c08262c008b300c447a91c4fe1b1ef50bf10ef9",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp": "135f6d264e31fa8ae9c4e05b8135c5bb4da3c8bc533192ab0757300efc7cca7c",
+    "TensorSharp.GGML.Native/dsv41_engram_io.h": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec",
+    "TensorSharp.GGML.Native/dsv41_engram.h": "538aa876645dc17330b85e3637baf9ea5b7633d91dad467f2a62fcb28f7ae01a"
+  },
+  "timing_qualified_for_vm": false,
+  "scope": "Local cached-memory fanout control; synthetic int16 row dequantization, same rows and arithmetic; no full-model performance claim."
+}

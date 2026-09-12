@@ -1,0 +1,70 @@
+{
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags",
+  "phase": "thread-control",
+  "runner_sha256": "763663d9fbdcd05fcad711bbee3c6f7f41f29aa746bbf5b07ca64326cebcab89",
+  "execution_plan": {
+    "labels": [
+      "thread-control"
+    ],
+    "expected_runs": 1
+  },
+  "run_complete": true,
+  "all_passed": true,
+  "runs": [
+    {
+      "label": "thread-control",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "decode",
+        "--concurrency",
+        "1",
+        "--repeats",
+        "3",
+        "--output",
+        "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-thread-control.json"
+      ],
+      "started_epoch": 1789121802.7825596,
+      "wall_seconds": 161.8132016658783,
+      "exit_code": 0,
+      "output": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-thread-control.json",
+      "log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-thread-control.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/tp8-context65536-ubatch1024-cpumoe0-cputhreads1-sparse1-compact1-chunk1024-b26c-tags-server.log",
+        "byte_start": 248355,
+        "byte_end": 336148,
+        "range_sha256": "a47236242be6b36011a33b991844a11b9229ddd35323ddcc159879dbe96c24a7",
+        "prefill_calls": 4,
+        "prefill_tokens": 155,
+        "prefill_forward_seconds": 5.527,
+        "decode_calls": 1538,
+        "decode_forward_seconds": 154.837,
+        "preemption_lines": []
+      },
+      "child_validation": {
+        "run_complete": true,
+        "expected_cases": 3,
+        "actual_cases": 3,
+        "failed_cases": 0,
+        "all_passed": true,
+        "qualification_status": "complete_passed",
+        "issues": [],
+        "report_sha256": "609f74fe03c911bbd0b94ac23462e7a6410d244a5aeef236689327985555753c"
+      }
+    }
+  ],
+  "children_exit_zero": true
+}

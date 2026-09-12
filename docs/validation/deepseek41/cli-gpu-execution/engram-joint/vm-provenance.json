@@ -1,0 +1,38 @@
+{
+  "scope": "Synthetic matched scheduling control, not full-model inference; filesystem-server caches not controlled. VM execution was performed by parent agent; commands/compiler/binary hashes below are its retained tool-output provenance.",
+  "host": "194.68.245.4:22022",
+  "cwd": "/root/TensorSharp",
+  "compiler": "g++ (Ubuntu13.3.0-6ubuntu2~24.04) 13.3.0",
+  "output_directory": "/workspace/deepseek41-work/cli-gpu-report",
+  "commands": [
+    "g++ -std=c++17 -O3 -pthread TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp -o /workspace/deepseek41-work/cli-gpu-report/engram-joint-bench",
+    "g++ -std=c++17 -O2 -pthread TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp -o /workspace/deepseek41-work/cli-gpu-report/engram-joint-test",
+    "/workspace/deepseek41-work/cli-gpu-report/engram-joint-test > /workspace/deepseek41-work/cli-gpu-report/engram-joint-test.log 2>&1",
+    "/workspace/deepseek41-work/cli-gpu-report/engram-joint-bench --warm-joint > /workspace/deepseek41-work/cli-gpu-report/engram-joint-warm.jsonl",
+    "/workspace/deepseek41-work/cli-gpu-report/engram-joint-bench --joint /workspace/deepseek41-work/cli-gpu-report > /workspace/deepseek41-work/cli-gpu-report/engram-joint-filesystem.jsonl"
+  ],
+  "combined_command_exit_code": 0,
+  "compiler_stdout": "Empty success output; no separate compiler log retained.",
+  "binary_sha256": {
+    "engram-joint-bench": "0f2d76732c0a24957686b912e386ff12be701426ebd2b9d8e45a428a7af514bc",
+    "engram-joint-test": "9eeee1c70b695651bbe0f55b2358ed5af3db80cd37944254dd2f81d1a7747c21"
+  },
+  "source_sha256": {
+    "TensorSharp.GGML.Native/dsv41_engram.h": "8cfa5923268c8912c4f84a4b1208d5e6ace474f87c27f8048d3e040d916b6bf3",
+    "TensorSharp.GGML.Native/dsv41_engram_io.h": "17b9defca861149cb5d2536c932aa5a22c7f55a2d20326b965029da8dc9514ec",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_bench.cpp": "76630ac84e88d5e10e1d9930204323740ffb9a522d070234665405c1b03bb409",
+    "TensorSharp.GGML.Native/tests/dsv41_engram_io_test.cpp": "68fb12af664ffa8d21abecee8c15a6a790c524b0abecfee821498107ecbf7d6a"
+  },
+  "file_sha256": {
+    "report.json": "cd9bb2c690cadaf7f873c57c6fede7623d47956bfe31b38ce18535d109f20221",
+    "engram-joint-test.log": "ccd96bde7cb7aa23b28452bb070bdcae51180b5d584957eb0c2454e055e24f1b",
+    "normal.log": "de59149d45c6730d6697db9c43d6a6462c07226982ef4e98107a3397b8eeed54",
+    "warm-joint.jsonl": "6e3032d3672ede9dce9ed55132fef051e605a57a3d82cadf6582ecc760912191",
+    "native-syntax.log": "09c236d028a7b158aae2378b8e0eddafb45a3b8df6f2a57ddfd600923a3d8b5a",
+    "engram-joint-warm.jsonl": "1b2cf644e26bff5dccbbf6e9d66102b8d7c70b9c46cdbadbb8b6f94604e16f3d",
+    "engram-joint-filesystem.jsonl": "941f07f610de4964923fbb19ea1675f2b1e4edc816c01c1b47905d863914eadf",
+    "warm-memory.jsonl": "54c4787b923337b3896ecfb26a44a2d250ffae75963b07f6d25691817f0fa9f3",
+    "asan.log": "4cce32eb0529adbd3353002c9853f356b6aa0f29d786848f9ce2c75cbd69fbac"
+  },
+  "qualification": "No competing GPU processes observed before the benchmark; this is a CPU/filesystem microbenchmark, not end-to-end throughput or reference-engine parity."
+}

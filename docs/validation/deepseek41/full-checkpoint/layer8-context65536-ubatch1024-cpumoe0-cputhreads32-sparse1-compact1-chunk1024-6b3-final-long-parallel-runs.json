@@ -1,0 +1,70 @@
+{
+  "profile": "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+  "phase": "long-parallel",
+  "runner_sha256": "9139670b49d5bbe0c5eb8e818fe50fecbb55ed8a33a38300e410f8470da83375",
+  "execution_plan": {
+    "labels": [
+      "long-parallel"
+    ],
+    "expected_runs": 1
+  },
+  "run_complete": true,
+  "all_passed": true,
+  "runs": [
+    {
+      "label": "long-parallel",
+      "command": [
+        "/workspace/deepseek41-work/venv/bin/python",
+        "/workspace/TensorSharp/benchmarks/engine_comparison/validate_inference.py",
+        "--url",
+        "http://127.0.0.1:5000",
+        "--engine",
+        "tensorsharp",
+        "--model",
+        "DeepSeek-V4.1-Flash-Q2_K-00001-of-00007",
+        "--weights-id",
+        "8e0c4de3cb6519bfc11ed69dc87184b457a57bb5-Q2_K",
+        "--profile",
+        "layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final",
+        "--timeout",
+        "2400",
+        "--scenarios",
+        "long_8k,long_32k",
+        "--concurrency",
+        "4",
+        "--repeats",
+        "1",
+        "--output",
+        "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long-parallel.json"
+      ],
+      "started_epoch": 1789132299.5963173,
+      "wall_seconds": 413.6299247741699,
+      "exit_code": 0,
+      "output": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long-parallel.json",
+      "log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-long-parallel.log",
+      "native_accounting": {
+        "server_log": "/workspace/deepseek41-work/layer8-context65536-ubatch1024-cpumoe0-cputhreads32-sparse1-compact1-chunk1024-6b3-final-server.log",
+        "byte_start": 1359263,
+        "byte_end": 1409913,
+        "range_sha256": "0b358c7ecd05cfc7943f42e181ec93c8388fd1dac082ab05d65d972b4b9756f1",
+        "prefill_calls": 153,
+        "prefill_tokens": 153187,
+        "prefill_forward_seconds": 402.237,
+        "decode_calls": 282,
+        "decode_forward_seconds": 9.965,
+        "preemption_lines": []
+      },
+      "child_validation": {
+        "run_complete": true,
+        "expected_cases": 8,
+        "actual_cases": 8,
+        "failed_cases": 0,
+        "all_passed": true,
+        "qualification_status": "complete_passed",
+        "issues": [],
+        "report_sha256": "53d06c61203a2012d216f9a62b5c44fd267935b07c026de39ee4684462645f01"
+      }
+    }
+  ],
+  "children_exit_zero": true
+}

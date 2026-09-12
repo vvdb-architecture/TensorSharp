@@ -1,0 +1,60 @@
+{
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "backend": "CPU",
+  "native_library": "/tmp/tensorsharp-scheduler-capacity-build/libGgmlOps.dylib",
+  "native_library_sha256": "b47db3d8944554313a17887734108ad7ba25f60693da6fa027d5318248cf72b7",
+  "source_sha256": {
+    "TensorSharp.GGML.Native/ggml_ops_deepseek4.cpp": "4dc41cd68e2dd18668f395af25a3b6a9cc82d8a17386f92e8ea2b968e6a56a8e",
+    "TensorSharp.GGML.Native/ggml_ops_deepseek41.inc": "b092154233fc2ca56d8f7668e9a8e1d536f6ed4eef5f3ed97f41a3c0d43a7e67",
+    "TensorSharp.GGML.Native/dsv41_raw_gather.h": "0ec4ea06e2cd10725ccb930bab3d7d5040e73b77ef354f854fb6614644b4a369",
+    "TensorSharp.GGML.Native/tests/dsv41_raw_gather_test.cpp": "d5f8545abc59892b96655b14655c93d17bda5b82b8256097e4fa03d3e316f0a8",
+    "TensorSharp.GGML.Native/ggml_ops_dsv4_fused_cpu.cpp": "7374a0842f054cdae7ee7df7a33f77d09cf8dfa25648d7df622d2f3db710d78e",
+    "eng/tests/dsv41-gather.py": "3721d4327523fa4d4236d060ad5b33d9e5a0f5c82db6e53613261b882a522b47",
+    "eng/dsv41-fixture.py": "9765e0f100004c648f974a68c0470d06cf1c148971067df677959b080d9a5c8c"
+  },
+  "fixtures": [
+    {
+      "directory": "/tmp/deepseek41-reference/fixture-compact-raw-small",
+      "generator_arguments": [
+        "--f32",
+        "--cuda-index",
+        "--index-topk",
+        "2",
+        "--token-count",
+        "16"
+      ],
+      "sha256": {
+        "deepseek41.config.json": "905807f999410ec22a679172d60a82686ffdde63aa6df5ee3bcc7b7bb293513a",
+        "deepseek41.engram.bin": "d9f9c28124c59c1df587ccd9eef24297c5eefa0aad1bcccc1939b8ded2f5f126",
+        "deepseek41-fixture.gguf": "5f490a368e589be44cc4a1236e3c266d629a86cc63557fd044af9e36fbd2b010",
+        "tokens.json": "5a4eaf21b55013a77789388c7c1dc4d8581378a91bab7385b762e3234ab6da1f"
+      }
+    },
+    {
+      "directory": "/tmp/deepseek41-reference/fixture-compact-raw",
+      "generator_arguments": [
+        "--f32",
+        "--cuda-index",
+        "--index-topk",
+        "512",
+        "--token-count",
+        "1544"
+      ],
+      "sha256": {
+        "deepseek41.config.json": "72f4f06be1228adc5cad7281d06b948bf4284766e843044ce046ca44160ed903",
+        "deepseek41.engram.bin": "beeab9bae3e1949f95ebe31bb178d00fdd94ee291646eb37da15a7f9f0fc7c28",
+        "deepseek41-fixture.gguf": "3d64cc2309968f682d840ad26b4339ce81c804e2049259761739602aec7a4661",
+        "tokens.json": "3ead999086ebd44a407ec457e10fc918a6e2f66ea73d1005828278c00e559466"
+      }
+    }
+  ],
+  "unit_checks": {
+    "independent_window_mask_positions": 16384,
+    "invalid_window_guards": 5,
+    "bit_exact_paired_gathers": 34
+  },
+  "native_logit_comparisons": 1200,
+  "maximum_absolute_logit_difference": 2.6226043701171875e-06,
+  "argmax_mismatches": 0,
+  "remote_or_gpu_runs": false
+}

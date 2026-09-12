@@ -1,0 +1,131 @@
+{
+  "profile": "tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools",
+  "scope": "Independent local verification of completed FIRST TP baseline. No isolated TP-vs-layer causal performance claim.",
+  "audit_source": {
+    "path": "/tmp/deepseek41-reference/audit-first-tp.py",
+    "sha256": "798216625450667f81bf4c1580cd9115302b6f1e75db38157c40ff9ca27408ac"
+  },
+  "placement_runs_source": {
+    "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-placement-runs.json",
+    "sha256": "8e78a03c74b34663da1176e2e23a02d6b75763acec53083dcb8cf3b40b9a0ca6"
+  },
+  "server_log_source": {
+    "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-server.log",
+    "sha256": "e176850fb74b71706d36e25344950c3a44d230f6bc235a560fac33f2f960ae4a"
+  },
+  "runner_updated_source": {
+    "path": "/tmp/deepseek41-reference/run-final-suite.py",
+    "sha256": "7d83d1008d690a175a6076499be24d5115c68918bc2fb20cb2e44ed40a514f8f"
+  },
+  "runner_previous_behavior": "Previous wrapper recorded child codes but did not propagate failure or mark phase completeness. Childreports/nativebyte-ranges audited directly here. New wrapper fixes future phase reporting.",
+  "runs": [
+    {
+      "label": "quality",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-quality.json",
+        "sha256": "f5e7f235651f93d01aac3950ccc556b2715b80a831524a98d348389b6dd2da24"
+      },
+      "checks": {
+        "source_report_hash_matches_curated": true,
+        "range_sha256_matches": true,
+        "native_counters_match": true,
+        "child_exit_zero": true,
+        "run_complete": true,
+        "planned_count_matches": true,
+        "all_cases_passed": true,
+        "warmup_passed": true,
+        "no_error_or_preemption_lines": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true
+      },
+      "all_audit_checks_passed": true,
+      "case_count": 30,
+      "computed_native": {
+        "prefill_calls": 51,
+        "prefill_tokens": 10330,
+        "prefill_forward_seconds": 49.013000000000005,
+        "decode_calls": 1318,
+        "decode_forward_seconds": 100.03399999999945
+      },
+      "chat_complete_count": 51,
+      "chat_prompt_tokens_including_warmup": 10366,
+      "reused_prompt_tokens": 36,
+      "chat_generated_tokens_including_warmup": 1267,
+      "eos_forward_count": 51,
+      "range_sha256": "66bfd164b0f343ad8c2c132190de196ee91cf08a94d31659addcbc7f5a200f38",
+      "error_lines": []
+    },
+    {
+      "label": "steady",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-steady.json",
+        "sha256": "ef1a8a6da1da513d4320601edeb57867c82981005ef2adf484315b28a075ca05"
+      },
+      "checks": {
+        "source_report_hash_matches_curated": true,
+        "range_sha256_matches": true,
+        "native_counters_match": true,
+        "child_exit_zero": true,
+        "run_complete": true,
+        "planned_count_matches": true,
+        "all_cases_passed": true,
+        "warmup_passed": true,
+        "no_error_or_preemption_lines": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true
+      },
+      "all_audit_checks_passed": true,
+      "case_count": 15,
+      "computed_native": {
+        "prefill_calls": 16,
+        "prefill_tokens": 683,
+        "prefill_forward_seconds": 4.557,
+        "decode_calls": 7682,
+        "decode_forward_seconds": 506.9799999999802
+      },
+      "chat_complete_count": 16,
+      "chat_prompt_tokens_including_warmup": 683,
+      "reused_prompt_tokens": 0,
+      "chat_generated_tokens_including_warmup": 7681,
+      "eos_forward_count": 1,
+      "range_sha256": "92be8c2737eea9197c8dd905821817a5c9888a578d5580592888e5c6fe2820f0",
+      "error_lines": []
+    },
+    {
+      "label": "long",
+      "source": {
+        "path": "/tmp/deepseek41-reference/final-raw/tp8-context65536-ubatch1024-cpumoe0-sparse1-compact1-slots4-chunk1024-b26c-tools-long.json",
+        "sha256": "97830e802134f14cba02f03bb20126724787186cf4ffa972fb814f05c54de742"
+      },
+      "checks": {
+        "source_report_hash_matches_curated": true,
+        "range_sha256_matches": true,
+        "native_counters_match": true,
+        "child_exit_zero": true,
+        "run_complete": true,
+        "planned_count_matches": true,
+        "all_cases_passed": true,
+        "warmup_passed": true,
+        "no_error_or_preemption_lines": true,
+        "prefill_reconciles": true,
+        "decode_reconciles": true
+      },
+      "all_audit_checks_passed": true,
+      "case_count": 2,
+      "computed_native": {
+        "prefill_calls": 39,
+        "prefill_tokens": 38314,
+        "prefill_forward_seconds": 171.176,
+        "decode_calls": 72,
+        "decode_forward_seconds": 5.426999999999995
+      },
+      "chat_complete_count": 3,
+      "chat_prompt_tokens_including_warmup": 38314,
+      "reused_prompt_tokens": 0,
+      "chat_generated_tokens_including_warmup": 69,
+      "eos_forward_count": 3,
+      "range_sha256": "701001bba347842c8563ba6fb3dfd196191a1542dcd52472ce4e89493f8d0a75",
+      "error_lines": []
+    }
+  ]
+}
